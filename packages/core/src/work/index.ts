@@ -8,4 +8,6 @@ export { transitionMissionStatus } from "./mission-transition";
 export { transitionTaskStatus } from "./task-transition";
 export { InvalidStateTransitionError } from "./transition-error";
 export { validateMissionTaskPlan } from "./mission-plan";
+export { validateMissionPlanProposal } from "./mission-plan-proposal-validation";
 export { validateTaskGraph } from "./task-graph";
+export { createMissionPlanProposal } from "./mission-plan-proposal";

@@ -66,3 +66,6 @@ export type {
   MessageKind,
   MessageRole,
 } from "./communication/index";
+
+export type { MissionPlanProposal } from "./work/mission-plan-proposal";
+export type { MissionPlanProposalId } from "./work/ids";

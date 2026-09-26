@@ -9,11 +9,13 @@ export {
   canTransitionExecution,
   canTransitionMission,
   canTransitionTask,
+  createMissionPlanProposal,
   getReadyTaskIds,
   InvalidStateTransitionError,
   transitionExecutionStatus,
   transitionMissionStatus,
   transitionTaskStatus,
+  validateMissionPlanProposal,
   validateMissionTaskPlan,
   validateTaskGraph,
 } from "./work/index";
