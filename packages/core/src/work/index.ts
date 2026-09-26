@@ -4,6 +4,7 @@ export {
   ApprovedMissionPlanApplicationError,
 } from "./approved-mission-plan-application";
 export { authorizeMissionPlanApplication } from "./mission-plan-authorization";
+export { createExecutionForTask, ExecutionCreationError } from "./execution-creation";
 export { canTransitionExecution } from "./execution-lifecycle";
 export { canTransitionMission } from "./mission-lifecycle";
 export { canTransitionTask } from "./task-lifecycle";
