@@ -10,4 +10,5 @@ export type ActionKind =
   | "DEPLOY"
   | "EXTERNAL_COMMUNICATION"
   | "PUBLISH"
+  | "PLAN_APPLY"
   | "OTHER";
