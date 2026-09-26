@@ -1,0 +1,29 @@
+import type { ExecutionId, MissionId, TaskId } from "../work/ids";
+import type { ApprovalRequestId, PolicyDecisionId, PolicyId } from "./ids";
+import type { ActionKind, RiskLevel } from "./risk";
+
+export type ApprovalStatus = "PENDING" | "APPROVED" | "REJECTED" | "EXPIRED" | "CANCELLED";
+
+export interface ApprovalRequest {
+  readonly id: ApprovalRequestId;
+
+  readonly policyId: PolicyId;
+  readonly policyDecisionId: PolicyDecisionId;
+
+  readonly missionId?: MissionId;
+  readonly taskId?: TaskId;
+  readonly executionId?: ExecutionId;
+
+  readonly action: ActionKind;
+  readonly riskLevel: RiskLevel;
+
+  readonly requestedBy: string;
+  readonly reason: string;
+
+  readonly status: ApprovalStatus;
+
+  readonly requestedAt: string;
+  readonly resolvedAt?: string;
+  readonly expiresAt?: string;
+  readonly resolvedBy?: string;
+}

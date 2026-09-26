@@ -1,17 +1,4 @@
 export type {
-  Execution,
-  ExecutionId,
-  ExecutionStatus,
-  Mission,
-  MissionId,
-  MissionStatus,
-  Task,
-  TaskId,
-  TaskKind,
-  TaskStatus,
-} from "./work/index";
-
-export type {
   Agent,
   AgentId,
   AgentStatus,
@@ -25,3 +12,31 @@ export type {
   ProviderId,
   ProviderKind,
 } from "./agent/index";
+
+export type {
+  Execution,
+  ExecutionId,
+  ExecutionStatus,
+  Mission,
+  MissionId,
+  MissionStatus,
+  Task,
+  TaskId,
+  TaskKind,
+  TaskStatus,
+} from "./work/index";
+
+export type {
+  ActionKind,
+  ApprovalMode,
+  ApprovalRequest,
+  ApprovalRequestId,
+  ApprovalStatus,
+  Policy,
+  PolicyDecision,
+  PolicyDecisionId,
+  PolicyEffect,
+  PolicyId,
+  PolicyRule,
+  RiskLevel,
+} from "./policy/index";
