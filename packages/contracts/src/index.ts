@@ -1,3 +1,5 @@
+export type { Actor, ActorId, ActorKind, ActorStatus } from "./actor/index";
+
 export type {
   Agent,
   AgentId,

@@ -1,3 +1,4 @@
+import type { ActorId } from "../actor/ids";
 import type { ExecutionId, MissionId, TaskId } from "../work/ids";
 import type { ApprovalRequestId, PolicyDecisionId, PolicyId } from "./ids";
 import type { ActionKind, RiskLevel } from "./risk";
@@ -17,7 +18,7 @@ export interface ApprovalRequest {
   readonly action: ActionKind;
   readonly riskLevel: RiskLevel;
 
-  readonly requestedBy: string;
+  readonly requestedBy: ActorId;
   readonly reason: string;
 
   readonly status: ApprovalStatus;
@@ -25,5 +26,5 @@ export interface ApprovalRequest {
   readonly requestedAt: string;
   readonly resolvedAt?: string;
   readonly expiresAt?: string;
-  readonly resolvedBy?: string;
+  readonly resolvedBy?: ActorId;
 }
