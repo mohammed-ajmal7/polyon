@@ -1,6 +1,12 @@
-/**
- * POLYON shared contracts.
- *
- * This package contains technology-independent types shared
- * across POLYON applications and services.
- */
+export type {
+  Execution,
+  ExecutionId,
+  ExecutionStatus,
+  Mission,
+  MissionId,
+  MissionStatus,
+  Task,
+  TaskId,
+  TaskKind,
+  TaskStatus,
+} from "./work/index";
