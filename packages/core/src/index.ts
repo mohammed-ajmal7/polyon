@@ -5,7 +5,8 @@
  */
 
 export {
-  applyApprovedExecutionRun,\n  applyApprovedMissionPlanProposal,
+  applyApprovedExecutionRun,
+  applyApprovedMissionPlanProposal,
   applyMissionPlanProposal,
   areTaskDependenciesSatisfied,
   authorizeExecutionRun,
@@ -18,7 +19,8 @@ export {
   getReadyTaskIds,
   ApprovedMissionPlanApplicationError,
   ApprovedExecutionRunError,
-  ExecutionRunAuthorizationApplicationError,\n  ExecutionCreationError,
+  ExecutionRunAuthorizationApplicationError,
+  ExecutionCreationError,
   ExecutionRunAuthorizationError,
   InvalidMissionPlanApplicationError,
   InvalidMissionPlanProposalError,
