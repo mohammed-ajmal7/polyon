@@ -1,4 +1,8 @@
-export { applyMissionPlanProposal } from "./mission-plan-application";\nexport {\n  applyApprovedExecutionRun,\n  ApprovedExecutionRunError,\n} from "./approved-execution-run";
+export { applyMissionPlanProposal } from "./mission-plan-application";
+export {
+  applyExecutionRunAuthorization,
+  ExecutionRunAuthorizationApplicationError,
+} from "./execution-run-authorization";\nexport {\n  applyApprovedExecutionRun,\n  ApprovedExecutionRunError,\n} from "./approved-execution-run";
 export {
   applyApprovedMissionPlanProposal,
   ApprovedMissionPlanApplicationError,
