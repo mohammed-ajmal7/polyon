@@ -13,6 +13,7 @@ export {
   transitionExecutionStatus,
   transitionMissionStatus,
   transitionTaskStatus,
+  validateTaskGraph,
 } from "./work/index";
 
 export type { CreateApprovalRequestInput, PolicyEvaluationInput } from "./policy/index";
