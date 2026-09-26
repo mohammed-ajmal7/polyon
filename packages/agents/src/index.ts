@@ -18,3 +18,10 @@ export {
   type ProviderRegistry,
   type ProviderRegistryErrorKind,
 } from "./provider-registry";
+export {
+  AgentModelRoutingError,
+  resolveAgentModel,
+  type AgentModelResolution,
+  type AgentModelRoutingErrorKind,
+  type ResolveAgentModelInput,
+} from "./agent-model-routing";
