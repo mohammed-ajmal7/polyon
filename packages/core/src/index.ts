@@ -9,6 +9,7 @@ export {
   canTransitionExecution,
   canTransitionMission,
   canTransitionTask,
+  getReadyTaskIds,
   InvalidStateTransitionError,
   transitionExecutionStatus,
   transitionMissionStatus,
