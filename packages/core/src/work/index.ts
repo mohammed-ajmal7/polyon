@@ -2,7 +2,11 @@ export { applyMissionPlanProposal } from "./mission-plan-application";
 export {
   applyExecutionRunAuthorization,
   ExecutionRunAuthorizationApplicationError,
-} from "./execution-run-authorization";\nexport {\n  applyApprovedExecutionRun,\n  ApprovedExecutionRunError,\n} from "./approved-execution-run";
+} from "./execution-run-authorization";
+export {
+  applyApprovedExecutionRun,
+  ApprovedExecutionRunError,
+} from "./approved-execution-run";
 export {
   applyApprovedMissionPlanProposal,
   ApprovedMissionPlanApplicationError,
