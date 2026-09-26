@@ -35,7 +35,7 @@ export function completeExecution(
   execution: Execution,
   input: CompleteExecutionInput,
 ): Execution {
-  if (input.status === "FAILED" && input.error?.trim() === "") {
+  if (input.status === "FAILED" && (input.error === undefined || input.error.trim() === "")) {
     throw new ExecutionControlError(
       "FAILED_EXECUTION_REQUIRES_ERROR",
       "Failed executions require a non-empty error message.",
