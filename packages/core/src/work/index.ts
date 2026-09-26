@@ -1,4 +1,8 @@
 export { applyMissionPlanProposal } from "./mission-plan-application";
+export {
+  applyApprovedMissionPlanProposal,
+  ApprovedMissionPlanApplicationError,
+} from "./approved-mission-plan-application";
 export { authorizeMissionPlanApplication } from "./mission-plan-authorization";
 export { canTransitionExecution } from "./execution-lifecycle";
 export { canTransitionMission } from "./mission-lifecycle";

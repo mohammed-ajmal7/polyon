@@ -5,6 +5,7 @@
  */
 
 export {
+  applyApprovedMissionPlanProposal,
   applyMissionPlanProposal,
   areTaskDependenciesSatisfied,
   authorizeMissionPlanApplication,
@@ -13,6 +14,7 @@ export {
   canTransitionTask,
   createMissionPlanProposal,
   getReadyTaskIds,
+  ApprovedMissionPlanApplicationError,
   InvalidMissionPlanApplicationError,
   InvalidMissionPlanProposalError,
   InvalidStateTransitionError,
