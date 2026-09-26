@@ -5,6 +5,7 @@
  */
 
 export {
+  areTaskDependenciesSatisfied,
   canTransitionExecution,
   canTransitionMission,
   canTransitionTask,
