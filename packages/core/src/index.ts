@@ -4,4 +4,12 @@
  * This package contains technology-independent domain logic.
  */
 
-export { canTransitionExecution, canTransitionMission, canTransitionTask } from "./work/index";
+export {
+  canTransitionExecution,
+  canTransitionMission,
+  canTransitionTask,
+  InvalidStateTransitionError,
+  transitionExecutionStatus,
+  transitionMissionStatus,
+  transitionTaskStatus,
+} from "./work/index";

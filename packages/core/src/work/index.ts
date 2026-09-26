@@ -1,3 +1,7 @@
 export { canTransitionExecution } from "./execution-lifecycle";
 export { canTransitionMission } from "./mission-lifecycle";
 export { canTransitionTask } from "./task-lifecycle";
+export { transitionExecutionStatus } from "./execution-transition";
+export { transitionMissionStatus } from "./mission-transition";
+export { transitionTaskStatus } from "./task-transition";
+export { InvalidStateTransitionError } from "./transition-error";
