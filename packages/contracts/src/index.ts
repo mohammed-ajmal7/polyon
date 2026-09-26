@@ -10,3 +10,18 @@ export type {
   TaskKind,
   TaskStatus,
 } from "./work/index";
+
+export type {
+  Agent,
+  AgentId,
+  AgentStatus,
+  Capability,
+  CapabilityId,
+  CapabilityKind,
+  Model,
+  ModelId,
+  ModelKind,
+  Provider,
+  ProviderId,
+  ProviderKind,
+} from "./agent/index";
