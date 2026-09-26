@@ -1,5 +1,5 @@
 import type { ActorId } from "../actor/ids";
-import type { ExecutionId, MissionId, TaskId } from "../work/ids";
+import type { ExecutionId, MissionId, MissionPlanProposalId, TaskId } from "../work/ids";
 import type { ApprovalRequestId, PolicyDecisionId, PolicyId } from "./ids";
 import type { ActionKind, RiskLevel } from "./risk";
 
@@ -12,6 +12,7 @@ export interface ApprovalRequest {
   readonly policyDecisionId: PolicyDecisionId;
 
   readonly missionId?: MissionId;
+  readonly proposalId?: MissionPlanProposalId;
   readonly taskId?: TaskId;
   readonly executionId?: ExecutionId;
 

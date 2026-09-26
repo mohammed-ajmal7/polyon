@@ -114,7 +114,7 @@ describe("authorizeMissionPlanApplication", () => {
     }
   });
 
-  it("creates a pending approval request when policy requires approval", () => {
+  it("creates a pending approval request bound to the exact proposal", () => {
     const result = authorizeMissionPlanApplication(createInput(createPolicy("REQUIRE_APPROVAL")));
 
     expect(result.status).toBe("APPROVAL_REQUIRED");
@@ -122,6 +122,7 @@ describe("authorizeMissionPlanApplication", () => {
       id: "approval-1",
       policyId: "policy-1",
       missionId: "mission-1",
+      proposalId: "proposal-1",
       requestedBy: "agent-1",
       action: "PLAN_APPLY",
       riskLevel: "HIGH",

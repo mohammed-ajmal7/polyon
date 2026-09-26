@@ -4,6 +4,7 @@ import type {
   ApprovalRequestId,
   ExecutionId,
   MissionId,
+  MissionPlanProposalId,
   PolicyDecision,
   TaskId,
 } from "@polyon/contracts";
@@ -13,6 +14,7 @@ export interface CreateApprovalRequestInput {
   readonly requestedBy: ActorId;
   readonly requestedAt: string;
   readonly missionId?: MissionId;
+  readonly proposalId?: MissionPlanProposalId;
   readonly taskId?: TaskId;
   readonly executionId?: ExecutionId;
   readonly expiresAt?: string;
@@ -38,6 +40,7 @@ export function createApprovalRequest(
     policyId: decision.policyId,
     policyDecisionId: decision.id,
     missionId: input.missionId,
+    proposalId: input.proposalId,
     taskId: input.taskId,
     executionId: input.executionId,
     action: decision.action,

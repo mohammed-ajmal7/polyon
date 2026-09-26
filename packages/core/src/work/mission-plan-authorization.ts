@@ -87,6 +87,7 @@ export function authorizeMissionPlanApplication(
     requestedBy: input.requestedBy,
     requestedAt: input.requestedAt,
     missionId: input.mission.id,
+    proposalId: input.proposal.id,
     expiresAt: input.expiresAt,
   });
 
