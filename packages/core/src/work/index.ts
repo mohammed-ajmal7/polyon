@@ -1,4 +1,4 @@
-export { applyMissionPlanProposal } from "./mission-plan-application";
+export { applyMissionPlanProposal } from "./mission-plan-application";\nexport {\n  applyApprovedExecutionRun,\n  ApprovedExecutionRunError,\n} from "./approved-execution-run";
 export {
   applyApprovedMissionPlanProposal,
   ApprovedMissionPlanApplicationError,
