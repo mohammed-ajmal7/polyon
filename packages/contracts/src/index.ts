@@ -40,3 +40,16 @@ export type {
   PolicyRule,
   RiskLevel,
 } from "./policy/index";
+
+export type {
+  Artifact,
+  ArtifactId,
+  ArtifactKind,
+  ArtifactStatus,
+  Evidence,
+  EvidenceId,
+  EvidenceKind,
+  Source,
+  SourceId,
+  SourceKind,
+} from "./evidence/index";
