@@ -26,10 +26,6 @@ export type AgentModelRoutingErrorKind =
   | "AGENT_NOT_FOUND"
   | "AGENT_NOT_ACTIVE"
   | "AGENT_MISSING_CAPABILITY"
-  | "MODEL_NOT_FOUND"
-  | "MODEL_DISABLED"
-  | "PROVIDER_NOT_FOUND"
-  | "PROVIDER_DISABLED"
   | "NO_COMPATIBLE_MODEL";
 
 export class AgentModelRoutingError extends Error {
