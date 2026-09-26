@@ -1,4 +1,4 @@
-import type { ApprovalRequest, Execution, PolicyDecision } from "@polyon/contracts";
+import type { Execution } from "@polyon/contracts";
 import { describe, expect, it } from "vitest";
 
 import { authorizeExecutionRun } from "./execution-authorization";
@@ -262,6 +262,3 @@ describe("applyExecutionRunAuthorization", () => {
       ),
     ).toThrowError(ExecutionRunAuthorizationApplicationError);
   });
-
-  const _approvalTypeCheck = (_approval: ApprovalRequest, _decision: PolicyDecision) => undefined;
-  void _approvalTypeCheck;
