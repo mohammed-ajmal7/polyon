@@ -1,4 +1,5 @@
 export { applyMissionPlanProposal } from "./mission-plan-application";
+export { completeExecution, ExecutionControlError, startExecution } from "./execution-control";
 export {
   applyExecutionRunAuthorization,
   ExecutionRunAuthorizationApplicationError,
