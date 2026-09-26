@@ -1,0 +1,20 @@
+# Dependencies
+/node_modules/
+
+# Build output
+/.next/
+/out/
+/build/
+/coverage/
+
+# Environment variables and secrets
+.env*
+!.env.example
+*.pem
+
+# Vercel
+.vercel/
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
