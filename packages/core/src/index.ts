@@ -14,5 +14,13 @@ export {
   transitionTaskStatus,
 } from "./work/index";
 
-export type { PolicyEvaluationInput } from "./policy/index";
-export { evaluatePolicy } from "./policy/index";
+export type { CreateApprovalRequestInput, PolicyEvaluationInput } from "./policy/index";
+
+export {
+  ApprovalNotRequiredError,
+  canTransitionApproval,
+  createApprovalRequest,
+  evaluatePolicy,
+  InvalidApprovalTransitionError,
+  transitionApprovalStatus,
+} from "./policy/index";
