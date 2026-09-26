@@ -16,19 +16,6 @@ export type {
 } from "./agent/index";
 
 export type {
-  Execution,
-  ExecutionId,
-  ExecutionStatus,
-  Mission,
-  MissionId,
-  MissionStatus,
-  Task,
-  TaskId,
-  TaskKind,
-  TaskStatus,
-} from "./work/index";
-
-export type {
   ActionKind,
   ApprovalMode,
   ApprovalRequest,
@@ -55,3 +42,27 @@ export type {
   SourceId,
   SourceKind,
 } from "./evidence/index";
+
+export type {
+  Execution,
+  ExecutionId,
+  ExecutionStatus,
+  Mission,
+  MissionId,
+  MissionStatus,
+  Task,
+  TaskId,
+  TaskKind,
+  TaskStatus,
+} from "./work/index";
+
+export type {
+  Conversation,
+  ConversationId,
+  ConversationKind,
+  ConversationStatus,
+  Message,
+  MessageId,
+  MessageKind,
+  MessageRole,
+} from "./communication/index";
