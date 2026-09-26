@@ -13,6 +13,7 @@ export {
   transitionExecutionStatus,
   transitionMissionStatus,
   transitionTaskStatus,
+  validateMissionTaskPlan,
   validateTaskGraph,
 } from "./work/index";
 

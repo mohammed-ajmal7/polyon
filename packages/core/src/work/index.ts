@@ -6,4 +6,5 @@ export { transitionExecutionStatus } from "./execution-transition";
 export { transitionMissionStatus } from "./mission-transition";
 export { transitionTaskStatus } from "./task-transition";
 export { InvalidStateTransitionError } from "./transition-error";
+export { validateMissionTaskPlan } from "./mission-plan";
 export { validateTaskGraph } from "./task-graph";
