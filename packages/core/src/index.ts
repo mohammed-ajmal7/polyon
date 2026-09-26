@@ -13,3 +13,6 @@ export {
   transitionMissionStatus,
   transitionTaskStatus,
 } from "./work/index";
+
+export type { PolicyEvaluationInput } from "./policy/index";
+export { evaluatePolicy } from "./policy/index";
