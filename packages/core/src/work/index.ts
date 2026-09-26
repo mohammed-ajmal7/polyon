@@ -1,3 +1,4 @@
+export { applyMissionPlanProposal } from "./mission-plan-application";
 export { canTransitionExecution } from "./execution-lifecycle";
 export { canTransitionMission } from "./mission-lifecycle";
 export { canTransitionTask } from "./task-lifecycle";
@@ -11,3 +12,4 @@ export { validateMissionTaskPlan } from "./mission-plan";
 export { validateMissionPlanProposal } from "./mission-plan-proposal-validation";
 export { validateTaskGraph } from "./task-graph";
 export { createMissionPlanProposal } from "./mission-plan-proposal";
+export { InvalidMissionPlanProposalError } from "./mission-plan-application";

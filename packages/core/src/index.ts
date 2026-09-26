@@ -5,12 +5,14 @@
  */
 
 export {
+  applyMissionPlanProposal,
   areTaskDependenciesSatisfied,
   canTransitionExecution,
   canTransitionMission,
   canTransitionTask,
   createMissionPlanProposal,
   getReadyTaskIds,
+  InvalidMissionPlanProposalError,
   InvalidStateTransitionError,
   transitionExecutionStatus,
   transitionMissionStatus,
