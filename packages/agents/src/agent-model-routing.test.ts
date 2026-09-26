@@ -214,10 +214,17 @@ describe("resolveAgentModel", () => {
       resolveAgentModel(
         {
           agentId: "agent-1",
-          requiredCapabilityIds: ["research", "coding"],
+          requiredCapabilityIds: ["research"],
         },
-        createRegistries(),
+        {
+          ...registries,
+          models: {
+            get: () => ({ ...preferredModel, capabilityIds: ["analysis"] }),
+            list: () => registries.models.list(),
+            register: (model) => registries.models.register(model),
+          },
+        },
       ),
-    ).toThrowError(expect.objectContaining({ kind: "AGENT_MISSING_CAPABILITY" }));
+    ).toThrowError(expect.objectContaining({ kind: "NO_COMPATIBLE_MODEL" }));
   });
 });
