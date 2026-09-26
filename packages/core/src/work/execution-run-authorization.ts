@@ -6,6 +6,7 @@ import { transitionExecutionStatus } from "./execution-transition";
 export type ExecutionRunAuthorizationApplicationErrorKind =
   | "MISSING_APPROVAL_REQUEST"
   | "AUTHORIZATION_ACTION_MISMATCH"
+  | "APPROVAL_STATUS_MISMATCH"
   | "APPROVAL_ACTION_MISMATCH"
   | "APPROVAL_MISSION_MISMATCH"
   | "APPROVAL_TASK_MISMATCH"
@@ -31,6 +32,13 @@ function validateApprovalBinding(
     throw new ExecutionRunAuthorizationApplicationError(
       "AUTHORIZATION_ACTION_MISMATCH",
       "Execution authorization does not authorize an execution run.",
+    );
+  }
+
+  if (approval.status !== "PENDING") {
+    throw new ExecutionRunAuthorizationApplicationError(
+      "APPROVAL_STATUS_MISMATCH",
+      `Approval must be pending when applying execution authorization: ${approval.status}.`,
     );
   }
 
