@@ -58,7 +58,7 @@ describe("InMemoryAgentRegistry", () => {
     registry.register(agent);
 
     const retrieved = registry.get("agent-1")!;
-    retrieved.capabilityIds.push("coding");
+    (retrieved.capabilityIds as string[]).push("coding");
 
     const listed = registry.list()[0]!;
     expect(listed.capabilityIds).toEqual(["research"]);
