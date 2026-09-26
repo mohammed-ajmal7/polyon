@@ -93,6 +93,34 @@ describe("applyExecutionRunAuthorization", () => {
     );
   });
 
+  it("rejects a non-pending approval", () => {
+    const authorization = authorizeExecutionRun({
+      ...baseInput,
+      policy: {
+        ...basePolicy,
+        defaultEffect: "REQUIRE_APPROVAL" as const,
+      },
+    });
+
+    expect(() =>
+      applyExecutionRunAuthorization(
+        {
+          ...authorization,
+          approvalRequest: {
+            ...authorization.approvalRequest!,
+            status: "APPROVED",
+          },
+        },
+        pendingExecution,
+        "2026-09-27T01:02:00.000Z",
+      ),
+    ).toThrowError(
+      expect.objectContaining({
+        kind: "APPROVAL_STATUS_MISMATCH",
+      }),
+    );
+  });
+
   it("rejects an approval with the wrong action", () => {
     const authorization = authorizeExecutionRun({
       ...baseInput,
