@@ -116,7 +116,9 @@ function createOrchestrator(
 }
 
 describe("AgentToolOrchestrationService", () => {
-  it("recovers an approved continuation without re-running a completed tool after restart", async () => {
+  it(
+    "recovers an approved continuation without re-running a completed tool after restart",
+    async () => {
     const root = mkdtempSync(join(tmpdir(), "polyon-tool-continuation-"));
     let toolCalls = 0;
 
@@ -244,6 +246,7 @@ describe("AgentToolOrchestrationService", () => {
           content: "Recovered final answer.",
         },
       });
+    },
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
