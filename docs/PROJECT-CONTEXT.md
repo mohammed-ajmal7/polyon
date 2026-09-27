@@ -347,7 +347,26 @@ Secrets must never be exposed to the web client or committed to Git.
 
 ### Durable storage
 
-The current storage package provides interfaces plus in-memory implementations. A production persistence implementation still needs to be selected and added behind the storage interfaces.
+A zero-dependency local file-backed persistence implementation now exists behind the existing storage interfaces.
+
+The implementation provides:
+
+- versioned JSON snapshots;
+- atomic temp-file replacement;
+- filesystem synchronization before commit;
+- restart/reopen persistence;
+- persisted event traces;
+- fail-closed handling for malformed or unsupported snapshots;
+- duplicate-identity protection after recovery.
+
+The current durable backend is intentionally a replaceable adapter rather than a commitment to one database technology.
+
+Still required for the full Phase 3 target:
+
+- atomic multi-store transactions for application operations that update several aggregates/events;
+- concurrency/locking semantics for multiple writers;
+- formal migration execution beyond the current snapshot version marker;
+- crash-recovery tests around multi-store operations.
 
 Persistence must support recovery and traceability without coupling the application to one database forever.
 
@@ -682,4 +701,4 @@ The system must remain understandable, testable, replaceable, private by default
 
 ## Current project status note
 
-The repository is actively under development on `feature/core-architecture`. The exact implementation state should always be re-read from the repository before continuing. This document describes the intended direction and the major completed foundations; it is not a substitute for reading the code.
+The repository is actively under development on `feature/core-architecture`. The repository is actively under development on `feature/core-architecture`. Phase 3 has now started with a durable file-backed storage adapter and restart-safe persistence tests. The multi-store transaction boundary remains the next persistence hardening slice. The exact implementation state should always be re-read from the repository before continuing. This document describes the intended direction and the major completed foundations; it is not a substitute for reading the code.
