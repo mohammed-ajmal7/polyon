@@ -20,7 +20,12 @@ export type {
   ExecutionRunResult,
   ExecutionRunner,
 } from "./execution-runner";
-export { recoverQueuedExecutions } from "./execution-recovery";
+export {
+  recoverExecutions,
+  recoverQueuedExecutions,
+  type ExecutionRecovery,
+  type ExecutionRecoveryKind,
+} from "./execution-recovery";
 
 export {
   ModelExecutionRunner,
