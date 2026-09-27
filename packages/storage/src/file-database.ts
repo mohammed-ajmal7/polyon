@@ -142,10 +142,14 @@ function writeAtomically(filePath: string, state: DurableDomainState): void {
 
 function acquireCommitLock(filePath: string): string {
   const lockPath = `${filePath}.lock`;
-  const descriptor = openSync(lockPath, "wx");
 
-  closeSync(descriptor);
-  return lockPath;
+  try {
+    const descriptor = openSync(lockPath, "wx");
+    closeSync(descriptor);
+    return lockPath;
+  } catch {
+    throw new StorageConcurrencyError(lockPath);
+  }
 }
 
 function withCommitLock<T>(filePath: string, work: () => T): T {
@@ -173,13 +177,17 @@ export class FileDomainDatabase {
   }
 
   snapshot(): DurableDomainState {
-    return clone(this.state);
+    return clone(this.snapshotWithRevision().state);
   }
 
   snapshotWithRevision(): DurableDomainSnapshot {
+    const snapshot = this.readSnapshot();
+    this.state = snapshot.state;
+    this.revision = snapshot.revision;
+
     return {
-      state: clone(this.state),
-      revision: this.revision,
+      state: clone(snapshot.state),
+      revision: snapshot.revision,
     };
   }
 
