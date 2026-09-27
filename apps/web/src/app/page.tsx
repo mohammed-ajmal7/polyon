@@ -141,6 +141,7 @@ export default function Home() {
   }));
 
   return (
+    <>
 {authRequired ? (
   <div className="fixed inset-0 z-50 grid place-items-center bg-[#05070a]/95 px-5">
     <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0c1017] p-6 shadow-2xl">
@@ -239,5 +240,6 @@ export default function Home() {
         </section>
       </div>
     </main>
+    </>
   );
 }
