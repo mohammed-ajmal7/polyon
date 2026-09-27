@@ -105,6 +105,82 @@ function createOrchestrator(
 }
 
 describe("AgentToolOrchestrationService", () => {
+  it("bounds large tool output before returning it to the model", async () => {
+    const root = mkdtempSync(join(tmpdir(), "polyon-tool-output-limit-"));
+    let calls = 0;
+    let modelToolContent = "";
+
+    try {
+      const stores = new FileDomainStores(root);
+      const { orchestrator } = createOrchestrator(
+        stores,
+        vi.fn(async ({ request }) => {
+          calls += 1;
+
+          if (calls === 1) {
+            return {
+              agentId,
+              modelId: model.id,
+              providerId: provider.id,
+              source: "PREFERRED" as const,
+              output: {
+                content: "",
+                finishReason: "TOOL_CALL" as const,
+                toolCalls: [
+                  {
+                    id: "call-large",
+                    toolId: tool.id,
+                    input: { value: "large" },
+                  },
+                ],
+              },
+            };
+          }
+
+          const messages = request.messages;
+          const toolMessage = messages.find((message) => message.role === "TOOL");
+          modelToolContent = toolMessage?.content ?? "";
+
+          return {
+            agentId,
+            modelId: model.id,
+            providerId: provider.id,
+            source: "PREFERRED" as const,
+            output: {
+              content: "done",
+              finishReason: "STOP" as const,
+            },
+          };
+        }),
+        vi.fn(async () => ({
+          output: "x".repeat(2048),
+        })),
+      );
+
+      const result = await orchestrator.invoke({
+        agentId,
+        requiredCapabilityIds: ["text.generate"],
+        request: {
+          messages: [{ role: "USER", content: "Use the tool." }],
+        },
+        policy: {
+          ...policy,
+          defaultEffect: "ALLOW",
+        },
+        actorId: "actor.test",
+        maxToolOutputBytes: 128,
+      });
+
+      expect(result.status).toBe("SUCCEEDED");
+      expect(calls).toBe(2);
+      expect(modelToolContent).toContain("[Tool output truncated:");
+      expect(new TextEncoder().encode(modelToolContent).byteLength).toBeLessThanOrEqual(128);
+      expect(modelToolContent).not.toBe("x".repeat(2048));
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("recovers an approved continuation without re-running a completed tool after restart", async () => {
     const root = mkdtempSync(join(tmpdir(), "polyon-tool-continuation-"));
     let toolCalls = 0;
