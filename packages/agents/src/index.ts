@@ -37,4 +37,5 @@ export {
   type AgentGatewayDependencies,
   type AgentGatewayInvocationInput,
   type AgentGatewayInvocationResult,
+  type AgentGatewayTextInvocationInput,
 } from "./agent-gateway";
