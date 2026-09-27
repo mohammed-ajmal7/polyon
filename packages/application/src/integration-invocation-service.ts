@@ -16,6 +16,7 @@ import type {
 } from "@polyon/storage";
 import {
   authorizeIntegrationInvocation,
+  IntegrationAuthorizationError,
   type IntegrationAdapter,
   type IntegrationId,
   type IntegrationInvocationResult,
@@ -124,25 +125,65 @@ export class IntegrationInvocationService {
 
     this.assertNotRecorded(input.invocationId);
 
-    const authorization = authorizeIntegrationInvocation({
-      integration,
-      integrationId: input.integrationId,
-      invocationId: input.invocationId,
-      action: input.action,
-      policy: input.policy,
-      riskLevel: input.riskLevel,
-      decisionId: input.decisionId,
-      approvalRequestId: input.approvalRequestId,
-      requestedBy: input.requestedBy,
-      requestedAt: input.requestedAt,
-      evaluatedAt: input.evaluatedAt,
-      actorId: input.actorId,
-      agentId: input.agentId,
-      missionId: input.missionId,
-      taskId: input.taskId,
-      executionId: input.executionId,
-      expiresAt: input.expiresAt,
-    });
+    let authorization;
+    try {
+      authorization = authorizeIntegrationInvocation({
+        integration,
+        integrationId: input.integrationId,
+        invocationId: input.invocationId,
+        action: input.action,
+        policy: input.policy,
+        riskLevel: input.riskLevel,
+        decisionId: input.decisionId,
+        approvalRequestId: input.approvalRequestId,
+        requestedBy: input.requestedBy,
+        requestedAt: input.requestedAt,
+        evaluatedAt: input.evaluatedAt,
+        actorId: input.actorId,
+        agentId: input.agentId,
+        missionId: input.missionId,
+        taskId: input.taskId,
+        executionId: input.executionId,
+        expiresAt: input.expiresAt,
+      });
+    } catch (error) {
+      if (
+        error instanceof IntegrationAuthorizationError &&
+        error.kind === "INTEGRATION_INVOCATION_DENIED" &&
+        error.decision !== undefined
+      ) {
+        this.persistPolicyDecision(
+          error.decision,
+          input,
+          integration,
+        );
+        this.dependencies.events.append({
+          id: `INTEGRATION_INVOKED:${input.invocationId}:REJECTED`,
+          kind: "INTEGRATION_INVOKED",
+          ...(input.actorId === undefined ? {} : { actorId: input.actorId }),
+          ...(input.missionId === undefined ? {} : { missionId: input.missionId }),
+          ...(input.taskId === undefined ? {} : { taskId: input.taskId }),
+          ...(input.executionId === undefined ? {} : { executionId: input.executionId }),
+          occurredAt: new Date().toISOString(),
+          data: {
+            invocationId: input.invocationId,
+            integrationId: input.integrationId,
+            operation: input.operation,
+            status: "REJECTED",
+            reason: error.decision.reason,
+          },
+        });
+        return {
+          status: "REJECTED",
+          invocationId: input.invocationId,
+          integrationId: input.integrationId,
+          policyDecision: error.decision,
+          error: error.message,
+        };
+      }
+
+      throw error;
+    }
 
     if (authorization.status === "APPROVAL_REQUIRED") {
       const approval = {
