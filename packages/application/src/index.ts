@@ -104,4 +104,5 @@ export {
   type AdvanceMissionTasksInput,
   type AdvanceMissionTasksResult,
   type MissionTaskOrchestrationServiceDependencies,
+  type ReadyTaskHandler,
 } from "./mission-task-orchestration-service";

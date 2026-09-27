@@ -54,6 +54,30 @@ describe("MissionTaskOrchestrationService", () => {
     expect(result.blocked.map((item) => item.id)).toEqual(["task-3"]);
   });
 
+  it("hands newly ready tasks to the configured application dispatcher", () => {
+    const stores = new InMemoryDomainStores();
+    stores.tasks.save(task("task-1", "SUCCEEDED"));
+    stores.tasks.save(task("task-2", "BLOCKED", ["task-1"]));
+
+    let received: readonly Task[] = [];
+    const service = new MissionTaskOrchestrationService({
+      tasks: stores.tasks,
+      events: stores.events,
+      onReadyTasks: (result) => {
+        received = result.changed;
+      },
+    });
+
+    service.advanceReadyTasks({
+      missionId: "mission-1",
+      actorId,
+      now: "2026-09-27T01:00:00.000Z",
+    });
+
+    expect(received.map((item) => item.id)).toEqual(["task-2"]);
+    expect(stores.tasks.get("task-2")?.status).toBe("READY");
+  });
+
   it("is idempotent once tasks are already ready", () => {
     const stores = new InMemoryDomainStores();
     stores.tasks.save(task("task-1", "READY"));
