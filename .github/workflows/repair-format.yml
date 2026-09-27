@@ -11,7 +11,6 @@ permissions:
 
 jobs:
   repair:
-    if: startsWith(github.event.head_commit.message, 'chore: repair repository formatting')
     runs-on: ubuntu-latest
 
     steps:
@@ -33,9 +32,11 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Format
+        if: "!startsWith(github.event.head_commit.message, 'chore: apply repository formatting')"
         run: pnpm format
 
       - name: Commit formatted files
+        if: "!startsWith(github.event.head_commit.message, 'chore: apply repository formatting')"
         run: |
           if git diff --quiet; then
             exit 0
