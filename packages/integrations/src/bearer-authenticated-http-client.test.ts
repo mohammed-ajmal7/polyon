@@ -1,9 +1,7 @@
 import type { SecretReference } from "@polyon/contracts";
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  BearerAuthenticatedHttpClient,
-} from "./bearer-authenticated-http-client";
+import { BearerAuthenticatedHttpClient } from "./bearer-authenticated-http-client";
 import { BoundedHttpClient } from "./bounded-http-client";
 
 const reference: SecretReference = {
@@ -14,24 +12,26 @@ const reference: SecretReference = {
 
 describe("BearerAuthenticatedHttpClient", () => {
   it("resolves the secret and injects a bearer authorization header", async () => {
-    const request = vi.fn(async (
-      _input: {
-        readonly url: string;
-        readonly method?: "GET" | "HEAD";
-        readonly headers?: Readonly<Record<string, string>>;
-        readonly signal?: AbortSignal;
-      },
-      _options?: {
-        readonly timeoutMs?: number;
-        readonly maxResponseBytes?: number;
-      },
-    ) => ({
-      url: "https://www.googleapis.com/drive/v3/files",
-      status: 200,
-      statusText: "OK",
-      headers: {},
-      body: new Uint8Array(),
-    }));
+    const request = vi.fn(
+      async (
+        _input: {
+          readonly url: string;
+          readonly method?: "GET" | "HEAD";
+          readonly headers?: Readonly<Record<string, string>>;
+          readonly signal?: AbortSignal;
+        },
+        _options?: {
+          readonly timeoutMs?: number;
+          readonly maxResponseBytes?: number;
+        },
+      ) => ({
+        url: "https://www.googleapis.com/drive/v3/files",
+        status: 200,
+        statusText: "OK",
+        headers: {},
+        body: new Uint8Array(),
+      }),
+    );
     const client = {
       request,
     } as unknown as BoundedHttpClient;
@@ -87,24 +87,26 @@ describe("BearerAuthenticatedHttpClient", () => {
   });
 
   it("does not expose the resolved secret through the transport contract", async () => {
-    const request = vi.fn(async (
-      _input: {
-        readonly url: string;
-        readonly method?: "GET" | "HEAD";
-        readonly headers?: Readonly<Record<string, string>>;
-        readonly signal?: AbortSignal;
-      },
-      _options?: {
-        readonly timeoutMs?: number;
-        readonly maxResponseBytes?: number;
-      },
-    ) => ({
-      url: "https://www.googleapis.com/drive/v3/files",
-      status: 200,
-      statusText: "OK",
-      headers: {},
-      body: new Uint8Array(),
-    }));
+    const request = vi.fn(
+      async (
+        _input: {
+          readonly url: string;
+          readonly method?: "GET" | "HEAD";
+          readonly headers?: Readonly<Record<string, string>>;
+          readonly signal?: AbortSignal;
+        },
+        _options?: {
+          readonly timeoutMs?: number;
+          readonly maxResponseBytes?: number;
+        },
+      ) => ({
+        url: "https://www.googleapis.com/drive/v3/files",
+        status: 200,
+        statusText: "OK",
+        headers: {},
+        body: new Uint8Array(),
+      }),
+    );
     const secret = "secret-token";
     const authenticated = new BearerAuthenticatedHttpClient({
       client: {

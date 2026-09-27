@@ -14,9 +14,7 @@ export interface BearerAuthenticatedHttpClientOptions {
 }
 
 export class BearerAuthenticatedHttpClient {
-  constructor(
-    private readonly options: BearerAuthenticatedHttpClientOptions,
-  ) {}
+  constructor(private readonly options: BearerAuthenticatedHttpClientOptions) {}
 
   async request(
     input: Omit<BoundedHttpRequest, "headers"> & {
@@ -27,19 +25,11 @@ export class BearerAuthenticatedHttpClient {
       readonly maxResponseBytes?: number;
     },
   ): Promise<BoundedHttpResponse> {
-    const token = await this.options.secretResolver.resolve(
-      this.options.secretReference,
-    );
+    const token = await this.options.secretResolver.resolve(this.options.secretReference);
     const headers = input.headers ?? {};
 
-    if (
-      Object.keys(headers).some(
-        (name) => name.toLowerCase() === "authorization",
-      )
-    ) {
-      throw new Error(
-        "Bearer authentication manages the Authorization header.",
-      );
+    if (Object.keys(headers).some((name) => name.toLowerCase() === "authorization")) {
+      throw new Error("Bearer authentication manages the Authorization header.");
     }
 
     return this.options.client.request(

@@ -21,9 +21,7 @@ export interface GoogleDriveGetMetadataInput {
   readonly fileId: string;
 }
 
-export type GoogleDriveInvocationInput =
-  | GoogleDriveListInput
-  | GoogleDriveGetMetadataInput;
+export type GoogleDriveInvocationInput = GoogleDriveListInput | GoogleDriveGetMetadataInput;
 
 export interface GoogleDriveFileMetadata {
   readonly id: string;
@@ -49,14 +47,10 @@ export interface GoogleDriveMetadataOutput {
   readonly file: GoogleDriveFileMetadata;
 }
 
-export type GoogleDriveInvocationOutput =
-  | GoogleDriveListOutput
-  | GoogleDriveMetadataOutput;
+export type GoogleDriveInvocationOutput = GoogleDriveListOutput | GoogleDriveMetadataOutput;
 
 export type GoogleDriveIntegrationAdapterErrorKind =
-  | "INVALID_INPUT"
-  | "INVALID_RESPONSE"
-  | "API_ERROR";
+  "INVALID_INPUT" | "INVALID_RESPONSE" | "API_ERROR";
 
 export class GoogleDriveIntegrationAdapterError extends Error {
   readonly kind: GoogleDriveIntegrationAdapterErrorKind;
@@ -84,9 +78,7 @@ const MAX_PAGE_SIZE = 100;
 const FILE_FIELDS =
   "files(id,name,mimeType,modifiedTime,size,starred,trashed,parents,capabilities(canDownload),webViewLink),nextPageToken";
 
-export class GoogleDriveIntegrationAdapter
-  implements IntegrationAdapter
-{
+export class GoogleDriveIntegrationAdapter implements IntegrationAdapter {
   readonly integrationId: string;
   readonly kind = "GOOGLE_DRIVE" as const;
   readonly actionKinds = ["READ"] as const;
@@ -103,15 +95,11 @@ export class GoogleDriveIntegrationAdapter
     }
 
     if (options.secretReference.provider !== "google") {
-      throw new RangeError(
-        "Google Drive integration requires a Google secret reference.",
-      );
+      throw new RangeError("Google Drive integration requires a Google secret reference.");
     }
 
     if (options.secretReference.kind !== "OAUTH_ACCESS_TOKEN") {
-      throw new RangeError(
-        "Google Drive integration requires an OAuth access-token reference.",
-      );
+      throw new RangeError("Google Drive integration requires an OAuth access-token reference.");
     }
 
     this.integrationId = options.integrationId;
@@ -126,9 +114,7 @@ export class GoogleDriveIntegrationAdapter
       this.maxPageSize < this.defaultPageSize ||
       this.maxPageSize > 1000
     ) {
-      throw new RangeError(
-        "Google Drive page-size limits must be positive and bounded.",
-      );
+      throw new RangeError("Google Drive page-size limits must be positive and bounded.");
     }
 
     const client =
@@ -138,10 +124,8 @@ export class GoogleDriveIntegrationAdapter
         allowedPorts: [443],
         defaultTimeoutMs: 15_000,
         maxTimeoutMs: 30_000,
-        defaultMaxResponseBytes:
-          options.maxResponseBytes ?? 1_048_576,
-        maxResponseBytes:
-          options.maxResponseBytes ?? 1_048_576,
+        defaultMaxResponseBytes: options.maxResponseBytes ?? 1_048_576,
+        maxResponseBytes: options.maxResponseBytes ?? 1_048_576,
       });
 
     this.http = new BearerAuthenticatedHttpClient({
@@ -172,14 +156,8 @@ export class GoogleDriveIntegrationAdapter
     );
   }
 
-  private async listFiles(
-    input: unknown,
-  ): Promise<GoogleDriveListOutput> {
-    const listInput = parseListInput(
-      input,
-      this.defaultPageSize,
-      this.maxPageSize,
-    );
+  private async listFiles(input: unknown): Promise<GoogleDriveListOutput> {
+    const listInput = parseListInput(input, this.defaultPageSize, this.maxPageSize);
     const query = new URLSearchParams({
       pageSize: String(listInput.pageSize),
       fields: FILE_FIELDS,
@@ -194,35 +172,35 @@ export class GoogleDriveIntegrationAdapter
       query.set("pageToken", listInput.pageToken);
     }
 
-    const response = await this.http.request({
-      url: `https://www.googleapis.com/drive/v3/files?${query.toString()}`,
-      headers: {
-        Accept: "application/json",
+    const response = await this.http.request(
+      {
+        url: `https://www.googleapis.com/drive/v3/files?${query.toString()}`,
+        headers: {
+          Accept: "application/json",
+        },
       },
-    }, this.maxResponseBytes === undefined
-      ? undefined
-      : { maxResponseBytes: this.maxResponseBytes });
+      this.maxResponseBytes === undefined ? undefined : { maxResponseBytes: this.maxResponseBytes },
+    );
 
     return parseListResponse(response);
   }
 
-  private async getMetadata(
-    input: unknown,
-  ): Promise<GoogleDriveMetadataOutput> {
+  private async getMetadata(input: unknown): Promise<GoogleDriveMetadataOutput> {
     const value = parseGetMetadataInput(input);
     const query = new URLSearchParams({
       fields: FILE_FIELDS.replace(",nextPageToken", ""),
       supportsAllDrives: "true",
     });
 
-    const response = await this.http.request({
-      url: `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(value.fileId)}?${query.toString()}`,
-      headers: {
-        Accept: "application/json",
+    const response = await this.http.request(
+      {
+        url: `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(value.fileId)}?${query.toString()}`,
+        headers: {
+          Accept: "application/json",
+        },
       },
-    }, this.maxResponseBytes === undefined
-      ? undefined
-      : { maxResponseBytes: this.maxResponseBytes });
+      this.maxResponseBytes === undefined ? undefined : { maxResponseBytes: this.maxResponseBytes },
+    );
 
     return await parseFileMetadata(response);
   }
@@ -241,8 +219,7 @@ function parseListInput(
   }
 
   const value = input as Record<string, unknown>;
-  const pageSize =
-    value.pageSize === undefined ? defaultPageSize : value.pageSize;
+  const pageSize = value.pageSize === undefined ? defaultPageSize : value.pageSize;
 
   if (
     !Number.isInteger(pageSize) ||
@@ -255,10 +232,7 @@ function parseListInput(
     );
   }
 
-  if (
-    value.q !== undefined &&
-    (typeof value.q !== "string" || value.q.length > 2000)
-  ) {
+  if (value.q !== undefined && (typeof value.q !== "string" || value.q.length > 2000)) {
     throw new GoogleDriveIntegrationAdapterError(
       "INVALID_INPUT",
       "Google Drive q must be a string of at most 2000 characters.",
@@ -306,9 +280,7 @@ function parseGetMetadataInput(input: unknown): GoogleDriveGetMetadataInput {
   return { fileId };
 }
 
-async function parseJsonBody(
-  body: Uint8Array,
-): Promise<Record<string, unknown>> {
+async function parseJsonBody(body: Uint8Array): Promise<Record<string, unknown>> {
   const text = new TextDecoder().decode(body);
 
   try {
@@ -325,9 +297,7 @@ async function parseJsonBody(
   }
 }
 
-function parseListResponseSync(
-  value: Record<string, unknown>,
-): GoogleDriveListOutput {
+function parseListResponseSync(value: Record<string, unknown>): GoogleDriveListOutput {
   const filesValue = value.files;
   if (!Array.isArray(filesValue)) {
     throw new GoogleDriveIntegrationAdapterError(
@@ -337,8 +307,7 @@ function parseListResponseSync(
   }
 
   const files = filesValue.map(parseFileMetadataValue);
-  const nextPageToken =
-    typeof value.nextPageToken === "string" ? value.nextPageToken : undefined;
+  const nextPageToken = typeof value.nextPageToken === "string" ? value.nextPageToken : undefined;
 
   return {
     files,
@@ -346,9 +315,10 @@ function parseListResponseSync(
   };
 }
 
-async function parseListResponse(
-  response: { readonly body: Uint8Array; readonly status: number },
-): Promise<GoogleDriveListOutput> {
+async function parseListResponse(response: {
+  readonly body: Uint8Array;
+  readonly status: number;
+}): Promise<GoogleDriveListOutput> {
   if (response.status < 200 || response.status >= 300) {
     throw new GoogleDriveIntegrationAdapterError(
       "API_ERROR",
@@ -359,9 +329,10 @@ async function parseListResponse(
   return parseListResponseSync(await parseJsonBody(response.body));
 }
 
-async function parseFileMetadata(
-  response: { readonly body: Uint8Array; readonly status: number },
-): Promise<{ file: GoogleDriveFileMetadata }> {
+async function parseFileMetadata(response: {
+  readonly body: Uint8Array;
+  readonly status: number;
+}): Promise<{ file: GoogleDriveFileMetadata }> {
   if (response.status < 200 || response.status >= 300) {
     throw new GoogleDriveIntegrationAdapterError(
       "API_ERROR",
@@ -392,17 +363,13 @@ function parseFileMetadataValue(value: unknown): GoogleDriveFileMetadata {
     id: item.id as string,
     ...(typeof item.name === "string" ? { name: item.name } : {}),
     ...(typeof item.mimeType === "string" ? { mimeType: item.mimeType } : {}),
-    ...(typeof item.modifiedTime === "string"
-      ? { modifiedTime: item.modifiedTime }
-      : {}),
+    ...(typeof item.modifiedTime === "string" ? { modifiedTime: item.modifiedTime } : {}),
     ...(typeof item.size === "string" ? { size: item.size } : {}),
     ...(typeof item.starred === "boolean" ? { starred: item.starred } : {}),
     ...(typeof item.trashed === "boolean" ? { trashed: item.trashed } : {}),
     ...(Array.isArray(item.parents)
       ? {
-          parents: item.parents.filter(
-            (parent): parent is string => typeof parent === "string",
-          ),
+          parents: item.parents.filter((parent): parent is string => typeof parent === "string"),
         }
       : {}),
     ...(item.capabilities !== null &&
@@ -410,13 +377,10 @@ function parseFileMetadataValue(value: unknown): GoogleDriveFileMetadata {
     typeof (item.capabilities as Record<string, unknown>).canDownload === "boolean"
       ? {
           capabilities: {
-            canDownload: (item.capabilities as Record<string, unknown>)
-              .canDownload as boolean,
+            canDownload: (item.capabilities as Record<string, unknown>).canDownload as boolean,
           },
         }
       : {}),
-    ...(typeof item.webViewLink === "string"
-      ? { webViewLink: item.webViewLink }
-      : {}),
+    ...(typeof item.webViewLink === "string" ? { webViewLink: item.webViewLink } : {}),
   };
 }

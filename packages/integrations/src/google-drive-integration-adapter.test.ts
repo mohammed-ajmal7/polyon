@@ -13,9 +13,7 @@ const reference: SecretReference = {
   provider: "google",
 };
 
-function createAdapter(
-  request: ReturnType<typeof vi.fn>,
-): GoogleDriveIntegrationAdapter {
+function createAdapter(request: ReturnType<typeof vi.fn>): GoogleDriveIntegrationAdapter {
   return new GoogleDriveIntegrationAdapter({
     integrationId: "google-drive-primary",
     secretResolver: {
@@ -32,39 +30,41 @@ function createAdapter(
 
 describe("GoogleDriveIntegrationAdapter", () => {
   it("lists files using bounded page size and escaped query parameters", async () => {
-    const request = vi.fn(async (
-      _input: {
-        readonly url: string;
-        readonly method?: "GET" | "HEAD";
-        readonly headers?: Readonly<Record<string, string>>;
-        readonly signal?: AbortSignal;
-      },
-      _options?: {
-        readonly timeoutMs?: number;
-        readonly maxResponseBytes?: number;
-      },
-    ) => ({
-      url: "https://www.googleapis.com/drive/v3/files",
-      status: 200,
-      statusText: "OK",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: new TextEncoder().encode(
-        JSON.stringify({
-          files: [
-            {
-              id: "file-1",
-              name: "Report.txt",
-              mimeType: "text/plain",
-              modifiedTime: "2026-09-27T00:00:00Z",
-              capabilities: { canDownload: true },
-            },
-          ],
-          nextPageToken: "next-1",
-        }),
-      ),
-    }));
+    const request = vi.fn(
+      async (
+        _input: {
+          readonly url: string;
+          readonly method?: "GET" | "HEAD";
+          readonly headers?: Readonly<Record<string, string>>;
+          readonly signal?: AbortSignal;
+        },
+        _options?: {
+          readonly timeoutMs?: number;
+          readonly maxResponseBytes?: number;
+        },
+      ) => ({
+        url: "https://www.googleapis.com/drive/v3/files",
+        status: 200,
+        statusText: "OK",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: new TextEncoder().encode(
+          JSON.stringify({
+            files: [
+              {
+                id: "file-1",
+                name: "Report.txt",
+                mimeType: "text/plain",
+                modifiedTime: "2026-09-27T00:00:00Z",
+                capabilities: { canDownload: true },
+              },
+            ],
+            nextPageToken: "next-1",
+          }),
+        ),
+      }),
+    );
 
     const adapter = createAdapter(request);
 
@@ -78,10 +78,7 @@ describe("GoogleDriveIntegrationAdapter", () => {
       },
     });
 
-    expect(adapter.supportedOperations).toEqual([
-      "LIST_FILES",
-      "GET_METADATA",
-    ]);
+    expect(adapter.supportedOperations).toEqual(["LIST_FILES", "GET_METADATA"]);
     expect(result.output).toMatchObject({
       files: [
         {
@@ -112,32 +109,34 @@ describe("GoogleDriveIntegrationAdapter", () => {
   });
 
   it("retrieves file metadata with a fixed field set and shared-drive support", async () => {
-    const request = vi.fn(async (
-      _input: {
-        readonly url: string;
-        readonly method?: "GET" | "HEAD";
-        readonly headers?: Readonly<Record<string, string>>;
-        readonly signal?: AbortSignal;
-      },
-      _options?: {
-        readonly timeoutMs?: number;
-        readonly maxResponseBytes?: number;
-      },
-    ) => ({
-      url: "",
-      status: 200,
-      statusText: "OK",
-      headers: {},
-      body: new TextEncoder().encode(
-        JSON.stringify({
-          id: "file-2",
-          name: "Archive.zip",
-          mimeType: "application/zip",
-          size: "1234",
-          trashed: false,
-        }),
-      ),
-    }));
+    const request = vi.fn(
+      async (
+        _input: {
+          readonly url: string;
+          readonly method?: "GET" | "HEAD";
+          readonly headers?: Readonly<Record<string, string>>;
+          readonly signal?: AbortSignal;
+        },
+        _options?: {
+          readonly timeoutMs?: number;
+          readonly maxResponseBytes?: number;
+        },
+      ) => ({
+        url: "",
+        status: 200,
+        statusText: "OK",
+        headers: {},
+        body: new TextEncoder().encode(
+          JSON.stringify({
+            id: "file-2",
+            name: "Archive.zip",
+            mimeType: "application/zip",
+            size: "1234",
+            trashed: false,
+          }),
+        ),
+      }),
+    );
 
     const adapter = createAdapter(request);
 
@@ -210,24 +209,26 @@ describe("GoogleDriveIntegrationAdapter", () => {
   });
 
   it("rejects non-success responses and malformed metadata", async () => {
-    const request = vi.fn(async (
-      _input: {
-        readonly url: string;
-        readonly method?: "GET" | "HEAD";
-        readonly headers?: Readonly<Record<string, string>>;
-        readonly signal?: AbortSignal;
-      },
-      _options?: {
-        readonly timeoutMs?: number;
-        readonly maxResponseBytes?: number;
-      },
-    ) => ({
-      url: "",
-      status: 403,
-      statusText: "Forbidden",
-      headers: {},
-      body: new TextEncoder().encode(JSON.stringify({ error: "forbidden" })),
-    }));
+    const request = vi.fn(
+      async (
+        _input: {
+          readonly url: string;
+          readonly method?: "GET" | "HEAD";
+          readonly headers?: Readonly<Record<string, string>>;
+          readonly signal?: AbortSignal;
+        },
+        _options?: {
+          readonly timeoutMs?: number;
+          readonly maxResponseBytes?: number;
+        },
+      ) => ({
+        url: "",
+        status: 403,
+        statusText: "Forbidden",
+        headers: {},
+        body: new TextEncoder().encode(JSON.stringify({ error: "forbidden" })),
+      }),
+    );
 
     const adapter = createAdapter(request);
 

@@ -511,10 +511,7 @@ export class ToolInvocationService {
       );
     }
 
-    if (
-      approval.expiresAt !== undefined &&
-      Date.now() >= Date.parse(approval.expiresAt)
-    ) {
+    if (approval.expiresAt !== undefined && Date.now() >= Date.parse(approval.expiresAt)) {
       throw new ToolInvocationServiceError(
         "TOOL_APPROVAL_EXPIRED",
         `Tool approval ${approval.id} has expired.`,

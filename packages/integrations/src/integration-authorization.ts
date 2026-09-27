@@ -70,9 +70,7 @@ export function authorizeIntegrationInvocation(
 ): IntegrationInvocationAuthorization {
   if (
     input.integrationInvocation !== undefined &&
-    !input.integration.supportedOperations.includes(
-      input.integrationInvocation.operation,
-    )
+    !input.integration.supportedOperations.includes(input.integrationInvocation.operation)
   ) {
     throw new IntegrationAuthorizationError(
       "INTEGRATION_OPERATION_NOT_SUPPORTED",

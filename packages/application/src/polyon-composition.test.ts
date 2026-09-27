@@ -325,12 +325,8 @@ describe("createPolyonComposition", () => {
       });
 
       expect(composition.integrations.get("google-drive-primary")).toBeDefined();
-      expect(
-        composition.integrations.get("google-drive-primary")?.kind,
-      ).toBe("GOOGLE_DRIVE");
-      expect(composition.integrations.get("google-drive-primary")?.actionKinds).toEqual([
-        "READ",
-      ]);
+      expect(composition.integrations.get("google-drive-primary")?.kind).toBe("GOOGLE_DRIVE");
+      expect(composition.integrations.get("google-drive-primary")?.actionKinds).toEqual(["READ"]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
