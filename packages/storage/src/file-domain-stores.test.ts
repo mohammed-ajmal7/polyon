@@ -62,6 +62,88 @@ describe("FileDomainStores", () => {
     }
   });
 
+  it("rejects a stale writer instead of overwriting newer state", () => {
+    const directory = mkdtempSync(join(tmpdir(), "polyon-domain-"));
+
+    try {
+      const first = new FileDomainStores(directory);
+      const second = new FileDomainStores(directory);
+
+      first.missions.save({
+        id: "mission-1",
+        objective: "Newer state.",
+        constraints: [],
+        status: "DRAFT",
+        taskIds: [],
+        createdAt: "2026-09-27T04:00:00.000Z",
+        updatedAt: "2026-09-27T04:00:00.000Z",
+      });
+
+      expect(() =>
+        second.missions.save({
+          id: "mission-2",
+          objective: "Stale state.",
+          constraints: [],
+          status: "DRAFT",
+          taskIds: [],
+          createdAt: "2026-09-27T04:01:00.000Z",
+          updatedAt: "2026-09-27T04:01:00.000Z",
+        }),
+      ).toThrow("Durable storage changed while the write was in progress");
+
+      const reopened = new FileDomainStores(directory);
+
+      expect(reopened.missions.get("mission-1")?.objective).toBe(
+        "Newer state.",
+      );
+      expect(reopened.missions.get("mission-2")).toBeUndefined();
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a transaction that becomes stale during its work", () => {
+    const directory = mkdtempSync(join(tmpdir(), "polyon-domain-"));
+
+    try {
+      const first = new FileDomainStores(directory);
+      const second = new FileDomainStores(directory);
+
+      expect(() =>
+        first.transaction(({ missions }) => {
+          missions.save({
+            id: "mission-transaction-1",
+            objective: "Stale transaction.",
+            constraints: [],
+            status: "DRAFT",
+            taskIds: [],
+            createdAt: "2026-09-27T04:02:00.000Z",
+            updatedAt: "2026-09-27T04:02:00.000Z",
+          });
+
+          second.missions.save({
+            id: "mission-concurrent-1",
+            objective: "Concurrent write.",
+            constraints: [],
+            status: "DRAFT",
+            taskIds: [],
+            createdAt: "2026-09-27T04:03:00.000Z",
+            updatedAt: "2026-09-27T04:03:00.000Z",
+          });
+        }),
+      ).toThrow("Durable storage changed while the write was in progress");
+
+      const reopened = new FileDomainStores(directory);
+
+      expect(reopened.missions.get("mission-transaction-1")).toBeUndefined();
+      expect(reopened.missions.get("mission-concurrent-1")?.objective).toBe(
+        "Concurrent write.",
+      );
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("reopens the same durable domain stores without losing entities", () => {
     const directory = mkdtempSync(join(tmpdir(), "polyon-domain-"));
 
