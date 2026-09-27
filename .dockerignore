@@ -1,0 +1,14 @@
+node_modules
+**/node_modules
+.next
+**/.next
+.git
+.github
+coverage
+**/coverage
+.env
+**/.env
+*.pem
+.polyon-data
+**/.polyon-data
+pnpm-debug.log*
