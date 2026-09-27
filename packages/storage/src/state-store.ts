@@ -11,13 +11,21 @@ import type {
   Task,
 } from "@polyon/contracts";
 
-import { type EntityStore } from "./entity-store";
-import type { DurableCollectionKey, DomainStoreTransactionContext } from "./transaction";
+import type { EntityStore } from "./entity-store";
+import type { EventStore } from "./event-store";
+import type { DomainStoreTransactionContext, DurableCollectionKey } from "./transaction";
 import type { DurableDomainState } from "./file-database";
-import { EventStore } from "./event-store";
 
 export type StateGetter = () => DurableDomainState;
 export type StatePersister = (state: DurableDomainState) => void;
+
+function cloneState(state: DurableDomainState): DurableDomainState {
+  return structuredClone(state);
+}
+
+function publishState(target: DurableDomainState, source: DurableDomainState): void {
+  Object.assign(target, source);
+}
 
 export class StateEntityStore<TEntity extends { readonly id: string }>
   implements EntityStore<TEntity>
@@ -29,12 +37,17 @@ export class StateEntityStore<TEntity extends { readonly id: string }>
   ) {}
 
   get(id: string): TEntity | undefined {
-    const entity = this.collectionItems().find((candidate) => candidate.id === id);
-    return entity === undefined ? undefined : structuredClone(entity) as TEntity;
+    const entity = this.collectionItems(this.getState()).find(
+      (candidate) => candidate.id === id,
+    );
+
+    return entity === undefined ? undefined : (structuredClone(entity) as TEntity);
   }
 
   save(entity: TEntity): void {
-    const items = this.collectionItems();
+    const current = this.getState();
+    const next = cloneState(current);
+    const items = this.collectionItems(next);
     const index = items.findIndex((candidate) => candidate.id === entity.id);
 
     if (index === -1) {
@@ -43,11 +56,14 @@ export class StateEntityStore<TEntity extends { readonly id: string }>
       items[index] = structuredClone(entity) as never;
     }
 
-    this.persist(this.getState());
+    this.persist(next);
+    publishState(current, next);
   }
 
   delete(id: string): boolean {
-    const items = this.collectionItems();
+    const current = this.getState();
+    const next = cloneState(current);
+    const items = this.collectionItems(next);
     const index = items.findIndex((candidate) => candidate.id === id);
 
     if (index === -1) {
@@ -55,23 +71,20 @@ export class StateEntityStore<TEntity extends { readonly id: string }>
     }
 
     items.splice(index, 1);
-    this.persist(this.getState());
+    this.persist(next);
+    publishState(current, next);
     return true;
   }
 
   list(): readonly TEntity[] {
-    return itemsClone(this.collectionItems());
+    return this.collectionItems(this.getState()).map(
+      (item) => structuredClone(item) as TEntity,
+    );
   }
 
-  private collectionItems(): { id: string }[] {
-    return this.getState()[this.collection] as { id: string }[];
+  private collectionItems(state: DurableDomainState): { id: string }[] {
+    return state[this.collection] as { id: string }[];
   }
-}
-
-function itemsClone<TEntity extends { readonly id: string }>(
-  items: readonly TEntity[],
-): readonly TEntity[] {
-  return items.map((item) => structuredClone(item));
 }
 
 export class StateEventStore implements EventStore {
@@ -81,14 +94,16 @@ export class StateEventStore implements EventStore {
   ) {}
 
   append(event: DomainEvent): void {
-    const events = this.getState().events;
+    const current = this.getState();
 
-    if (events.some((candidate) => candidate.id === event.id)) {
+    if (current.events.some((candidate) => candidate.id === event.id)) {
       throw new Error(`Event already exists: ${event.id}.`);
     }
 
-    events.push(structuredClone(event));
-    this.persist(this.getState());
+    const next = cloneState(current);
+    next.events.push(structuredClone(event));
+    this.persist(next);
+    publishState(current, next);
   }
 
   get(eventId: DomainEvent["id"]): DomainEvent | undefined {
@@ -97,7 +112,7 @@ export class StateEventStore implements EventStore {
   }
 
   list(): readonly DomainEvent[] {
-    return itemsClone(this.getState().events);
+    return this.getState().events.map((event) => structuredClone(event));
   }
 
   listByConversation(conversationId: NonNullable<DomainEvent["conversationId"]>): readonly DomainEvent[] {
