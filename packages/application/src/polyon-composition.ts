@@ -1,4 +1,5 @@
 import type { Agent, Model, Provider } from "@polyon/contracts";
+import type { ExecutionRunOutcome } from "@polyon/runtime";
 import { AgentGateway, InMemoryAgentRegistry, InMemoryModelRegistry, InMemoryProviderRegistry } from "@polyon/agents";
 import { ExecutionApprovalService, ExecutionDispatchService, ExecutionResultService, ExecutionRetryService, MissionExecutionService, MissionTaskOrchestrationService, type ReadyTaskHandler } from "@polyon/application";
 import { InMemoryProviderAdapterRegistry, ModelGateway, type ModelProviderAdapter } from "@polyon/providers";
@@ -82,6 +83,45 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     });
   }
 
+  let executionResults: ExecutionResultService | undefined;
+
+  const publishExecutionCompletion = async (
+    outcome: ExecutionRunOutcome,
+  ): Promise<void> => {
+    const externalHandler = options.onExecutionCompleted;
+
+    if (executionResults !== undefined) {
+      const conversation = stores.conversations
+        .list()
+        .find(
+          (candidate) =>
+            candidate.kind === "MISSION" &&
+            candidate.status === "ACTIVE" &&
+            candidate.missionId === outcome.execution.missionId,
+        );
+
+      if (conversation !== undefined) {
+        const output =
+          outcome.result.status === "SUCCEEDED"
+            ? outcome.result.output ?? ""
+            : outcome.result.error ?? "Execution did not produce a result.";
+
+        executionResults.persist({
+          executionId: outcome.execution.id,
+          conversationId: conversation.id,
+          messageId: `execution-result:${outcome.execution.id}`,
+          actorId: outcome.execution.actorId,
+          output,
+          createdAt:
+            outcome.execution.completedAt ??
+            outcome.execution.updatedAt,
+        });
+      }
+    }
+
+    await externalHandler?.(outcome);
+  };
+
   const runtime = createExecutionRuntime({
     runner: new ModelExecutionRunner({ modelGateway, tasks: stores.tasks }),
     executions: stores.executions,
@@ -95,7 +135,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     retryBackoffMaxMs: options.retryBackoffMaxMs,
     wait: options.wait,
     onError: options.onError,
-    onExecutionCompleted: options.onExecutionCompleted,
+    onExecutionCompleted: publishExecutionCompletion,
     unitOfWork: stores,
   });
 
@@ -124,7 +164,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     onReadyTasks: options.onReadyTasks,
   });
 
-  const executionResults = new ExecutionResultService({
+  executionResults = new ExecutionResultService({
     executions: stores.executions,
     conversations: stores.conversations,
     messages: stores.messages,
