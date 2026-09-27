@@ -126,10 +126,6 @@ export class ExecutionDispatchService {
       );
     }
 
-    if (plan.nextStep === "ENQUEUE") {
-      stores.queue.enqueue(plan.execution);
-    }
-
     return plan;
   
   }
@@ -181,8 +177,6 @@ export class ExecutionDispatchService {
       "QUEUED",
       now,
     );
-    stores.queue.enqueue(queued);
-
     return queued;
   
   }
