@@ -1,9 +1,8 @@
-import type { Agent, Model, Policy, Provider } from "@polyon/contracts";
+import type { Agent, Model, Policy, Provider, SecretReference } from "@polyon/contracts";
 import {
   GoogleDriveIntegrationAdapter,
   InMemoryIntegrationAdapterRegistry,
   type IntegrationAdapter,
-  type SecretReference,
   type SecretResolver,
 } from "@polyon/integrations";
 import {
