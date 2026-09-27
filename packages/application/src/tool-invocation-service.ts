@@ -44,6 +44,10 @@ export interface InvokeToolInput {
   readonly agentId?: string;
   readonly expiresAt?: string;
   readonly toolContinuation?: ApprovalRequest["toolContinuation"];
+  readonly continuationCheckpoint?: {
+    readonly approvalId: string;
+    readonly toolContinuation: ApprovalRequest["toolContinuation"];
+  };
 }
 
 export interface ResolveToolApprovalInput {
@@ -319,7 +323,16 @@ export class ToolInvocationService {
         };
       }
 
-      return await this.executeAuthorized(input, tool, authorization.policyDecision);
+      return await this.executeAuthorized(
+        input,
+        tool,
+        authorization.policyDecision,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        input.continuationCheckpoint,
+      );
     } catch (error) {
       if (
         error instanceof ToolAuthorizationError &&
@@ -459,6 +472,7 @@ export class ToolInvocationService {
         executionId: approval.executionId,
       },
       approval,
+      undefined,
     );
   }
 
@@ -474,6 +488,7 @@ export class ToolInvocationService {
       readonly executionId?: string;
     },
     approval?: ApprovalRequest,
+    continuationCheckpoint?: InvokeToolInput["continuationCheckpoint"],
   ): Promise<ToolInvocationOutcome> {
     const action = approvedAction ?? (input as InvokeToolInput).action;
     const riskLevel = approvedRiskLevel ?? (input as InvokeToolInput).riskLevel;
@@ -529,6 +544,24 @@ export class ToolInvocationService {
                 result.output,
               ),
             },
+          });
+        } else if (continuationCheckpoint !== undefined) {
+          const checkpointApproval = stores.approvals.get(
+            continuationCheckpoint.approvalId,
+          );
+          if (checkpointApproval === undefined) {
+            throw new Error(
+              `Continuation checkpoint approval not found: ${continuationCheckpoint.approvalId}.`,
+            );
+          }
+          if (checkpointApproval.toolContinuation === undefined) {
+            throw new Error(
+              `Continuation checkpoint approval ${continuationCheckpoint.approvalId} has no tool continuation.`,
+            );
+          }
+          stores.approvals.save({
+            ...checkpointApproval,
+            toolContinuation: continuationCheckpoint.toolContinuation,
           });
         }
 
