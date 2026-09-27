@@ -21,17 +21,27 @@ export class NodeSmtpConnectionFactory implements SmtpConnectionFactory {
 
 class NodeSmtpConnection implements SmtpConnection {
   private buffer = "";
+  private socket: Socket | TLSSocket;
+  private readonly onDataHandler = (chunk: string) => this.onData(chunk);
+  private readonly onErrorHandler = (error: Error) => this.onError(error);
+  private readonly onCloseHandler = () =>
+    this.onError(new Error("SMTP connection closed unexpectedly."));
   private pendingRead:
     { resolve: (value: string) => void; reject: (error: Error) => void } | undefined;
 
-  constructor(
-    private readonly socket: Socket | TLSSocket,
-    private readonly timeoutMs: number,
-  ) {
-    socket.setEncoding("utf8");
-    socket.on("data", (chunk: string) => this.onData(chunk));
-    socket.on("error", (error) => this.onError(error));
-    socket.on("close", () => this.onError(new Error("SMTP connection closed unexpectedly.")));
+  constructor(socket: Socket | TLSSocket, private readonly timeoutMs: number) {
+    this.socket = socket;
+    this.bindSocket(socket);
+  }
+
+  async startTls(serverName: string, timeoutMs: number): Promise<void> {
+    const plainSocket = this.socket;
+    this.unbindSocket(plainSocket);
+
+    const tlsSocket = connectTls({ socket: plainSocket, servername: serverName });
+    await waitForSecureConnection(tlsSocket, timeoutMs);
+    this.socket = tlsSocket;
+    this.bindSocket(tlsSocket);
   }
 
   read(): Promise<string> {
@@ -69,8 +79,21 @@ class NodeSmtpConnection implements SmtpConnection {
   async close(): Promise<void> {
     this.pendingRead?.reject(new Error("SMTP connection closed."));
     this.pendingRead = undefined;
-    this.socket.removeAllListeners();
+    this.unbindSocket(this.socket);
     this.socket.destroy();
+  }
+
+  private bindSocket(socket: Socket | TLSSocket): void {
+    socket.setEncoding("utf8");
+    socket.on("data", this.onDataHandler);
+    socket.on("error", this.onErrorHandler);
+    socket.on("close", this.onCloseHandler);
+  }
+
+  private unbindSocket(socket: Socket | TLSSocket): void {
+    socket.off("data", this.onDataHandler);
+    socket.off("error", this.onErrorHandler);
+    socket.off("close", this.onCloseHandler);
   }
 
   private onData(chunk: string): void {
@@ -125,5 +148,24 @@ function waitForConnection(socket: Socket | TLSSocket, timeoutMs: number): Promi
       resolve();
     });
     socket.once("error", fail);
+  });
+}
+
+
+function waitForSecureConnection(socket: TLSSocket, timeoutMs: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      socket.destroy();
+      reject(new Error("SMTP STARTTLS negotiation timed out."));
+    }, timeoutMs);
+
+    socket.once("secureConnect", () => {
+      clearTimeout(timer);
+      resolve();
+    });
+    socket.once("error", () => {
+      clearTimeout(timer);
+      reject(new Error("SMTP STARTTLS negotiation failed."));
+    });
   });
 }
