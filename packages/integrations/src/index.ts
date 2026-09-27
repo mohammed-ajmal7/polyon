@@ -1,4 +1,12 @@
 export {
+  EnvironmentSecretResolver,
+  SecretResolverError,
+  type EnvironmentSecretResolverOptions,
+  type SecretResolver,
+  type SecretResolverErrorKind,
+} from "./secret-resolver";
+
+export {
   BoundedHttpClient,
   BoundedHttpClientError,
   type BoundedHttpClientErrorKind,
