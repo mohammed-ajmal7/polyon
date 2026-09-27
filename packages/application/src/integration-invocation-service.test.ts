@@ -162,6 +162,48 @@ describe("IntegrationInvocationService", () => {
     ).toBeDefined();
   });
 
+  it("rejects approved integration execution after the approval expires", async () => {
+    const invoke = vi.fn(async () => ({ output: "sent" }));
+    const { stores, service } = createService({
+      integrationId: "telegram-primary",
+      kind: "TELEGRAM",
+      actionKinds: ["EXTERNAL_COMMUNICATION"],
+      supportedOperations: ["send_message"],
+      invoke,
+    });
+
+    await service.invoke({
+      ...baseInput,
+      policy: {
+        ...policy,
+        defaultEffect: "REQUIRE_APPROVAL",
+      },
+      expiresAt: "2026-09-27T00:00:00.000Z",
+    });
+
+    service.resolveApproval({
+      approvalId: "integration-approval-1",
+      status: "APPROVED",
+      resolvedAt: "2026-09-27T01:02:00.000Z",
+      resolvedBy: "actor-1",
+    });
+
+    await expect(
+      service.invokeApproved({
+        invocationId: "integration-invocation-1",
+        approvalId: "integration-approval-1",
+        integrationId: "telegram-primary",
+        operation: "send_message",
+        input: { text: "hello" },
+      }),
+    ).rejects.toMatchObject({
+      kind: "INTEGRATION_APPROVAL_EXPIRED",
+    });
+
+    expect(invoke).not.toHaveBeenCalled();
+    expect(stores.approvals.get("integration-approval-1")?.status).toBe("APPROVED");
+  });
+
   it("rejects integration approval mismatches and prevents replay", async () => {
     const invoke = vi.fn(async () => ({ output: "sent" }));
     const { service } = createService({
