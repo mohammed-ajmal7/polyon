@@ -8,7 +8,7 @@
 
 - Repository: `mohammed-ajmal7/polyon`
 - Branch: `feature/core-architecture`
-- Latest implementation commit: `a2f6c8a8b815edb7bca444bba108367f2d61ae50`
+- Latest implementation commit: `99f317f4bf1a101fc77c5c25292447893c5db65d`.
 - Latest fully verified clean CI remains run **880** on commit
   `145bc37cddfabfba1fc6774518ef6edba1770542`.
 - Commits after run 880 have not received a CI result through the available
@@ -88,6 +88,12 @@ SMTP currently has:
 - authentication capability advertisement checking;
 - sanitized authentication errors;\n- SMTP envelope validation before network connection;\n- sanitized and classified MAIL FROM / RCPT TO failures;
 - transient `4xx` vs permanent `5xx` response classification;
+- MIME-safe UTF-8 message encoding with RFC 2047 Subject handling;
+- ASCII-safe SMTP envelope/header addresses;
+- complete SMTP DATA framing with `<CRLF>.<CRLF>`;
+- wire-size enforcement including DATA terminator bytes;
+- separate sanitized/classified DATA delivery failures;
+- UTF-8-safe AUTH LOGIN encoding;
 - message-size enforcement and dot-stuffing.
 
 Do **not** call the Email adapter directly from an agent or model.
