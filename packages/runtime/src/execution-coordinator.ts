@@ -268,7 +268,6 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
         completed.status,
         completionAt,
         effectiveResult.status === "FAILED" ? effectiveResult.error : undefined,
-        effectiveResult.status === "CANCELLED" ? effectiveResult.error : undefined,
       );
       appendTaskStatusChangedEvent(
         this.dependencies.events,
@@ -315,7 +314,6 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
           cancelled.status,
           completionAt,
           undefined,
-          "Execution was cancelled.",
         );
         appendTaskStatusChangedEvent(
           this.dependencies.events,

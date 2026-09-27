@@ -5,7 +5,11 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 import type { Execution, Task } from "@polyon/contracts";
-import { FileDomainStores, InMemoryDomainStores } from "@polyon/storage";
+import {
+  FileDomainStores,
+  InMemoryDomainStores,
+  type DomainStores,
+} from "@polyon/storage";
 import { describe, expect, it, vi } from "vitest";
 
 import { createExecutionRuntime } from "./execution-runtime";
@@ -52,7 +56,7 @@ function createWorkItem(index: number): {
 }
 
 function createRuntime(
-  stores: InMemoryDomainStores,
+  stores: DomainStores,
   overrides?: Partial<Parameters<typeof createExecutionRuntime>[0]>,
 ) {
   return createExecutionRuntime({
@@ -466,6 +470,51 @@ describe("createExecutionRuntime", () => {
     runtime.stop();
   });
 
+  it("retries transient coordination failures with bounded exponential backoff and reports health", async () => {
+    const stores = new InMemoryDomainStores();
+    stores.tasks.save({
+      ...task,
+      status: "READY",
+    });
+    stores.executions.save(execution);
+
+    const waits: number[] = [];
+    let errorCount = 0;
+    const runtime = createRuntime(stores, {
+      retryBackoffInitialMs: 10,
+      retryBackoffMaxMs: 40,
+      wait: async (milliseconds) => {
+        waits.push(milliseconds);
+      },
+      onError: () => {
+        errorCount += 1;
+        stores.tasks.save({
+          ...task,
+          status: "APPROVED",
+        });
+      },
+    });
+
+    runtime.start();
+
+    await vi.waitFor(() => {
+      expect(errorCount).toBe(1);
+      expect(stores.executions.get("execution-1")?.status).toBe("SUCCEEDED");
+    });
+
+    expect(waits).toContain(10);
+    expect(runtime.health).toMatchObject({
+      status: "RUNNING",
+      queuedExecutionCount: 0,
+      activeExecutionCount: 0,
+      recoveredExecutionCount: 0,
+      consecutiveErrorCount: 0,
+      retryBackoffMs: 0,
+    });
+
+    runtime.stop();
+  });
+
   it("rejects invalid concurrency settings", () => {
     const stores = new InMemoryDomainStores();
 
@@ -486,5 +535,20 @@ describe("createExecutionRuntime", () => {
         executionTimeoutMs: 0,
       }),
     ).toThrow("execution runtime timeout must be a positive finite number");
+
+    expect(() =>
+      createRuntime(stores, {
+        retryBackoffInitialMs: 0,
+      }),
+    ).toThrow("retry backoff initial delay must be a positive finite number");
+
+    expect(() =>
+      createRuntime(stores, {
+        retryBackoffInitialMs: 20,
+        retryBackoffMaxMs: 10,
+      }),
+    ).toThrow(
+      "retry backoff maximum delay must be greater than or equal to the initial delay",
+    );
   });
 });

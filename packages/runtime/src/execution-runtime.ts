@@ -33,6 +33,18 @@ export type ExecutionRuntimeCancellationResult =
   | { readonly status: "NOT_FOUND"; readonly executionId: ExecutionId }
   | { readonly status: "NOT_CANCELLABLE"; readonly execution: Execution };
 
+export interface ExecutionRuntimeHealth {
+  readonly status: ExecutionRuntimeStatus;
+  readonly queuedExecutionCount: number;
+  readonly activeExecutionCount: number;
+  readonly recoveredExecutionCount: number;
+  readonly consecutiveErrorCount: number;
+  readonly retryBackoffMs: number;
+  readonly lastError?: string;
+  readonly lastActivityAt?: string;
+  readonly lastRecoveryAt?: string;
+}
+
 export type ExecutionRuntimeWait = (milliseconds: number) => Promise<void>;
 
 export interface ExecutionRuntimeDependencies {
@@ -44,6 +56,8 @@ export interface ExecutionRuntimeDependencies {
   readonly pollIntervalMs?: number;
   readonly maxConcurrency?: number;
   readonly executionTimeoutMs?: number;
+  readonly retryBackoffInitialMs?: number;
+  readonly retryBackoffMaxMs?: number;
   readonly wait?: ExecutionRuntimeWait;
   readonly onError?: (error: unknown) => void;
 }
@@ -60,6 +74,7 @@ export interface ExecutionRuntime {
   };
   readonly status: ExecutionRuntimeStatus;
   readonly activeExecutionCount: number;
+  readonly health: ExecutionRuntimeHealth;
   start(): ExecutionWorkerStartResult;
   stop(): void;
   runNext(): Promise<ExecutionRunOutcome | undefined>;
@@ -69,6 +84,8 @@ export interface ExecutionRuntime {
 
 const DEFAULT_POLL_INTERVAL_MS = 250;
 const DEFAULT_MAX_CONCURRENCY = 1;
+const DEFAULT_RETRY_BACKOFF_INITIAL_MS = 250;
+const DEFAULT_RETRY_BACKOFF_MAX_MS = 5_000;
 
 interface ActiveExecutionControl {
   readonly controller: AbortController;
@@ -101,6 +118,26 @@ function validateExecutionTimeout(timeoutMs: number | undefined): void {
     (!Number.isFinite(timeoutMs) || timeoutMs <= 0)
   ) {
     throw new Error("Execution runtime timeout must be a positive finite number.");
+  }
+}
+
+function validateRetryBackoff(initialMs: number, maxMs: number): void {
+  if (!Number.isFinite(initialMs) || initialMs <= 0) {
+    throw new Error(
+      "Execution runtime retry backoff initial delay must be a positive finite number.",
+    );
+  }
+
+  if (!Number.isFinite(maxMs) || maxMs <= 0) {
+    throw new Error(
+      "Execution runtime retry backoff maximum delay must be a positive finite number.",
+    );
+  }
+
+  if (maxMs < initialMs) {
+    throw new Error(
+      "Execution runtime retry backoff maximum delay must be greater than or equal to the initial delay.",
+    );
   }
 }
 
@@ -155,11 +192,16 @@ export function createExecutionRuntime(
   const pollIntervalMs = dependencies.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   const maxConcurrency =
     dependencies.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY;
+  const retryBackoffInitialMs =
+    dependencies.retryBackoffInitialMs ?? DEFAULT_RETRY_BACKOFF_INITIAL_MS;
+  const retryBackoffMaxMs =
+    dependencies.retryBackoffMaxMs ?? DEFAULT_RETRY_BACKOFF_MAX_MS;
   const wait = dependencies.wait ?? defaultWait;
 
   validatePollInterval(pollIntervalMs);
   validateMaxConcurrency(maxConcurrency);
   validateExecutionTimeout(dependencies.executionTimeoutMs);
+  validateRetryBackoff(retryBackoffInitialMs, retryBackoffMaxMs);
 
   const queue = new InMemoryExecutionQueue();
   const coordinator = new InMemoryExecutionCoordinator({
@@ -182,6 +224,12 @@ export function createExecutionRuntime(
   let activeExecutionCount = 0;
   let runtimeGeneration = 0;
   let wakeWaiter: (() => void) | undefined;
+  let recoveredExecutionCount = 0;
+  let consecutiveErrorCount = 0;
+  let retryBackoffMs = 0;
+  let lastError: string | undefined;
+  let lastActivityAt: string | undefined;
+  let lastRecoveryAt: string | undefined;
   const activeExecutions = new Map<ExecutionId, ActiveExecutionControl>();
 
   const signalLoop = (): void => {
@@ -190,28 +238,82 @@ export function createExecutionRuntime(
     resolve?.();
   };
 
-  const waitForLoop = async (): Promise<void> => {
-    const timer = wait(pollIntervalMs);
+  const waitForLoop = async (milliseconds: number): Promise<void> => {
+    const currentWaiter = () => {
+      if (wakeWaiter === currentWaiter) {
+        wakeWaiter = undefined;
+      }
+    };
+
     const wake = new Promise<void>((resolve) => {
-      wakeWaiter = resolve;
+      wakeWaiter = () => {
+        currentWaiter();
+        resolve();
+      };
     });
 
-    await Promise.race([timer, wake]);
+    await Promise.race([wait(milliseconds), wake]);
+    currentWaiter();
+  };
 
-    if (wakeWaiter !== undefined) {
-      wakeWaiter = undefined;
-    }
+  const recordError = (error: unknown): void => {
+    consecutiveErrorCount += 1;
+    retryBackoffMs =
+      retryBackoffMs === 0
+        ? retryBackoffInitialMs
+        : Math.min(retryBackoffMs * 2, retryBackoffMaxMs);
+    lastError = error instanceof Error ? error.message : String(error);
+    lastActivityAt = dependencies.clock.now();
+  };
+
+  const resetErrorState = (): void => {
+    consecutiveErrorCount = 0;
+    retryBackoffMs = 0;
+    lastError = undefined;
+    lastActivityAt = dependencies.clock.now();
   };
 
   const runOne = (): void => {
+    const queued = queue.peek();
+
+    if (queued === undefined) {
+      return;
+    }
+
+    const control: ActiveExecutionControl = {
+      controller: new AbortController(),
+      getAbortReason: () => control.reason,
+    };
+
+    activeExecutions.set(queued.id, control);
     activeExecutionCount += 1;
+    lastActivityAt = dependencies.clock.now();
+
+    if (dependencies.executionTimeoutMs !== undefined) {
+      control.timeout = globalThis.setTimeout(() => {
+        control.reason = "TIMEOUT";
+        control.controller.abort();
+      }, dependencies.executionTimeoutMs);
+    }
 
     void worker
-      .runNext()
+      .runNext(context)
+      .then(() => {
+        if (consecutiveErrorCount > 0) {
+          resetErrorState();
+        } else {
+          lastActivityAt = dependencies.clock.now();
+        }
+      })
       .catch((error: unknown) => {
+        recordError(error);
         dependencies.onError?.(error);
       })
       .finally(() => {
+        if (control.timeout !== undefined) {
+          globalThis.clearTimeout(control.timeout);
+        }
+        activeExecutions.delete(queued.id);
         activeExecutionCount -= 1;
         signalLoop();
       });
@@ -222,6 +324,11 @@ export function createExecutionRuntime(
       runtimeStatus === "RUNNING" &&
       runtimeGeneration === generation
     ) {
+      if (consecutiveErrorCount > 0) {
+        await waitForLoop(retryBackoffMs);
+        continue;
+      }
+
       while (
         runtimeStatus === "RUNNING" &&
         runtimeGeneration === generation &&
@@ -231,7 +338,7 @@ export function createExecutionRuntime(
         runOne();
       }
 
-      await waitForLoop();
+      await waitForLoop(pollIntervalMs);
     }
   };
 
@@ -244,6 +351,11 @@ export function createExecutionRuntime(
 
     const startup = worker.start();
     recoveredExecutionIds = startup.recoveredExecutionIds;
+    recoveredExecutionCount += startup.recoveredExecutionIds.length;
+    if (startup.recoveredExecutionIds.length > 0) {
+      lastRecoveryAt = dependencies.clock.now();
+      lastActivityAt = lastRecoveryAt;
+    }
     runtimeGeneration += 1;
     runtimeStatus = "RUNNING";
     const generation = runtimeGeneration;
@@ -267,6 +379,73 @@ export function createExecutionRuntime(
     signalLoop();
   };
 
+  const cancel = (
+    executionId: ExecutionId,
+  ): ExecutionRuntimeCancellationResult => {
+    const execution = dependencies.executions.get(executionId);
+
+    if (execution === undefined) {
+      return { status: "NOT_FOUND", executionId };
+    }
+
+    if (execution.status !== "QUEUED" && execution.status !== "RUNNING") {
+      return { status: "NOT_CANCELLABLE", execution };
+    }
+
+    const task = dependencies.tasks.get(execution.taskId);
+
+    if (task === undefined) {
+      throw new Error(
+        `Cannot cancel execution ${execution.id} because task is not persisted: ${execution.taskId}.`,
+      );
+    }
+
+    const operation = (stores: RuntimeCancellationStores): Execution => {
+      const updatedExecution = cancelExecution(
+        execution,
+        dependencies.clock.now(),
+      );
+      const updatedTask = transitionTaskStatus(
+        task,
+        "CANCELLED",
+        updatedExecution.updatedAt,
+      );
+
+      stores.executions.save(updatedExecution);
+      stores.tasks.save(updatedTask);
+      appendExecutionCancellationEvent(
+        stores.events,
+        updatedExecution,
+        execution.status,
+      );
+      appendTaskCancellationEvent(
+        stores.events,
+        updatedTask,
+        task.status,
+      );
+
+      return updatedExecution;
+    };
+
+    const cancelled =
+      dependencies.unitOfWork === undefined
+        ? operation(dependencies)
+        : dependencies.unitOfWork.transaction(operation);
+
+    queue.remove(executionId);
+
+    const active = activeExecutions.get(executionId);
+    if (active !== undefined) {
+      active.reason = "CANCELLED";
+      active.controller.abort();
+    }
+
+    lastActivityAt = cancelled.updatedAt;
+    signalLoop();
+
+    return { status: "CANCELLED", execution: cancelled };
+  };
+
   const runNext = async (): Promise<ExecutionRunOutcome | undefined> =>
     worker.runNext();
 
@@ -279,6 +458,19 @@ export function createExecutionRuntime(
     },
     get activeExecutionCount(): number {
       return activeExecutionCount;
+    },
+    get health(): ExecutionRuntimeHealth {
+      return {
+        status: runtimeStatus,
+        queuedExecutionCount: queue.size(),
+        activeExecutionCount,
+        recoveredExecutionCount,
+        consecutiveErrorCount,
+        retryBackoffMs,
+        ...(lastError === undefined ? {} : { lastError }),
+        ...(lastActivityAt === undefined ? {} : { lastActivityAt }),
+        ...(lastRecoveryAt === undefined ? {} : { lastRecoveryAt }),
+      };
     },
     start,
     stop,

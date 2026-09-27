@@ -44,4 +44,5 @@ export {
   type ExecutionRuntimeStatus,
   type ExecutionRuntimeWait,
   type ExecutionRuntimeCancellationResult,
+  type ExecutionRuntimeHealth,
 } from "./execution-runtime";
