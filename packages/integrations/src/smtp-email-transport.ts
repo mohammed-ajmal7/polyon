@@ -327,10 +327,10 @@ function buildMessage(
   const headers = [
     `Message-ID: ${messageId}`,
     `From: ${sender}`,
-    `To: ${input.to.join(", ")}`,
-    ...(input.cc === undefined ? [] : [`Cc: ${input.cc.join(", ")}`]),
+    ...foldAddressHeader("To", input.to),
+    ...(input.cc === undefined ? [] : foldAddressHeader("Cc", input.cc)),
     ...(input.replyTo === undefined ? [] : [`Reply-To: ${input.replyTo}`]),
-    `Subject: ${encodeHeaderText(input.subject)}`,
+    ...foldHeaderValue("Subject", encodeHeaderText(input.subject)),
     "MIME-Version: 1.0",
   ];
 
@@ -363,6 +363,44 @@ function buildMessage(
     `--${boundary}--`,
     "",
   ].join("\r\n");
+}
+
+function foldAddressHeader(name: string, addresses: readonly string[]): string[] {
+  return foldHeaderValue(name, addresses.join(", "));
+}
+
+function foldHeaderValue(name: string, value: string): string[] {
+  const firstPrefix = `${name}: `;
+  const continuationPrefix = " ";
+  const maxLineBytes = 998;
+
+  if (new TextEncoder().encode(`${firstPrefix}${value}`).byteLength <= maxLineBytes) {
+    return [`${firstPrefix}${value}`];
+  }
+
+  const words = value.split(", ");
+  const lines: string[] = [];
+  let current = firstPrefix;
+
+  for (const word of words) {
+    const separator = current === firstPrefix ? "" : ", ";
+    const candidate = current + separator + word;
+
+    if (current !== firstPrefix && new TextEncoder().encode(candidate).byteLength > maxLineBytes) {
+      lines.push(current);
+      current = continuationPrefix + word;
+      continue;
+    }
+
+    if (current === firstPrefix && new TextEncoder().encode(candidate).byteLength > maxLineBytes) {
+      throw new RangeError(`SMTP ${name} header contains an overlong value.`);
+    }
+
+    current = candidate;
+  }
+
+  lines.push(current);
+  return lines;
 }
 
 function encodeHeaderText(value: string): string {
