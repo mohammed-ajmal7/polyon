@@ -4,7 +4,7 @@ import type { Agent, Model, Policy, Provider, SecretReference } from "@polyon/co
 import { BoundedHttpClient, EnvironmentSecretResolver, SmtpTransport, type EmailTransport } from "@polyon/integrations";
 import { OpenAICompatibleTextModelAdapter } from "@polyon/providers";
 import { EncryptedFileSecretResolver, NodeSmtpConnectionFactory } from "@polyon/runtime";
-import { BoundedWebResearchRetriever, ConfiguredHttpResearchProvider, createPolyonComposition, type PolyonComposition } from "@polyon/application";
+import { BoundedWebResearchRetriever, ConfiguredHttpCreativeAdapter, ConfiguredHttpResearchProvider, createPolyonComposition, type PolyonComposition } from "@polyon/application";
 
 const globalState = globalThis as typeof globalThis & { __polyonComposition?: PolyonComposition };
 
@@ -26,11 +26,13 @@ function buildOptions() {
   const email = buildEmailRegistration();
   const secretResolver = email === undefined ? undefined : buildSecretResolver();
   const researchRetriever = buildResearchRetriever();
+  const creativeAdapter = buildCreativeAdapter();
   return {
     storageRoot: process.env.POLYON_DATA_DIR?.trim() || join(process.cwd(), ".polyon-data"),
     ...(model === undefined ? {} : { agents: [model.agent], models: [model.model], providers: [model.registration] }),
     ...(secretResolver === undefined ? {} : { secretResolver }),
     ...(researchRetriever === undefined ? {} : { researchRetriever }),
+    ...(creativeAdapter === undefined ? {} : { creativeAdapter }),
     ...(email === undefined ? {} : {
       emailIntegrationId: "email-primary",
       emailSecretReference: email.secretReference,
@@ -116,6 +118,49 @@ function buildResearchRetriever() {
   const provider = new ConfiguredHttpResearchProvider({ endpoint, http });
   return new BoundedWebResearchRetriever(provider, http, {
     maxContentBytes: 100_000,
+  });
+}
+
+function buildCreativeAdapter() {
+  const endpointByOperation = {
+    IMAGE: process.env.POLYON_CREATIVE_IMAGE_ENDPOINT?.trim(),
+    VIDEO: process.env.POLYON_CREATIVE_VIDEO_ENDPOINT?.trim(),
+    AUDIO: process.env.POLYON_CREATIVE_AUDIO_ENDPOINT?.trim(),
+    VOICE: process.env.POLYON_CREATIVE_VOICE_ENDPOINT?.trim(),
+    EDIT: process.env.POLYON_CREATIVE_EDIT_ENDPOINT?.trim(),
+  };
+
+  const configured = Object.values(endpointByOperation).filter(
+    (value): value is string => value !== undefined && value !== "",
+  );
+  if (configured.length === 0) return undefined;
+
+  const hosts = new Set<string>();
+  for (const endpoint of configured) {
+    try {
+      const url = new URL(endpoint);
+      if (url.protocol !== "https:") {
+        throw new Error("creative endpoint must use HTTPS");
+      }
+      hosts.add(url.hostname);
+    } catch {
+      throw new Error("POLYON creative endpoints must be valid HTTPS URLs.");
+    }
+  }
+
+  const http = new BoundedHttpClient({
+    allowedHosts: [...hosts],
+    defaultTimeoutMs: 30_000,
+    maxTimeoutMs: 120_000,
+    defaultMaxResponseBytes: 128_000,
+    maxResponseBytes: 1_000_000,
+    defaultMaxRequestBytes: 32_768,
+    maxRequestBytes: 32_768,
+  });
+
+  return new ConfiguredHttpCreativeAdapter({
+    endpointByOperation,
+    http,
   });
 }
 
