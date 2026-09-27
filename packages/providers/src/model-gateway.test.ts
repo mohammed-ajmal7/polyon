@@ -83,10 +83,7 @@ describe("ModelGateway", () => {
       });
 
       const pending = gateway.invoke("model-1", "hello", { timeoutMs: 50 });
-
-      await vi.advanceTimersByTimeAsync(50);
-
-      await expect(pending).rejects.toEqual(
+      const rejected = expect(pending).rejects.toEqual(
         new ProviderInvocationError(
           "TIMEOUT",
           "provider-1",
@@ -95,6 +92,9 @@ describe("ModelGateway", () => {
           true,
         ),
       );
+
+      await vi.advanceTimersByTimeAsync(50);
+      await rejected;
     } finally {
       vi.useRealTimers();
     }
