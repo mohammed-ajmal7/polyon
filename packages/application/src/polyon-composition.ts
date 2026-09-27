@@ -47,6 +47,14 @@ export interface PolyonCompositionOptions {
   readonly gitCommitMaxOutputBytes?: number;
   readonly gitCommitEnvironmentKeys?: readonly string[];
   readonly gitCommitEnabled?: boolean;
+  readonly gitPublishRoot?: string;
+  readonly gitPublishAllowedRemotes?: readonly string[];
+  readonly gitPublishExecutable?: string;
+  readonly gitPublishDefaultTimeoutMs?: number;
+  readonly gitPublishMaxTimeoutMs?: number;
+  readonly gitPublishMaxOutputBytes?: number;
+  readonly gitPublishEnvironmentKeys?: readonly string[];
+  readonly gitPublishEnabled?: boolean;
   readonly artifactRoot?: string;
   readonly artifactDefaultKind?:
     | "DOCUMENT"
@@ -125,6 +133,8 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     options.gitRoot !== undefined ||
     options.gitWriteRoot !== undefined ||
     options.gitCommitRoot !== undefined ||
+    (options.gitPublishRoot !== undefined &&
+      options.gitPublishAllowedRemotes !== undefined) ||
     options.artifactRoot !== undefined
   ) {
     registerBuiltinTools(builtinTools, {
@@ -159,6 +169,14 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
       gitCommitMaxOutputBytes: options.gitCommitMaxOutputBytes,
       gitCommitEnvironmentKeys: options.gitCommitEnvironmentKeys,
       gitCommitEnabled: options.gitCommitEnabled,
+      gitPublishRoot: options.gitPublishRoot,
+      gitPublishAllowedRemotes: options.gitPublishAllowedRemotes,
+      gitPublishExecutable: options.gitPublishExecutable,
+      gitPublishDefaultTimeoutMs: options.gitPublishDefaultTimeoutMs,
+      gitPublishMaxTimeoutMs: options.gitPublishMaxTimeoutMs,
+      gitPublishMaxOutputBytes: options.gitPublishMaxOutputBytes,
+      gitPublishEnvironmentKeys: options.gitPublishEnvironmentKeys,
+      gitPublishEnabled: options.gitPublishEnabled,
       artifactRoot: options.artifactRoot,
       artifactDefaultKind: options.artifactDefaultKind,
       artifactWriteEnabled: options.artifactWriteEnabled,
