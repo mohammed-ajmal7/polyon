@@ -1,4 +1,5 @@
 export { applyMissionPlanProposal } from "./mission-plan-application";
+export { markTaskReady, TaskReadyError } from "./task-ready-transition";
 export { cancelExecution, completeExecution, ExecutionControlError, pauseExecution, rejectExecution, resumeExecution, startExecution } from "./execution-control";
 export { createRetryExecution, ExecutionRetryError } from "./execution-retry";
 export {

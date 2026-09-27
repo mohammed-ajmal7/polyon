@@ -34,6 +34,8 @@ export {
   InvalidMissionPlanProposalError,
   InvalidStateTransitionError,
   MissionPlanApplicationDeniedError,
+  markTaskReady,
+  TaskReadyError,
   startExecution,
   transitionExecutionStatus,
   transitionMissionStatus,
