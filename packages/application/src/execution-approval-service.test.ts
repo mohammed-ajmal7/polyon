@@ -89,6 +89,45 @@ describe("ExecutionApprovalService", () => {
     );
   });
 
+  it("runs approval, execution, task, and event persistence through the supplied unit of work", () => {
+    const stores = new InMemoryDomainStores();
+    const queue = new InMemoryExecutionQueue();
+    stores.tasks.save(task);
+    let transactionCalls = 0;
+
+    const unitOfWork = {
+      transaction<T>(
+        work: Parameters<InMemoryDomainStores["transaction"]>[0],
+      ): T {
+        transactionCalls += 1;
+        return stores.transaction(work) as T;
+      },
+    };
+
+    const service = new ExecutionApprovalService({
+      approvals: stores.approvals,
+      executions: stores.executions,
+      tasks: stores.tasks,
+      queue,
+      events: stores.events,
+      unitOfWork,
+    });
+
+    const result = service.resolve(approval, execution, {
+      status: "APPROVED",
+      resolvedAt: "2026-09-27T01:02:00.000Z",
+      resolvedBy: "user-1",
+    });
+
+    expect(transactionCalls).toBe(1);
+    expect(stores.approvals.get("approval-1")?.status).toBe("APPROVED");
+    expect(stores.executions.get("execution-1")?.status).toBe("QUEUED");
+    expect(stores.tasks.get("task-1")?.status).toBe("APPROVED");
+    expect(stores.events.listByExecution("execution-1")).toHaveLength(3);
+    expect(queue.peek()?.id).toBe("execution-1");
+    expect(result.nextStep).toBe("ENQUEUE");
+  });
+
   it("approves and queues an execution", () => {
     const { stores, queue, events, service } = createService();
 
