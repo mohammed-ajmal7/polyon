@@ -2,66 +2,81 @@
 
 import { join } from "node:path";
 
-import type {
-  ApprovalRequest,
-  Artifact,
-  Conversation,
-  Execution,
-  Message,
-  Mission,
-  MissionPlanProposal,
-  PolicyDecision,
-  Task,
-} from "@polyon/contracts";
+import type { DomainStoreTransactionContext, DomainUnitOfWork } from "./transaction";
+import { FileDomainDatabase } from "./file-database";
+import { createStateContext } from "./state-store";
+import type { DomainStores } from "./domain-stores";
+import type { EventStore } from "./event-store";
 
-import { FileEntityStore, type EntityStore } from "./entity-store";
-import type {
-  ApprovalRequestStore,
-  ArtifactStore,
-  ConversationStore,
-  DomainStores,
-  ExecutionStore,
-  MessageStore,
-  MissionPlanProposalStore,
-  MissionStore,
-  PolicyDecisionStore,
-  TaskStore,
-} from "./domain-stores";
-import { FileEventStore, type EventStore } from "./event-store";
-
-export interface DurableDomainStores extends DomainStores {
+export interface DurableDomainStores extends DomainStores, DomainUnitOfWork {
   readonly events: EventStore;
   readonly rootDir: string;
 }
 
 export class FileDomainStores implements DurableDomainStores {
-  readonly approvals: ApprovalRequestStore;
-  readonly artifacts: ArtifactStore;
-  readonly conversations: ConversationStore;
-  readonly executions: ExecutionStore;
-  readonly messages: MessageStore;
-  readonly missions: MissionStore;
-  readonly missionPlanProposals: MissionPlanProposalStore;
-  readonly policyDecisions: PolicyDecisionStore;
-  readonly tasks: TaskStore;
-  readonly events: EventStore;
+  private state = this.database.snapshot();
 
-  constructor(readonly rootDir: string) {
-    this.approvals = new FileEntityStore<ApprovalRequest>(join(rootDir, "approvals.json"));
-    this.artifacts = new FileEntityStore<Artifact>(join(rootDir, "artifacts.json"));
-    this.conversations = new FileEntityStore<Conversation>(
-      join(rootDir, "conversations.json"),
-    );
-    this.executions = new FileEntityStore<Execution>(join(rootDir, "executions.json"));
-    this.messages = new FileEntityStore<Message>(join(rootDir, "messages.json"));
-    this.missions = new FileEntityStore<Mission>(join(rootDir, "missions.json"));
-    this.missionPlanProposals = new FileEntityStore<MissionPlanProposal>(
-      join(rootDir, "mission-plan-proposals.json"),
-    );
-    this.policyDecisions = new FileEntityStore<PolicyDecision>(
-      join(rootDir, "policy-decisions.json"),
-    );
-    this.tasks = new FileEntityStore<Task>(join(rootDir, "tasks.json"));
-    this.events = new FileEventStore(join(rootDir, "events.json"));
+  constructor(readonly rootDir: string) {}
+
+  private readonly database = new FileDomainDatabase(join(this.rootDir, "domain-state.json"));
+
+  private readonly context = createStateContext(
+    this.state,
+    (state) => {
+      this.database.replace(state);
+      this.state = this.database.snapshot();
+    },
+  );
+
+  get approvals() {
+    return this.context.approvals;
+  }
+
+  get artifacts() {
+    return this.context.artifacts;
+  }
+
+  get conversations() {
+    return this.context.conversations;
+  }
+
+  get executions() {
+    return this.context.executions;
+  }
+
+  get messages() {
+    return this.context.messages;
+  }
+
+  get missions() {
+    return this.context.missions;
+  }
+
+  get missionPlanProposals() {
+    return this.context.missionPlanProposals;
+  }
+
+  get policyDecisions() {
+    return this.context.policyDecisions;
+  }
+
+  get tasks() {
+    return this.context.tasks;
+  }
+
+  get events() {
+    return this.context.events;
+  }
+
+  transaction<T>(work: (context: DomainStoreTransactionContext) => T): T {
+    const stagedState = this.database.snapshot();
+    const stagedContext = createStateContext(stagedState);
+
+    const result = work(stagedContext);
+
+    this.database.replace(stagedState);
+    this.state = this.database.snapshot();
+
+    return result;
   }
 }
