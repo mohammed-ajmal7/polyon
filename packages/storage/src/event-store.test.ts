@@ -96,9 +96,7 @@ describe("InMemoryEventStore", () => {
   });
 });
 
-
-
-  it("persists events across store instances", () => {
+it("persists events across store instances", () => {
     const directory = mkdtempSync(join(tmpdir(), "polyon-events-"));
 
     try {
@@ -132,3 +130,5 @@ describe("InMemoryEventStore", () => {
       rmSync(directory, { recursive: true, force: true });
     }
   });
+
+});
