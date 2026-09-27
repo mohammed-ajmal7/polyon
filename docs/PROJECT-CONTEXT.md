@@ -359,7 +359,7 @@ The implementation provides:
 - fail-closed handling for malformed or unsupported snapshots;
 - duplicate-identity protection after recovery.
 
-The current durable backend is intentionally a replaceable adapter rather than a commitment to one database technology.
+The current durable backend is intentionally a replaceable adapter rather than a commitment to one database technology. Durable snapshots now have a formal versioned migration pipeline: supported migrations are applied sequentially on open, validated against the current schema version, and persisted through the same atomic commit boundary. Future-version snapshots and missing/ambiguous migration paths fail closed.
 
 A storage-level unit-of-work boundary is now available. File-backed domain stores stage changes against a complete domain snapshot and commit them with one atomic filesystem replacement; in-memory stores provide rollback semantics for tests.
 
@@ -378,7 +378,6 @@ Durable storage now has optimistic concurrency protection. File-backed writes ca
 
 Still required for the full Phase 3 target:
 
-- formal migration execution beyond the current snapshot version marker;
 - broader crash-recovery tests around multi-store operations;
 - startup wiring and recovery monitoring for the durable execution queue.
 
