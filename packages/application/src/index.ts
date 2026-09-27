@@ -111,3 +111,10 @@ export {
   ExecutionRetryService,
   type RetryFailedTaskInput,
 } from "./execution-retry-service";
+
+export {
+  createPolyonComposition,
+  type PolyonComposition,
+  type PolyonCompositionOptions,
+  type PolyonProviderRegistration,
+} from "./polyon-composition";

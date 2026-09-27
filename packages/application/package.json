@@ -13,10 +13,10 @@
     "@polyon/core": "workspace:*",
     "@polyon/runtime": "workspace:*",
     "@polyon/storage": "workspace:*",
-    "@polyon/tools": "workspace:*"
+    "@polyon/tools": "workspace:*",
+    "@polyon/providers": "workspace:*"
   },
   "devDependencies": {
-    "@polyon/providers": "workspace:*",
     "typescript": "5.9.3",
     "vitest": "5.0.2"
   },
