@@ -11,6 +11,9 @@ declare module "node:fs" {
   export function mkdtempSync(path: string): string;
   export function openSync(path: string, flags: string): number;
   export function readFileSync(path: string, encoding: "utf8"): string;
+  export function statSync(path: string): {
+    readonly mtimeMs: number;
+  };
   export function renameSync(oldPath: string, newPath: string): void;
   export function rmSync(
     path: string,
@@ -20,6 +23,7 @@ declare module "node:fs" {
     },
   ): void;
   export function unlinkSync(path: string): void;
+  export function utimesSync(path: string, atime: Date, mtime: Date): void;
   export function writeFileSync(
     path: string,
     data: string,
