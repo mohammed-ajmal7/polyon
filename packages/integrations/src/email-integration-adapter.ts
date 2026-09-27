@@ -28,9 +28,7 @@ export interface EmailTransport {
 }
 
 export type EmailIntegrationAdapterErrorKind =
-  | "INVALID_INPUT"
-  | "AUTHENTICATION_ERROR"
-  | "TRANSPORT_ERROR";
+  "INVALID_INPUT" | "AUTHENTICATION_ERROR" | "TRANSPORT_ERROR";
 
 export class EmailIntegrationAdapterError extends Error {
   readonly kind: EmailIntegrationAdapterErrorKind;
@@ -105,20 +103,14 @@ export class EmailIntegrationAdapter implements IntegrationAdapter {
         throw error;
       }
 
-      throw new EmailIntegrationAdapterError(
-        "TRANSPORT_ERROR",
-        "Email transport failed.",
-      );
+      throw new EmailIntegrationAdapterError("TRANSPORT_ERROR", "Email transport failed.");
     }
   }
 }
 
 function parseSendEmailInput(input: unknown): EmailSendInput {
   if (input === null || typeof input !== "object") {
-    throw new EmailIntegrationAdapterError(
-      "INVALID_INPUT",
-      "SEND_EMAIL requires an object input.",
-    );
+    throw new EmailIntegrationAdapterError("INVALID_INPUT", "SEND_EMAIL requires an object input.");
   }
 
   const value = input as Record<string, unknown>;
