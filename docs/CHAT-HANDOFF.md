@@ -7,9 +7,10 @@
 
 - Repository: `mohammed-ajmal7/polyon`
 - Working branch: `feature/core-architecture`
-- Current branch tip: `562348c9dc5ace70f19928529903562a8aa48ec0`
-- Latest CI run checked: `36333404991`
-- CI status at handoff: **GREEN** — install, typecheck, tests, lint, and format check all passed.
+- Current branch tip: `0c3dcede8032bdcfc0e9d8ac73ad3231908455d6`
+- Latest fully verified implementation CI run: `36333404991`
+- That verified run was **GREEN** — install, typecheck, tests, lint, and format check all passed.
+- Current branch has newer docs-only commits after that green run; the latest current CI run is `36333541410` and is still in progress.
 - The repository code/tests are the final source of truth if this file conflicts with implementation.
 
 ## What POLYON is
