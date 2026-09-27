@@ -1,6 +1,6 @@
 /// <reference path="./node-runtime.d.ts" />
 
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
@@ -57,6 +57,33 @@ describe("FileDomainStores", () => {
       expect(() =>
         stores.transaction(() => stores.transaction(() => undefined)),
       ).toThrow("A storage transaction is already in progress.");
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("recovers a stale commit lock after a crashed writer", () => {
+    const directory = mkdtempSync(join(tmpdir(), "polyon-domain-"));
+
+    try {
+      const stores = new FileDomainStores(directory);
+      const lockPath = join(directory, "domain-state.json.lock");
+      const staleTime = new Date(Date.now() - 10 * 60 * 1000);
+
+      writeFileSync(lockPath, "stale", "utf8");
+      utimesSync(lockPath, staleTime, staleTime);
+
+      stores.missions.save({
+        id: "mission-stale-lock-1",
+        objective: "Recover after crash.",
+        constraints: [],
+        status: "DRAFT",
+        taskIds: [],
+        createdAt: "2026-09-27T04:04:00.000Z",
+        updatedAt: "2026-09-27T04:04:00.000Z",
+      });
+
+      expect(new FileDomainStores(directory).missions.get("mission-stale-lock-1")).toBeDefined();
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
