@@ -155,10 +155,7 @@ function parseSendEmailInput(input: unknown): EmailSendInput {
   }
 
   if (value.html !== undefined) {
-    if (
-      typeof value.html !== "string" ||
-      Array.from(value.html).length > MAX_BODY_LENGTH
-    ) {
+    if (typeof value.html !== "string" || Array.from(value.html).length > MAX_BODY_LENGTH) {
       throw new EmailIntegrationAdapterError(
         "INVALID_INPUT",
         `Email HTML body must contain at most ${MAX_BODY_LENGTH} characters.`,
@@ -166,11 +163,10 @@ function parseSendEmailInput(input: unknown): EmailSendInput {
     }
   }
 
-  const replyTo =
-    value.replyTo === undefined ? undefined : parseAddress(value.replyTo, "replyTo");
+  const replyTo = value.replyTo === undefined ? undefined : parseAddress(value.replyTo, "replyTo");
 
   return {
-    to: to as readonly string[],
+    to,
     subject: value.subject,
     text: value.text,
     ...(value.html === undefined ? {} : { html: value.html as string }),
