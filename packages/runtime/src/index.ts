@@ -31,3 +31,9 @@ export {
   type ExecutionWorkerStartResult,
   type ExecutionWorkerStateErrorKind,
 } from "./execution-worker";
+
+export {
+  createExecutionRuntime,
+  type ExecutionRuntime,
+  type ExecutionRuntimeDependencies,
+} from "./execution-runtime";
