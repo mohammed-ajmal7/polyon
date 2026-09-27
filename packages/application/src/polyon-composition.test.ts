@@ -1,8 +1,9 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import type { Agent, Conversation, Mission, Model, Policy, Provider, Task } from "@polyon/contracts";
+import { BUILTIN_TOOL_IDS } from "@polyon/tools";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -108,8 +109,12 @@ describe("createPolyonComposition", () => {
     const root = mkdtempSync(join(tmpdir(), "polyon-composition-"));
 
     try {
+      const workspace = join(root, "workspace");
+      const fileRoot = workspace;
+      writeFileSync(join(root, "placeholder"), "unused", "utf8");
       const composition = createPolyonComposition({
         storageRoot: root,
+        filesystemRoot: fileRoot,
         providers: [registration()],
         models: [model],
         agents: [agent],
@@ -120,6 +125,36 @@ describe("createPolyonComposition", () => {
       expect(composition.models.get(model.id)?.providerId).toBe("provider.test");
       expect(composition.providers.get("provider.test")?.enabled).toBe(true);
       expect(composition.runtime.status).toBe("STOPPED");
+      expect(composition.toolInvocation).toBeDefined();
+
+      const toolFile = join(fileRoot, "mission.txt");
+      writeFileSync(toolFile, "governed composition tool", "utf8");
+
+      const toolResult = await composition.toolInvocation.invoke({
+        invocationId: "invocation:composition:filesystem-read",
+        toolId: BUILTIN_TOOL_IDS.filesystemRead,
+        input: { path: "mission.txt", maxBytes: 1024 },
+        action: "READ",
+        riskLevel: "LOW",
+        policy,
+        decisionId: "decision:composition:filesystem-read",
+        approvalRequestId: "approval:composition:filesystem-read",
+        requestedBy: "actor.test",
+        requestedAt: now,
+        evaluatedAt: now,
+        actorId: "actor.test",
+        missionId: mission.id,
+        taskId: task.id,
+        executionId: "execution:tool:composition",
+        agentId: agent.id,
+      });
+
+      expect(toolResult).toMatchObject({
+        status: "SUCCEEDED",
+        output: {
+          content: "governed composition tool",
+        },
+      });
 
       composition.stores.tasks.save(task);
       composition.stores.conversations.save(conversation);
