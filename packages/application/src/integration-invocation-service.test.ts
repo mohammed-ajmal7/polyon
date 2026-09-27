@@ -202,6 +202,36 @@ describe("IntegrationInvocationService", () => {
     expect(invoke).toHaveBeenCalledOnce();
   });
 
+  it("applies integration-specific policy rules", async () => {
+    const invoke = vi.fn(async () => ({ output: "sent" }));
+    const { service } = createService({
+      integrationId: "telegram-primary",
+      kind: "TELEGRAM",
+      actionKinds: ["EXTERNAL_COMMUNICATION"],
+      invoke,
+    });
+
+    const result = await service.invoke({
+      ...baseInput,
+      policy: {
+        ...policy,
+        rules: [
+          {
+            priority: 100,
+            integrationId: "telegram-primary",
+            effect: "DENY",
+          },
+        ],
+      },
+      invocationId: "integration-invocation-specific-deny",
+      approvalRequestId: "integration-approval-specific-deny",
+      decisionId: "integration-decision-specific-deny",
+    });
+
+    expect(result.status).toBe("REJECTED");
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
   it("applies agent-scoped policy rules to integration invocations", async () => {
     const invoke = vi.fn(async () => ({ output: "sent" }));
     const { service } = createService({
