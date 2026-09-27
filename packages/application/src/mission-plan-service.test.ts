@@ -96,6 +96,54 @@ const baseInput = {
 };
 
 describe("MissionPlanService", () => {
+  it("runs the cross-store plan write through the supplied unit of work", () => {
+    const stores = new InMemoryDomainStores();
+
+    stores.missions.save(mission);
+    stores.tasks.save(createTask("task-1"));
+    stores.tasks.save(createTask("task-2", ["task-1"]));
+
+    let transactionCalls = 0;
+    const unitOfWork = {
+      transaction<T>(
+        work: Parameters<InMemoryDomainStores["transaction"]>[0],
+      ): T {
+        transactionCalls += 1;
+        return stores.transaction(work) as T;
+      },
+    };
+
+    const service = new MissionPlanService({
+      missions: stores.missions,
+      tasks: stores.tasks,
+      proposals: stores.missionPlanProposals,
+      policyDecisions: stores.policyDecisions,
+      approvals: stores.approvals,
+      events: stores.events,
+      unitOfWork,
+    });
+
+    const result = service.submit({
+      ...baseInput,
+      policy: createPolicy("ALLOW"),
+      appliedAt: "2026-09-27T02:13:00.000Z",
+    });
+
+    expect(transactionCalls).toBe(1);
+    expect(result.status).toBe("APPLIED");
+    expect(stores.missionPlanProposals.get("proposal-1")).toBeDefined();
+    expect(stores.policyDecisions.get("decision-1")).toBeDefined();
+    expect(stores.missions.get("mission-1")?.taskIds).toEqual([
+      "task-1",
+      "task-2",
+    ]);
+    expect(stores.events.list().map((event) => event.kind)).toEqual([
+      "MISSION_PLAN_PROPOSED",
+      "POLICY_DECIDED",
+      "MISSION_PLAN_APPLIED",
+    ]);
+  });
+
   it("applies an allowed plan, persists the decision, and emits a linked trace", () => {
     const { stores, events, service } = createService();
 
