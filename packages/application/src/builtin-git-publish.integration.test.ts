@@ -126,7 +126,7 @@ describe("governed Git publish integration", () => {
       expect(awaiting.status).toBe("APPROVAL_REQUIRED");
       const refsBefore = execFileSync(
         "git",
-        ["--git-dir", repositories.remote, "show-ref"],
+        ["--git-dir", repositories.remote, "for-each-ref", "--format=%(refname)"],
         { encoding: "utf8" },
       );
       expect(refsBefore.trim()).toBe("");
