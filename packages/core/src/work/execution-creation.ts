@@ -5,6 +5,7 @@ import { areTaskDependenciesSatisfied, type TaskDependency } from "./task-readin
 export interface CreateExecutionForTaskInput {
   readonly id: ExecutionId;
   readonly actorId: ActorId;
+  readonly agentId?: import("@polyon/contracts").AgentId;
   readonly attempt: number;
   readonly createdAt: string;
 }
@@ -55,6 +56,7 @@ export function createExecutionForTask(
     missionId: task.missionId,
     taskId: task.id,
     actorId: input.actorId,
+    ...(input.agentId !== undefined ? { agentId: input.agentId } : {}),
     attempt: input.attempt,
     status: "PENDING",
     createdAt: input.createdAt,

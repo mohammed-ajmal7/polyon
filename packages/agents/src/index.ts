@@ -25,3 +25,9 @@ export {
   type AgentModelRoutingErrorKind,
   type ResolveAgentModelInput,
 } from "./agent-model-routing";
+export {
+  bindExecutionRouting,
+  type BoundExecutionRouting,
+  type BindExecutionRoutingInput,
+  type ExecutionRoutingRegistries,
+} from "./execution-routing";

@@ -1,4 +1,5 @@
 import type { ActorId } from "../actor/ids";
+import type { AgentId, ModelId, ProviderId } from "../agent/ids";
 import type { ExecutionId, MissionId, TaskId } from "./ids";
 
 export type ExecutionStatus =
@@ -20,6 +21,10 @@ export interface Execution {
   readonly taskId: TaskId;
 
   readonly actorId: ActorId;
+
+  readonly agentId?: AgentId;
+  readonly modelId?: ModelId;
+  readonly providerId?: ProviderId;
 
   readonly attempt: number;
   readonly status: ExecutionStatus;
