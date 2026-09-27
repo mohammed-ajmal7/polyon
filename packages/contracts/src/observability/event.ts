@@ -20,6 +20,9 @@ export type EventKind =
   | "INTEGRATION_INVOKED"
   | "TOOL_INVOKED"
   | "MESSAGE_CREATED"
+  | "MEMORY_RECORDED"
+  | "SOURCE_RETRIEVED"
+  | "EVIDENCE_CAPTURED"
   | "ERROR"
   | "OTHER";
 

@@ -157,3 +157,6 @@ export {
   type PolyonCompositionOptions,
   type PolyonProviderRegistration,
 } from "./polyon-composition";
+
+export { MemoryService, type RememberMemoryInput, type SearchMemoryInput } from "./memory-service";
+export { ResearchService, type ResearchRetriever, type ResearchSourceCandidate, type ConductResearchInput, type ConductResearchResult } from "./research-service";
