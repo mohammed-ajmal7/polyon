@@ -82,15 +82,33 @@ export class DebateOrchestrationService {
       throw new Error("Adjudicator must be one of the debate participants.");
     }
 
+    const persistedContributions = this.loadContributions(debate.id);
+    const contributions: DebateRunResult["contributions"][number][] = [...persistedContributions];
+
+    if (debate.status === "DECIDED") {
+      const decisionEvent = this.events.list().find((event) =>
+        event.kind === "DEBATE_DECIDED" &&
+        event.data.debateId === debate.id &&
+        typeof event.data.decision === "string",
+      );
+      if (decisionEvent === undefined) throw new Error("Decided debate has no decision trace.");
+      return { debate, decision: String(decisionEvent.data.decision), contributions };
+    }
+
     if (debate.status === "DRAFT") {
       debate = startDebate(debate, input.now());
       this.persistStatus(debate, input.now(), "DRAFT");
     }
 
-    const contributions: DebateRunResult["contributions"][number][] = [];
-
     while (debate.status === "RUNNING") {
       for (const agentId of debate.participantAgentIds) {
+        const existing = contributions.find((candidate) =>
+          candidate.agentId === agentId &&
+          candidate.round === debate.currentRound &&
+          candidate.phase === debate.phase,
+        );
+        if (existing !== undefined) continue;
+
         const contribution = await this.invokeContribution(debate, agentId, contributions, input);
         contributions.push(contribution);
         this.persistContribution(debate, contribution);
@@ -109,6 +127,18 @@ export class DebateOrchestrationService {
     const decided = decideDebate(debate, input.now());
     this.persistDecision(decided, input.now(), decision);
     return { debate: decided, decision, contributions };
+  }
+
+  private loadContributions(debateId: string): DebateRunResult["contributions"] {
+    return this.events.list()
+      .filter((event) => event.kind === "DEBATE_CONTRIBUTION" && event.data.debateId === debateId)
+      .map((event) => ({
+        agentId: String(event.data.agentId),
+        round: Number(event.data.round),
+        phase: event.data.phase as Debate["phase"],
+        content: String(event.data.content),
+      }))
+      .sort((a, b) => a.round - b.round || a.phase.localeCompare(b.phase) || a.agentId.localeCompare(b.agentId));
   }
 
   private async invokeContribution(
