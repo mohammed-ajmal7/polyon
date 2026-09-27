@@ -30,11 +30,19 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
     try {
       const result = await this.runner.run(running);
 
-      return completeExecution(running, {
-        status: result.status,
-        completedAt: completionAt,
-        error: result.error,
-      });
+      return completeExecution(
+        running,
+        result.status === "FAILED"
+          ? {
+              status: "FAILED",
+              completedAt: completionAt,
+              error: result.error,
+            }
+          : {
+              status: "SUCCEEDED",
+              completedAt: completionAt,
+            },
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : "Execution runner failed.";
 
