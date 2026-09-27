@@ -37,6 +37,33 @@ describe("createRetryExecution", () => {
     });
   });
 
+  it("preserves the logical agent when no replacement agent is supplied", () => {
+    const retry = createRetryExecution(
+      {
+        ...failedExecution,
+        agentId: "agent-1",
+      },
+      input,
+    );
+
+    expect(retry.agentId).toBe("agent-1");
+  });
+
+  it("allows a retry to switch the logical agent", () => {
+    const retry = createRetryExecution(
+      {
+        ...failedExecution,
+        agentId: "agent-1",
+      },
+      {
+        ...input,
+        agentId: "agent-2",
+      },
+    );
+
+    expect(retry.agentId).toBe("agent-2");
+  });
+
   it("does not carry failure state into the retry", () => {
     const retry = createRetryExecution(failedExecution, input);
 

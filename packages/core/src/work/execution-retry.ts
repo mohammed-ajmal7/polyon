@@ -1,8 +1,9 @@
-import type { ActorId, Execution, ExecutionId } from "@polyon/contracts";
+import type { ActorId, AgentId, Execution, ExecutionId } from "@polyon/contracts";
 
 export interface RetryExecutionInput {
   readonly id: ExecutionId;
   readonly actorId: ActorId;
+  readonly agentId?: AgentId;
   readonly createdAt: string;
 }
 
@@ -28,6 +29,11 @@ export function createRetryExecution(
     missionId: execution.missionId,
     taskId: execution.taskId,
     actorId: input.actorId,
+    ...(input.agentId !== undefined
+      ? { agentId: input.agentId }
+      : execution.agentId !== undefined
+        ? { agentId: execution.agentId }
+        : {}),
     attempt: execution.attempt + 1,
     status: "PENDING",
     createdAt: input.createdAt,

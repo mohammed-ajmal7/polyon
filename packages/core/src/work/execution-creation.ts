@@ -1,11 +1,11 @@
-import type { ActorId, Execution, ExecutionId, Task } from "@polyon/contracts";
+import type { ActorId, AgentId, Execution, ExecutionId, Task } from "@polyon/contracts";
 
 import { areTaskDependenciesSatisfied, type TaskDependency } from "./task-readiness";
 
 export interface CreateExecutionForTaskInput {
   readonly id: ExecutionId;
   readonly actorId: ActorId;
-  readonly agentId?: import("@polyon/contracts").AgentId;
+  readonly agentId?: AgentId;
   readonly attempt: number;
   readonly createdAt: string;
 }
