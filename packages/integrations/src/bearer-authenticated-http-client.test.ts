@@ -87,7 +87,18 @@ describe("BearerAuthenticatedHttpClient", () => {
   });
 
   it("does not expose the resolved secret through the transport contract", async () => {
-    const request = vi.fn(async () => ({
+    const request = vi.fn(async (
+      _input: {
+        readonly url: string;
+        readonly method?: "GET" | "HEAD";
+        readonly headers?: Readonly<Record<string, string>>;
+        readonly signal?: AbortSignal;
+      },
+      _options?: {
+        readonly timeoutMs?: number;
+        readonly maxResponseBytes?: number;
+      },
+    ) => ({
       url: "https://www.googleapis.com/drive/v3/files",
       status: 200,
       statusText: "OK",
