@@ -123,6 +123,7 @@ describe("EmailIntegrationAdapter", () => {
             ...secretReference,
             kind: "API_KEY",
           },
+          smtpUsername: "mailer@example.com",
           transport,
         }),
     ).toThrow(RangeError);
