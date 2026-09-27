@@ -1,115 +1,122 @@
 # POLYON Chat Handoff
 
 > Compact continuation note for a new ChatGPT conversation.
-> Read this together with `AGENTS.md`, `docs/PROJECT-CONTEXT.md`, and `docs/architecture/001-system-architecture.md`.
+> Read this with `AGENTS.md`, `docs/PROJECT-CONTEXT.md`, and
+> `docs/architecture/001-system-architecture.md`.
 
-## Repository state
+## Current repository state
 
 - Repository: `mohammed-ajmal7/polyon`
-- Working branch: `feature/core-architecture`
-- Current branch tip: `95e3e50f08335b436af50f4fa69683a8d41578c8`
-- Latest CI run: `36333992212`.
-- CI passes install, typecheck, tests, and lint; format check failed on this file.
-- The repository code/tests are the final source of truth if this file conflicts with implementation.
+- Branch: `feature/core-architecture`
+- Latest implementation commit before this note: `039f2a165d43d26e978706fc9dd5d5d0554b7f74`
+- The latest CI run before this formatting fix failed only on Prettier.
+- Typecheck, tests, and lint passed in that run.
+- Always inspect the live branch and latest CI before continuing.
 
 ## What POLYON is
 
 POLYON = **Personal AI Operations Network**.
 
-Tagline: **Many intelligences. One command.**
+The human remains the final authority. Core rules are:
 
-It is a personal AI operations workspace, not a single chatbot. The human remains the final authority.
-
-Core rules:
 - policy before consequential action;
 - explicit approval where required;
 - provider independence;
 - adapter boundaries;
 - privacy first;
 - deterministic controls;
-- traceability/evidence;
+- traceability and evidence;
 - bounded autonomy;
 - replaceability;
 - zero additional operating cost by default.
 
 Planned external integrations are **only Google Drive, Telegram, and Email**.
 
-## Major foundations already implemented
+## Major foundations
 
-- Mission, task, execution lifecycle and dependency model.
-- Execution policy/approval flow, retries, queueing, cancellation, deadlines, recovery, and durable restart handling.
-- File-backed durable storage with versioned migration, atomic persistence, optimistic concurrency, and transactional application writes.
-- Agent/model/provider registries and routing boundaries.
-- Structured model request/response contracts and provider-independent model gateway.
-- Structured model tool calls with bounded agent tool orchestration.
-- Durable approval continuations and restart-safe tool checkpoints.
-- Governed tool invocation through policy, approval, schema validation, adapter lookup, audit events, and idempotency.
-- Root-scoped filesystem read.
-- Opt-in bounded terminal execution.
-- Structured Git read/write/commit.
-- Allowlisted Git publish classified as `PUBLISH/HIGH`; no force/refspec-style arbitrary arguments.
-- Governed text artifact creation with durable artifact metadata.
-- Durable artifact catalog plus structured `artifact.list.scoped` and `artifact.read.scoped`.
-- Bounded model-facing tool output size, including resumed continuations.
-- Google Drive concrete bounded integration adapter.
-- Telegram concrete bounded outbound integration adapter.
-- Bounded outbound HTTP transport and secret-resolution boundary.
-- Integration invocation governance and audit tracing.
-- Integration reliability work includes cancellation/timeout distinction and typed invocation boundaries.
+Already implemented:
 
-## Current integration direction
+- mission, task, execution lifecycle, dependencies, retries, queueing,
+  cancellation, deadlines, recovery, and durable restart handling;
+- durable file-backed storage with migrations and transactional writes;
+- agent, model, and provider registries;
+- provider-independent model gateway;
+- governed model tool calls and bounded orchestration;
+- durable approval continuations and restart-safe checkpoints;
+- governed tool invocation with policy, approval, validation, audit, and
+  idempotency;
+- scoped filesystem, terminal, Git, artifact, and publish capabilities;
+- bounded model-facing tool output;
+- Google Drive and Telegram integration adapters;
+- bounded outbound HTTP and secret-resolution boundaries;
+- integration invocation governance and audit tracing.
 
-Google Drive and Telegram exist behind integration adapters and the application governance boundary.
+## Current Email work
 
-Email is **not** implemented yet.
+Email now has a provider-neutral adapter boundary in
+`packages/integrations/src/email-integration-adapter.ts`.
 
-Do not add new external services/providers unless explicitly approved.
+It provides:
 
-## How to continue
+- `SEND_EMAIL`;
+- recipient, subject, body, and address validation;
+- CRLF/header-injection rejection;
+- recipient and body size limits;
+- `SMTP_CREDENTIAL` secret-reference enforcement;
+- injected `EmailTransport`;
+- sanitized transport errors;
+- `NON_IDEMPOTENT` and `EXTERNAL_COMMUNICATION` capability metadata.
 
-Work in **normal-sized slices**, not massive batches.
+The adapter is exported and can be explicitly registered by
+`createPolyonComposition` only when a secret resolver, email integration
+ID, secret reference, and transport are all supplied.
 
-Preferred loop:
+Do **not** call the Email adapter directly from an agent or model.
+Execution must continue through the existing integration invocation,
+policy, approval, audit, and execution boundaries.
+
+No provider-specific Email SDK has been added.
+
+## Preferred work loop
+
 1. Inspect the live branch and current CI.
-2. Pick one focused production capability or one concrete failing diagnostic.
+2. Pick one focused production capability or concrete failure.
 3. Change only the necessary files.
 4. Add focused tests.
-5. Update canonical docs when the architecture changes.
-6. Check CI and report the exact status.
+5. Update canonical docs when architecture changes.
+6. Verify CI.
 7. Stop at a coherent boundary.
 
-Do not create huge speculative frameworks. Prefer small vertical slices that are actually wired end-to-end.
+Work in normal-sized slices. Do not create giant speculative batches.
 
-Do not claim CI is green unless the current branch/run proves it.
+Do not claim CI is green unless the current run proves it.
 
-## Immediate continuation mindset
+## Likely next Email slice
 
-Before starting new implementation, inspect the latest commits and CI again because the branch may have advanced since this handoff.
+Before implementing a concrete SMTP transport, inspect:
 
-The next work should continue the existing production-hardening path. A likely near-term area is completing the Email integration behind the same adapter -> policy/approval -> bounded transport -> durable audit model, but first inspect the current repository because the implementation may have advanced.
+- `packages/integrations/src/secret-resolver.ts`;
+- all secret resolver implementations and tests;
+- `packages/integrations/src/bounded-http-client.ts`;
+- Node/TypeScript runtime dependencies and available network primitives;
+- Email-related architecture documentation.
 
-## Useful files
+The current `SecretResolver` returns a string, while
+`SMTP_CREDENTIAL` may need structured host, port, username, password, and
+TLS information. Design that boundary carefully before adding transport
+code.
 
-- `AGENTS.md` — engineering rules.
-- `docs/PROJECT-CONTEXT.md` — canonical product/architecture/roadmap state.
-- `docs/architecture/001-system-architecture.md` — architecture rules.
-- `packages/contracts` — shared contracts.
-- `packages/core` — deterministic domain rules.
-- `packages/application` — use cases/governance/orchestration.
-- `packages/runtime` — execution runtime/recovery.
-- `packages/storage` — persistence.
-- `packages/agents` — agents/models/providers.
-- `packages/providers` — provider adapters.
-- `packages/tools` — governed tool surfaces.
-- `packages/integrations` — external integration adapters.
-- `apps/web` — UI, still not the finished AI HQ.
+Keep Email provider-independent and preserve the existing governance
+boundary.
 
-## Chat style preference
+## Chat style
 
 The owner prefers:
+
 - direct, practical explanations;
-- being addressed casually as “Bro”;
-- actual repository changes rather than just explanations when asked to continue;
+- casual "Bro" address;
+- actual repository changes when asked to continue;
 - medium-sized coherent coding batches;
-- honest CI/failure reporting;
-- no repeated clarification when the repository already contains enough context.
+- honest CI and failure reporting;
+- no repeated clarification when the repository already contains enough
+  context.
