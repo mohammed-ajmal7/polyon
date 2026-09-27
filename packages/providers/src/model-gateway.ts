@@ -1,7 +1,4 @@
-import type { ModelId } from "@polyon/contracts";
-
-import type { ModelRegistry } from "@polyon/agents";
-import type { ProviderRegistry } from "@polyon/agents";
+import type { Model, ModelId, Provider } from "@polyon/contracts";
 
 import type {
   ModelProviderAdapter,
@@ -29,9 +26,17 @@ export class ModelGatewayError extends Error {
   }
 }
 
+export interface ModelCatalog {
+  get(modelId: ModelId): Model | undefined;
+}
+
+export interface ProviderCatalog {
+  get(providerId: Provider["id"]): Provider | undefined;
+}
+
 export interface ModelGatewayDependencies {
-  readonly models: ModelRegistry;
-  readonly providers: ProviderRegistry;
+  readonly models: ModelCatalog;
+  readonly providers: ProviderCatalog;
   readonly adapters: ProviderAdapterRegistry;
 }
 

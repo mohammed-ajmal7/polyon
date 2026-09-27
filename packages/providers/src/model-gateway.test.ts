@@ -1,12 +1,12 @@
 import type { Model, Provider } from "@polyon/contracts";
 import { describe, expect, it } from "vitest";
 
-import { InMemoryModelRegistry } from "@polyon/agents";
-import { InMemoryProviderRegistry } from "@polyon/agents";
 import {
   InMemoryProviderAdapterRegistry,
   ModelGateway,
   ModelGatewayError,
+  type ModelCatalog,
+  type ProviderCatalog,
 } from ".";
 import type { ModelProviderAdapter } from "./provider-adapter";
 
@@ -26,18 +26,28 @@ const provider: Provider = {
   enabled: true,
 };
 
+function createCatalogs(
+  modelValue: Model = model,
+  providerValue: Provider = provider,
+): { models: ModelCatalog; providers: ProviderCatalog } {
+  return {
+    models: {
+      get: (id) => (id === modelValue.id ? modelValue : undefined),
+    },
+    providers: {
+      get: (id) => (id === providerValue.id ? providerValue : undefined),
+    },
+  };
+}
+
 function createGateway(adapter: ModelProviderAdapter = {
   providerId: "provider-1",
   async invoke({ input }) {
     return { output: input };
   },
 }) {
-  const models = new InMemoryModelRegistry();
-  const providers = new InMemoryProviderRegistry();
+  const { models, providers } = createCatalogs();
   const adapters = new InMemoryProviderAdapterRegistry();
-
-  models.register(model);
-  providers.register(provider);
   adapters.register(adapter);
 
   return new ModelGateway({ models, providers, adapters });
@@ -99,11 +109,12 @@ describe("ModelGateway", () => {
   });
 
   it("rejects an unknown provider", async () => {
-    const models = new InMemoryModelRegistry();
-    const providers = new InMemoryProviderRegistry();
+    const { models } = createCatalogs();
+    const providers: ProviderCatalog = {
+      get: () => undefined,
+    };
     const adapters = new InMemoryProviderAdapterRegistry();
 
-    models.register(model);
     adapters.register({
       providerId: "provider-1",
       async invoke() {
@@ -121,12 +132,12 @@ describe("ModelGateway", () => {
   });
 
   it("rejects a disabled provider", () => {
-    const models = new InMemoryModelRegistry();
-    const providers = new InMemoryProviderRegistry();
+    const { models } = createCatalogs(model, { ...provider, enabled: false });
+    const providers: ProviderCatalog = {
+      get: () => ({ ...provider, enabled: false }),
+    };
     const adapters = new InMemoryProviderAdapterRegistry();
 
-    models.register(model);
-    providers.register({ ...provider, enabled: false });
     adapters.register({
       providerId: "provider-1",
       async invoke() {
@@ -144,12 +155,8 @@ describe("ModelGateway", () => {
   });
 
   it("rejects a provider without a registered adapter", () => {
-    const models = new InMemoryModelRegistry();
-    const providers = new InMemoryProviderRegistry();
+    const { models, providers } = createCatalogs();
     const adapters = new InMemoryProviderAdapterRegistry();
-
-    models.register(model);
-    providers.register(provider);
 
     const gateway = new ModelGateway({ models, providers, adapters });
 
