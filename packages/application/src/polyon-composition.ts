@@ -96,6 +96,7 @@ export interface PolyonCompositionOptions {
   readonly toolPolicy?: Policy;
   readonly toolRequiredCapabilityIds?: readonly string[];
   readonly maxToolRounds?: number;
+  readonly maxToolOutputBytes?: number;
   readonly clock?: ExecutionWorkerClock;
   readonly executionTimeoutMs?: number;
   readonly pollIntervalMs?: number;
@@ -303,6 +304,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
               const result = await agentToolOrchestration.resumeApprovedExecution(
                 executionId,
                 options.toolPolicy!,
+                options.maxToolOutputBytes,
               );
               if (result.status === "NO_CONTINUATION") {
                 return { status: "NO_CONTINUATION" as const };
@@ -351,6 +353,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
                     taskId: execution.taskId,
                     executionId: execution.id,
                     maxToolRounds: options.maxToolRounds,
+                    maxToolOutputBytes: options.maxToolOutputBytes,
                   },
                   request,
                   response,
