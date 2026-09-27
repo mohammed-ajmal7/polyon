@@ -145,6 +145,7 @@ describe("governed execution flow", () => {
       "EXECUTION_STATUS_CHANGED",
       "TASK_STATUS_CHANGED",
       "EXECUTION_STATUS_CHANGED",
+      "EXECUTION_STATUS_CHANGED",
       "TASK_STATUS_CHANGED",
       "EXECUTION_STATUS_CHANGED",
       "TASK_STATUS_CHANGED",
