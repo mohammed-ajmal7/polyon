@@ -171,3 +171,35 @@ describe("FileEntityStore", () => {
     }
   });
 });
+
+
+  it("fails closed on duplicate entity IDs in a snapshot", () => {
+    const directory = withTempDir();
+    const path = join(directory, "entities.json");
+
+    try {
+      writeFileSync(
+        path,
+        JSON.stringify({
+          version: 1,
+          entities: [
+            {
+              id: "entity-1",
+              nested: { values: ["one"] },
+            },
+            {
+              id: "entity-1",
+              nested: { values: ["two"] },
+            },
+          ],
+        }),
+        "utf8",
+      );
+
+      expect(() => new FileEntityStore<TestEntity>(path)).toThrow(
+        "Duplicate entity ID in storage snapshot: entity-1.",
+      );
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
