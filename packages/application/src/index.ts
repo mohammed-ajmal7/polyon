@@ -177,3 +177,6 @@ export { CodingAgentService, DEFAULT_CODING_TOOL_IDS, type CodingAgentInput } fr
 export { TraceQueryService, type TraceQuery, type TraceEvent } from "./trace-query-service";
 
 export { ConversationAgentOrchestrationService, type ConversationAgentTarget, type ExecuteConversationInput, type ConversationExecutionResult, type ConversationExecutionStatus } from "./conversation-agent-orchestration-service";
+
+export { ResearchSynthesisService, type SynthesizeResearchInput, type ResearchSynthesisResult } from "./research-synthesis-service";
+export { CreativeJobService, type CreativeAdapter, type CreativeJobRequest, type CreativeOperation } from "./creative-job-service";
