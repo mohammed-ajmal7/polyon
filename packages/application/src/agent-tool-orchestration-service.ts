@@ -345,12 +345,17 @@ export class AgentToolOrchestrationService {
           candidate.executionId === executionId &&
           candidate.status === "APPROVED" &&
           candidate.toolContinuation !== undefined,
+      )
+      .sort((left, right) =>
+        (right.resolvedAt ?? right.requestedAt).localeCompare(
+          left.resolvedAt ?? left.requestedAt,
+        ),
       );
 
     const approval =
       candidates.find(
         (candidate) => candidate.toolContinuation?.state !== "COMPLETED",
-      ) ?? candidates[candidates.length - 1];
+      ) ?? candidates[0];
 
     if (approval === undefined || approval.toolContinuation === undefined) {
       return { status: "NO_CONTINUATION", rounds: 0 };
