@@ -22,7 +22,6 @@ export {
   getReadyTaskIds,
   ApprovedMissionPlanApplicationError,
   ApprovedExecutionRunError,
-  ExecutionRunAuthorizationApplicationError,
   ExecutionControlError,
   rejectExecution,
   ExecutionRetryError,
