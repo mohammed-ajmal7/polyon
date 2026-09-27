@@ -17,7 +17,11 @@ function findToolContinuation(
   approvals: ApprovalRequestStore,
   executionId: ExecutionId,
   status: "PENDING" | "APPROVED",
-): NonNullable<import("@polyon/contracts").ApprovalRequest["toolContinuation"]> | undefined {
+):
+  | NonNullable<
+      import("@polyon/contracts").ApprovalRequest["toolContinuation"]
+    >
+  | undefined {
   return approvals
     .list()
     .filter(
@@ -47,14 +51,6 @@ function hasPendingToolContinuation(
   executionId: ExecutionId,
 ): boolean {
   return findToolContinuation(approvals, executionId, "PENDING") !== undefined;
-}
-  return approvals.list().some(
-    (approval) =>
-      approval.executionId === executionId &&
-      approval.status === "APPROVED" &&
-      approval.toolContinuation !== undefined &&
-      approval.toolContinuation.state !== "COMPLETED",
-  );
 }
 
 export function recoverQueuedExecutions(
