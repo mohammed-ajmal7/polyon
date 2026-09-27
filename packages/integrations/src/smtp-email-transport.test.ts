@@ -326,6 +326,47 @@ describe("SmtpTransport", () => {
     expect(dataWrites.every((value) => new TextEncoder().encode(value).byteLength <= 64 * 1024)).toBe(true);
   });
 
+  it("folds long subject and recipient headers below the SMTP line limit", async () => {
+    const connection = createConnection([
+      "220 ready",
+      "250 hello AUTH LOGIN",
+      "334 VXNlcm5hbWU6",
+      "334 UGFzc3dvcmQ6",
+      "235 authenticated",
+      "250 sender accepted",
+      "250 recipient accepted",
+      "354 continue",
+      "250 queued",
+      "221 bye",
+    ]);
+    const transport = new SmtpTransport(
+      {
+        host: "smtp.example.com",
+        port: 465,
+        secure: true,
+        heloName: "polyon.local",
+        messageIdDomain: "polyon.local",
+      },
+      { connect: vi.fn(async () => connection) },
+    );
+    const recipients = Array.from({ length: 20 }, (_, index) => `user${index}@example.com`);
+
+    await transport.send(
+      {
+        to: recipients,
+        subject: Array.from({ length: 120 }, () => "long").join(" "),
+        text: "hello",
+      },
+      { username: "mailer@example.com", password: "secret" },
+    );
+
+    const messageWrites = connection.write.mock.calls
+      .map(([value]) => value)
+      .filter((value) => value.includes("Message-ID:") || value.includes("Subject:") || value.includes("To:"));
+    const message = messageWrites.join("");
+    expect(message.split("\r\n").every((line) => new TextEncoder().encode(line).byteLength <= 998)).toBe(true);
+  });
+
   it("uses UTF-8 bytes for AUTH LOGIN credentials", async () => {
     const connection = createConnection([
       "220 ready",
