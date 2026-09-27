@@ -11,6 +11,7 @@ const integration: IntegrationAdapter = {
   integrationId: "telegram-primary",
   kind: "TELEGRAM",
   actionKinds: ["EXTERNAL_COMMUNICATION"],
+  supportedOperations: ["send_message"],
   async invoke() {
     return { output: "ok" };
   },
@@ -66,6 +67,23 @@ describe("authorizeIntegrationInvocation", () => {
       new IntegrationAuthorizationError(
         "INTEGRATION_ACTION_NOT_SUPPORTED",
         "Integration does not support action: DELETE.",
+      ),
+    );
+  });
+
+  it("rejects an unsupported operation before policy evaluation", () => {
+    expect(() =>
+      authorizeIntegrationInvocation({
+        ...input,
+        integrationInvocation: {
+          operation: "delete_message",
+          input: {},
+        },
+      }),
+    ).toThrowError(
+      new IntegrationAuthorizationError(
+        "INTEGRATION_OPERATION_NOT_SUPPORTED",
+        "Integration does not support operation: delete_message.",
       ),
     );
   });
