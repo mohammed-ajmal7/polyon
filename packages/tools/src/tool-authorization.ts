@@ -43,13 +43,19 @@ export interface ToolInvocationAuthorization {
 }
 
 export type ToolAuthorizationErrorKind =
-  "TOOL_DISABLED" | "TOOL_ACTION_NOT_SUPPORTED" | "TOOL_INVOCATION_DENIED";
+  | "TOOL_DISABLED"
+  | "TOOL_ACTION_NOT_SUPPORTED"
+  | "TOOL_INVOCATION_DENIED";
 
 export class ToolAuthorizationError extends Error {
   readonly kind: ToolAuthorizationErrorKind;
   readonly decision?: PolicyDecision;
 
-  constructor(kind: ToolAuthorizationErrorKind, message: string, decision?: PolicyDecision) {
+  constructor(
+    kind: ToolAuthorizationErrorKind,
+    message: string,
+    decision?: PolicyDecision,
+  ) {
     super(message);
     this.name = "ToolAuthorizationError";
     this.kind = kind;
@@ -111,6 +117,7 @@ export function authorizeToolInvocation(
       missionId: input.missionId,
       taskId: input.taskId,
       executionId: input.executionId,
+      toolId: input.tool.id,
       expiresAt: input.expiresAt,
     }),
   };
