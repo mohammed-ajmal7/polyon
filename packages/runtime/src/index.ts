@@ -11,6 +11,7 @@ export {
   type ExecutionCoordinator,
   type ExecutionCoordinatorDependencies,
   type ExecutionCoordinatorErrorKind,
+  type ExecutionRunOutcome,
 } from "./execution-coordinator";
 
 export type { ExecutionRunResult, ExecutionRunner } from "./execution-runner";
