@@ -28,6 +28,7 @@ import type {
   Task,
   Debate,
   Evidence,
+  MemoryEmbedding,
   MemoryEntry,
   Source,
 } from "@polyon/contracts";
@@ -42,11 +43,12 @@ import {
 import { StorageConcurrencyError } from "./transaction";
 
 export interface DurableDomainState {
-  readonly version: 2;
+  readonly version: 3;
   approvals: ApprovalRequest[];
   debates: Debate[];
   evidence: Evidence[];
   memory: MemoryEntry[];
+  memoryEmbeddings: MemoryEmbedding[];
   sources: Source[];
   artifacts: Artifact[];
   conversations: Conversation[];
@@ -75,6 +77,7 @@ function emptyState(): DurableDomainState {
     debates: [],
     evidence: [],
     memory: [],
+    memoryEmbeddings: [],
     sources: [],
     artifacts: [],
     conversations: [],
@@ -113,6 +116,7 @@ function validateState(filePath: string, value: unknown): DurableDomainState {
     "debates",
     "evidence",
     "memory",
+    "memoryEmbeddings",
     "sources",
     "artifacts",
     "conversations",
