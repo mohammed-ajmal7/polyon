@@ -309,7 +309,6 @@ export class ToolInvocationService {
       });
 
       try {
-        const { validateToolInput } = await import("@polyon/tools");
         validateToolInput(tool, input.input);
       } catch (error) {
         if (!(error instanceof ToolInputValidationError)) {
