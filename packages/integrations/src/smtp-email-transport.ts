@@ -71,12 +71,16 @@ export class SmtpTransport implements EmailTransport {
     const heloName = options.heloName.trim();
     const messageIdDomain = options.messageIdDomain.trim();
 
-    if (heloName === "" || !isAsciiHeaderValue(heloName)) {
-      throw new RangeError("SMTP HELO name must be non-empty and ASCII-safe.");
+    if (
+      heloName === "" ||
+      !isAsciiHeaderValue(heloName) ||
+      new TextEncoder().encode(`EHLO ${heloName}`).byteLength > 998
+    ) {
+      throw new RangeError("SMTP HELO name must be non-empty, ASCII-safe, and line-safe.");
     }
 
-    if (messageIdDomain === "" || !isAsciiHeaderValue(messageIdDomain)) {
-      throw new RangeError("SMTP message ID domain must be non-empty and ASCII-safe.");
+    if (!isMessageIdDomain(messageIdDomain)) {
+      throw new RangeError("SMTP message ID domain must be a valid DNS-style domain.");
     }
 
     this.options = {
@@ -234,6 +238,20 @@ function validateEnvelope(input: EmailSendInput, credential: EmailSmtpCredential
 
 function isAsciiHeaderValue(value: string): boolean {
   return /^[\x20-\x7e]*$/.test(value);
+}
+
+function isMessageIdDomain(value: string): boolean {
+  if (value.length === 0 || value.length > 253 || !isAsciiHeaderValue(value)) {
+    return false;
+  }
+
+  const labels = value.split(".");
+  return labels.every(
+    (label) =>
+      label.length > 0 &&
+      label.length <= 63 &&
+      /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/.test(label),
+  );
 }
 
 function isSmtpAddress(value: string): boolean {
