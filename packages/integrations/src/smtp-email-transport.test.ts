@@ -247,6 +247,9 @@ describe("SmtpTransport", () => {
     const connection = createConnection([
       "220 ready",
       "250 hello AUTH LOGIN",
+      "334 VXNlcm5hbWU6",
+      "334 UGFzc3dvcmQ6",
+      "235 authenticated",
       "500 rejected",
     ]);
     const factory = {
