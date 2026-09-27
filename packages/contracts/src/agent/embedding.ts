@@ -7,5 +7,3 @@ export interface EmbeddingRequest {
 export interface EmbeddingResponse {
   readonly vectors: readonly (readonly number[])[];
 }
-
-export type EmbeddingModelId = ModelId;
