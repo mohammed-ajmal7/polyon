@@ -24,3 +24,44 @@ declare module "node:path" {
   export function relative(from: string, to: string): string;
   export function resolve(...paths: string[]): string;
 }
+
+
+declare module "node:child_process" {
+  export interface SpawnedChildProcess {
+    readonly stdout: {
+      on(event: "data", listener: (chunk: Buffer) => void): void;
+    };
+    readonly stderr: {
+      on(event: "data", listener: (chunk: Buffer) => void): void;
+    };
+    on(event: "error", listener: (error: unknown) => void): void;
+    on(
+      event: "close",
+      listener: (exitCode: number | null, signal: string | null) => void,
+    ): void;
+    kill(): boolean;
+  }
+
+  export function spawn(
+    command: string,
+    args: readonly string[],
+    options: {
+      readonly cwd: string;
+      readonly shell: false;
+      readonly windowsHide?: boolean;
+      readonly env?: Readonly<Record<string, string | undefined>>;
+      readonly stdio: readonly ["ignore", "pipe", "pipe"];
+    },
+  ): SpawnedChildProcess;
+}
+
+declare const process: {
+  readonly env: Readonly<Record<string, string | undefined>>;
+  readonly execPath: string;
+};
+
+declare class Buffer extends Uint8Array {
+  static concat(list: readonly Buffer[]): Buffer;
+  static from(data: string): Buffer;
+  toString(encoding?: string): string;
+}
