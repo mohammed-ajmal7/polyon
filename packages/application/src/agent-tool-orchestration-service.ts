@@ -238,6 +238,56 @@ export class AgentToolOrchestrationService {
   private now(input: AgentToolOrchestrationInput): string {
     return (input.now ?? (() => new Date().toISOString()))();
   }
+
+  private async pauseExecutionForApproval(
+    executionId: string | undefined,
+    approvalId: string,
+  ): Promise<void> {
+    if (executionId === undefined) return;
+    const execution = this.dependencies.executions.get(executionId);
+    if (execution === undefined || execution.status !== "RUNNING") return;
+    const task = this.dependencies.tasks.get(execution.taskId);
+    if (task === undefined) throw new Error(`Task not found for execution ${executionId}.`);
+
+    const now = new Date().toISOString();
+    const operation = (stores: {
+      executions: ExecutionStore;
+      tasks: TaskStore;
+      events: EventStore;
+    }) => {
+      const pausedExecution = transitionExecutionStatus(execution, "PAUSED", now);
+      const pausedTask = transitionTaskStatus(task, "PAUSED", now);
+      stores.executions.save(pausedExecution);
+      stores.tasks.save(pausedTask);
+      stores.events.append({
+        id: `EXECUTION_STATUS_CHANGED:${execution.id}:RUNNING:PAUSED:${now}:TOOL_APPROVAL`,
+        kind: "EXECUTION_STATUS_CHANGED",
+        actorId: execution.actorId,
+        missionId: execution.missionId,
+        taskId: execution.taskId,
+        executionId: execution.id,
+        occurredAt: now,
+        data: { from: "RUNNING", to: "PAUSED", reason: "TOOL_APPROVAL", approvalRequestId: approvalId },
+      });
+      stores.events.append({
+        id: `TASK_STATUS_CHANGED:${task.id}:RUNNING:PAUSED:${now}:TOOL_APPROVAL`,
+        kind: "TASK_STATUS_CHANGED",
+        missionId: task.missionId,
+        taskId: task.id,
+        occurredAt: now,
+        data: { from: "RUNNING", to: "PAUSED", reason: "TOOL_APPROVAL", approvalRequestId: approvalId },
+      });
+    };
+    if (this.dependencies.unitOfWork === undefined) operation(this.dependencies);
+    else this.dependencies.unitOfWork.transaction(operation);
+  }
+
+  async resumeApprovedExecution(executionId: string): Promise<AgentToolOrchestrationResult> {
+    const approval = this.dependencies.tools === undefined
+      ? undefined
+      : undefined;
+    throw new Error("resumeApprovedExecution requires an approval store.");
+  }
 }
 
 function selectAction(tool: Tool): ActionKind {
