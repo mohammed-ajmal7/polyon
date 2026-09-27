@@ -35,7 +35,10 @@ function createTask(
   };
 }
 
-function createService(mission: Mission = baseMission, tasks: readonly Task[] = [createTask("task-1"), createTask("task-2")]) {
+function createService(
+  mission: Mission = baseMission,
+  tasks: readonly Task[] = [createTask("task-1"), createTask("task-2")],
+) {
   const stores = new InMemoryDomainStores();
   const events = new InMemoryEventStore();
 
@@ -360,11 +363,14 @@ describe("MissionLifecycleService", () => {
   });
 
   it("rejects a mission task that is missing from persistence", () => {
-    const { stores, service } = createService({
-      ...baseMission,
-      status: "RUNNING",
-      taskIds: ["missing-task"],
-    }, []);
+    const { stores, service } = createService(
+      {
+        ...baseMission,
+        status: "RUNNING",
+        taskIds: ["missing-task"],
+      },
+      [],
+    );
 
     expect(() =>
       service.syncProgress({
@@ -411,12 +417,15 @@ describe("MissionLifecycleService", () => {
     );
   });
 
-  it("does not require an event identity when progress produces no transition", () => {
-    const { service, events } = createService({
-      ...baseMission,
-      status: "PLANNING",
-      taskIds: [],
-    }, []);
+  it("does not emit when progress produces no transition", () => {
+    const { service, events } = createService(
+      {
+        ...baseMission,
+        status: "PLANNING",
+        taskIds: [],
+      },
+      [],
+    );
 
     const result = service.syncProgress({
       missionId: "mission-1",
