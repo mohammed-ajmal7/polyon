@@ -81,7 +81,9 @@ export class SmtpTransport implements EmailTransport {
   }
 
   async send(input: EmailSendInput, credential: EmailSmtpCredential): Promise<EmailSendOutput> {
-    validateEnvelope(input, credential);\n\n    const message = buildMessage(input, credential.username, this.options.messageIdDomain);
+    validateEnvelope(input, credential);
+
+    const message = buildMessage(input, credential.username, this.options.messageIdDomain);
     const messageBytes = new TextEncoder().encode(message).byteLength;
     const dataFrameBytes = messageBytes + 3;
 
@@ -124,7 +126,8 @@ export class SmtpTransport implements EmailTransport {
 
       await this.command(connection, "DATA", 354);
       await connection.write(message);
-      await connection.write(".\r\n");
+      await connection.write(".\r
+");
 
       try {
         await expectCode(connection, 250);
@@ -221,7 +224,8 @@ function isSmtpAddress(value: string): boolean {
   return (
     value.length > 0 &&
     value.length <= 320 &&
-    !/[\\r\\n]/.test(value) &&
+    !/[\\r\
+]/.test(value) &&
     /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(value)
   );
 }
@@ -242,7 +246,8 @@ async function expectCode(connection: SmtpConnection, ...expectedCodes: number[]
     const response = await connection.read();
     lines.push(response);
 
-    const match = /^(\d{3})([ -])(.*?)(?:\r?\n)?$/.exec(response);
+    const match = /^(\d{3})([ -])(.*?)(?:\r?
+)?$/.exec(response);
 
     if (match === null) {
       throw new SmtpTransportError("PROTOCOL", "SMTP server returned an invalid response.");
@@ -255,7 +260,9 @@ async function expectCode(connection: SmtpConnection, ...expectedCodes: number[]
     }
 
     if (match[2] === " ") {
-      return lines.map((line) => line.replace(/\r?\n$/, "")).join("\r\n");
+      return lines.map((line) => line.replace(/\r?
+$/, "")).join("\r
+");
     }
   }
 }
@@ -278,7 +285,8 @@ function classifySmtpResponse(code: number): SmtpTransportError {
 
 function hasSmtpCapability(response: string, capability: string): boolean {
   const normalizedCapability = capability.toUpperCase();
-  return response.split("\r\n").some((line) => {
+  return response.split("\r
+").some((line) => {
     const match = /^\d{3}-?\s*(.*?)\s*$/.exec(line);
     if (match === null) {
       return false;
@@ -289,7 +297,8 @@ function hasSmtpCapability(response: string, capability: string): boolean {
 }
 
 function hasSmtpAuthMechanism(response: string, mechanism: SmtpAuthMechanism): boolean {
-  return response.split("\r\n").some((line) => {
+  return response.split("\r
+").some((line) => {
     const match = /^\d{3}-?\s*AUTH\s+(.+?)\s*$/i.exec(line);
     if (match === null) {
       return false;
@@ -322,7 +331,9 @@ function buildMessage(
       "Content-Transfer-Encoding: base64",
       "",
       encodeMimeBody(input.text),
-    ].join("\r\n") + "\r\n";
+    ].join("\r
+") + "\r
+";
   }
 
   const boundary = `=_POLYON_${messageId.slice(1, -1).replace(/[^A-Za-z0-9]/g, "")}`;
@@ -343,7 +354,8 @@ function buildMessage(
     encodeMimeBody(input.html),
     `--${boundary}--`,
     "",
-  ].join("\r\n");
+  ].join("\r
+");
 }
 
 function encodeHeaderText(value: string): string {
@@ -354,13 +366,18 @@ function encodeHeaderText(value: string): string {
   const bytes = new TextEncoder().encode(value);
   return splitUtf8Bytes(bytes, 45)
     .map((chunk) => `=?UTF-8?B?${bytesToBase64(chunk)}?=`)
-    .join("\r\n ");
+    .join("\r
+ ");
 }
 
 function encodeMimeBody(value: string): string {
-  const normalized = value.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const normalized = value.replace(/\r
+/g, "
+").replace(/\r/g, "
+");
   const encoded = bytesToBase64(new TextEncoder().encode(normalized));
-  return encoded.match(/.{1,76}/g)?.join("\r\n") ?? "";
+  return encoded.match(/.{1,76}/g)?.join("\r
+") ?? "";
 }
 
 function splitUtf8Bytes(bytes: Uint8Array, maxBytes: number): Uint8Array[] {
