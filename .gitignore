@@ -109,3 +109,5 @@ test-results/
 *.pid
 *.seed
 *.pid.lock
+# POLYON local durable state
+.polyon-data/
