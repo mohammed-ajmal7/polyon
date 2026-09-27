@@ -7,7 +7,7 @@ import type {
 
 import type { ExecutionDispatchPlan } from "./execution-dispatch";
 import type { ExecutionIdentityFactory, MissionExecutionService } from "./mission-execution-service";
-import type { DomainUnitOfWork, MissionStore, TaskStore } from "@polyon/storage";
+import type { MissionStore, TaskStore } from "@polyon/storage";
 
 export interface ExecuteMissionGraphInput {
   readonly missionId: string;
@@ -33,7 +33,6 @@ export class MissionGraphExecutionService {
     private readonly missions: MissionStore,
     private readonly tasks: TaskStore,
     private readonly execution: MissionExecutionService,
-    private readonly unitOfWork?: DomainUnitOfWork,
   ) {}
 
   executeReadyTasks(input: ExecuteMissionGraphInput): ExecuteMissionGraphResult {
@@ -46,8 +45,7 @@ export class MissionGraphExecutionService {
       .map((taskId) => this.tasks.get(taskId))
       .filter((task): task is Task => task !== undefined);
 
-    const run = () => this.execution.dispatchReadyTasks({
-      mission,
+    const result = this.execution.dispatchReadyTasks({
       tasks: missionTasks,
       actorId: input.actorId,
       ...(input.agentId === undefined ? {} : { agentId: input.agentId }),
@@ -58,11 +56,6 @@ export class MissionGraphExecutionService {
       riskLevel: input.riskLevel,
       identities: input.identities,
     });
-
-    const result =
-      this.unitOfWork === undefined
-        ? run()
-        : this.unitOfWork.transaction(() => run());
 
     const refreshedMission = this.missions.get(mission.id);
     if (refreshedMission === undefined) {
