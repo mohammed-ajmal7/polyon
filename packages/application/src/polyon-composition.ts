@@ -161,6 +161,9 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
                 executionId,
                 options.toolPolicy!,
               );
+              if (result.status === "NO_CONTINUATION") {
+                return { status: "NO_CONTINUATION" as const };
+              }
               return {
                 status: result.status === "SUCCEEDED"
                   ? "SUCCEEDED" as const
