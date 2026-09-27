@@ -4,12 +4,14 @@ import type { ToolAdapterRegistry } from "./tool-adapter-registry";
 import { InMemoryToolAdapterRegistry } from "./tool-adapter-registry";
 import { ScopedFilesystemReadToolAdapter } from "./scoped-filesystem-read-adapter";
 import { ScopedTerminalToolAdapter } from "./scoped-terminal-tool-adapter";
+import { ScopedGitReadToolAdapter } from "./scoped-git-read-tool-adapter";
 import type { ToolRegistry } from "./tool-registry";
 import { InMemoryToolRegistry } from "./tool-registry";
 
 export const BUILTIN_TOOL_IDS = {
   filesystemRead: "filesystem.read.scoped" as ToolId,
   terminalExecute: "terminal.execute.scoped" as ToolId,
+  gitRead: "git.read.scoped" as ToolId,
 } as const;
 
 export interface BuiltinToolRegistries {
@@ -28,6 +30,13 @@ export interface BuiltinToolOptions {
   readonly terminalMaxOutputBytes?: number;
   readonly terminalEnvironmentKeys?: readonly string[];
   readonly terminalEnabled?: boolean;
+  readonly gitRoot?: string;
+  readonly gitExecutable?: string;
+  readonly gitDefaultTimeoutMs?: number;
+  readonly gitMaxTimeoutMs?: number;
+  readonly gitMaxOutputBytes?: number;
+  readonly gitEnvironmentKeys?: readonly string[];
+  readonly gitEnabled?: boolean;
 }
 
 export interface BuiltinFilesystemReadToolRegistration {
@@ -137,6 +146,50 @@ export function registerBuiltinTools(
 
     registries.tools.register(terminalTool);
     registries.adapters.register(terminalAdapter);
+  }
+
+  if (options.gitRoot !== undefined) {
+    const gitTool: Tool = {
+      id: BUILTIN_TOOL_IDS.gitRead,
+      name: "Scoped Git read",
+      description:
+        "Inspects repository state without modifying Git history or the working tree.",
+      kind: "GIT",
+      actionKinds: ["READ"],
+      inputSchema: {
+        type: "object",
+        required: ["operation"],
+        additionalProperties: false,
+        properties: {
+          operation: {
+            type: "string",
+            enum: ["STATUS", "DIFF", "LOG", "SHOW"],
+          },
+          maxOutputBytes: {
+            type: "integer",
+            minimum: 1,
+          },
+          timeoutMs: {
+            type: "integer",
+            minimum: 1,
+          },
+        },
+      },
+      enabled: options.gitEnabled ?? true,
+    };
+
+    const gitAdapter = new ScopedGitReadToolAdapter({
+      toolId: gitTool.id,
+      rootDir: options.gitRoot,
+      gitExecutable: options.gitExecutable,
+      defaultTimeoutMs: options.gitDefaultTimeoutMs,
+      maxTimeoutMs: options.gitMaxTimeoutMs,
+      defaultMaxOutputBytes: options.gitMaxOutputBytes,
+      environmentKeys: options.gitEnvironmentKeys,
+    });
+
+    registries.tools.register(gitTool);
+    registries.adapters.register(gitAdapter);
   }
 
   return registrations;
