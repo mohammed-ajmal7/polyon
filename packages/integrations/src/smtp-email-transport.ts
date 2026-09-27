@@ -313,25 +313,26 @@ function classifySmtpResponse(code: number): SmtpTransportError {
   return new SmtpTransportError("PROTOCOL", "SMTP server returned an unexpected response.", code);
 }
 
+function smtpCapabilityPayload(line: string): string | undefined {
+  const match = /^\d{3}-?\s*(.*?)\s*$/.exec(line);
+  return match?.[1];
+}
+
 function hasSmtpCapability(response: string, capability: string): boolean {
   const normalizedCapability = capability.toUpperCase();
   return response.split("\r\n").some((line) => {
-    const match = /^\d{3}-?\s*(.*?)\s*$/.exec(line);
-    if (match === null) {
-      return false;
-    }
-
-    return match[1].toUpperCase().split(/\s+/u)[0] === normalizedCapability;
+    const payload = smtpCapabilityPayload(line);
+    if (payload === undefined) return false;
+    return payload.toUpperCase().split(/\s+/u).includes(normalizedCapability);
   });
 }
 
 function hasSmtpAuthMechanism(response: string, mechanism: SmtpAuthMechanism): boolean {
   return response.split("\r\n").some((line) => {
-    const match = /^\d{3}-?\s*AUTH\s+(.+?)\s*$/i.exec(line);
-    if (match === null) {
-      return false;
-    }
-
+    const payload = smtpCapabilityPayload(line);
+    if (payload === undefined) return false;
+    const match = /\bAUTH\s+(.+?)\s*$/i.exec(payload);
+    if (match === null) return false;
     return match[1].toUpperCase().split(/\s+/u).includes(mechanism);
   });
 }
