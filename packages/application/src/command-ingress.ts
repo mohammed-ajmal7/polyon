@@ -9,11 +9,7 @@ import type {
   MissionId,
 } from "@polyon/contracts";
 
-import type {
-  ConversationStore,
-  EventStore,
-  MessageStore,
-} from "@polyon/storage";
+import type { ConversationStore, EventStore, MessageStore } from "@polyon/storage";
 
 export type CommandMode = "Direct" | "Broadcast" | "Debate" | "Mission";
 
@@ -54,7 +50,6 @@ export type CommandIngressErrorKind =
   | "COMMAND_REQUIRED"
   | "CONVERSATION_NOT_ACTIVE"
   | "CONVERSATION_KIND_MISMATCH"
-  | "CONVERSATION_NOT_FOUND"
   | "CONVERSATION_PARTICIPANTS_REQUIRED"
   | "ACTOR_NOT_PARTICIPANT"
   | "MISSION_MISMATCH"
@@ -185,6 +180,7 @@ export class CommandIngressService {
       id: input.eventId,
       kind: "MESSAGE_CREATED",
       actorId: input.actorId,
+      conversationId: updatedConversation.id,
       ...(updatedConversation.missionId !== undefined
         ? { missionId: updatedConversation.missionId }
         : {}),

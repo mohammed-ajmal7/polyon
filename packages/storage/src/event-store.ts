@@ -1,9 +1,17 @@
-import type { DomainEvent, EventId, ExecutionId, MissionId, TaskId } from "@polyon/contracts";
+import type {
+  ConversationId,
+  DomainEvent,
+  EventId,
+  ExecutionId,
+  MissionId,
+  TaskId,
+} from "@polyon/contracts";
 
 export interface EventStore {
   append(event: DomainEvent): void;
   get(eventId: EventId): DomainEvent | undefined;
   list(): readonly DomainEvent[];
+  listByConversation(conversationId: ConversationId): readonly DomainEvent[];
   listByMission(missionId: MissionId): readonly DomainEvent[];
   listByTask(taskId: TaskId): readonly DomainEvent[];
   listByExecution(executionId: ExecutionId): readonly DomainEvent[];
@@ -32,6 +40,10 @@ export class InMemoryEventStore implements EventStore {
 
   list(): readonly DomainEvent[] {
     return [...this.events.values()].map(cloneEvent);
+  }
+
+  listByConversation(conversationId: ConversationId): readonly DomainEvent[] {
+    return this.list().filter((event) => event.conversationId === conversationId);
   }
 
   listByMission(missionId: MissionId): readonly DomainEvent[] {

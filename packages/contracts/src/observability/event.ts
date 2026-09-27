@@ -1,4 +1,5 @@
 import type { ActorId } from "../actor/ids";
+import type { ConversationId } from "../communication/ids";
 import type { ExecutionId, MissionId, TaskId } from "../work/ids";
 import type { EventId } from "./ids";
 
@@ -21,6 +22,7 @@ export interface DomainEvent {
   readonly kind: EventKind;
 
   readonly actorId?: ActorId;
+  readonly conversationId?: ConversationId;
   readonly missionId?: MissionId;
   readonly taskId?: TaskId;
   readonly executionId?: ExecutionId;

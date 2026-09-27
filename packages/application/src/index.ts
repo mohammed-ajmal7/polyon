@@ -36,3 +36,11 @@ export {
   type CommandIngressResult,
   type CommandMode,
 } from "./command-ingress";
+
+export {
+  ConversationQueryError,
+  ConversationQueryService,
+  type ConversationQueryDependencies,
+  type ConversationQueryErrorKind,
+  type ConversationSnapshot,
+} from "./conversation-query";
