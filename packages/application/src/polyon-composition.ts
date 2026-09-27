@@ -16,6 +16,7 @@ import {
 } from "@polyon/agents";
 import {
   ArtifactCatalogService,
+  SemanticMemoryService,
   CommandIngressService,
   CodingAgentService,
   ConversationAgentOrchestrationService,
@@ -50,8 +51,11 @@ import {
   type ReadyTaskHandler,
 } from "@polyon/application";
 import {
+  EmbeddingGateway,
+  InMemoryEmbeddingAdapterRegistry,
   InMemoryProviderAdapterRegistry,
   ModelGateway,
+  type EmbeddingProviderAdapter,
   type ModelProviderAdapter,
 } from "@polyon/providers";
 import { FileDomainStores } from "@polyon/storage";
@@ -76,11 +80,18 @@ export interface PolyonProviderRegistration {
   readonly adapter: ModelProviderAdapter;
 }
 
+export interface PolyonEmbeddingProviderRegistration {
+  readonly provider: Provider;
+  readonly model: Model;
+  readonly adapter: EmbeddingProviderAdapter;
+}
+
 export interface PolyonCompositionOptions {
   readonly storageRoot: string;
   readonly agents?: readonly Agent[];
   readonly models?: readonly Model[];
   readonly providers?: readonly PolyonProviderRegistration[];
+  readonly embeddingProvider?: PolyonEmbeddingProviderRegistration;
   readonly integrations?: readonly IntegrationAdapter[];
   readonly secretResolver?: SecretResolver;
   readonly googleDriveIntegrationId?: string;
@@ -173,9 +184,11 @@ export interface PolyonComposition {
   readonly models: InMemoryModelRegistry;
   readonly providers: InMemoryProviderRegistry;
   readonly providerAdapters: InMemoryProviderAdapterRegistry;
+  readonly embeddingAdapters: InMemoryEmbeddingAdapterRegistry;
   readonly integrations: InMemoryIntegrationAdapterRegistry;
   readonly secretResolver?: SecretResolver;
   readonly modelGateway: ModelGateway;
+  readonly embeddingGateway?: EmbeddingGateway;
   readonly agentGateway: AgentGateway;
   readonly tools: ToolRegistry;
   readonly toolAdapters: ToolAdapterRegistry;
@@ -193,6 +206,7 @@ export interface PolyonComposition {
   readonly agentToolOrchestration: AgentToolOrchestrationService;
   readonly codingAgent: CodingAgentService;
   readonly memory: MemoryService;
+  readonly semanticMemory?: import("./semantic-memory-service").SemanticMemoryService;
   readonly research?: ResearchService;
   readonly researchSynthesis: ResearchSynthesisService;
   readonly creative?: CreativeJobService;
@@ -212,6 +226,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   const models = new InMemoryModelRegistry();
   const providers = new InMemoryProviderRegistry();
   const providerAdapters = new InMemoryProviderAdapterRegistry();
+  const embeddingAdapters = new InMemoryEmbeddingAdapterRegistry();
   const integrations = new InMemoryIntegrationAdapterRegistry();
 
   if (
@@ -288,11 +303,21 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     providerAdapters.register(registration.adapter);
   }
 
+  if (options.embeddingProvider !== undefined) {
+    providers.register(options.embeddingProvider.provider);
+    models.register(options.embeddingProvider.model);
+    embeddingAdapters.register(options.embeddingProvider.adapter);
+  }
+
   for (const integration of options.integrations ?? []) {
     integrations.register(integration);
   }
 
   const modelGateway = new ModelGateway({ models, providers, adapters: providerAdapters });
+  const embeddingGateway =
+    options.embeddingProvider === undefined
+      ? undefined
+      : new EmbeddingGateway({ models, providers, adapters: embeddingAdapters });
   const agentGateway = new AgentGateway({ agents, models, providers, modelGateway });
 
   const commandIngress = new CommandIngressService({
@@ -303,6 +328,15 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   });
 
   const memory = new MemoryService(stores.memory, stores.events, stores);
+  const semanticMemory =
+    embeddingGateway === undefined
+      ? undefined
+      : new SemanticMemoryService(
+          stores.memory,
+          stores.memoryEmbeddings,
+          embeddingGateway,
+          stores,
+        );
   const debates = new DebateOrchestrationService(agentGateway, stores.debates, stores.events, stores);
   const research =
     options.researchRetriever === undefined
@@ -722,6 +756,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     integrations,
     ...(options.secretResolver === undefined ? {} : { secretResolver: options.secretResolver }),
     modelGateway,
+    ...(embeddingGateway === undefined ? {} : { embeddingGateway }),
     agentGateway,
     tools: builtinTools.tools,
     toolAdapters: builtinTools.adapters,
@@ -739,6 +774,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     agentToolOrchestration,
     codingAgent,
     memory,
+    ...(semanticMemory === undefined ? {} : { semanticMemory }),
     ...(research === undefined ? {} : { research }),
     researchSynthesis,
     ...(creative === undefined ? {} : { creative }),
