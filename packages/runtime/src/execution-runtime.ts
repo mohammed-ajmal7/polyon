@@ -46,6 +46,9 @@ export interface ExecutionRuntimeHealth {
 }
 
 export type ExecutionRuntimeWait = (milliseconds: number) => Promise<void>;
+export type ExecutionRuntimeCompletionHandler = (
+  outcome: ExecutionRunOutcome,
+) => void | Promise<void>;
 
 export interface ExecutionRuntimeDependencies {
   readonly runner: ExecutionRunner;
@@ -60,6 +63,7 @@ export interface ExecutionRuntimeDependencies {
   readonly retryBackoffMaxMs?: number;
   readonly wait?: ExecutionRuntimeWait;
   readonly onError?: (error: unknown) => void;
+  readonly onExecutionCompleted?: ExecutionRuntimeCompletionHandler;
   readonly unitOfWork?: DomainUnitOfWork;
 }
 
@@ -269,6 +273,19 @@ export function createExecutionRuntime(
     lastActivityAt = dependencies.clock.now();
   };
 
+  const notifyCompletion = (outcome: ExecutionRunOutcome | undefined): void => {
+    if (outcome === undefined || dependencies.onExecutionCompleted === undefined) {
+      return;
+    }
+
+    void Promise.resolve()
+      .then(() => dependencies.onExecutionCompleted?.(outcome))
+      .catch((error: unknown) => {
+        recordError(error);
+        dependencies.onError?.(error);
+      });
+  };
+
   const resetErrorState = (): void => {
     consecutiveErrorCount = 0;
     retryBackoffMs = 0;
@@ -307,7 +324,8 @@ export function createExecutionRuntime(
 
     void worker
       .runNext(context)
-      .then(() => {
+      .then((outcome) => {
+        notifyCompletion(outcome);
         if (consecutiveErrorCount > 0) {
           resetErrorState();
         } else {
@@ -456,8 +474,11 @@ export function createExecutionRuntime(
     return { status: "CANCELLED", execution: cancelled };
   };
 
-  const runNext = async (): Promise<ExecutionRunOutcome | undefined> =>
-    worker.runNext();
+  const runNext = async (): Promise<ExecutionRunOutcome | undefined> => {
+    const outcome = await worker.runNext();
+    notifyCompletion(outcome);
+    return outcome;
+  };
 
   return {
     queue,

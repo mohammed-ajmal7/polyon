@@ -27,6 +27,7 @@ export interface PolyonCompositionOptions {
   readonly retryBackoffMaxMs?: number;
   readonly wait?: ExecutionRuntimeWait;
   readonly onError?: (error: unknown) => void;
+  readonly onExecutionCompleted?: ExecutionRuntimeCompletionHandler;
   readonly onReadyTasks?: ReadyTaskHandler;
 }
 
@@ -94,6 +95,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     retryBackoffMaxMs: options.retryBackoffMaxMs,
     wait: options.wait,
     onError: options.onError,
+    onExecutionCompleted: options.onExecutionCompleted,
     unitOfWork: stores,
   });
 

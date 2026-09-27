@@ -43,6 +43,7 @@ export {
   type ExecutionRuntimeDependencies,
   type ExecutionRuntimeStatus,
   type ExecutionRuntimeWait,
+  type ExecutionRuntimeCompletionHandler,
   type ExecutionRuntimeCancellationResult,
   type ExecutionRuntimeHealth,
 } from "./execution-runtime";

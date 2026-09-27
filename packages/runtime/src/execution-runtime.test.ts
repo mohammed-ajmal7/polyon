@@ -530,6 +530,66 @@ describe("createExecutionRuntime", () => {
     runtime.stop();
   });
 
+  it("publishes completed execution outcomes without coupling runtime to application", async () => {
+    const stores = new InMemoryDomainStores();
+    stores.tasks.save(task);
+    stores.executions.save(execution);
+
+    const completed = vi.fn();
+    const runtime = createRuntime(stores, {
+      onExecutionCompleted: completed,
+    });
+
+    runtime.queue.enqueue(execution);
+    runtime.start();
+
+    await vi.waitFor(() => {
+      expect(completed).toHaveBeenCalledTimes(1);
+    });
+
+    expect(completed).toHaveBeenCalledWith(
+      expect.objectContaining({
+        execution: expect.objectContaining({
+          id: "execution-1",
+          status: "SUCCEEDED",
+        }),
+        result: expect.objectContaining({
+          status: "SUCCEEDED",
+        }),
+      }),
+    );
+
+    runtime.stop();
+  });
+
+  it("reports completion publisher failures without changing execution state", async () => {
+    const stores = new InMemoryDomainStores();
+    stores.tasks.save(task);
+    stores.executions.save(execution);
+
+    const errors: unknown[] = [];
+    const runtime = createRuntime(stores, {
+      onExecutionCompleted: async () => {
+        throw new Error("Result publication failed.");
+      },
+      onError: (error) => {
+        errors.push(error);
+      },
+    });
+
+    runtime.queue.enqueue(execution);
+    runtime.start();
+
+    await vi.waitFor(() => {
+      expect(errors).toHaveLength(1);
+    });
+
+    expect(stores.executions.get("execution-1")?.status).toBe("SUCCEEDED");
+    expect(stores.tasks.get("task-1")?.status).toBe("SUCCEEDED");
+
+    runtime.stop();
+  });
+
   it("rejects invalid concurrency settings", () => {
     const stores = new InMemoryDomainStores();
 
