@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   SmtpAuthenticationError,
+  SmtpDeliveryError,
   SmtpTransport,
   SmtpTransportError,
 } from "./smtp-email-transport";
@@ -239,10 +240,123 @@ describe("SmtpTransport", () => {
     expect(connection.write).toHaveBeenCalledWith("MAIL FROM:<mailer@example.com>");
     expect(connection.write).toHaveBeenCalledWith("RCPT TO:<user@example.com>");
     expect(connection.write).toHaveBeenCalledWith("DATA");
-    expect(connection.write).toHaveBeenCalledWith("\r\n.");
+    expect(connection.write).toHaveBeenCalledWith(".\r\n");
     expect(connection.close).toHaveBeenCalledTimes(1);
   });
 
+
+  it("builds UTF-8-safe MIME content and a complete DATA terminator", async () => {
+    const connection = createConnection([
+      "220 ready",
+      "250 hello AUTH LOGIN",
+      "334 VXNlcm5hbWU6",
+      "334 UGFzc3dvcmQ6",
+      "235 authenticated",
+      "250 sender accepted",
+      "250 recipient accepted",
+      "354 continue",
+      "250 queued",
+      "221 bye",
+    ]);
+    const transport = new SmtpTransport(
+      {
+        host: "smtp.example.com",
+        port: 465,
+        secure: true,
+        heloName: "polyon.local",
+        messageIdDomain: "polyon.local",
+      },
+      { connect: vi.fn(async () => connection) },
+    );
+
+    await transport.send(
+      {
+        to: ["user@example.com"],
+        subject: "Café — Привет",
+        text: "Hello\\n.Second line",
+      },
+      { username: "mailer@example.com", password: "secret" },
+    );
+
+    const message = connection.write.mock.calls
+      .map(([value]) => value)
+      .find((value): value is string => value.startsWith("Message-ID:"));
+
+    expect(message).toContain("From: mailer@example.com\\r\\n");
+    expect(message).toContain("Content-Transfer-Encoding: base64\\r\\n");
+    expect(message).toContain("Subject: =?UTF-8?B?");
+    expect(message).toContain("\\r\\n\\r\\nSGVsbG8KLlNlY29uZCBsaW5l\\r\\n");
+    expect(message?.endsWith("\\r\\n")).toBe(true);
+    expect(connection.write).toHaveBeenLastCalledWith(".\\r\\n");
+  });
+
+  it("uses UTF-8 bytes for AUTH LOGIN credentials", async () => {
+    const connection = createConnection([
+      "220 ready",
+      "250 hello AUTH LOGIN",
+      "334 VXNlcm5hbWU6",
+      "334 UGFzc3dvcmQ6",
+      "235 authenticated",
+      "250 sender accepted",
+      "250 recipient accepted",
+      "354 continue",
+      "250 queued",
+      "221 bye",
+    ]);
+    const transport = new SmtpTransport(
+      {
+        host: "smtp.example.com",
+        port: 465,
+        secure: true,
+        heloName: "polyon.local",
+        messageIdDomain: "polyon.local",
+      },
+      { connect: vi.fn(async () => connection) },
+    );
+
+    await transport.send(
+      { to: ["user@example.com"], subject: "Hello", text: "Hello" },
+      { username: "mailer@example.com", password: "pässword" },
+    );
+
+    expect(connection.write).toHaveBeenCalledWith("cMOkc3N3b3Jk");
+  });
+
+  it("classifies permanent DATA delivery failures separately", async () => {
+    const connection = createConnection([
+      "220 ready",
+      "250 hello AUTH LOGIN",
+      "334 VXNlcm5hbWU6",
+      "334 UGFzc3dvcmQ6",
+      "235 authenticated",
+      "250 sender accepted",
+      "250 recipient accepted",
+      "354 continue",
+      "550 message rejected after DATA",
+    ]);
+    const transport = new SmtpTransport(
+      {
+        host: "smtp.example.com",
+        port: 465,
+        secure: true,
+        heloName: "polyon.local",
+        messageIdDomain: "polyon.local",
+      },
+      { connect: vi.fn(async () => connection) },
+    );
+
+    await expect(
+      transport.send(
+        { to: ["user@example.com"], subject: "Hello", text: "Hello" },
+        { username: "mailer@example.com", password: "secret" },
+      ),
+    ).rejects.toMatchObject({
+      name: "SmtpDeliveryError",
+      kind: "PERMANENT",
+      smtpCode: 550,
+      message: "SMTP server did not accept the message for delivery.",
+    });
+  });
 
   it("rejects an invalid SMTP envelope before opening a connection", async () => {
     const connection = createConnection([]);
