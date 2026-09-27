@@ -22,8 +22,7 @@ export class NodeSmtpConnectionFactory implements SmtpConnectionFactory {
 class NodeSmtpConnection implements SmtpConnection {
   private buffer = "";
   private pendingRead:
-    | { resolve: (value: string) => void; reject: (error: Error) => void }
-    | undefined;
+    { resolve: (value: string) => void; reject: (error: Error) => void } | undefined;
 
   constructor(
     private readonly socket: Socket | TLSSocket,
@@ -75,7 +74,10 @@ class NodeSmtpConnection implements SmtpConnection {
   }
 
   private onData(chunk: string): void {
-    if (Buffer.byteLength(this.buffer, "utf8") + Buffer.byteLength(chunk, "utf8") > MAX_RESPONSE_BYTES) {
+    if (
+      Buffer.byteLength(this.buffer, "utf8") + Buffer.byteLength(chunk, "utf8") >
+      MAX_RESPONSE_BYTES
+    ) {
       this.onError(new Error("SMTP response exceeded the configured bound."));
       return;
     }
