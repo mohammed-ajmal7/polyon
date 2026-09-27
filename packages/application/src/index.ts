@@ -17,3 +17,10 @@ export {
   type DispatchReadyTasksResult,
   type ExecutionIdentityFactory,
 } from "./mission-execution-service";
+
+export {
+  ExecutionApprovalService,
+  type ExecutionApprovalResolution,
+  type ExecutionApprovalServiceDependencies,
+  type ResolveExecutionApprovalInput,
+} from "./execution-approval-service";
