@@ -10,6 +10,7 @@ import type {
   Task,
   Debate,
   Evidence,
+  MemoryEmbedding,
   MemoryEntry,
   Source,
 } from "@polyon/contracts";
@@ -26,6 +27,7 @@ export type ApprovalRequestStore = EntityStore<ApprovalRequest>;
 export type DebateStore = EntityStore<Debate>;
 export type EvidenceStore = EntityStore<Evidence>;
 export type MemoryStore = EntityStore<MemoryEntry>;
+export type MemoryEmbeddingStore = EntityStore<MemoryEmbedding>;
 export type SourceStore = EntityStore<Source>;
 export type ArtifactStore = EntityStore<Artifact>;
 export type ConversationStore = EntityStore<Conversation>;
@@ -41,6 +43,7 @@ export interface DomainStores {
   readonly debates: DebateStore;
   readonly evidence: EvidenceStore;
   readonly memory: MemoryStore;
+  readonly memoryEmbeddings: MemoryEmbeddingStore;
   readonly sources: SourceStore;
   readonly artifacts: ArtifactStore;
   readonly conversations: ConversationStore;
@@ -72,6 +75,7 @@ export class InMemoryDomainStores implements DomainStores, DomainUnitOfWork {
   readonly debates: DebateStore = new InMemoryEntityStore<Debate>();
   readonly evidence: EvidenceStore = new InMemoryEntityStore<Evidence>();
   readonly memory: MemoryStore = new InMemoryEntityStore<MemoryEntry>();
+  readonly memoryEmbeddings: MemoryEmbeddingStore = new InMemoryEntityStore<MemoryEmbedding>();
   readonly sources: SourceStore = new InMemoryEntityStore<Source>();
   readonly artifacts: ArtifactStore = new InMemoryEntityStore<Artifact>();
   readonly conversations: ConversationStore = new InMemoryEntityStore<Conversation>();
@@ -96,6 +100,7 @@ export class InMemoryDomainStores implements DomainStores, DomainUnitOfWork {
       debates: this.debates.list(),
       evidence: this.evidence.list(),
       memory: this.memory.list(),
+      memoryEmbeddings: this.memoryEmbeddings.list(),
       sources: this.sources.list(),
       artifacts: this.artifacts.list(),
       conversations: this.conversations.list(),
@@ -115,6 +120,7 @@ export class InMemoryDomainStores implements DomainStores, DomainUnitOfWork {
       restoreStore(this.debates, snapshots.debates);
       restoreStore(this.evidence, snapshots.evidence);
       restoreStore(this.memory, snapshots.memory);
+      restoreStore(this.memoryEmbeddings, snapshots.memoryEmbeddings);
       restoreStore(this.sources, snapshots.sources);
       restoreStore(this.artifacts, snapshots.artifacts);
       restoreStore(this.conversations, snapshots.conversations);
