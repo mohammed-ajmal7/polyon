@@ -59,6 +59,41 @@ describe("registerBuiltinTools", () => {
     expect(registries.adapters.get(BUILTIN_TOOL_IDS.terminalExecute)).toBeDefined();
   });
 
+  it("registers artifact catalog and content read independently", () => {
+    const registries = createInMemoryBuiltinToolRegistries();
+
+    registerBuiltinTools(registries, {
+      artifactList: () => [],
+      artifactRead: () => ({
+        artifact: {
+          id: "artifact-1",
+          kind: "REPORT",
+          name: "report.txt",
+          location: "/artifacts/report.txt",
+          status: "AVAILABLE",
+          createdAt: "2026-09-27T01:00:00.000Z",
+          updatedAt: "2026-09-27T01:00:00.000Z",
+        },
+        content: "POLYON",
+        sizeBytes: 6,
+        sha256: "a".repeat(64),
+      }),
+    });
+
+    expect(registries.tools.get(BUILTIN_TOOL_IDS.artifactList)).toMatchObject({
+      kind: "ARTIFACT",
+      actionKinds: ["READ"],
+      enabled: true,
+    });
+    expect(registries.tools.get(BUILTIN_TOOL_IDS.artifactRead)).toMatchObject({
+      kind: "ARTIFACT",
+      actionKinds: ["READ"],
+      enabled: true,
+    });
+    expect(registries.adapters.get(BUILTIN_TOOL_IDS.artifactList)).toBeDefined();
+    expect(registries.adapters.get(BUILTIN_TOOL_IDS.artifactRead)).toBeDefined();
+  });
+
   it("registers scoped Git publish independently", () => {
     const registries = createInMemoryBuiltinToolRegistries();
 
