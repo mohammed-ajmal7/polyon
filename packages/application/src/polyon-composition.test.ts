@@ -246,6 +246,7 @@ describe("createPolyonComposition", () => {
         integrationId: "email-primary",
         kind: "EMAIL",
         actionKinds: ["EXTERNAL_COMMUNICATION"],
+        supportedOperations: ["send"],
         invoke,
       };
 
