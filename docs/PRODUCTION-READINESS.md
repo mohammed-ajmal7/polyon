@@ -23,7 +23,7 @@ Current capabilities:
 
 ## Remaining production-depth work
 
-1. Integrate the new provider-independent embedding gateway into durable memory indexing/search, with persisted vector metadata and bounded reindex/recovery.
+1. Add automatic durable indexing/reindex recovery for semantic memory and decide the deployment-specific vector acceleration strategy; the provider-independent gateway and bounded persisted vector search are implemented.
 2. Advanced MCP/A2A features such as streaming, push, subscriptions, and broader spec coverage.
 3. Multi-user/enterprise identity and tenancy, outside the personal deployment scope.
 4. Large-scale performance/load testing and broader adversarial E2E coverage.
