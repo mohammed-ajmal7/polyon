@@ -1,7 +1,10 @@
-import type { Conversation, Execution } from "@polyon/contracts";
+import type { Conversation, Execution, Mission, Policy } from "@polyon/contracts";
+import { InMemoryExecutionQueue } from "@polyon/runtime";
 import { InMemoryDomainStores, InMemoryEventStore } from "@polyon/storage";
 import { describe, expect, it } from "vitest";
 
+import { ExecutionDispatchService } from "./execution-dispatch-service";
+import { MissionExecutionService } from "./mission-execution-service";
 import { MissionTaskOrchestrationService } from "./mission-task-orchestration-service";
 
 import {
@@ -115,9 +118,31 @@ describe("ExecutionResultService", () => {
     ]);
   });
 
-  it("advances dependent mission tasks after a successful result is persisted", () => {
+  it("advances and dispatches dependent mission tasks after a successful result is persisted", () => {
     const stores = new InMemoryDomainStores();
-    const orchestration = new MissionTaskOrchestrationService(stores);
+    const events = new InMemoryEventStore();
+    const queue = new InMemoryExecutionQueue();
+    const mission: Mission = {
+      id: "mission-1",
+      objective: "Execute dependent work",
+      constraints: [],
+      status: "RUNNING",
+      taskIds: ["task-1", "task-2"],
+      createdAt: "2026-09-27T02:00:00.000Z",
+      updatedAt: "2026-09-27T03:05:00.000Z",
+    };
+    const policy: Policy = {
+      id: "policy-1",
+      name: "Allow dependent work",
+      description: "Allows low-risk dependent work.",
+      approvalMode: "BALANCED",
+      rules: [],
+      defaultEffect: "ALLOW",
+      enabled: true,
+      createdAt: "2026-09-27T02:00:00.000Z",
+      updatedAt: "2026-09-27T02:00:00.000Z",
+    };
+
     stores.executions.save(execution);
     stores.conversations.save(conversation);
     stores.tasks.save({
@@ -143,19 +168,65 @@ describe("ExecutionResultService", () => {
       updatedAt: "2026-09-27T02:00:00.000Z",
     });
 
+    const dispatch = new ExecutionDispatchService({
+      queue,
+      executions: stores.executions,
+      approvals: stores.approvals,
+      policyDecisions: stores.policyDecisions,
+      events,
+    });
+    const executionService = new MissionExecutionService(
+      dispatch,
+      (task) => stores.tasks.save(task),
+      (taskId) => stores.tasks.get(taskId),
+      () => stores.executions.list(),
+      events,
+    );
+    const identities = {
+      executionId: (taskId: string, attempt: number) =>
+        `execution-${taskId}-${attempt}`,
+      policyDecisionId: (taskId: string, executionId: string) =>
+        `decision-${taskId}-${executionId}`,
+      approvalRequestId: (taskId: string, executionId: string) =>
+        `approval-${taskId}-${executionId}`,
+    };
+    const orchestration = new MissionTaskOrchestrationService({
+      ...stores,
+      events,
+      onReadyTasks: (result, input) =>
+        executionService.dispatchReadyTasks({
+          mission,
+          tasks: mission.taskIds.map((taskId) => stores.tasks.get(taskId)!).filter(Boolean),
+          actorId: input.actorId,
+          policy,
+          requestedBy: "user-1",
+          now: input.now,
+          riskLevel: "LOW",
+          identities,
+        }),
+    });
+
     const service = new ExecutionResultService({
       executions: stores.executions,
       conversations: stores.conversations,
       messages: stores.messages,
       artifacts: stores.artifacts,
-      events: stores.events,
+      events,
       taskOrchestration: orchestration,
     });
 
     service.persist(baseInput);
 
-    expect(stores.tasks.get("task-2")?.status).toBe("READY");
-    expect(stores.events.list().map((event) => event.kind)).toContain("TASK_STATUS_CHANGED");
+    expect(stores.tasks.get("task-2")?.status).toBe("APPROVED");
+    expect(queue.peek()).toMatchObject({
+      id: "execution-task-2-1",
+      missionId: "mission-1",
+      taskId: "task-2",
+      status: "QUEUED",
+      attempt: 1,
+    });
+    expect(stores.policyDecisions.get("decision-task-2-execution-task-2-1")).toBeDefined();
+    expect(events.listByMission("mission-1").map((event) => event.kind)).toContain("EXECUTION_CREATED");
   });
 
   it("persists the result message, artifacts, conversation update, and trace events", () => {
