@@ -30,6 +30,9 @@ import {
   MissionLifecycleService,
   MissionPlanService,
   ResearchService,
+  ResearchSynthesisService,
+  CreativeJobService,
+  type CreativeAdapter,
   type ResearchRetriever,
   DebateOrchestrationService,
   ExecutionRetryService,
@@ -90,6 +93,7 @@ export interface PolyonCompositionOptions {
   readonly emailSmtpUsername?: string;
   readonly emailTransport?: EmailTransport;
   readonly researchRetriever?: ResearchRetriever;
+  readonly creativeAdapter?: CreativeAdapter;
   readonly filesystemRoot?: string;
   readonly filesystemReadMaxBytes?: number;
   readonly filesystemReadEnabled?: boolean;
@@ -178,6 +182,8 @@ export interface PolyonComposition {
   readonly agentToolOrchestration: AgentToolOrchestrationService;
   readonly memory: MemoryService;
   readonly research?: ResearchService;
+  readonly researchSynthesis: ResearchSynthesisService;
+  readonly creative?: CreativeJobService;
   readonly debates: DebateOrchestrationService;
   readonly runtime: ExecutionRuntime;
 }
@@ -296,6 +302,24 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
           stores.events,
           stores,
         );
+  const researchSynthesis = new ResearchSynthesisService(
+    agentGateway,
+    stores.sources,
+    stores.evidence,
+    stores.memory,
+    stores.events,
+    stores,
+  );
+  const creative =
+    options.creativeAdapter === undefined
+      ? undefined
+      : new CreativeJobService(
+          options.creativeAdapter,
+          stores.artifacts,
+          stores.events,
+          stores,
+        );
+
   const builtinTools = createInMemoryBuiltinToolRegistries();
 
   if (
@@ -654,6 +678,8 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     agentToolOrchestration,
     memory,
     ...(research === undefined ? {} : { research }),
+    researchSynthesis,
+    ...(creative === undefined ? {} : { creative }),
     debates,
     runtime,
   };
