@@ -135,6 +135,18 @@ describe("IntegrationInvocationService", () => {
 
     expect(approved.status).toBe("APPROVED");
 
+    await expect(
+      service.invokeApproved({
+        invocationId: "integration-invocation-1",
+        approvalId: "integration-approval-1",
+        integrationId: "telegram-primary",
+        operation: "send_message",
+        input: { text: "different" },
+      }),
+    ).rejects.toMatchObject({
+      kind: "INTEGRATION_APPROVAL_PAYLOAD_MISMATCH",
+    });
+
     const result = await service.invokeApproved({
       invocationId: "integration-invocation-1",
       approvalId: "integration-approval-1",
