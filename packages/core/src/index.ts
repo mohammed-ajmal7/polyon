@@ -26,6 +26,8 @@ export {
   ExecutionRetryError,
   ExecutionCreationError,
   ExecutionRunAuthorizationError,
+  pauseExecution,
+  resumeExecution,
   InvalidMissionPlanApplicationError,
   InvalidMissionPlanProposalError,
   InvalidStateTransitionError,
