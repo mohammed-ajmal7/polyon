@@ -105,9 +105,9 @@ describe("LocalArtifactContentService", () => {
         createArtifact(file, { id: "artifact-2", name: "large.txt" }),
       );
 
-      expect(() => service.read("artifact-2")).toMatchObject({
-        kind: "FILE_TOO_LARGE",
-      });
+      expect(() => service.read("artifact-2")).toThrowError(
+        /FILE_TOO_LARGE|exceeds the 5-byte read limit/,
+      );
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
