@@ -82,12 +82,18 @@ describe("resumeExecution", () => {
     });
   });
 
-  it("does not mutate the original execution", () => {
-    const before = structuredClone(queuedExecution);
+  it("does not mutate the original paused execution", () => {
+    const before: Execution = {
+      ...queuedExecution,
+      status: "PAUSED",
+      startedAt: "2026-09-27T01:02:00.000Z",
+    };
 
-    startExecution(queuedExecution, "2026-09-27T01:02:00.000Z");
+    const pausedBefore = structuredClone(before);
 
-    expect(queuedExecution).toEqual(before);
+    resumeExecution(before, "2026-09-27T01:10:00.000Z");
+
+    expect(before).toEqual(pausedBefore);
   });
 });
 
