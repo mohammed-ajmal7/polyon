@@ -195,6 +195,39 @@ describe("InMemoryExecutionCoordinator", () => {
     expect(stores.tasks.get("task-1")?.status).toBe("SUCCEEDED");
   });
 
+  it("preserves cancellation when the runner finishes after cancellation", async () => {
+    const { stores, coordinator } = createCoordinator(runningTask, {
+      async run() {
+        const current = stores.executions.get("execution-1");
+        if (current === undefined) {
+          throw new Error("Execution disappeared.");
+        }
+
+        stores.executions.save({
+          ...current,
+          status: "CANCELLED",
+          error: "Cancelled while the runner was still finishing.",
+          updatedAt: "2026-09-27T01:04:00.000Z",
+        });
+
+        return { status: "SUCCEEDED" };
+      },
+    });
+
+    await expect(
+      coordinator.runNext("2026-09-27T01:02:00.000Z", "2026-09-27T01:05:00.000Z"),
+    ).resolves.toMatchObject({
+      status: "CANCELLED",
+      error: "Cancelled while the runner was still finishing.",
+    });
+
+    expect(stores.executions.get("execution-1")).toMatchObject({
+      status: "CANCELLED",
+      error: "Cancelled while the runner was still finishing.",
+    });
+    expect(stores.tasks.get("task-1")?.status).toBe("RUNNING");
+  });
+
   it("records runner failures as failed executions and tasks", async () => {
     const { stores, coordinator } = createCoordinator(runningTask, {
       async run() {
