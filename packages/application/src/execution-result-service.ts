@@ -153,6 +153,89 @@ function appendMessageCreatedEvent(
   return event;
 }
 
+function areArtifactsEqual(
+  actual: Artifact,
+  expected: Artifact,
+): boolean {
+  return (
+    actual.id === expected.id &&
+    actual.kind === expected.kind &&
+    actual.name === expected.name &&
+    actual.mimeType === expected.mimeType &&
+    actual.location === expected.location &&
+    actual.status === expected.status &&
+    actual.missionId === expected.missionId &&
+    actual.taskId === expected.taskId &&
+    actual.executionId === expected.executionId &&
+    actual.createdAt === expected.createdAt &&
+    actual.updatedAt === expected.updatedAt
+  );
+}
+
+function getIdempotentResult(
+  stores: ExecutionResultStores,
+  input: PersistExecutionResultInput,
+  execution: Execution,
+  conversation: Conversation,
+): PersistedExecutionResult | undefined {
+  const existingMessage = stores.messages.get(input.messageId);
+
+  if (existingMessage === undefined) {
+    return undefined;
+  }
+
+  const expectedMessage = createResultMessage(input, execution);
+
+  if (JSON.stringify(existingMessage) !== JSON.stringify(expectedMessage)) {
+    return undefined;
+  }
+
+  if (!conversation.messageIds.includes(existingMessage.id)) {
+    return undefined;
+  }
+
+  const expectedArtifacts = (input.artifacts ?? []).map((artifact) =>
+    createArtifact(artifact, execution),
+  );
+  const persistedArtifacts = stores.artifacts
+    .list()
+    .filter((artifact) => artifact.executionId === execution.id)
+    .filter((artifact) => expectedArtifacts.some((expected) => expected.id === artifact.id));
+
+  if (
+    persistedArtifacts.length !== expectedArtifacts.length ||
+    persistedArtifacts.some(
+      (artifact) =>
+        !areArtifactsEqual(
+          artifact,
+          expectedArtifacts.find((expected) => expected.id === artifact.id)!,
+        ),
+    )
+  ) {
+    return undefined;
+  }
+
+  const eventIds = new Set([
+    "MESSAGE_CREATED:" + existingMessage.id,
+    ...expectedArtifacts.map((artifact) => "ARTIFACT_CREATED:" + artifact.id),
+  ]);
+  const events = stores.events
+    .listByExecution(execution.id)
+    .filter((event) => eventIds.has(event.id));
+
+  if (events.length !== 1 + expectedArtifacts.length) {
+    return undefined;
+  }
+
+  return {
+    execution,
+    conversation,
+    message: existingMessage,
+    artifacts: persistedArtifacts,
+    events,
+  };
+}
+
 function appendArtifactCreatedEvent(
   events: EventStore,
   artifact: Artifact,
@@ -262,6 +345,17 @@ export class ExecutionResultService {
         "ACTOR_NOT_PARTICIPANT",
         "Result actor is not a participant in conversation " + conversation.id + ".",
       );
+    }
+
+    const idempotentResult = getIdempotentResult(
+      stores,
+      input,
+      execution,
+      conversation,
+    );
+
+    if (idempotentResult !== undefined) {
+      return idempotentResult;
     }
 
     if (stores.messages.get(input.messageId) !== undefined) {
