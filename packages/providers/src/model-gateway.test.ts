@@ -67,10 +67,35 @@ describe("ModelGateway", () => {
 
   it("rejects a disabled model", () => {
     const gateway = createGateway();
+    const disabledModel: Model = {
+      ...model,
+      enabled: false,
+    };
 
-    expect(() =>
-      gateway.invoke("model-1", "hello"),
-    ).not.toThrow();
+    const models = new InMemoryModelRegistry();
+    const providers = new InMemoryProviderRegistry();
+    const adapters = new InMemoryProviderAdapterRegistry();
+
+    models.register(disabledModel);
+    providers.register(provider);
+    adapters.register({
+      providerId: "provider-1",
+      async invoke() {
+        return { output: "ok" };
+      },
+    });
+
+    const disabledGateway = new ModelGateway({
+      models,
+      providers,
+      adapters,
+    });
+
+    expect(() => disabledGateway.invoke("model-1", "hello")).toThrowError(
+      expect.objectContaining({
+        kind: "MODEL_DISABLED",
+      }),
+    );
   });
 
   it("rejects an unknown provider", async () => {
