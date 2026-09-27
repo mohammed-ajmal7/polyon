@@ -50,7 +50,7 @@ export interface ModelGatewayDependencies {
 export class ModelGateway {
   constructor(private readonly dependencies: ModelGatewayDependencies) {}
 
-  async invoke<TInput = unknown, TOutput = unknown>(
+  invoke<TInput = unknown, TOutput = unknown>(
     modelId: ModelId,
     input: TInput,
     options: ModelInvocationOptions = {},
@@ -93,14 +93,36 @@ export class ModelGateway {
       );
     }
 
-    if (options.timeoutMs !== undefined && (!Number.isFinite(options.timeoutMs) || options.timeoutMs <= 0)) {
+    if (
+      options.timeoutMs !== undefined &&
+      (!Number.isFinite(options.timeoutMs) || options.timeoutMs <= 0)
+    ) {
       throw new RangeError("Model invocation timeout must be a positive finite number.");
     }
 
-    if (options.retries !== undefined && (!Number.isInteger(options.retries) || options.retries < 0)) {
+    if (
+      options.retries !== undefined &&
+      (!Number.isInteger(options.retries) || options.retries < 0)
+    ) {
       throw new RangeError("Model invocation retries must be a non-negative integer.");
     }
 
+    return this.invokeWithRetry<TInput, TOutput>(
+      adapter,
+      provider.id,
+      modelId,
+      input,
+      options,
+    );
+  }
+
+  private async invokeWithRetry<TInput, TOutput>(
+    adapter: ModelProviderAdapter,
+    providerId: string,
+    modelId: ModelId,
+    input: TInput,
+    options: ModelInvocationOptions,
+  ): Promise<ProviderInvocationResult<TOutput>> {
     let attempt = 0;
     const maxRetries = options.retries ?? 0;
 
@@ -108,7 +130,7 @@ export class ModelGateway {
       try {
         return await this.invokeOnce<TInput, TOutput>(adapter, modelId, input, options);
       } catch (error) {
-        const normalized = normalizeProviderInvocationError(error, provider.id, modelId);
+        const normalized = normalizeProviderInvocationError(error, providerId, modelId);
 
         if (!normalized.retryable || attempt >= maxRetries) {
           throw normalized;
