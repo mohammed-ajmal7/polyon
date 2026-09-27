@@ -105,6 +105,36 @@ describe("InMemoryExecutionCoordinator", () => {
     expect(queue.size()).toBe(0);
   });
 
+  it("exposes the runner result through the detailed execution path", async () => {
+    const { coordinator } = createCoordinator(runningTask, {
+      async run() {
+        return {
+          status: "SUCCEEDED",
+          output: "Runtime completed.",
+        };
+      },
+    });
+
+    await expect(
+      coordinator.runNextWithResult(
+        "2026-09-27T01:02:00.000Z",
+        "2026-09-27T01:05:00.000Z",
+      ),
+    ).resolves.toEqual({
+      execution: {
+        ...execution,
+        status: "SUCCEEDED",
+        startedAt: "2026-09-27T01:02:00.000Z",
+        completedAt: "2026-09-27T01:05:00.000Z",
+        updatedAt: "2026-09-27T01:05:00.000Z",
+      },
+      result: {
+        status: "SUCCEEDED",
+        output: "Runtime completed.",
+      },
+    });
+  });
+
   it("records execution and task lifecycle events", async () => {
     const { events, coordinator } = createCoordinator(runningTask);
 
