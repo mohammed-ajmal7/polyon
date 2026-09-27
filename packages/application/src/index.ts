@@ -26,3 +26,13 @@ export {
   type ExecutionApprovalServiceErrorKind,
   type ResolveExecutionApprovalInput,
 } from "./execution-approval-service";
+
+export {
+  CommandIngressError,
+  CommandIngressService,
+  type CommandIngressDependencies,
+  type CommandIngressErrorKind,
+  type CommandIngressInput,
+  type CommandIngressResult,
+  type CommandMode,
+} from "./command-ingress";
