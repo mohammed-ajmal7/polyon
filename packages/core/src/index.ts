@@ -60,3 +60,17 @@ export {
   applyExecutionRunAuthorization,
   ExecutionRunAuthorizationApplicationError,
 } from "./work/execution-run-authorization";
+
+export {
+  advanceDebatePhase,
+  cancelDebate,
+  createDebate,
+  decideDebate,
+  DebateControlError,
+  startDebate,
+} from "./debate/index";
+export { canTransitionDebate } from "./debate/index";
+export {
+  DebateValidationError,
+  validateDebateDefinition,
+} from "./debate/index";

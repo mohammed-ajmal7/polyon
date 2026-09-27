@@ -79,5 +79,7 @@ export type {
   MessageRole,
 } from "./communication/index";
 
+export type { Debate, DebateId, DebatePhase, DebateStatus } from "./debate/index";
+
 export type { MissionPlanProposal } from "./work/mission-plan-proposal";
 export type { MissionPlanProposalId } from "./work/ids";
