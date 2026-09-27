@@ -629,26 +629,40 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   });
 
   const missionPlanService = new MissionPlanService({
-      missions: stores.missions,
-      tasks: stores.tasks,
-      proposals: stores.missionPlanProposals,
-      policyDecisions: stores.policyDecisions,
-      approvals: stores.approvals,
-      events: stores.events,
-      unitOfWork: stores,
-    }),
+    missions: stores.missions,
+    tasks: stores.tasks,
+    proposals: stores.missionPlanProposals,
+    policyDecisions: stores.policyDecisions,
+    approvals: stores.approvals,
+    events: stores.events,
+    unitOfWork: stores,
+  });
+
+  const missionPlanOrchestration = new MissionPlanOrchestrationService(
+    stores.missions,
+    new MissionPlanningService(agentGateway, stores.tasks, stores.events, stores),
+    missionPlanService,
     taskOrchestration,
     stores,
   );
 
-  const missionGraphExecution = new MissionGraphExecutionService(stores.missions, stores.tasks, missionExecution);
+  const missionGraphExecution = new MissionGraphExecutionService(
+    stores.missions,
+    stores.tasks,
+    missionExecution,
+  );
+
   const missionWorkflow = new MissionWorkflowService(
-    new MissionCreationService({ conversations: stores.conversations, missions: stores.missions, events: stores.events, unitOfWork: stores }),
-    new MissionLifecycleService({ missions: stores.missions, tasks: stores.tasks, events: stores.events, unitOfWork: stores }),
+    new MissionCreationService({
+      conversations: stores.conversations,
+      missions: stores.missions,
+      events: stores.events,
+      unitOfWork: stores,
+    }),
+    missionLifecycle,
     missionPlanOrchestration,
     missionGraphExecution,
   );
-
   const executionRetry = new ExecutionRetryService(stores.tasks, stores.events, missionExecution);
   const conversationOrchestration = new ConversationAgentOrchestrationService(
     agentToolOrchestration,
