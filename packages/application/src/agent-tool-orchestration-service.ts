@@ -674,10 +674,15 @@ export class AgentToolOrchestrationService {
           });
         }
 
+        const error =
+          outcome.status === "APPROVAL_REQUIRED"
+            ? "Integration approval unexpectedly remained required."
+            : outcome.error;
+
         return {
           status: outcome.status === "REJECTED" ? "REJECTED" : "FAILED",
           response: current.response,
-          error: outcome.error,
+          error,
           rounds: current.rounds,
         };
       }
