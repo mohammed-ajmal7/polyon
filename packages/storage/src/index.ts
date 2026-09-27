@@ -41,3 +41,14 @@ export {
   type DomainStoreTransactionContext,
   type DomainUnitOfWork,
 } from "./transaction";
+
+
+export {
+  CURRENT_DURABLE_DOMAIN_VERSION,
+  DurableMigrationError,
+  migrateDurableSnapshot,
+  durableMigrations,
+  type DurableMigration,
+  type DurableMigrationErrorKind,
+  type DurableMigrationResult,
+} from "./migrations";
