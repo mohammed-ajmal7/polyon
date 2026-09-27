@@ -6,6 +6,7 @@ import { ScopedFilesystemReadToolAdapter } from "./scoped-filesystem-read-adapte
 import { ScopedTerminalToolAdapter } from "./scoped-terminal-tool-adapter";
 import { ScopedGitReadToolAdapter } from "./scoped-git-read-tool-adapter";
 import { ScopedGitWriteToolAdapter } from "./scoped-git-write-tool-adapter";
+import { ScopedGitCommitToolAdapter } from "./scoped-git-commit-tool-adapter";
 import { ScopedArtifactWriteToolAdapter } from "./scoped-artifact-write-tool-adapter";
 import type { ToolRegistry } from "./tool-registry";
 import { InMemoryToolRegistry } from "./tool-registry";
@@ -15,6 +16,7 @@ export const BUILTIN_TOOL_IDS = {
   terminalExecute: "terminal.execute.scoped" as ToolId,
   gitRead: "git.read.scoped" as ToolId,
   gitWrite: "git.write.scoped" as ToolId,
+  gitCommit: "git.commit.scoped" as ToolId,
   artifactWrite: "artifact.write.scoped" as ToolId,
 } as const;
 
@@ -48,6 +50,13 @@ export interface BuiltinToolOptions {
   readonly gitWriteMaxOutputBytes?: number;
   readonly gitWriteEnvironmentKeys?: readonly string[];
   readonly gitWriteEnabled?: boolean;
+  readonly gitCommitRoot?: string;
+  readonly gitCommitExecutable?: string;
+  readonly gitCommitDefaultTimeoutMs?: number;
+  readonly gitCommitMaxTimeoutMs?: number;
+  readonly gitCommitMaxOutputBytes?: number;
+  readonly gitCommitEnvironmentKeys?: readonly string[];
+  readonly gitCommitEnabled?: boolean;
   readonly artifactRoot?: string;
   readonly artifactDefaultKind?: "DOCUMENT" | "IMAGE" | "VIDEO" | "AUDIO" | "CODE" | "DATASET" | "REPORT" | "OTHER";
   readonly artifactWriteEnabled?: boolean;
@@ -313,6 +322,51 @@ export function registerBuiltinTools(
 
     registries.tools.register(artifactTool);
     registries.adapters.register(artifactAdapter);
+  }
+
+  if (options.gitCommitRoot !== undefined) {
+    const gitCommitTool: Tool = {
+      id: BUILTIN_TOOL_IDS.gitCommit,
+      name: "Scoped Git commit",
+      description:
+        "Creates a commit from the existing Git index with an explicit commit message.",
+      kind: "GIT",
+      actionKinds: ["WRITE"],
+      inputSchema: {
+        type: "object",
+        required: ["message"],
+        additionalProperties: false,
+        properties: {
+          message: {
+            type: "string",
+            minLength: 1,
+            maxLength: 500,
+          },
+          timeoutMs: {
+            type: "integer",
+            minimum: 1,
+          },
+          maxOutputBytes: {
+            type: "integer",
+            minimum: 1,
+          },
+        },
+      },
+      enabled: options.gitCommitEnabled ?? true,
+    };
+
+    const gitCommitAdapter = new ScopedGitCommitToolAdapter({
+      toolId: gitCommitTool.id,
+      rootDir: options.gitCommitRoot,
+      gitExecutable: options.gitCommitExecutable,
+      defaultTimeoutMs: options.gitCommitDefaultTimeoutMs,
+      maxTimeoutMs: options.gitCommitMaxTimeoutMs,
+      defaultMaxOutputBytes: options.gitCommitMaxOutputBytes,
+      environmentKeys: options.gitCommitEnvironmentKeys,
+    });
+
+    registries.tools.register(gitCommitTool);
+    registries.adapters.register(gitCommitAdapter);
   }
 
   return registrations;
