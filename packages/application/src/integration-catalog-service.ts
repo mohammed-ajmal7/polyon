@@ -30,9 +30,7 @@ export class IntegrationCatalogServiceError extends Error {
 }
 
 export class IntegrationCatalogService {
-  constructor(
-    private readonly registry: IntegrationAdapterRegistry,
-  ) {}
+  constructor(private readonly registry: IntegrationAdapterRegistry) {}
 
   get(integrationId: IntegrationId): IntegrationCatalogEntry {
     const adapter = this.registry.get(integrationId);
@@ -55,13 +53,9 @@ export class IntegrationCatalogService {
   list(filter: IntegrationCatalogFilter = {}): readonly IntegrationCatalogEntry[] {
     return this.registry
       .list()
+      .filter((adapter) => (filter.kind === undefined ? true : adapter.kind === filter.kind))
       .filter((adapter) =>
-        filter.kind === undefined ? true : adapter.kind === filter.kind,
-      )
-      .filter((adapter) =>
-        filter.action === undefined
-          ? true
-          : adapter.actionKinds.includes(filter.action),
+        filter.action === undefined ? true : adapter.actionKinds.includes(filter.action),
       )
       .map(toEntry)
       .sort((left, right) => left.integrationId.localeCompare(right.integrationId));

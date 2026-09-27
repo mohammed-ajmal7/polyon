@@ -64,15 +64,13 @@ describe("IntegrationCatalogService", () => {
     expect(service.list({ kind: "GOOGLE_DRIVE" }).map((item) => item.integrationId)).toEqual([
       "google-drive-primary",
     ]);
-    expect(service.list({ action: "EXTERNAL_COMMUNICATION" }).map((item) => item.integrationId)).toEqual([
-      "email-primary",
-    ]);
+    expect(
+      service.list({ action: "EXTERNAL_COMMUNICATION" }).map((item) => item.integrationId),
+    ).toEqual(["email-primary"]);
   });
 
   it("raises a domain error for an unknown integration", () => {
-    const service = new IntegrationCatalogService(
-      new InMemoryIntegrationAdapterRegistry(),
-    );
+    const service = new IntegrationCatalogService(new InMemoryIntegrationAdapterRegistry());
 
     expect(() => service.get("missing")).toThrow(IntegrationCatalogServiceError);
   });
