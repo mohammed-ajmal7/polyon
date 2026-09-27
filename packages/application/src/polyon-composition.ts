@@ -219,8 +219,6 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
               },
             },
           }),
-        },
-      ),
     }),
     executions: stores.executions,
     tasks: stores.tasks,
