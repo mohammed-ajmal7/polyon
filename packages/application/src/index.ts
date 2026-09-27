@@ -182,3 +182,5 @@ export { ResearchSynthesisService, type SynthesizeResearchInput, type ResearchSy
 export { CreativeJobService, type CreativeAdapter, type CreativeJobRequest, type CreativeOperation } from "./creative-job-service";
 
 export { ConfiguredHttpResearchProvider, type ConfiguredHttpResearchProviderOptions } from "./configured-http-research-provider";
+
+export { MissionPlanningService, MissionPlanningValidationError, type GenerateMissionPlanInput, type GeneratedMissionPlan, type GeneratedTaskSpec } from "./mission-planning-service";
