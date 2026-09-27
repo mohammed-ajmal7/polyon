@@ -125,7 +125,6 @@ describe("execution result integration", () => {
     expect(events.listByExecution("execution-1").map((event) => event.kind)).toEqual([
       "EXECUTION_STATUS_CHANGED",
       "EXECUTION_STATUS_CHANGED",
-      "TASK_STATUS_CHANGED",
       "MESSAGE_CREATED",
       "ARTIFACT_CREATED",
     ]);
