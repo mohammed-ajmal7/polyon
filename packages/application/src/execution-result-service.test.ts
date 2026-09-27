@@ -114,6 +114,10 @@ describe("ExecutionResultService", () => {
       "MESSAGE_CREATED",
       "ARTIFACT_CREATED",
     ]);
+    expect(events.listByConversation("conversation-1").map((event) => event.kind)).toEqual([
+      "MESSAGE_CREATED",
+      "ARTIFACT_CREATED",
+    ]);
   });
 
   it("publishes a failed execution as a system error message", () => {
