@@ -226,6 +226,40 @@ describe("BoundedHttpClient", () => {
     expect(error).toMatchObject({ kind: "TIMEOUT" });
   });
 
+  it("maps caller cancellation to a distinct cancellation error", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_input: unknown, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => {
+              reject(new DOMException("Aborted", "AbortError"));
+            });
+          }),
+      ),
+    );
+
+    const caller = new AbortController();
+    const client = new BoundedHttpClient({
+      allowedHosts: ["api.example.com"],
+      defaultTimeoutMs: 1000,
+      maxTimeoutMs: 2000,
+    });
+
+    const pending = client.request({
+      url: "https://api.example.com/data",
+      signal: caller.signal,
+    });
+    caller.abort();
+
+    const error = await pending.catch((value: unknown) => value);
+
+    expect(error).toBeInstanceOf(BoundedHttpClientError);
+    expect(error).toMatchObject({
+      kind: "CANCELLED",
+    });
+  });
+
   it("maps aborts to a timeout error", async () => {
     vi.stubGlobal(
       "fetch",
