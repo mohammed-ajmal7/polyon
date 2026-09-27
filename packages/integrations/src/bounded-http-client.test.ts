@@ -96,6 +96,7 @@ describe("BoundedHttpClient", () => {
 
     const client = new BoundedHttpClient({
       allowedHosts: ["127.0.0.1"],
+      allowedPorts: [8080],
       allowInsecureHttp: true,
     });
 
