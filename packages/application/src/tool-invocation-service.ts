@@ -195,6 +195,34 @@ function appendApprovalResolvedEvent(
   });
 }
 
+function areArtifactMetadataEqual(
+  actual: Artifact,
+  expected: Artifact,
+): boolean {
+  return JSON.stringify({
+    id: actual.id,
+    kind: actual.kind,
+    name: actual.name,
+    mimeType: actual.mimeType,
+    location: actual.location,
+    status: actual.status,
+    missionId: actual.missionId,
+    taskId: actual.taskId,
+    executionId: actual.executionId,
+  }) ===
+    JSON.stringify({
+      id: expected.id,
+      kind: expected.kind,
+      name: expected.name,
+      mimeType: expected.mimeType,
+      location: expected.location,
+      status: expected.status,
+      missionId: expected.missionId,
+      taskId: expected.taskId,
+      executionId: expected.executionId,
+    });
+}
+
 function appendArtifactCreatedEvent(
   events: EventStore,
   artifact: Artifact,
@@ -637,11 +665,7 @@ export class ToolInvocationService {
           const existing = stores.artifacts.get(artifact.id);
 
           if (existing !== undefined) {
-            const { createdAt: existingCreatedAt, updatedAt: existingUpdatedAt, ...existingMetadata } =
-              existing;
-            const { createdAt, updatedAt, ...artifactMetadata } = artifact;
-
-            if (JSON.stringify(existingMetadata) !== JSON.stringify(artifactMetadata)) {
+            if (!areArtifactMetadataEqual(existing, artifact)) {
               throw new Error(
                 `Artifact already exists with conflicting metadata: ${artifact.id}.`,
               );
