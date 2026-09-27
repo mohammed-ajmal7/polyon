@@ -20,6 +20,7 @@ const googleDrive: IntegrationAdapter = {
 const telegram: IntegrationAdapter = {
   integrationId: "telegram-primary",
   kind: "TELEGRAM",
+  sideEffectClass: "EXTERNAL_SIDE_EFFECT",
   actionKinds: ["EXTERNAL_COMMUNICATION"],
   supportedOperations: ["SEND"],
   async invoke() {
