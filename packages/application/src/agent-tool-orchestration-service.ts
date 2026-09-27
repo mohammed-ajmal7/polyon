@@ -627,9 +627,16 @@ function stringifyToolOutput(output: unknown, maxBytes = DEFAULT_MAX_TOOL_OUTPUT
     return text;
   }
 
-  const prefix = new TextDecoder().decode(bytes.slice(0, maxBytes));
-  return (
-    `[Tool output truncated: original ${bytes.byteLength} bytes; limit ${maxBytes} bytes.]\n` +
-    prefix
+  const marker = `[Tool output truncated: original ${bytes.byteLength} bytes; limit ${maxBytes} bytes.]\n`;
+  const markerBytes = new TextEncoder().encode(marker);
+
+  if (markerBytes.byteLength >= maxBytes) {
+    return new TextDecoder().decode(markerBytes.slice(0, maxBytes));
+  }
+
+  const prefix = new TextDecoder().decode(
+    bytes.slice(0, maxBytes - markerBytes.byteLength),
   );
+
+  return marker + prefix;
 }
