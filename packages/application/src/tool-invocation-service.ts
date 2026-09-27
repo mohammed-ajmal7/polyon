@@ -15,6 +15,7 @@ import {
   authorizeToolInvocation,
   ToolAuthorizationError,
   ToolInputValidationError,
+  validateToolInput,
   type ToolAdapterRegistry,
   type ToolRegistry,
 } from "@polyon/tools";
@@ -523,6 +524,25 @@ export class ToolInvocationService {
       taskId: approvalContext?.taskId ?? (input as InvokeToolInput).taskId,
       executionId: approvalContext?.executionId ?? (input as InvokeToolInput).executionId,
     };
+
+    try {
+      validateToolInput(tool, input.input);
+    } catch (error) {
+      if (!(error instanceof ToolInputValidationError)) {
+        throw error;
+      }
+
+      const message = `Tool input validation failed at ${error.path}: ${error.message}`;
+      return this.failInvocation(
+        input,
+        tool,
+        policyDecision,
+        action,
+        riskLevel,
+        context,
+        message,
+      );
+    }
 
     const adapter = this.dependencies.adapters.get(tool.id);
 
