@@ -184,3 +184,5 @@ export { CreativeJobService, type CreativeAdapter, type CreativeJobRequest, type
 export { ConfiguredHttpResearchProvider, type ConfiguredHttpResearchProviderOptions } from "./configured-http-research-provider";
 
 export { MissionPlanningService, MissionPlanningValidationError, type GenerateMissionPlanInput, type GeneratedMissionPlan, type GeneratedTaskSpec } from "./mission-planning-service";
+
+export { MissionPlanOrchestrationService, type PlanMissionInput, type PlanMissionResult } from "./mission-plan-orchestration-service";
