@@ -642,6 +642,8 @@ function defaultRiskForAction(action: ActionKind): RiskLevel {
     case "WRITE":
     case "EXTERNAL_COMMUNICATION":
       return "MEDIUM";
+    case "PUBLISH":
+      return "HIGH";
     default:
       return "LOW";
   }
