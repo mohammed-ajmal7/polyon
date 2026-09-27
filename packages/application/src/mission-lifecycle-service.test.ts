@@ -59,6 +59,40 @@ function createService(
 }
 
 describe("MissionLifecycleService", () => {
+  it("runs mission status and event persistence through the supplied unit of work", () => {
+    const stores = new InMemoryDomainStores();
+    stores.missions.save(baseMission);
+    let transactionCalls = 0;
+
+    const unitOfWork = {
+      transaction<T>(
+        work: Parameters<InMemoryDomainStores["transaction"]>[0],
+      ): T {
+        transactionCalls += 1;
+        return stores.transaction(work) as T;
+      },
+    };
+
+    const service = new MissionLifecycleService({
+      missions: stores.missions,
+      tasks: stores.tasks,
+      events: stores.events,
+      unitOfWork,
+    });
+
+    const result = service.transition({
+      missionId: "mission-1",
+      to: "PLANNING",
+      actorId: "user-1",
+      eventId: "mission-status-transaction-1",
+      now: "2026-09-27T03:05:00.000Z",
+    });
+
+    expect(transactionCalls).toBe(1);
+    expect(stores.missions.get("mission-1")).toEqual(result.mission);
+    expect(stores.events.get("mission-status-transaction-1")).toEqual(result.event);
+  });
+
   it("transitions a draft mission to planning and emits a traceable event", () => {
     const { stores, events, service } = createService();
 
