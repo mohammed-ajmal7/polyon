@@ -172,8 +172,7 @@ describe("FileEntityStore", () => {
   });
 });
 
-
-  it("fails closed on duplicate entity IDs in a snapshot", () => {
+it("fails closed on duplicate entity IDs in a snapshot", () => {
     const directory = withTempDir();
     const path = join(directory, "entities.json");
 
@@ -203,3 +202,5 @@ describe("FileEntityStore", () => {
       rmSync(directory, { recursive: true, force: true });
     }
   });
+
+});
