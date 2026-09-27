@@ -115,6 +115,33 @@ describe("ToolInvocationService", () => {
     });
   });
 
+  it("fails closed before adapter execution when tool input violates its schema", async () => {
+    const invoke = vi.fn(async () => ({ output: "should not run" }));
+    const { stores, events, service } = createService({
+      toolId: "tool-1",
+      invoke,
+    });
+
+    const result = await service.invoke({
+      ...baseInput,
+      input: {},
+      policy: {
+        ...policy,
+        defaultEffect: "ALLOW",
+      },
+    });
+
+    expect(result.status).toBe("FAILED");
+    expect(invoke).not.toHaveBeenCalled();
+    expect(stores.policyDecisions.get("decision-1")?.effect).toBe("ALLOW");
+    expect(
+      events.get("TOOL_INVOKED:invocation-1:FAILED")?.data,
+    ).toMatchObject({
+      status: "FAILED",
+      toolId: "tool-1",
+    });
+  });
+
   it("creates approval instead of invoking, then executes only after approval", async () => {
     const invoke = vi.fn(async () => ({ output: "executed" }));
     const { stores, events, service } = createService({
