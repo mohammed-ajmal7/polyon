@@ -194,3 +194,7 @@ export { MissionWorkflowService, type ExecuteMissionWorkflowInput, type ExecuteM
 export { KnowledgeContextService, type KnowledgeContextInput, type KnowledgeContextItem, type KnowledgeContextResult } from "./knowledge-context-service";
 
 export { ConfiguredHttpCreativeAdapter, type ConfiguredHttpCreativeAdapterOptions } from "./configured-http-creative-adapter";
+
+export { McpServerService, type McpJsonRpcRequest, type McpJsonRpcResponse, type McpServerDependencies } from "./mcp-server-service";
+
+export { A2AServerService, type A2AJsonRpcRequest, type A2AJsonRpcResponse, type A2AServerDependencies } from "./a2a-server-service";
