@@ -122,9 +122,7 @@ describe("IntegrationInvocationService", () => {
       status: "PENDING",
       invocationId: "integration-invocation-1",
     });
-    expect(stores.events.get("APPROVAL_REQUESTED:integration-approval-1")?.actorId).toBe(
-      "actor-1",
-    );
+    expect(stores.events.get("APPROVAL_REQUESTED:integration-approval-1")?.actorId).toBe("actor-1");
 
     const approved = service.resolveApproval({
       approvalId: "integration-approval-1",
@@ -279,15 +277,11 @@ describe("IntegrationInvocationService", () => {
 
     expect(result.status).toBe("REJECTED");
     expect(invoke).not.toHaveBeenCalled();
-    expect(
-      stores.policyDecisions.get("integration-decision-agent-deny"),
-    ).toMatchObject({
+    expect(stores.policyDecisions.get("integration-decision-agent-deny")).toMatchObject({
       effect: "DENY",
     });
     expect(
-      stores.events.get(
-        "INTEGRATION_INVOKED:integration-invocation-agent-deny:REJECTED",
-      ),
+      stores.events.get("INTEGRATION_INVOKED:integration-invocation-agent-deny:REJECTED"),
     ).toMatchObject({
       data: {
         status: "REJECTED",

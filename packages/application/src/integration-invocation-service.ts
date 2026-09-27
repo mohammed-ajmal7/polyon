@@ -123,9 +123,7 @@ export interface IntegrationInvocationServiceDependencies {
 }
 
 export class IntegrationInvocationService {
-  constructor(
-    private readonly dependencies: IntegrationInvocationServiceDependencies,
-  ) {}
+  constructor(private readonly dependencies: IntegrationInvocationServiceDependencies) {}
 
   async invoke<TInput = unknown>(
     input: InvokeIntegrationInput<TInput>,
@@ -165,11 +163,7 @@ export class IntegrationInvocationService {
         error.kind === "INTEGRATION_INVOCATION_DENIED" &&
         error.decision !== undefined
       ) {
-        this.persistPolicyDecision(
-          error.decision,
-          input,
-          integration,
-        );
+        this.persistPolicyDecision(error.decision, input, integration);
         this.dependencies.events.append({
           id: `INTEGRATION_INVOKED:${input.invocationId}:REJECTED`,
           kind: "INTEGRATION_INVOKED",
@@ -258,11 +252,7 @@ export class IntegrationInvocationService {
       };
     }
 
-    this.persistPolicyDecision(
-      authorization.policyDecision,
-      input,
-      integration,
-    );
+    this.persistPolicyDecision(authorization.policyDecision, input, integration);
 
     return this.execute(integration, input, authorization.policyDecision);
   }
@@ -282,7 +272,12 @@ export class IntegrationInvocationService {
       );
     }
 
-    const updated = transitionApprovalStatus(approval, input.status, input.resolvedAt, input.resolvedBy);
+    const updated = transitionApprovalStatus(
+      approval,
+      input.status,
+      input.resolvedAt,
+      input.resolvedBy,
+    );
 
     this.withStores((stores) => {
       stores.approvals.save(updated);
@@ -354,9 +349,7 @@ export class IntegrationInvocationService {
 
     const integration = this.getIntegration(input.integrationId);
 
-    const policyDecision = this.dependencies.policyDecisions.get(
-      approval.policyDecisionId,
-    );
+    const policyDecision = this.dependencies.policyDecisions.get(approval.policyDecisionId);
 
     if (policyDecision === undefined) {
       throw new IntegrationInvocationServiceError(
@@ -521,7 +514,10 @@ export class IntegrationInvocationService {
     if (
       this.dependencies.events
         .list()
-        .some((event) => event.kind === "INTEGRATION_INVOKED" && event.data.invocationId === invocationId)
+        .some(
+          (event) =>
+            event.kind === "INTEGRATION_INVOKED" && event.data.invocationId === invocationId,
+        )
     ) {
       throw new IntegrationInvocationServiceError(
         "INTEGRATION_INVOCATION_ALREADY_RECORDED",

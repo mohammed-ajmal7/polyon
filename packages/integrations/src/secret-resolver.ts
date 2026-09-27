@@ -1,16 +1,11 @@
-import type {
-  SecretReference,
-  SecretReferenceKind,
-} from "@polyon/contracts";
+import type { SecretReference, SecretReferenceKind } from "@polyon/contracts";
 
 export interface SecretResolver {
   resolve(reference: SecretReference): Promise<string>;
 }
 
 export type SecretResolverErrorKind =
-  | "INVALID_REFERENCE"
-  | "REFERENCE_NOT_CONFIGURED"
-  | "SECRET_NOT_AVAILABLE";
+  "INVALID_REFERENCE" | "REFERENCE_NOT_CONFIGURED" | "SECRET_NOT_AVAILABLE";
 
 export class SecretResolverError extends Error {
   readonly kind: SecretResolverErrorKind;
@@ -53,9 +48,7 @@ export class EnvironmentSecretResolver implements SecretResolver {
 
     for (const [referenceId, mapping] of this.references) {
       if (!isSafeReferenceId(referenceId)) {
-        throw new RangeError(
-          `Invalid secret reference id: ${referenceId}.`,
-        );
+        throw new RangeError(`Invalid secret reference id: ${referenceId}.`);
       }
 
       if (
@@ -63,9 +56,7 @@ export class EnvironmentSecretResolver implements SecretResolver {
         mapping.provider.trim() === "" ||
         !isSafeEnvironmentName(mapping.environmentVariable)
       ) {
-        throw new RangeError(
-          `Invalid secret mapping for reference: ${referenceId}.`,
-        );
+        throw new RangeError(`Invalid secret mapping for reference: ${referenceId}.`);
       }
     }
   }
@@ -93,10 +84,7 @@ export class EnvironmentSecretResolver implements SecretResolver {
       );
     }
 
-    if (
-      mapping.provider !== reference.provider ||
-      mapping.kind !== reference.kind
-    ) {
+    if (mapping.provider !== reference.provider || mapping.kind !== reference.kind) {
       throw new SecretResolverError(
         "INVALID_REFERENCE",
         `Secret reference metadata does not match configured reference: ${reference.id}.`,

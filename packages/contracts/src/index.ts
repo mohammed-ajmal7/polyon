@@ -84,8 +84,4 @@ export type { Debate, DebateId, DebatePhase, DebateStatus } from "./debate/index
 export type { MissionPlanProposal } from "./work/mission-plan-proposal";
 export type { MissionPlanProposalId } from "./work/ids";
 
-export type {
-  SecretReference,
-  SecretReferenceId,
-  SecretReferenceKind,
-} from "./security/index";
+export type { SecretReference, SecretReferenceId, SecretReferenceKind } from "./security/index";

@@ -473,9 +473,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     providers,
     providerAdapters,
     integrations,
-    ...(options.secretResolver === undefined
-      ? {}
-      : { secretResolver: options.secretResolver }),
+    ...(options.secretResolver === undefined ? {} : { secretResolver: options.secretResolver }),
     modelGateway,
     agentGateway,
     tools: builtinTools.tools,

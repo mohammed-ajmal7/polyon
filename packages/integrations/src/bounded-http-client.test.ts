@@ -1,9 +1,6 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
 
-import {
-  BoundedHttpClient,
-  BoundedHttpClientError,
-} from "./bounded-http-client";
+import { BoundedHttpClient, BoundedHttpClientError } from "./bounded-http-client";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -56,13 +53,13 @@ describe("BoundedHttpClient", () => {
       allowedHosts: ["api.example.com"],
     });
 
-    await expect(
-      client.request({ url: "https://evil.example.com/data" }),
-    ).rejects.toMatchObject({ kind: "HOST_NOT_ALLOWED" });
+    await expect(client.request({ url: "https://evil.example.com/data" })).rejects.toMatchObject({
+      kind: "HOST_NOT_ALLOWED",
+    });
 
-    await expect(
-      client.request({ url: "http://api.example.com/data" }),
-    ).rejects.toMatchObject({ kind: "INSECURE_URL" });
+    await expect(client.request({ url: "http://api.example.com/data" })).rejects.toMatchObject({
+      kind: "INSECURE_URL",
+    });
 
     await expect(
       client.request({ url: "https://user:password@api.example.com/data" }),
@@ -92,7 +89,10 @@ describe("BoundedHttpClient", () => {
   });
 
   it("permits configured HTTP for local development only", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => response("ok")));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => response("ok")),
+    );
 
     const client = new BoundedHttpClient({
       allowedHosts: ["127.0.0.1"],
@@ -141,25 +141,24 @@ describe("BoundedHttpClient", () => {
       defaultMaxResponseBytes: 32,
     });
 
-    await expect(
-      client.request({ url: "https://api.example.com/data" }),
-    ).rejects.toMatchObject({
+    await expect(client.request({ url: "https://api.example.com/data" })).rejects.toMatchObject({
       kind: "RESPONSE_TOO_LARGE",
     });
   });
 
   it("stops reading streamed responses after the configured byte limit", async () => {
-    const fetchMock = vi.fn(async () =>
-      new Response(
-        new ReadableStream<Uint8Array>({
-          start(controller) {
-            controller.enqueue(new TextEncoder().encode("123456"));
-            controller.enqueue(new TextEncoder().encode("789012"));
-            controller.close();
-          },
-        }),
-        { status: 200 },
-      ),
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(new TextEncoder().encode("123456"));
+              controller.enqueue(new TextEncoder().encode("789012"));
+              controller.close();
+            },
+          }),
+          { status: 200 },
+        ),
     );
     vi.stubGlobal("fetch", fetchMock);
 
@@ -169,15 +168,16 @@ describe("BoundedHttpClient", () => {
       defaultMaxResponseBytes: 10,
     });
 
-    await expect(
-      client.request({ url: "https://api.example.com/data" }),
-    ).rejects.toMatchObject({
+    await expect(client.request({ url: "https://api.example.com/data" })).rejects.toMatchObject({
       kind: "RESPONSE_TOO_LARGE",
     });
   });
 
   it("rejects request and response limits above configured maximums", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => response("ok")));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => response("ok")),
+    );
 
     const client = new BoundedHttpClient({
       allowedHosts: ["api.example.com"],
@@ -188,17 +188,11 @@ describe("BoundedHttpClient", () => {
     });
 
     await expect(
-      client.request(
-        { url: "https://api.example.com/data" },
-        { timeoutMs: 1001 },
-      ),
+      client.request({ url: "https://api.example.com/data" }, { timeoutMs: 1001 }),
     ).rejects.toMatchObject({ kind: "INVALID_TIMEOUT" });
 
     await expect(
-      client.request(
-        { url: "https://api.example.com/data" },
-        { maxResponseBytes: 33 },
-      ),
+      client.request({ url: "https://api.example.com/data" }, { maxResponseBytes: 33 }),
     ).rejects.toMatchObject({ kind: "RESPONSE_TOO_LARGE" });
   });
 

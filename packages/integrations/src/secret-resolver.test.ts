@@ -1,10 +1,7 @@
 import type { SecretReference } from "@polyon/contracts";
 import { describe, expect, it } from "vitest";
 
-import {
-  EnvironmentSecretResolver,
-  SecretResolverError,
-} from "./secret-resolver";
+import { EnvironmentSecretResolver, SecretResolverError } from "./secret-resolver";
 
 const reference: SecretReference = {
   id: "telegram.primary",

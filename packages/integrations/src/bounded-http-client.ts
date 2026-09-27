@@ -60,9 +60,7 @@ export class BoundedHttpClient {
       throw new RangeError("allowedHosts must contain at least one host.");
     }
 
-    this.allowedHosts = new Set(
-      options.allowedHosts.map((host) => normalizeHost(host)),
-    );
+    this.allowedHosts = new Set(options.allowedHosts.map((host) => normalizeHost(host)));
 
     const allowedPorts = options.allowedPorts ?? [80, 443];
     if (
@@ -75,8 +73,7 @@ export class BoundedHttpClient {
 
     this.defaultTimeoutMs = options.defaultTimeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.maxTimeoutMs = options.maxTimeoutMs ?? this.defaultTimeoutMs;
-    this.defaultMaxResponseBytes =
-      options.defaultMaxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES;
+    this.defaultMaxResponseBytes = options.defaultMaxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES;
     this.maxResponseBytes = options.maxResponseBytes ?? this.defaultMaxResponseBytes;
     this.allowInsecureHttp = options.allowInsecureHttp ?? false;
 
@@ -91,16 +88,17 @@ export class BoundedHttpClient {
     assertPositiveLimit(this.maxResponseBytes, "maxResponseBytes");
 
     if (this.maxResponseBytes < this.defaultMaxResponseBytes) {
-      throw new RangeError(
-        "maxResponseBytes must be at least defaultMaxResponseBytes.",
-      );
+      throw new RangeError("maxResponseBytes must be at least defaultMaxResponseBytes.");
     }
   }
 
-  async request(input: BoundedHttpRequest, options?: {
-    readonly timeoutMs?: number;
-    readonly maxResponseBytes?: number;
-  }): Promise<BoundedHttpResponse> {
+  async request(
+    input: BoundedHttpRequest,
+    options?: {
+      readonly timeoutMs?: number;
+      readonly maxResponseBytes?: number;
+    },
+  ): Promise<BoundedHttpResponse> {
     const url = parseUrl(input.url, this.allowInsecureHttp);
 
     if (!this.allowedHosts.has(url.hostname.toLowerCase())) {
@@ -183,10 +181,7 @@ export class BoundedHttpClient {
         }
       }
 
-      const body = await readBoundedBody(
-        response,
-        maxResponseBytes,
-      );
+      const body = await readBoundedBody(response, maxResponseBytes);
 
       return {
         url: response.url || url.toString(),
@@ -224,18 +219,12 @@ function parseUrl(value: string, allowInsecureHttp: boolean): URL {
   try {
     url = new URL(value);
   } catch {
-    throw new BoundedHttpClientError(
-      "INVALID_URL",
-      `Invalid HTTP URL: ${value}.`,
-    );
+    throw new BoundedHttpClientError("INVALID_URL", `Invalid HTTP URL: ${value}.`);
   }
 
   const secure = url.protocol === "https:";
   if (!secure && !(allowInsecureHttp && url.protocol === "http:")) {
-    throw new BoundedHttpClientError(
-      "INSECURE_URL",
-      `Only HTTPS URLs are allowed: ${value}.`,
-    );
+    throw new BoundedHttpClientError("INSECURE_URL", `Only HTTPS URLs are allowed: ${value}.`);
   }
 
   if (url.username !== "" || url.password !== "") {
@@ -262,10 +251,7 @@ function assertPositiveLimit(value: number, field: string): void {
   }
 }
 
-async function readBoundedBody(
-  response: Response,
-  maxResponseBytes: number,
-): Promise<Uint8Array> {
+async function readBoundedBody(response: Response, maxResponseBytes: number): Promise<Uint8Array> {
   if (response.body === null) {
     return new Uint8Array();
   }
@@ -307,9 +293,7 @@ async function readBoundedBody(
   return output;
 }
 
-function selectResponseHeaders(
-  headers: Headers,
-): Readonly<Record<string, string>> {
+function selectResponseHeaders(headers: Headers): Readonly<Record<string, string>> {
   const selected: Record<string, string> = {};
 
   for (const name of ["content-type", "etag", "last-modified", "retry-after"]) {
