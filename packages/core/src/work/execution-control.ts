@@ -31,6 +31,21 @@ export function startExecution(execution: Execution, startedAt: string): Executi
   };
 }
 
+export function cancelExecution(execution: Execution, cancelledAt: string): Execution {
+  return transitionExecutionStatus(execution, "CANCELLED", cancelledAt);
+}
+
+export function rejectExecution(
+  execution: Execution,
+  rejectedAt: string,
+  reason: string,
+): Execution {
+  return {
+    ...transitionExecutionStatus(execution, "REJECTED", rejectedAt),
+    error: reason,
+  };
+}
+
 export function pauseExecution(execution: Execution, pausedAt: string): Execution {
   return transitionExecutionStatus(execution, "PAUSED", pausedAt);
 }

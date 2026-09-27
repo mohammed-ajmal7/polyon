@@ -17,7 +17,7 @@ import {
   authorizeExecutionRun,
   createExecutionForTask,
   ExecutionRunAuthorizationError,
-  transitionExecutionStatus,
+  rejectExecution,
 } from "@polyon/core";
 
 export interface PrepareExecutionDispatchInput {
@@ -88,7 +88,7 @@ export function prepareExecutionDispatch(
       error.decision !== undefined
     ) {
       return {
-        execution: transitionExecutionStatus(execution, "REJECTED", input.evaluatedAt),
+        execution: rejectExecution(execution, input.evaluatedAt, error.decision.reason),
         policyDecision: error.decision,
         nextStep: "REJECTED",
       };

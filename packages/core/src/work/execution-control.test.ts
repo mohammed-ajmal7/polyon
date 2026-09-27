@@ -2,6 +2,7 @@ import type { Execution } from "@polyon/contracts";
 import { describe, expect, it } from "vitest";
 
 import {
+  cancelExecution,
   completeExecution,
   ExecutionControlError,
   pauseExecution,
@@ -21,6 +22,36 @@ const queuedExecution: Execution = {
 };
 
 describe("startExecution", () => {
+  it.each([
+    "PENDING",
+    "APPROVAL_REQUIRED",
+    "APPROVED",
+    "QUEUED",
+    "RUNNING",
+    "PAUSED",
+  ] as const)("cancels execution from status %s", (status) => {
+    const execution: Execution = {
+      ...queuedExecution,
+      status,
+    };
+
+    expect(cancelExecution(execution, "2026-09-27T01:02:00.000Z").status).toBe(
+      "CANCELLED",
+    );
+  });
+
+  it("rejects terminal execution cancellation", () => {
+    expect(() =>
+      cancelExecution(
+        {
+          ...queuedExecution,
+          status: "SUCCEEDED",
+        },
+        "2026-09-27T01:02:00.000Z",
+      ),
+    ).toThrow();
+  });
+
   it("moves a queued execution to running and records startedAt", () => {
     expect(startExecution(queuedExecution, "2026-09-27T01:02:00.000Z")).toEqual({
       ...queuedExecution,
@@ -48,6 +79,42 @@ describe("startExecution", () => {
     startExecution(queuedExecution, "2026-09-27T01:02:00.000Z");
 
     expect(queuedExecution).toEqual(before);
+  });
+});
+
+describe("rejectExecution", () => {
+  it("rejects a pending execution and records the policy reason", () => {
+    expect(
+      rejectExecution(
+        {
+          ...queuedExecution,
+          status: "PENDING",
+        },
+        "2026-09-27T01:02:00.000Z",
+        "Execution run was denied by policy.",
+      ),
+    ).toEqual({
+      ...queuedExecution,
+      status: "REJECTED",
+      updatedAt: "2026-09-27T01:02:00.000Z",
+      error: "Execution run was denied by policy.",
+    });
+  });
+
+  it("does not mutate the original execution", () => {
+    const pendingExecution = {
+      ...queuedExecution,
+      status: "PENDING" as const,
+    };
+    const before = structuredClone(pendingExecution);
+
+    rejectExecution(
+      pendingExecution,
+      "2026-09-27T01:02:00.000Z",
+      "Denied.",
+    );
+
+    expect(pendingExecution).toEqual(before);
   });
 });
 
