@@ -66,13 +66,6 @@ function hasPendingIntegrationContinuation(
   return findIntegrationContinuation(approvals, executionId, "PENDING") !== undefined;
 }
 
-function hasResumableIntegrationContinuation(
-  approvals: ApprovalRequestStore,
-  executionId: ExecutionId,
-): boolean {
-  return findIntegrationContinuation(approvals, executionId, "APPROVED") !== undefined;
-}
-
 export function recoverQueuedExecutions(
   executions: ExecutionStore,
   queue: ExecutionQueue,
@@ -174,8 +167,11 @@ export function recoverExecutions(
         "APPROVED",
       );
 
-      if (integrationContinuation !== undefined) {
-        if (integrationContinuation.sideEffectClass === "NON_IDEMPOTENT") {
+      if (
+        integrationContinuation !== undefined &&
+        integrationContinuation.state === "AWAITING_INTEGRATION" &&
+        integrationContinuation.sideEffectClass === "NON_IDEMPOTENT"
+      ) {
           if (tasks === undefined) {
             continue;
           }
