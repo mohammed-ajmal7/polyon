@@ -1,3 +1,6 @@
+import { existsSync, realpathSync, statSync } from "node:fs";
+import { resolve } from "node:path";
+
 import type { ToolAdapter, ToolInvocationRequest } from "./tool-adapter";
 import {
   ScopedTerminalToolAdapter,
@@ -69,6 +72,22 @@ export class ScopedGitReadToolAdapter
   constructor(options: ScopedGitReadToolAdapterOptions) {
     if (options.toolId.trim() === "") {
       throw new RangeError("toolId must not be empty.");
+    }
+
+    const root = resolve(options.rootDir);
+
+    if (!existsSync(root)) {
+      throw new ScopedGitReadToolError(
+        "COMMAND_FAILED",
+        `Git root does not exist: ${root}.`,
+      );
+    }
+
+    if (!statSync(root).isDirectory()) {
+      throw new ScopedGitReadToolError(
+        "COMMAND_FAILED",
+        `Git root is not a directory: ${root}.`,
+      );
     }
 
     this.toolId = options.toolId;
