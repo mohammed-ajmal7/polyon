@@ -26,13 +26,14 @@ declare module "node:path" {
 }
 
 
+
 declare module "node:child_process" {
   export interface SpawnedChildProcess {
     readonly stdout: {
-      on(event: "data", listener: (chunk: Buffer) => void): void;
+      on(event: "data", listener: (chunk: Uint8Array) => void): void;
     };
     readonly stderr: {
-      on(event: "data", listener: (chunk: Buffer) => void): void;
+      on(event: "data", listener: (chunk: Uint8Array) => void): void;
     };
     on(event: "error", listener: (error: unknown) => void): void;
     on(
@@ -53,15 +54,4 @@ declare module "node:child_process" {
       readonly stdio: readonly ["ignore", "pipe", "pipe"];
     },
   ): SpawnedChildProcess;
-}
-
-declare const process: {
-  readonly env: Readonly<Record<string, string | undefined>>;
-  readonly execPath: string;
-};
-
-declare class Buffer extends Uint8Array {
-  static concat(list: readonly Buffer[]): Buffer;
-  static from(data: string): Buffer;
-  toString(encoding?: string): string;
 }
