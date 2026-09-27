@@ -57,6 +57,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [authRequired, setAuthRequired] = useState(false);
   const [authToken, setAuthToken] = useState("");
+  const [lastExecution, setLastExecution] = useState<string | null>(null);
   const agents = overview?.agents ?? [];
   const approvals = overview?.approvals ?? [];
   const counts = overview?.counts ?? { executions: 0, queued: 0, active: 0, memories: 0, sources: 0, evidence: 0, debates: 0, artifacts: 0, events: 0 };
@@ -117,6 +118,8 @@ export default function Home() {
       const body = (await response.json().catch(() => ({}))) as { error?: string };
       throw new Error(body.error ?? "Execution submission failed.");
     }
+    const result = (await response.json().catch(() => ({}))) as { result?: { status?: string } };
+    setLastExecution(result.result?.status ?? "SUBMITTED");
     setCommand("");
     await refreshOverview();
   }
@@ -185,6 +188,7 @@ export default function Home() {
 
           <div className="flex-1 overflow-y-auto px-5 py-6 sm:px-7 lg:px-8">
             {error ? <div className="mb-5 rounded-2xl border border-rose-300/15 bg-rose-300/5 px-4 py-3 text-sm text-rose-200">{error}</div> : null}
+            {lastExecution ? <div className="mb-5 rounded-2xl border border-cyan-300/10 bg-cyan-300/5 px-4 py-3 text-sm text-cyan-100">Last governed submission: {lastExecution}</div> : null}
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(340px,0.75fr)]">
               <div className="space-y-6">
                 <section className="overflow-hidden rounded-3xl border border-white/10 bg-[#0d111a] shadow-2xl shadow-black/20">
