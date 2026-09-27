@@ -371,8 +371,12 @@ export class ScopedTerminalToolAdapter
         );
       };
 
-      child.stdout.on("data", (chunk: Buffer) => onData(stdoutChunks, chunk));
-      child.stderr.on("data", (chunk: Buffer) => onData(stderrChunks, chunk));
+      child.stdout.on("data", (chunk: Uint8Array) =>
+        onData(stdoutChunks, chunk),
+      );
+      child.stderr.on("data", (chunk: Uint8Array) =>
+        onData(stderrChunks, chunk),
+      );
 
       child.on("error", (error) => {
         rejectOnce(
