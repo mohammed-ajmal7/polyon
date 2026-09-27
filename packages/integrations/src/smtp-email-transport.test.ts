@@ -290,6 +290,42 @@ describe("SmtpTransport", () => {
     expect(connection.write).toHaveBeenLastCalledWith(".\\r\\n");
   });
 
+  it("chunks large SMTP DATA payloads within the connection write bound", async () => {
+    const connection = createConnection([
+      "220 ready",
+      "250 hello AUTH LOGIN",
+      "334 VXNlcm5hbWU6",
+      "334 UGFzc3dvcmQ6",
+      "235 authenticated",
+      "250 sender accepted",
+      "250 recipient accepted",
+      "354 continue",
+      "250 queued",
+      "221 bye",
+    ]);
+    const transport = new SmtpTransport(
+      {
+        host: "smtp.example.com",
+        port: 465,
+        secure: true,
+        heloName: "polyon.local",
+        messageIdDomain: "polyon.local",
+      },
+      { connect: vi.fn(async () => connection) },
+    );
+
+    await transport.send(
+      { to: ["user@example.com"], subject: "Large", text: "x".repeat(80_000) },
+      { username: "mailer@example.com", password: "secret" },
+    );
+
+    const dataWrites = connection.write.mock.calls
+      .map(([value]) => value)
+      .filter((value): value is string => value !== "DATA" && value !== ".\r\n" && !value.startsWith("EHLO") && !value.startsWith("AUTH") && !value.startsWith("MAIL FROM") && !value.startsWith("RCPT TO") && value !== "bWFpbGVyQGV4YW1wbGUuY29t" && value !== "c2VjcmV0");
+    expect(dataWrites.length).toBeGreaterThan(1);
+    expect(dataWrites.every((value) => new TextEncoder().encode(value).byteLength <= 64 * 1024)).toBe(true);
+  });
+
   it("uses UTF-8 bytes for AUTH LOGIN credentials", async () => {
     const connection = createConnection([
       "220 ready",
