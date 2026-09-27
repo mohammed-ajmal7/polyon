@@ -16,6 +16,7 @@ export interface ValidatedSmtpTransportOptions {
   readonly host: string;
   readonly port: number;
   readonly secure: boolean;
+  readonly startTls: boolean;
   readonly connectionTimeoutMs: number;
   readonly maxMessageBytes: number;
 }
