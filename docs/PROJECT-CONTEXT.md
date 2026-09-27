@@ -566,7 +566,7 @@ Requirements:
 
 ### Phase 5 — Governed tool execution
 
-Status: foundation implemented; agent-driven tool orchestration remains.
+Status: governed filesystem-read execution and bounded agent-driven tool orchestration are implemented. Consequential tool categories, durable approval continuation, and broader tool schemas remain.
 
 The current governed tool invocation path is:
 
