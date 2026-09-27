@@ -102,6 +102,13 @@ export function applyExecutionRunAuthorization(
     return transitionExecutionStatus(execution, "QUEUED", now);
   }
 
+  if (authorization.policyDecision.effect !== "REQUIRE_APPROVAL") {
+    throw new ExecutionRunAuthorizationApplicationError(
+      "AUTHORIZATION_EFFECT_MISMATCH",
+      "Approval-required execution authorization must have a REQUIRE_APPROVAL policy decision.",
+    );
+  }
+
   const approval = authorization.approvalRequest;
 
   if (approval === undefined) {
