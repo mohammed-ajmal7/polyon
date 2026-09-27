@@ -73,7 +73,7 @@ export async function POST(request: Request): Promise<Response> {
           actorId: resolvedBy,
           requiredCapabilityIds: [],
           policy: getPolyonPolicy(),
-          riskLevel: "HIGH",
+          riskLevel: result.approval.riskLevel,
           now: resolvedAt,
           identities: {
             executionId: (taskId, attempt) => "execution-" + taskId + "-" + attempt,
