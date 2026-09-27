@@ -1,6 +1,13 @@
-import type { Execution, ExecutionId } from "@polyon/contracts";
+import type { Execution, ExecutionId, Task } from "@polyon/contracts";
+import { cancelExecution, transitionTaskStatus } from "@polyon/core";
 
-import type { EventStore, ExecutionStore, TaskStore } from "@polyon/storage";
+import type {
+  DomainStoreTransactionContext,
+  DomainUnitOfWork,
+  EventStore,
+  ExecutionStore,
+  TaskStore,
+} from "@polyon/storage";
 
 import {
   InMemoryExecutionCoordinator,
@@ -8,7 +15,11 @@ import {
   type ExecutionRunOutcome,
 } from "./execution-coordinator";
 import { InMemoryExecutionQueue, type ExecutionQueue } from "./execution-queue";
-import type { ExecutionRunner } from "./execution-runner";
+import type {
+  ExecutionAbortReason,
+  ExecutionRunContext,
+  ExecutionRunner,
+} from "./execution-runner";
 import {
   InMemoryExecutionWorker,
   type ExecutionWorkerClock,
@@ -16,6 +27,11 @@ import {
 } from "./execution-worker";
 
 export type ExecutionRuntimeStatus = "STOPPED" | "RUNNING";
+
+export type ExecutionRuntimeCancellationResult =
+  | { readonly status: "CANCELLED"; readonly execution: Execution }
+  | { readonly status: "NOT_FOUND"; readonly executionId: ExecutionId }
+  | { readonly status: "NOT_CANCELLABLE"; readonly execution: Execution };
 
 export type ExecutionRuntimeWait = (milliseconds: number) => Promise<void>;
 
@@ -27,6 +43,7 @@ export interface ExecutionRuntimeDependencies {
   readonly clock: ExecutionWorkerClock;
   readonly pollIntervalMs?: number;
   readonly maxConcurrency?: number;
+  readonly executionTimeoutMs?: number;
   readonly wait?: ExecutionRuntimeWait;
   readonly onError?: (error: unknown) => void;
 }
@@ -46,11 +63,19 @@ export interface ExecutionRuntime {
   start(): ExecutionWorkerStartResult;
   stop(): void;
   runNext(): Promise<ExecutionRunOutcome | undefined>;
+  cancel(executionId: ExecutionId): ExecutionRuntimeCancellationResult;
   recoveredExecutionIds(): readonly ExecutionId[];
 }
 
 const DEFAULT_POLL_INTERVAL_MS = 250;
 const DEFAULT_MAX_CONCURRENCY = 1;
+
+interface ActiveExecutionControl {
+  readonly controller: AbortController;
+  readonly getAbortReason: () => ExecutionAbortReason | undefined;
+  reason?: ExecutionAbortReason;
+  timeout?: ReturnType<typeof globalThis.setTimeout>;
+}
 
 function defaultWait(milliseconds: number): Promise<void> {
   return new Promise((resolve) => {
@@ -70,6 +95,60 @@ function validateMaxConcurrency(maxConcurrency: number): void {
   }
 }
 
+function validateExecutionTimeout(timeoutMs: number | undefined): void {
+  if (
+    timeoutMs !== undefined &&
+    (!Number.isFinite(timeoutMs) || timeoutMs <= 0)
+  ) {
+    throw new Error("Execution runtime timeout must be a positive finite number.");
+  }
+}
+
+type RuntimeCancellationStores = Pick<
+  DomainStoreTransactionContext,
+  "executions" | "tasks" | "events"
+>;
+
+function appendExecutionCancellationEvent(
+  events: EventStore,
+  execution: Execution,
+  from: Execution["status"],
+): void {
+  events.append({
+    id: `EXECUTION_STATUS_CHANGED:${execution.id}:${from}:CANCELLED:${execution.updatedAt}:RUNTIME`,
+    kind: "EXECUTION_STATUS_CHANGED",
+    actorId: execution.actorId,
+    missionId: execution.missionId,
+    taskId: execution.taskId,
+    executionId: execution.id,
+    occurredAt: execution.updatedAt,
+    data: {
+      from,
+      to: "CANCELLED",
+      reason: "RUNTIME_CANCELLED",
+    },
+  });
+}
+
+function appendTaskCancellationEvent(
+  events: EventStore,
+  task: Task,
+  from: Task["status"],
+): void {
+  events.append({
+    id: `TASK_STATUS_CHANGED:${task.id}:${from}:CANCELLED:${task.updatedAt}:RUNTIME`,
+    kind: "TASK_STATUS_CHANGED",
+    missionId: task.missionId,
+    taskId: task.id,
+    occurredAt: task.updatedAt,
+    data: {
+      from,
+      to: "CANCELLED",
+      reason: "RUNTIME_CANCELLED",
+    },
+  });
+}
+
 export function createExecutionRuntime(
   dependencies: ExecutionRuntimeDependencies,
 ): ExecutionRuntime {
@@ -80,6 +159,7 @@ export function createExecutionRuntime(
 
   validatePollInterval(pollIntervalMs);
   validateMaxConcurrency(maxConcurrency);
+  validateExecutionTimeout(dependencies.executionTimeoutMs);
 
   const queue = new InMemoryExecutionQueue();
   const coordinator = new InMemoryExecutionCoordinator({
@@ -102,6 +182,7 @@ export function createExecutionRuntime(
   let activeExecutionCount = 0;
   let runtimeGeneration = 0;
   let wakeWaiter: (() => void) | undefined;
+  const activeExecutions = new Map<ExecutionId, ActiveExecutionControl>();
 
   const signalLoop = (): void => {
     const resolve = wakeWaiter;
@@ -202,6 +283,7 @@ export function createExecutionRuntime(
     start,
     stop,
     runNext,
+    cancel,
     recoveredExecutionIds(): readonly ExecutionId[] {
       return recoveredExecutionIds;
     },

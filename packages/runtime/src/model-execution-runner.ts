@@ -8,7 +8,11 @@ import {
 } from "@polyon/providers";
 import type { TaskStore } from "@polyon/storage";
 
-import type { ExecutionRunner, ExecutionRunResult } from "./execution-runner";
+import type {
+  ExecutionRunContext,
+  ExecutionRunResult,
+  ExecutionRunner,
+} from "./execution-runner";
 
 export interface ModelExecutionRunnerDependencies {
   readonly modelGateway: ModelGateway;
@@ -20,7 +24,10 @@ export interface ModelExecutionRunnerDependencies {
 export class ModelExecutionRunner implements ExecutionRunner {
   constructor(private readonly dependencies: ModelExecutionRunnerDependencies) {}
 
-  async run(execution: Execution): Promise<ExecutionRunResult> {
+  async run(
+    execution: Execution,
+    context?: ExecutionRunContext,
+  ): Promise<ExecutionRunResult> {
     if (execution.modelId === undefined) {
       return {
         status: "FAILED",
@@ -50,19 +57,56 @@ ${task.description}`,
     ];
 
     try {
+      const modelOptions: ModelInvocationOptions = {
+        ...this.dependencies.modelOptions,
+        ...(context === undefined ? {} : { signal: context.signal }),
+      };
       const result = await this.dependencies.modelGateway.invokeText(
         execution.modelId,
         {
           messages,
         },
-        this.dependencies.modelOptions,
+        modelOptions,
       );
+
+      const abortReason = context?.getAbortReason();
+
+      if (abortReason === "CANCELLED") {
+        return {
+          status: "CANCELLED",
+          error: "Execution was cancelled.",
+        };
+      }
+
+      if (abortReason === "TIMEOUT") {
+        return {
+          status: "FAILED",
+          error: "Execution timed out after the runtime execution deadline.",
+          output: result.output.content,
+        };
+      }
 
       return {
         status: "SUCCEEDED",
         output: result.output.content,
       };
     } catch (error) {
+      const abortReason = context?.getAbortReason();
+
+      if (abortReason === "CANCELLED") {
+        return {
+          status: "CANCELLED",
+          error: "Execution was cancelled.",
+        };
+      }
+
+      if (abortReason === "TIMEOUT") {
+        return {
+          status: "FAILED",
+          error: "Execution timed out after the runtime execution deadline.",
+        };
+      }
+
       return {
         status: "FAILED",
         error: error instanceof Error ? error.message : "Model execution failed.",

@@ -11,7 +11,11 @@ import { completeExecution, startExecution, transitionTaskStatus } from "@polyon
 import type { EventStore, ExecutionStore, TaskStore } from "@polyon/storage";
 
 import type { ExecutionQueue } from "./execution-queue";
-import type { ExecutionRunResult, ExecutionRunner } from "./execution-runner";
+import type {
+  ExecutionRunContext,
+  ExecutionRunResult,
+  ExecutionRunner,
+} from "./execution-runner";
 
 export interface ExecutionRunOutcome {
   readonly execution: Execution;
@@ -19,8 +23,16 @@ export interface ExecutionRunOutcome {
 }
 
 export interface ExecutionCoordinator {
-  runNext(now: string, completionAt: string): Promise<Execution | undefined>;
-  runNextWithResult(now: string, completionAt: string): Promise<ExecutionRunOutcome | undefined>;
+  runNext(
+    now: string,
+    completionAt: string,
+    context?: ExecutionRunContext,
+  ): Promise<Execution | undefined>;
+  runNextWithResult(
+    now: string,
+    completionAt: string,
+    context?: ExecutionRunContext,
+  ): Promise<ExecutionRunOutcome | undefined>;
 }
 
 export interface ExecutionCoordinatorDependencies {
@@ -98,14 +110,19 @@ export class ExecutionCoordinatorError extends Error {
 export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
   constructor(private readonly dependencies: ExecutionCoordinatorDependencies) {}
 
-  async runNext(now: string, completionAt: string): Promise<Execution | undefined> {
-    const outcome = await this.runNextWithResult(now, completionAt);
+  async runNext(
+    now: string,
+    completionAt: string,
+    context?: ExecutionRunContext,
+  ): Promise<Execution | undefined> {
+    const outcome = await this.runNextWithResult(now, completionAt, context);
     return outcome?.execution;
   }
 
   async runNextWithResult(
     now: string,
     completionAt: string,
+    context?: ExecutionRunContext,
   ): Promise<ExecutionRunOutcome | undefined> {
     const queued = this.dependencies.queue.dequeue();
 
@@ -120,6 +137,16 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
         "EXECUTION_NOT_PERSISTED",
         `Cannot run execution that is not persisted: ${queued.id}.`,
       );
+    }
+
+    if (persisted.status === "CANCELLED") {
+      return {
+        execution: persisted,
+        result: {
+          status: "CANCELLED",
+          error: persisted.error ?? "Execution was cancelled.",
+        },
+      };
     }
 
     if (persisted.status !== "QUEUED") {
@@ -181,25 +208,54 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
     );
 
     try {
-      const result = await this.dependencies.runner.run(running);
+      const result = await this.dependencies.runner.run(running, context);
+      const persistedAfterRun = this.dependencies.executions.get(running.id);
+
+      if (persistedAfterRun?.status === "CANCELLED") {
+        return {
+          execution: persistedAfterRun,
+          result: {
+            status: "CANCELLED",
+            error: persistedAfterRun.error ?? "Execution was cancelled.",
+          },
+        };
+      }
+
+      const abortReason = context?.getAbortReason();
+      const effectiveResult: ExecutionRunResult =
+        abortReason === "TIMEOUT"
+          ? {
+              status: "FAILED",
+              error: "Execution timed out after the runtime execution deadline.",
+            }
+          : abortReason === "CANCELLED"
+            ? {
+                status: "CANCELLED",
+                error: "Execution was cancelled.",
+              }
+            : result;
 
       const completed = completeExecution(
         running,
-        result.status === "FAILED"
+        effectiveResult.status === "FAILED"
           ? {
               status: "FAILED",
               completedAt: completionAt,
-              error: result.error,
+              error: effectiveResult.error,
             }
           : {
-              status: "SUCCEEDED",
+              status: effectiveResult.status,
               completedAt: completionAt,
             },
       );
 
       const completedTask = transitionTaskStatus(
         runningTask,
-        completed.status === "SUCCEEDED" ? "SUCCEEDED" : "FAILED",
+        completed.status === "SUCCEEDED"
+          ? "SUCCEEDED"
+          : completed.status === "FAILED"
+            ? "FAILED"
+            : "CANCELLED",
         completionAt,
       );
 
@@ -211,7 +267,8 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
         running.status,
         completed.status,
         completionAt,
-        result.status === "FAILED" ? result.error : undefined,
+        effectiveResult.status === "FAILED" ? effectiveResult.error : undefined,
+        effectiveResult.status === "CANCELLED" ? effectiveResult.error : undefined,
       );
       appendTaskStatusChangedEvent(
         this.dependencies.events,
@@ -223,10 +280,65 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
 
       return {
         execution: completed,
-        result,
+        result: effectiveResult,
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Execution runner failed.";
+      const persistedAfterError = this.dependencies.executions.get(running.id);
+
+      if (persistedAfterError?.status === "CANCELLED") {
+        return {
+          execution: persistedAfterError,
+          result: {
+            status: "CANCELLED",
+            error: persistedAfterError.error ?? "Execution was cancelled.",
+          },
+        };
+      }
+
+      const abortReason = context?.getAbortReason();
+      if (abortReason === "CANCELLED") {
+        const cancelled = completeExecution(running, {
+          status: "CANCELLED",
+          completedAt: completionAt,
+        });
+        const cancelledTask = transitionTaskStatus(
+          runningTask,
+          "CANCELLED",
+          completionAt,
+        );
+        this.dependencies.executions.save(cancelled);
+        this.dependencies.tasks.save(cancelledTask);
+        appendExecutionStatusChangedEvent(
+          this.dependencies.events,
+          cancelled,
+          running.status,
+          cancelled.status,
+          completionAt,
+          undefined,
+          "Execution was cancelled.",
+        );
+        appendTaskStatusChangedEvent(
+          this.dependencies.events,
+          cancelledTask,
+          runningTask.status,
+          cancelledTask.status,
+          completionAt,
+        );
+        return {
+          execution: cancelled,
+          result: {
+            status: "CANCELLED",
+            error: "Execution was cancelled.",
+          },
+        };
+      }
+
+      const message =
+        abortReason === "TIMEOUT"
+          ? "Execution timed out after the runtime execution deadline."
+          : error instanceof Error
+            ? error.message
+            : "Execution runner failed.";
 
       const failed = completeExecution(running, {
         status: "FAILED",

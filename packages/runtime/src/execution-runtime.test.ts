@@ -109,6 +109,97 @@ describe("createExecutionRuntime", () => {
     expect(runtime.activeExecutionCount).toBe(0);
   });
 
+  it("cancels a running execution and propagates the abort signal", async () => {
+    const stores = new InMemoryDomainStores();
+    stores.tasks.save(task);
+    stores.executions.save(execution);
+
+    const runtime = createRuntime(stores, {
+      runner: {
+        async run(_execution, context) {
+          return new Promise((resolve) => {
+            context?.signal.addEventListener(
+              "abort",
+              () => resolve({ status: "CANCELLED" as const }),
+              { once: true },
+            );
+          });
+        },
+      },
+    });
+
+    runtime.queue.enqueue(execution);
+    runtime.start();
+
+    await vi.waitFor(() => {
+      expect(runtime.activeExecutionCount).toBe(1);
+    });
+
+    expect(runtime.cancel("execution-1").status).toBe("CANCELLED");
+    expect(stores.executions.get("execution-1")?.status).toBe("CANCELLED");
+    expect(stores.tasks.get("task-1")?.status).toBe("CANCELLED");
+
+    await vi.waitFor(() => {
+      expect(runtime.activeExecutionCount).toBe(0);
+    });
+
+    runtime.stop();
+  });
+
+  it("cancels queued work before it can start", async () => {
+    const stores = new InMemoryDomainStores();
+    stores.tasks.save(task);
+    stores.executions.save(execution);
+
+    const run = vi.fn(async () => ({ status: "SUCCEEDED" as const }));
+    const runtime = createRuntime(stores, { runner: { run } });
+
+    runtime.queue.enqueue(execution);
+    expect(runtime.cancel("execution-1").status).toBe("CANCELLED");
+    expect(runtime.queue.size()).toBe(0);
+
+    runtime.start();
+    await Promise.resolve();
+
+    expect(run).not.toHaveBeenCalled();
+    expect(stores.tasks.get("task-1")?.status).toBe("CANCELLED");
+    runtime.stop();
+  });
+
+  it("times out an execution and persists a failed result", async () => {
+    const stores = new InMemoryDomainStores();
+    stores.tasks.save(task);
+    stores.executions.save(execution);
+
+    const runtime = createRuntime(stores, {
+      executionTimeoutMs: 5,
+      runner: {
+        async run(_execution, context) {
+          return new Promise((resolve) => {
+            context?.signal.addEventListener(
+              "abort",
+              () => resolve({ status: "SUCCEEDED" as const }),
+              { once: true },
+            );
+          });
+        },
+      },
+    });
+
+    runtime.queue.enqueue(execution);
+    runtime.start();
+
+    await vi.waitFor(() => {
+      expect(stores.executions.get("execution-1")?.status).toBe("FAILED");
+      expect(stores.executions.get("execution-1")?.error).toBe(
+        "Execution timed out after the runtime execution deadline.",
+      );
+    });
+
+    expect(stores.tasks.get("task-1")?.status).toBe("FAILED");
+    runtime.stop();
+  });
+
   it("does not create a second loop when started twice", async () => {
     const stores = new InMemoryDomainStores();
     stores.tasks.save(task);
@@ -356,6 +447,25 @@ describe("createExecutionRuntime", () => {
     }
   });
 
+  it("handles missing and terminal execution cancellation requests", () => {
+    const stores = new InMemoryDomainStores();
+    const runtime = createRuntime(stores);
+
+    expect(runtime.cancel("missing")).toEqual({
+      status: "NOT_FOUND",
+      executionId: "missing",
+    });
+
+    stores.tasks.save(task);
+    stores.executions.save({
+      ...execution,
+      status: "SUCCEEDED",
+    });
+
+    expect(runtime.cancel("execution-1").status).toBe("NOT_CANCELLABLE");
+    runtime.stop();
+  });
+
   it("rejects invalid concurrency settings", () => {
     const stores = new InMemoryDomainStores();
 
@@ -370,5 +480,11 @@ describe("createExecutionRuntime", () => {
         maxConcurrency: 1.5,
       }),
     ).toThrow("max concurrency must be a positive integer");
+
+    expect(() =>
+      createRuntime(stores, {
+        executionTimeoutMs: 0,
+      }),
+    ).toThrow("execution runtime timeout must be a positive finite number");
   });
 });

@@ -96,6 +96,38 @@ describe("ModelExecutionRunner", () => {
     });
   });
 
+  it("forwards the runtime abort signal to the model gateway", async () => {
+    let capturedSignal: AbortSignal | undefined;
+    const invokeText = vi.fn(
+      async (
+        _modelId: string,
+        _request: { messages: readonly { role: string; content: string }[] },
+        options?: { signal?: AbortSignal },
+      ) => {
+        capturedSignal = options?.signal;
+        return {
+          output: {
+            content: "completed",
+            finishReason: "STOP",
+          } as TextModelResponse,
+        };
+      },
+    );
+
+    const controller = new AbortController();
+    const runner = new ModelExecutionRunner({
+      modelGateway: { invokeText } as unknown as ModelGateway,
+      tasks: createTaskStore(() => task),
+    });
+
+    await runner.run(execution, {
+      signal: controller.signal,
+      getAbortReason: () => undefined,
+    });
+
+    expect(capturedSignal).toBe(controller.signal);
+  });
+
   it("fails without a bound model", async () => {
     const runner = new ModelExecutionRunner({
       modelGateway: {} as ModelGateway,

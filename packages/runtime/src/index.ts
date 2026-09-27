@@ -14,7 +14,12 @@ export {
   type ExecutionRunOutcome,
 } from "./execution-coordinator";
 
-export type { ExecutionRunResult, ExecutionRunner } from "./execution-runner";
+export type {
+  ExecutionAbortReason,
+  ExecutionRunContext,
+  ExecutionRunResult,
+  ExecutionRunner,
+} from "./execution-runner";
 export { recoverQueuedExecutions } from "./execution-recovery";
 
 export {
@@ -38,4 +43,5 @@ export {
   type ExecutionRuntimeDependencies,
   type ExecutionRuntimeStatus,
   type ExecutionRuntimeWait,
+  type ExecutionRuntimeCancellationResult,
 } from "./execution-runtime";

@@ -40,6 +40,19 @@ describe("InMemoryExecutionQueue", () => {
     expect(queue.has("execution-1")).toBe(false);
   });
 
+  it("removes a specific queued execution without changing FIFO order", () => {
+    const queue = new InMemoryExecutionQueue();
+    queue.enqueue(queuedExecution("execution-1"));
+    queue.enqueue(queuedExecution("execution-2"));
+    queue.enqueue(queuedExecution("execution-3"));
+
+    expect(queue.remove("execution-2")?.id).toBe("execution-2");
+    expect(queue.peek()?.id).toBe("execution-1");
+    expect(queue.dequeue()?.id).toBe("execution-1");
+    expect(queue.dequeue()?.id).toBe("execution-3");
+    expect(queue.remove("missing")).toBeUndefined();
+  });
+
   it("rejects duplicate queued executions", () => {
     const queue = new InMemoryExecutionQueue();
     const execution = queuedExecution("execution-1");

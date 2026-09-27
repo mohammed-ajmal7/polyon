@@ -21,6 +21,7 @@ export interface ExecutionQueue {
   has(executionId: ExecutionId): boolean;
   peek(): Execution | undefined;
   dequeue(): Execution | undefined;
+  remove(executionId: ExecutionId): Execution | undefined;
   size(): number;
 }
 
@@ -57,6 +58,17 @@ export class InMemoryExecutionQueue implements ExecutionQueue {
     const execution = this.queue.shift();
 
     return execution === undefined ? undefined : cloneExecution(execution);
+  }
+
+  remove(executionId: ExecutionId): Execution | undefined {
+    const index = this.queue.findIndex((execution) => execution.id === executionId);
+
+    if (index === -1) {
+      return undefined;
+    }
+
+    const [removed] = this.queue.splice(index, 1);
+    return removed === undefined ? undefined : cloneExecution(removed);
   }
 
   size(): number {
