@@ -19,10 +19,12 @@ export {
   createExecutionForTask,
   createRetryExecution,
   createMissionPlanProposal,
+  createMission,
   getReadyTaskIds,
   ApprovedMissionPlanApplicationError,
   ApprovedExecutionRunError,
   ExecutionControlError,
+  MissionCreationError,
   rejectExecution,
   ExecutionRetryError,
   ExecutionCreationError,
@@ -44,7 +46,11 @@ export {
   validateTaskGraph,
 } from "./work/index";
 
-export type { TaskDependency } from "./work/task-readiness";
+export type {
+  CreateMissionInput,
+  MissionCreationErrorKind,
+  TaskDependency,
+} from "./work/index";
 
 export type { CreateApprovalRequestInput, PolicyEvaluationInput } from "./policy/index";
 
