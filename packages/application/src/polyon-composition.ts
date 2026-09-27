@@ -1,7 +1,9 @@
 import type { Agent, Model, Policy, Provider } from "@polyon/contracts";
 import {
+  GoogleDriveIntegrationAdapter,
   InMemoryIntegrationAdapterRegistry,
   type IntegrationAdapter,
+  type SecretReference,
   type SecretResolver,
 } from "@polyon/integrations";
 import {
@@ -58,6 +60,11 @@ export interface PolyonCompositionOptions {
   readonly providers?: readonly PolyonProviderRegistration[];
   readonly integrations?: readonly IntegrationAdapter[];
   readonly secretResolver?: SecretResolver;
+  readonly googleDriveIntegrationId?: string;
+  readonly googleDriveSecretReference?: SecretReference;
+  readonly googleDriveMaxResponseBytes?: number;
+  readonly googleDriveDefaultPageSize?: number;
+  readonly googleDriveMaxPageSize?: number;
   readonly filesystemRoot?: string;
   readonly filesystemReadMaxBytes?: number;
   readonly filesystemReadEnabled?: boolean;
@@ -156,6 +163,29 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   const providers = new InMemoryProviderRegistry();
   const providerAdapters = new InMemoryProviderAdapterRegistry();
   const integrations = new InMemoryIntegrationAdapterRegistry();
+
+  if (
+    options.secretResolver !== undefined &&
+    options.googleDriveIntegrationId !== undefined &&
+    options.googleDriveSecretReference !== undefined
+  ) {
+    integrations.register(
+      new GoogleDriveIntegrationAdapter({
+        integrationId: options.googleDriveIntegrationId,
+        secretResolver: options.secretResolver,
+        secretReference: options.googleDriveSecretReference,
+        ...(options.googleDriveMaxResponseBytes === undefined
+          ? {}
+          : { maxResponseBytes: options.googleDriveMaxResponseBytes }),
+        ...(options.googleDriveDefaultPageSize === undefined
+          ? {}
+          : { defaultPageSize: options.googleDriveDefaultPageSize }),
+        ...(options.googleDriveMaxPageSize === undefined
+          ? {}
+          : { maxPageSize: options.googleDriveMaxPageSize }),
+      }),
+    );
+  }
 
   for (const agent of options.agents ?? []) agents.register(agent);
   for (const model of options.models ?? []) models.register(model);
