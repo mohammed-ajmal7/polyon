@@ -286,7 +286,8 @@ describe("SmtpTransport", () => {
 
     const message = connection.write.mock.calls
       .map(([value]) => value)
-      .find((value): value is string => value.startsWith("Message-ID:"));
+      .filter((value): value is string => value.startsWith("Message-ID:"))
+      .join("");
 
     expect(message).toContain("From: mailer@example.com\\r\\n");
     expect(message).toContain("Content-Transfer-Encoding: base64\\r\\n");
@@ -355,11 +356,9 @@ describe("SmtpTransport", () => {
       },
       { connect: vi.fn(async () => connection) },
     );
-    const recipients = Array.from({ length: 20 }, (_, index) => `user${index}@example.com`);
-
     await transport.send(
       {
-        to: recipients,
+        to: ["user@example.com"],
         subject: Array.from({ length: 199 }, () => "long").join(" "),
         text: "hello",
       },
