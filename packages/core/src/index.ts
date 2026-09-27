@@ -27,6 +27,8 @@ export {
   MissionCreationError,
   rejectExecution,
   ExecutionRetryError,
+  retryTask,
+  TaskRetryError,
   ExecutionCreationError,
   ExecutionRunAuthorizationError,
   pauseExecution,
