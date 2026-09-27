@@ -32,6 +32,7 @@ export {
   ExecutionCreationError,
   ExecutionRunAuthorizationError,
   pauseExecution,
+  recoverRunningExecution,
   resumeExecution,
   InvalidMissionPlanApplicationError,
   InvalidMissionPlanProposalError,
