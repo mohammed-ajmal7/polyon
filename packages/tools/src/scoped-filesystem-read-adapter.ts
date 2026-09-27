@@ -1,5 +1,12 @@
-import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
-import { isAbsolute, relative, resolve } from "node:path";
+import {
+  closeSync,
+  existsSync,
+  openSync,
+  readSync,
+  realpathSync,
+  statSync,
+} from "node:fs";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 
 import type { ToolAdapter, ToolInvocationRequest } from "./tool-adapter";
 
@@ -49,7 +56,7 @@ function assertPositiveByteLimit(value: number, field: string): void {
 
 function isPathInsideRoot(rootDir: string, candidatePath: string): boolean {
   const rel = relative(rootDir, candidatePath);
-  return rel === "" || (!rel.startsWith(".." + "/") && !isAbsolute(rel) && rel !== "..");
+  return rel === "" || (!isAbsolute(rel) && rel !== ".." && !rel.startsWith(".." + sep));
 }
 
 export class ScopedFilesystemReadToolAdapter
@@ -144,24 +151,38 @@ export class ScopedFilesystemReadToolAdapter
       );
     }
 
-    const content = readFileSync(resolvedPath, "utf8");
-    const sizeBytes = Buffer.byteLength(content, "utf8");
+    const fileDescriptor = openSync(resolvedPath, "r");
 
-    if (sizeBytes > maxBytes) {
-      throw new FilesystemReadToolError(
-        "FILE_TOO_LARGE",
-        input.path,
-        `Filesystem file exceeds the ${maxBytes}-byte read limit: ${input.path}.`,
+    try {
+      const buffer = Buffer.alloc(maxBytes + 1);
+      const bytesRead = readSync(
+        fileDescriptor,
+        buffer,
+        0,
+        buffer.length,
+        0,
       );
-    }
 
-    return {
-      output: {
-        path: relative(this.rootDir, resolvedPath),
-        content,
-        sizeBytes,
-      },
-    };
+      if (bytesRead > maxBytes) {
+        throw new FilesystemReadToolError(
+          "FILE_TOO_LARGE",
+          input.path,
+          `Filesystem file exceeds the ${maxBytes}-byte read limit: ${input.path}.`,
+        );
+      }
+
+      const content = buffer.subarray(0, bytesRead).toString("utf8");
+
+      return {
+        output: {
+          path: relative(this.rootDir, resolvedPath),
+          content,
+          sizeBytes: bytesRead,
+        },
+      };
+    } finally {
+      closeSync(fileDescriptor);
+    }
   }
 
   private resolveExistingPath(requestedPath: string): string {
