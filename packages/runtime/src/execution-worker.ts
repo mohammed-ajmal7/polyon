@@ -113,6 +113,7 @@ export class InMemoryExecutionWorker implements ExecutionWorker {
       this.dependencies.executions,
       this.dependencies.queue,
       this.dependencies.approvals,
+      undefined,
       this.dependencies.clock.now(),
     );
     const recoveredExecutionIds = recoveries.map(
