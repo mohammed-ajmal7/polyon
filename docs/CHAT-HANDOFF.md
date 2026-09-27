@@ -1,6 +1,5 @@
 # POLYON Chat Handoff
 
-> Compact continuation note for a new ChatGPT conversation.
 > Read this with `AGENTS.md`, `docs/PROJECT-CONTEXT.md`, and
 > `docs/architecture/001-system-architecture.md`.
 
@@ -8,18 +7,19 @@
 
 - Repository: `mohammed-ajmal7/polyon`
 - Branch: `feature/core-architecture`
-- Latest implementation commit: `5ee8494e3cfa75d27897722509301f45f149a72d`.
-- CI run **924** is currently running against that commit; do not claim green until it completes successfully.
-- Always inspect the live branch and latest CI before continuing.
+- Current implementation head: `4ae6c412429f7a01401fe4c469efe4b24f4b78f1`
+- CI run: **987** is the current verification run for this head; do not call the branch green until the run is successful.
+- Always inspect the live branch and newest CI run before editing.
 
-## What POLYON is
+## Product
 
 POLYON = **Personal AI Operations Network**.
 
-The human remains the final authority. Core rules are:
+The human remains the final authority.
 
+Core rules:
 - policy before consequential action;
-- explicit approval where required;
+- approval where required;
 - provider independence;
 - adapter boundaries;
 - privacy first;
@@ -29,106 +29,112 @@ The human remains the final authority. Core rules are:
 - replaceability;
 - zero additional operating cost by default.
 
-Planned external integrations are **only Google Drive, Telegram, and Email**.
+Planned external integrations are only Google Drive, Telegram, and Email.
 
-## Major foundations
+## Implemented foundations
 
-Already implemented:
+### Core execution
+- mission/task/execution lifecycle;
+- dependency graphs and ready-task advancement;
+- queueing, retries, cancellation, deadlines and recovery;
+- durable execution state and restart-safe continuations;
+- policy decisions, approval requests and execution gating;
+- idempotent result publication and audit events.
 
-- mission, task, execution lifecycle, dependencies, retries, queueing,
-  cancellation, deadlines, recovery, and durable restart handling;
-- durable file-backed storage with migrations and transactional writes;
-- agent, model, and provider registries;
+### Model and agent layer
+- provider/model/agent registries;
 - provider-independent model gateway;
-- governed model tool calls and bounded orchestration;
-- durable approval continuations and restart-safe checkpoints;
-- governed tool invocation with policy, approval, validation, audit, and
-  idempotency;
-- scoped filesystem, terminal, Git, artifact, and publish capabilities;
-- bounded model-facing tool output;
-- Google Drive and Telegram integration adapters;
-- bounded outbound HTTP and secret-resolution boundaries;
-- integration invocation governance and audit tracing.
+- agent routing with capability requirements;
+- governed model tool calls;
+- bounded tool rounds and bounded tool outputs.
 
-## Current Email work
+### Tools and coding
+- scoped filesystem, terminal, Git, commit and publish tools;
+- artifact creation and bounded artifact access;
+- explicit coding-agent tool profile;
+- strict rejection of model-requested tools that are outside the exposed tool contract;
+- bounded local process agent runtime with executable allowlist, workspace confinement,
+  no shell interpretation, input/output limits and timeouts.
 
-Email has a provider-neutral adapter boundary in
-`packages/integrations/src/email-integration-adapter.ts`.
+### Knowledge and research
+- durable memory model with PRIVATE/PROJECT/MISSION/TASK scopes;
+- deterministic bounded memory search;
+- durable Source + Evidence records;
+- mission/task-scoped evidence lineage;
+- bounded web research retriever;
+- configurable HTTP search-provider boundary;
+- evidence-grounded research synthesis persisted as SUMMARY memory;
+- redacted trace query API.
 
-It provides:
+### Debate
+- finite PROPOSAL → CRITICISM → EVIDENCE → REBUTTAL → ADJUDICATION flow;
+- persisted contributions and decisions;
+- restart-safe contribution recovery;
+- no external action from debate participants directly.
 
-- `SEND_EMAIL`;
-- recipient, subject, body, and address validation;
-- CRLF/header-injection rejection;
-- recipient and body size limits;
-- `SMTP_CREDENTIAL` secret-reference enforcement;
-- injected `EmailTransport`;
-- sanitized transport errors;
-- `NON_IDEMPOTENT` and `EXTERNAL_COMMUNICATION` capability metadata.
+### Integrations and secrets
+- Google Drive, Telegram, Email adapter boundaries;
+- bounded outbound HTTP;
+- opaque secret references;
+- environment secret resolver;
+- encrypted-at-rest file secret resolver with AES-256-GCM, atomic replacement and metadata matching;
+- provider-neutral SMTP transport with TLS/STARTTLS, AUTH LOGIN, bounded responses/writes,
+  MIME encoding, envelope validation, line/size bounds and sanitized errors.
 
-A provider-neutral SMTP transport now exists in
-`packages/integrations/src/smtp-email-transport.ts`, with the native Node
-socket implementation isolated in `@polyon/runtime`.
+### Web / AI HQ
+- live Next.js dashboard;
+- command center;
+- Direct/Broadcast/Debate/Mission execution entrypoints;
+- approval inbox;
+- live counts and activity;
+- memory/evidence/source/artifact/trace APIs;
+- optional token authentication with HTTP-only SameSite cookie;
+- same-origin checks on write routes;
+- security headers;
+- execution disabled by default unless explicitly enabled.
 
-SMTP currently has:
+### Interoperability / creative foundations
+- protocol-neutral MCP/A2A/ACP envelope contract and JSON adapter;
+- configurable research provider adapter;
+- provider-neutral CreativeJobService for IMAGE/VIDEO/AUDIO/VOICE/EDIT workflows.
 
-- bounded connection and response handling;
-- implicit TLS support;
-- explicit STARTTLS negotiation;
-- multiline SMTP response handling;
-- deterministic socket cleanup;
-- TLS 1.2 minimum in the native Node TLS layer;
-- certificate validation enabled explicitly;
-- mutual exclusion of implicit TLS and STARTTLS modes;
-- authenticated plaintext SMTP rejection;
-- explicit `AUTH LOGIN` mechanism policy;
-- authentication capability advertisement checking;
-- sanitized authentication errors;\n- SMTP envelope validation before network connection;\n- sanitized and classified MAIL FROM / RCPT TO failures;
-- transient `4xx` vs permanent `5xx` response classification;
-- MIME-safe UTF-8 message encoding with RFC 2047 Subject handling;
-- ASCII-safe SMTP envelope/header addresses;
-- complete SMTP DATA framing with `<CRLF>.<CRLF>`;
-- wire-size enforcement including DATA terminator bytes;
-- separate sanitized/classified DATA delivery failures;
-- UTF-8-safe AUTH LOGIN encoding;
-- message-size enforcement and dot-stuffing.
+These are **foundations**, not claims of complete native MCP/A2A/ACP protocol implementations or concrete creative provider integrations.
 
-Do **not** call the Email adapter directly from an agent or model.
-Execution must continue through the existing integration invocation,
-policy, approval, audit, and execution boundaries.
+## Current operational configuration
 
-No provider-specific Email SDK has been added.
+Copy `apps/web/.env.example` to a local environment and configure only the capabilities you intend to enable.
+
+Important controls:
+- `POLYON_EXECUTION_ENABLED=false` keeps execution disabled by default.
+- `POLYON_APPROVAL_MODE=ASK_EVERYTHING` is the safe default.
+- `POLYON_API_TOKEN` enables web authentication.
+- model execution requires an explicit model endpoint + model id;
+- SMTP requires explicit SMTP host + username and a secret resolver;
+- research requires an explicit HTTPS search endpoint + allowlisted hosts.
+
+Never commit credentials or private user data.
+
+## Remaining production work
+
+The core architecture is implemented, but these areas still require real provider/protocol work before calling the whole product production-complete:
+
+1. native MCP/A2A/ACP transports and interoperability negotiation;
+2. concrete creative provider adapters and artifact upload/storage workflows;
+3. richer multi-step mission planning beyond the initial bounded task bridge;
+4. production authentication/session management beyond the local personal-server token mode;
+5. richer semantic memory/retrieval if needed;
+6. performance/load testing, adversarial E2E testing, backup/restore drills and operational deployment automation.
+
+Do not fake these with placeholder integrations.
 
 ## Preferred work loop
 
-1. Inspect the live branch and current CI.
-2. Pick one focused production capability or concrete failure.
-3. Change only the necessary files.
-4. Add focused tests.
-5. Update canonical docs when architecture changes.
-6. Verify CI.
-7. Stop at a coherent boundary.
+1. inspect live branch + CI;
+2. choose one coherent production slice;
+3. change only needed files;
+4. add focused tests;
+5. update docs when architecture changes;
+6. verify CI;
+7. stop at a coherent boundary.
 
-Work in normal-sized slices. Do not create giant speculative batches.
-
-Do not claim CI is green unless the current run proves it.
-
-## Email status
-
-The provider-neutral Email adapter and native Node SMTP transport are implemented. The adapter remains agent-callable through the existing dynamic integration tool catalog, while all SEND_EMAIL execution continues through the existing integration invocation, policy, approval, audit, and execution boundaries.
-
-SMTP production hardening currently includes TLS/STARTTLS, AUTH LOGIN, response classification, envelope validation, MIME encoding, DATA framing, size bounds, bounded socket writes, header line-length handling, and sanitized errors.
-
-After CI is green, do not add speculative SMTP features. Move to the next documented production gap from `docs/PROJECT-CONTEXT.md`.
-
-## Chat style
-
-The owner prefers:
-
-- direct, practical explanations;
-- casual "Bro" address;
-- actual repository changes when asked to continue;
-- medium-sized coherent coding batches;
-- honest CI and failure reporting;
-- no repeated clarification when the repository already contains enough
-  context.
+Normal-sized batches only. Never claim CI green without a successful current run.
