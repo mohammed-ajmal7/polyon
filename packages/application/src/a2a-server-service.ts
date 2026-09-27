@@ -75,6 +75,12 @@ export class A2AServerService {
         description: agent.description ?? agent.role,
         tags: [agent.role],
       })),
+      securitySchemes: {
+        bearer: {
+          type: "http",
+          scheme: "bearer",
+        },
+      },
     };
   }
 
