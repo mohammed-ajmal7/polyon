@@ -53,6 +53,18 @@ Set both:
 
 The endpoint must be HTTPS. Source fetching remains bounded by the configured HTTP allowlist and response limits.
 
+## Creative
+
+Optional creative operations use explicit HTTPS provider endpoints:
+
+- `POLYON_CREATIVE_IMAGE_ENDPOINT`
+- `POLYON_CREATIVE_VIDEO_ENDPOINT`
+- `POLYON_CREATIVE_AUDIO_ENDPOINT`
+- `POLYON_CREATIVE_VOICE_ENDPOINT`
+- `POLYON_CREATIVE_EDIT_ENDPOINT`
+
+Only configured operations are enabled. Provider requests remain bounded and provider-specific SDKs are not required.
+
 ## Private web/API access
 
 Set `POLYON_API_TOKEN` to require authentication.
