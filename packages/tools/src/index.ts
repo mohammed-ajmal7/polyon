@@ -21,3 +21,12 @@ export {
   type ToolInvocationAuthorization,
   type ToolAuthorizationErrorKind,
 } from "./tool-authorization";
+
+export {
+  ScopedFilesystemReadToolAdapter,
+  FilesystemReadToolError,
+  type FilesystemReadToolAdapterOptions,
+  type FilesystemReadToolErrorKind,
+  type FilesystemReadToolInput,
+  type FilesystemReadToolOutput,
+} from "./scoped-filesystem-read-adapter";
