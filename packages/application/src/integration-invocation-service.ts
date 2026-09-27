@@ -2,7 +2,6 @@ import type {
   ActorId,
   ApprovalRequest,
   ApprovalStatus,
-  IntegrationId,
   Policy,
   PolicyDecision,
   RiskLevel,
@@ -18,6 +17,7 @@ import type {
 import {
   authorizeIntegrationInvocation,
   type IntegrationAdapter,
+  type IntegrationId,
   type IntegrationInvocationResult,
   type IntegrationAdapterRegistry,
 } from "@polyon/integrations";
@@ -117,9 +117,9 @@ export class IntegrationInvocationService {
     private readonly dependencies: IntegrationInvocationServiceDependencies,
   ) {}
 
-  async invoke<TInput = unknown, TOutput = unknown>(
+  async invoke<TInput = unknown>(
     input: InvokeIntegrationInput<TInput>,
-  ): Promise<IntegrationInvocationOutcome<TOutput>> {
+  ): Promise<IntegrationInvocationOutcome> {
     const integration = this.getIntegration(input.integrationId);
 
     this.assertNotRecorded(input.invocationId);
@@ -208,7 +208,7 @@ export class IntegrationInvocationService {
       integration,
     );
 
-    return this.execute<TInput, TOutput>(integration, input, authorization.policyDecision);
+    return this.execute(integration, input, authorization.policyDecision);
   }
 
   resolveApproval(input: {
@@ -250,9 +250,9 @@ export class IntegrationInvocationService {
     return updated;
   }
 
-  async invokeApproved<TInput = unknown, TOutput = unknown>(
+  async invokeApproved<TInput = unknown>(
     input: InvokeApprovedIntegrationInput<TInput>,
-  ): Promise<IntegrationInvocationOutcome<TOutput>> {
+  ): Promise<IntegrationInvocationOutcome> {
     const approval = this.dependencies.approvals.get(input.approvalId);
 
     if (approval === undefined || approval.integrationId === undefined) {
@@ -298,7 +298,7 @@ export class IntegrationInvocationService {
       );
     }
 
-    return this.execute<TInput, TOutput>(
+    return this.execute(
       integration,
       {
         invocationId: input.invocationId,
@@ -332,8 +332,9 @@ export class IntegrationInvocationService {
     );
   }
 
-  private async execute<TInput, TOutput>(
-    integration: IntegrationAdapter<TInput, TOutput>,
+  private async execute(
+    integration: IntegrationAdapter,
+
     input: {
       readonly invocationId: string;
       readonly integrationId: IntegrationId;
@@ -348,7 +349,7 @@ export class IntegrationInvocationService {
     policyDecision: PolicyDecision,
   ): Promise<IntegrationInvocationOutcome<TOutput>> {
     try {
-      const result: IntegrationInvocationResult<TOutput> = await integration.invoke({
+      const result: IntegrationInvocationResult = await integration.invoke({
         operation: input.operation,
         input: input.input,
       });
