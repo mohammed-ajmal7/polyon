@@ -32,6 +32,7 @@ import {
   MissionExecutionService,
   MissionTaskOrchestrationService,
   ToolInvocationService,
+  registerKnowledgeTools,
   type ReadyTaskHandler,
 } from "@polyon/application";
 import {
@@ -52,7 +53,6 @@ import {
 import {
   createInMemoryBuiltinToolRegistries,
   registerBuiltinTools,
-  registerKnowledgeTools,
   type ToolAdapterRegistry,
   type ToolRegistry,
 } from "@polyon/tools";
