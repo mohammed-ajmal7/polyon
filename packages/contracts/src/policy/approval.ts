@@ -22,6 +22,7 @@ export interface ApprovalRequest {
   readonly taskId?: TaskId;
   readonly executionId?: ExecutionId;
   readonly toolId?: import("../tool/ids").ToolId;
+  readonly integrationId?: string;
   readonly invocationId?: string;
 
   readonly action: ActionKind;
