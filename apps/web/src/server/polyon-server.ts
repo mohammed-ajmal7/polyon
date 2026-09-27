@@ -1,10 +1,10 @@
 import { join } from "node:path";
 
 import type { Agent, Model, Policy, Provider, SecretReference } from "@polyon/contracts";
-import { EnvironmentSecretResolver, SmtpTransport, type EmailTransport } from "@polyon/integrations";
+import { BoundedHttpClient, EnvironmentSecretResolver, SmtpTransport, type EmailTransport } from "@polyon/integrations";
 import { OpenAICompatibleTextModelAdapter } from "@polyon/providers";
 import { EncryptedFileSecretResolver, NodeSmtpConnectionFactory } from "@polyon/runtime";
-import { createPolyonComposition, type PolyonComposition } from "@polyon/application";
+import { BoundedWebResearchRetriever, ConfiguredHttpResearchProvider, createPolyonComposition, type PolyonComposition } from "@polyon/application";
 
 const globalState = globalThis as typeof globalThis & { __polyonComposition?: PolyonComposition };
 
@@ -25,10 +25,12 @@ function buildOptions() {
   const model = buildModelRegistration();
   const email = buildEmailRegistration();
   const secretResolver = email === undefined ? undefined : buildSecretResolver();
+  const researchRetriever = buildResearchRetriever();
   return {
     storageRoot: process.env.POLYON_DATA_DIR?.trim() || join(process.cwd(), ".polyon-data"),
     ...(model === undefined ? {} : { agents: [model.agent], models: [model.model], providers: [model.registration] }),
     ...(secretResolver === undefined ? {} : { secretResolver }),
+    ...(researchRetriever === undefined ? {} : { researchRetriever }),
     ...(email === undefined ? {} : {
       emailIntegrationId: "email-primary",
       emailSecretReference: email.secretReference,
@@ -81,6 +83,40 @@ function buildEmailRegistration(): { username: string; secretReference: SecretRe
     messageIdDomain: process.env.POLYON_SMTP_MESSAGE_ID_DOMAIN?.trim() || "polyon.local",
   }, new NodeSmtpConnectionFactory());
   return { username, secretReference, transport };
+}
+
+function buildResearchRetriever() {
+  const endpoint = process.env.POLYON_RESEARCH_SEARCH_ENDPOINT?.trim();
+  const allowedHosts = (process.env.POLYON_RESEARCH_ALLOWED_HOSTS ?? "")
+    .split(",")
+    .map((host) => host.trim())
+    .filter(Boolean);
+
+  if (endpoint === undefined || endpoint === "" || allowedHosts.length === 0) return undefined;
+
+  let endpointHost: string;
+  try {
+    const parsed = new URL(endpoint);
+    if (parsed.protocol !== "https:") throw new Error("research endpoint must use HTTPS");
+    endpointHost = parsed.hostname;
+  } catch {
+    throw new Error("POLYON_RESEARCH_SEARCH_ENDPOINT must be a valid HTTPS URL.");
+  }
+
+  const http = new BoundedHttpClient({
+    allowedHosts: [...new Set([endpointHost, ...allowedHosts])],
+    defaultTimeoutMs: 15_000,
+    maxTimeoutMs: 30_000,
+    defaultMaxResponseBytes: 256_000,
+    maxResponseBytes: 1_000_000,
+    defaultMaxRequestBytes: 16_384,
+    maxRequestBytes: 16_384,
+  });
+
+  const provider = new ConfiguredHttpResearchProvider({ endpoint, http });
+  return new BoundedWebResearchRetriever(provider, http, {
+    maxContentBytes: 100_000,
+  });
 }
 
 function buildSecretResolver() {
