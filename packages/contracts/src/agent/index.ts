@@ -1,17 +1,8 @@
-export type {
-  Agent,
-  AgentId,
-  AgentStatus,
-  Capability,
-  CapabilityId,
-  CapabilityKind,
-  Model,
-  ModelId,
-  ModelKind,
-  Provider,
-  ProviderId,
-  ProviderKind,
-} from "./entities";
+export type { Agent, AgentStatus } from "./agent";
+export type { Capability, CapabilityId, CapabilityKind } from "./capability";
+export type { Model, ModelId, ModelKind } from "./model";
+export type { Provider, ProviderId, ProviderKind } from "./provider";
+export type { AgentId } from "./ids";
 export type {
   ModelMessage,
   ModelMessageRole,
