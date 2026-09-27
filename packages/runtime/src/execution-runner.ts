@@ -13,6 +13,11 @@ export type ExecutionRunResult =
       readonly output?: string;
     }
   | {
+      readonly status: "PAUSED";
+      readonly error: string;
+      readonly output?: string;
+    }
+  | {
       readonly status: "FAILED";
       readonly error: string;
       readonly output?: string;
