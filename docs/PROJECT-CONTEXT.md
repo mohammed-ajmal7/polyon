@@ -296,54 +296,28 @@ Do not claim the complete production system is already finished. The work so far
 
 ## 6. Current production-readiness status
 
-POLYON now has the complete foundational controlled operating loop implemented.
+The foundational POLYON operating loop is implemented and connected end-to-end.
 
-### Application/runtime
-- Direct and Broadcast execution through the governed AgentToolOrchestrationService;
-- bounded Debate execution with persisted contributions/decisions and restart recovery;
-- Mission command -> plan -> task -> policy/approval -> queue -> execution dispatch;
-- durable execution results, messages, artifacts, retries, cancellation, deadlines, recovery, and traceability.
+Implemented:
+- governed Direct, Broadcast, Debate, and Mission execution;
+- durable execution queue/recovery, retries, cancellation, deadlines, result publication, and audit traces;
+- provider-independent model gateway plus OpenAI-compatible text execution;
+- bounded coding-agent process and coding tool profile;
+- Google Drive, Telegram, Email/SMTP integrations;
+- durable memory/source/evidence, bounded web research, synthesis, privacy-aware context assembly, and governed memory writes;
+- configurable creative HTTP adapter exposed through governed creative tooling;
+- authenticated browser APIs, login/logout, approval inbox, trace, memory/evidence/source/artifact APIs;
+- MCP HTTP baseline with current stateless routing-header validation and tools/discovery/call support;
+- A2A HTTP baseline with agent card, SendMessage, GetTask, ListTasks;
+- Docker/Compose deployment, liveness healthcheck, root Docker context exclusions, and CI image/Compose validation;
+- adversarial, recovery, and volume sanity coverage across application/runtime/storage/security paths.
 
-### Intelligence/providers
-- provider-independent model gateway and routing;
-- OpenAI-compatible text-model adapter;
-- bounded coding-agent process adapter;
-- encrypted local secret lifecycle;
-- configurable bounded research and creative HTTP adapters.
-
-### Tools/integrations
-- governed filesystem, terminal, Git, artifact, and model-facing tool execution;
-- strict model tool exposure enforcement;
-- Google Drive READ, Telegram SEND_MESSAGE, and Email SEND_EMAIL;
-- consequential work remains behind policy/approval/audit.
-
-### Knowledge/research
-- durable Memory, Source, and Evidence records;
-- scoped deterministic memory search;
-- bounded web retrieval and evidence-grounded synthesis;
-- privacy-aware context assembly and redacted trace querying.
-
-### Interoperability
-- authenticated MCP HTTP transport with stateless 2026-07-28 routing-header validation;
-- MCP server/discover, tools/list, and tools/call;
-- authenticated A2A HTTP transport and A2A 1.0 agent card;
-- A2A message execution plus persisted task GetTask/ListTasks;
-- replaceable interoperability envelopes/adapters.
-
-### Web/operations
-- live AI HQ dashboard and approval inbox;
-- authenticated browser/protocol access;
-- same-origin write protection and security headers;
-- execution disabled by default and ASK_EVERYTHING by default;
-- self-hosted Docker/Compose with liveness healthcheck;
-- CI typecheck, tests, lint, formatting, production build, Docker image build, and Compose validation.
-
-### Remaining depth
+Remaining depth:
 - richer semantic/embedding retrieval;
-- advanced MCP/A2A features;
-- optional enterprise/multi-user auth outside the personal scope;
-- production-scale performance and broader adversarial E2E testing;
-- target-specific deployment automation.
+- advanced MCP/A2A protocol capabilities;
+- optional enterprise/multi-user auth;
+- production-scale performance and broader E2E testing;
+- deployment automation for a specific infrastructure target.
 
 The code and tests remain authoritative over this summary.
 ## 7. Target end-to-end behavior

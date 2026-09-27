@@ -82,15 +82,15 @@ The repository also contains focused integration/recovery/security tests across 
 
 ## Deliberately pending
 
-The core POLYON operating loop is implemented. The remaining work is now mostly depth, scale, and deployment-specific rather than missing foundations:
+The core POLYON operating loop is implemented. Remaining work is primarily depth, scale, and deployment-specific:
 
-- richer semantic/embedding-backed retrieval beyond the deterministic local lexical retriever;
-- advanced MCP/A2A features such as streaming, push notifications, subscriptions, and broader spec coverage;
-- multi-user/enterprise identity, roles, and tenancy controls (the current product remains intentionally personal);
-- production-scale load/performance testing and a larger adversarial end-to-end matrix;
-- deployment automation for a specific target environment beyond the self-hosted Docker/Compose path.
+- richer embedding/semantic retrieval beyond the deterministic local lexical/context path;
+- advanced MCP/A2A capabilities such as streaming, push notifications, subscriptions, and broader specification coverage;
+- multi-user/enterprise identity and tenancy (the product remains intentionally personal);
+- production-scale performance testing and a wider adversarial end-to-end matrix;
+- target-specific deployment automation beyond self-hosted Docker/Compose.
 
-Do not add provider-specific coupling to core just to make these boxes appear complete.
+ACP is treated as the legacy line absorbed into the current A2A interoperability path, not as a separate modern transport to duplicate.
 ## Quality bar
 
 Before a feature is considered complete:
