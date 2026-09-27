@@ -228,7 +228,7 @@ describe("OpenAICompatibleTextModelAdapter", () => {
         "UNKNOWN",
         "provider-1",
         "model-1",
-        "Provider response did not contain a text message.",
+        "Provider response did not contain a text message or tool calls.",
         false,
       ),
     );
