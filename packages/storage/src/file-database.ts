@@ -29,10 +29,11 @@ import type {
 } from "@polyon/contracts";
 
 import {
+  DurableMigrationError,
   durableMigrations,
   migrateDurableSnapshot,
+  type DurableMigration,
 } from "./migrations";
-import { DurableMigrationError } from "./migrations";
 import { StorageConcurrencyError } from "./transaction";
 
 export interface DurableDomainState {
@@ -211,7 +212,10 @@ export class FileDomainDatabase {
   private state: DurableDomainState;
   private revision: string;
 
-  constructor(private readonly filePath: string) {
+  constructor(
+    private readonly filePath: string,
+    private readonly migrations: readonly DurableMigration[] = durableMigrations,
+  ) {
     const snapshot = this.readSnapshot();
     this.state = snapshot.state;
     this.revision = snapshot.revision;
@@ -287,7 +291,7 @@ export class FileDomainDatabase {
       migration = migrateDurableSnapshot(
         value,
         CURRENT_DURABLE_DOMAIN_VERSION,
-        durableMigrations,
+        this.migrations,
       );
     } catch (error) {
       if (error instanceof DurableMigrationError) {
@@ -313,7 +317,7 @@ export class FileDomainDatabase {
       const currentMigration = migrateDurableSnapshot(
         currentValue,
         CURRENT_DURABLE_DOMAIN_VERSION,
-        durableMigrations,
+        this.migrations,
       );
 
       if (!currentMigration.migrated) {
