@@ -33,6 +33,43 @@ const task: Task = {
   updatedAt: "2026-09-27T01:00:00.000Z",
 };
 
+function createWorkItem(index: number): {
+  execution: Execution;
+  task: Task;
+} {
+  return {
+    execution: {
+      ...execution,
+      id: `execution-${index}`,
+      taskId: `task-${index}`,
+    },
+    task: {
+      ...task,
+      id: `task-${index}`,
+      title: `Build runtime ${index}`,
+    },
+  };
+}
+
+function createRuntime(
+  stores: InMemoryDomainStores,
+  overrides?: Partial<Parameters<typeof createExecutionRuntime>[0]>,
+) {
+  return createExecutionRuntime({
+    runner: {
+      async run() {
+        return { status: "SUCCEEDED" as const };
+      },
+    },
+    executions: stores.executions,
+    tasks: stores.tasks,
+    events: stores.events,
+    clock: { now: () => "2026-09-27T01:05:00.000Z" },
+    pollIntervalMs: 0,
+    ...overrides,
+  });
+}
+
 describe("createExecutionRuntime", () => {
   it("constructs the queue and starts automatic execution", async () => {
     const stores = new InMemoryDomainStores();
@@ -40,20 +77,13 @@ describe("createExecutionRuntime", () => {
     stores.executions.save(execution);
 
     const completed = vi.fn();
-    const runtime = createExecutionRuntime({
+    const runtime = createRuntime(stores, {
       runner: {
         async run() {
           completed();
           return { status: "SUCCEEDED", output: "Completed." };
         },
       },
-      executions: stores.executions,
-      tasks: stores.tasks,
-      events: stores.events,
-      clock: {
-        now: () => "2026-09-27T01:05:00.000Z",
-      },
-      pollIntervalMs: 0,
     });
 
     expect(runtime.queue.size()).toBe(0);
@@ -62,7 +92,6 @@ describe("createExecutionRuntime", () => {
     const startup = runtime.start();
 
     expect(startup.recoveredExecutionIds).toEqual(["execution-1"]);
-    expect(runtime.queue.size()).toBe(1);
     expect(runtime.status).toBe("RUNNING");
     expect(runtime.recoveredExecutionIds()).toEqual(["execution-1"]);
 
@@ -77,6 +106,7 @@ describe("createExecutionRuntime", () => {
 
     expect(runtime.status).toBe("STOPPED");
     expect(runtime.worker.running).toBe(false);
+    expect(runtime.activeExecutionCount).toBe(0);
   });
 
   it("does not create a second loop when started twice", async () => {
@@ -85,21 +115,114 @@ describe("createExecutionRuntime", () => {
     stores.executions.save(execution);
 
     const run = vi.fn(async () => ({ status: "SUCCEEDED" as const }));
-
-    const runtime = createExecutionRuntime({
-      runner: { run },
-      executions: stores.executions,
-      tasks: stores.tasks,
-      events: stores.events,
-      clock: { now: () => "2026-09-27T01:05:00.000Z" },
-      pollIntervalMs: 0,
-    });
+    const runtime = createRuntime(stores, { runner: { run } });
 
     expect(runtime.start().recoveredExecutionIds).toEqual(["execution-1"]);
     expect(runtime.start().recoveredExecutionIds).toEqual([]);
 
     await vi.waitFor(() => {
       expect(run).toHaveBeenCalledTimes(1);
+    });
+
+    runtime.stop();
+    expect(runtime.activeExecutionCount).toBe(0);
+  });
+
+  it("does not leave an old loop running across stop and start", async () => {
+    const stores = new InMemoryDomainStores();
+    stores.tasks.save(task);
+
+    let resolveWait: (() => void) | undefined;
+    const wait = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveWait = resolve;
+        }),
+    );
+    const run = vi.fn(async () => ({ status: "SUCCEEDED" as const }));
+    const runtime = createRuntime(stores, {
+      runner: { run },
+      pollIntervalMs: 100,
+      wait,
+    });
+
+    runtime.start();
+    runtime.stop();
+    runtime.start();
+
+    stores.executions.save(execution);
+    runtime.queue.enqueue(execution);
+
+    resolveWait?.();
+
+    await vi.waitFor(() => {
+      expect(run).toHaveBeenCalledTimes(1);
+    });
+
+    runtime.stop();
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it("limits automatic execution to the configured concurrency", async () => {
+    const stores = new InMemoryDomainStores();
+    const work = [1, 2, 3].map(createWorkItem);
+
+    for (const item of work) {
+      stores.tasks.save(item.task);
+      stores.executions.save(item.execution);
+    }
+
+    let running = 0;
+    let maximumRunning = 0;
+    const release = new Map<string, () => void>();
+
+    const runtime = createRuntime(stores, {
+      runner: {
+        async run(currentExecution) {
+          running += 1;
+          maximumRunning = Math.max(maximumRunning, running);
+
+          await new Promise<void>((resolve) => {
+            release.set(currentExecution.id, resolve);
+          });
+
+          running -= 1;
+          return { status: "SUCCEEDED" as const };
+        },
+      },
+      maxConcurrency: 2,
+    });
+
+    for (const item of work) {
+      runtime.queue.enqueue(item.execution);
+    }
+
+    runtime.start();
+
+    await vi.waitFor(() => {
+      expect(runtime.activeExecutionCount).toBe(2);
+      expect(running).toBe(2);
+    });
+
+    expect(maximumRunning).toBe(2);
+    expect(runtime.queue.peek()?.id).toBe("execution-3");
+
+    release.get("execution-1")?.();
+    release.get("execution-2")?.();
+
+    await vi.waitFor(() => {
+      expect(runtime.activeExecutionCount).toBe(1);
+      expect(running).toBe(1);
+      expect(runtime.queue.size()).toBe(0);
+      expect(runtime.worker.running).toBe(true);
+    });
+
+    release.get("execution-3")?.();
+
+    await vi.waitFor(() => {
+      expect(running).toBe(0);
+      expect(runtime.activeExecutionCount).toBe(0);
+      expect(stores.executions.get("execution-3")?.status).toBe("SUCCEEDED");
     });
 
     runtime.stop();
@@ -110,14 +233,7 @@ describe("createExecutionRuntime", () => {
     stores.tasks.save(task);
 
     const run = vi.fn(async () => ({ status: "SUCCEEDED" as const }));
-    const runtime = createExecutionRuntime({
-      runner: { run },
-      executions: stores.executions,
-      tasks: stores.tasks,
-      events: stores.events,
-      clock: { now: () => "2026-09-27T01:05:00.000Z" },
-      pollIntervalMs: 0,
-    });
+    const runtime = createRuntime(stores, { runner: { run } });
 
     runtime.start();
 
@@ -143,17 +259,7 @@ describe("createExecutionRuntime", () => {
 
     const reportedErrors: unknown[] = [];
     let errorReported: (() => void) | undefined;
-    const runtime = createExecutionRuntime({
-      runner: {
-        async run() {
-          return { status: "SUCCEEDED" as const };
-        },
-      },
-      executions: stores.executions,
-      tasks: stores.tasks,
-      events: stores.events,
-      clock: { now: () => "2026-09-27T01:05:00.000Z" },
-      pollIntervalMs: 0,
+    const runtime = createRuntime(stores, {
       onError: (error) => {
         reportedErrors.push(error);
         errorReported?.();
@@ -164,7 +270,10 @@ describe("createExecutionRuntime", () => {
 
     await new Promise<void>((resolve, reject) => {
       errorReported = resolve;
-      setTimeout(() => reject(new Error("Timed out waiting for runtime error.")), 1000);
+      setTimeout(
+        () => reject(new Error("Timed out waiting for runtime error.")),
+        1000,
+      );
     });
 
     expect(reportedErrors).toHaveLength(1);
@@ -186,12 +295,8 @@ describe("createExecutionRuntime", () => {
         }),
     );
     const run = vi.fn(async () => ({ status: "SUCCEEDED" as const }));
-    const runtime = createExecutionRuntime({
+    const runtime = createRuntime(stores, {
       runner: { run },
-      executions: stores.executions,
-      tasks: stores.tasks,
-      events: stores.events,
-      clock: { now: () => "2026-09-27T01:05:00.000Z" },
       pollIntervalMs: 10,
       wait,
     });
@@ -218,7 +323,7 @@ describe("createExecutionRuntime", () => {
       firstProcessStores.executions.save(execution);
 
       const secondProcessStores = new FileDomainStores(directory);
-      const runtime = createExecutionRuntime({
+      const runtime = createRuntime(secondProcessStores, {
         runner: {
           async run(currentExecution) {
             expect(currentExecution.id).toBe("execution-1");
@@ -229,13 +334,6 @@ describe("createExecutionRuntime", () => {
             };
           },
         },
-        executions: secondProcessStores.executions,
-        tasks: secondProcessStores.tasks,
-        events: secondProcessStores.events,
-        clock: {
-          now: () => "2026-09-27T01:05:00.000Z",
-        },
-        pollIntervalMs: 0,
       });
 
       expect(runtime.status).toBe("STOPPED");
@@ -244,10 +342,11 @@ describe("createExecutionRuntime", () => {
       const startup = runtime.start();
 
       expect(startup.recoveredExecutionIds).toEqual(["execution-1"]);
-      expect(runtime.queue.peek()?.id).toBe("execution-1");
 
       await vi.waitFor(() => {
-        expect(secondProcessStores.executions.get("execution-1")?.status).toBe("SUCCEEDED");
+        expect(secondProcessStores.executions.get("execution-1")?.status).toBe(
+          "SUCCEEDED",
+        );
       });
 
       expect(runtime.queue.size()).toBe(0);
@@ -255,5 +354,21 @@ describe("createExecutionRuntime", () => {
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
+  });
+
+  it("rejects invalid concurrency settings", () => {
+    const stores = new InMemoryDomainStores();
+
+    expect(() =>
+      createRuntime(stores, {
+        maxConcurrency: 0,
+      }),
+    ).toThrow("max concurrency must be a positive integer");
+
+    expect(() =>
+      createRuntime(stores, {
+        maxConcurrency: 1.5,
+      }),
+    ).toThrow("max concurrency must be a positive integer");
   });
 });

@@ -26,6 +26,7 @@ export interface ExecutionRuntimeDependencies {
   readonly events: EventStore;
   readonly clock: ExecutionWorkerClock;
   readonly pollIntervalMs?: number;
+  readonly maxConcurrency?: number;
   readonly wait?: ExecutionRuntimeWait;
   readonly onError?: (error: unknown) => void;
 }
@@ -41,6 +42,7 @@ export interface ExecutionRuntime {
     drain(): Promise<readonly Execution[]>;
   };
   readonly status: ExecutionRuntimeStatus;
+  readonly activeExecutionCount: number;
   start(): ExecutionWorkerStartResult;
   stop(): void;
   runNext(): Promise<ExecutionRunOutcome | undefined>;
@@ -48,6 +50,7 @@ export interface ExecutionRuntime {
 }
 
 const DEFAULT_POLL_INTERVAL_MS = 250;
+const DEFAULT_MAX_CONCURRENCY = 1;
 
 function defaultWait(milliseconds: number): Promise<void> {
   return new Promise((resolve) => {
@@ -61,13 +64,22 @@ function validatePollInterval(milliseconds: number): void {
   }
 }
 
+function validateMaxConcurrency(maxConcurrency: number): void {
+  if (!Number.isInteger(maxConcurrency) || maxConcurrency < 1) {
+    throw new Error("Execution runtime max concurrency must be a positive integer.");
+  }
+}
+
 export function createExecutionRuntime(
   dependencies: ExecutionRuntimeDependencies,
 ): ExecutionRuntime {
   const pollIntervalMs = dependencies.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
+  const maxConcurrency =
+    dependencies.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY;
   const wait = dependencies.wait ?? defaultWait;
 
   validatePollInterval(pollIntervalMs);
+  validateMaxConcurrency(maxConcurrency);
 
   const queue = new InMemoryExecutionQueue();
   const coordinator = new InMemoryExecutionCoordinator({
@@ -87,20 +99,58 @@ export function createExecutionRuntime(
 
   let runtimeStatus: ExecutionRuntimeStatus = "STOPPED";
   let recoveredExecutionIds: readonly ExecutionId[] = [];
+  let activeExecutionCount = 0;
+  let runtimeGeneration = 0;
+  let wakeWaiter: (() => void) | undefined;
 
-  const runLoop = async (): Promise<void> => {
-    while (runtimeStatus === "RUNNING") {
-      if (queue.size() === 0) {
-        await wait(pollIntervalMs);
-        continue;
-      }
+  const signalLoop = (): void => {
+    const resolve = wakeWaiter;
+    wakeWaiter = undefined;
+    resolve?.();
+  };
 
-      try {
-        await worker.runNext();
-      } catch (error) {
+  const waitForLoop = async (): Promise<void> => {
+    const timer = wait(pollIntervalMs);
+    const wake = new Promise<void>((resolve) => {
+      wakeWaiter = resolve;
+    });
+
+    await Promise.race([timer, wake]);
+
+    if (wakeWaiter !== undefined) {
+      wakeWaiter = undefined;
+    }
+  };
+
+  const runOne = (): void => {
+    activeExecutionCount += 1;
+
+    void worker
+      .runNext()
+      .catch((error: unknown) => {
         dependencies.onError?.(error);
-        await wait(pollIntervalMs);
+      })
+      .finally(() => {
+        activeExecutionCount -= 1;
+        signalLoop();
+      });
+  };
+
+  const runLoop = async (generation: number): Promise<void> => {
+    while (
+      runtimeStatus === "RUNNING" &&
+      runtimeGeneration === generation
+    ) {
+      while (
+        runtimeStatus === "RUNNING" &&
+        runtimeGeneration === generation &&
+        activeExecutionCount < maxConcurrency &&
+        queue.size() > 0
+      ) {
+        runOne();
       }
+
+      await waitForLoop();
     }
   };
 
@@ -113,23 +163,31 @@ export function createExecutionRuntime(
 
     const startup = worker.start();
     recoveredExecutionIds = startup.recoveredExecutionIds;
+    runtimeGeneration += 1;
     runtimeStatus = "RUNNING";
+    const generation = runtimeGeneration;
 
-    void runLoop().catch((error: unknown) => {
+    void runLoop(generation).catch((error: unknown) => {
       dependencies.onError?.(error);
-      runtimeStatus = "STOPPED";
-      worker.stop();
+
+      if (runtimeGeneration === generation) {
+        runtimeStatus = "STOPPED";
+        worker.stop();
+      }
     });
 
     return startup;
   };
 
   const stop = (): void => {
+    runtimeGeneration += 1;
     runtimeStatus = "STOPPED";
     worker.stop();
+    signalLoop();
   };
 
-  const runNext = async (): Promise<ExecutionRunOutcome | undefined> => worker.runNext();
+  const runNext = async (): Promise<ExecutionRunOutcome | undefined> =>
+    worker.runNext();
 
   return {
     queue,
@@ -137,6 +195,9 @@ export function createExecutionRuntime(
     worker,
     get status(): ExecutionRuntimeStatus {
       return runtimeStatus;
+    },
+    get activeExecutionCount(): number {
+      return activeExecutionCount;
     },
     start,
     stop,

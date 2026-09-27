@@ -377,7 +377,7 @@ The main cross-store application write paths are now transaction-aware:
 - execution dispatch and execution approval resolution;
 - execution result/message/artifact publication.
 
-Runtime queueing remains outside the storage transaction because it is an external runtime side effect. The runtime now provides idempotent queue insertion plus recovery of persisted QUEUED executions into a fresh in-memory queue; the worker/bootstrap composition must invoke that recovery during process startup.
+Runtime queueing remains outside the storage transaction because it is an external runtime side effect. The runtime now provides idempotent queue insertion, recovery of persisted QUEUED executions into a fresh in-memory queue, and a continuous execution loop with configurable polling and bounded concurrency. Automatic scheduling remains deterministic FIFO through the queue; the default concurrency is one, while higher limits can be supplied explicitly.
 
 Durable storage now has optimistic concurrency protection. File-backed writes carry a SHA-256 snapshot revision; stale direct writes and stale transactions are rejected instead of overwriting newer state. The final filesystem replacement is guarded by an atomic lock, with stale-lock recovery for crashes during the short commit window. Concurrency tests cover stale writers, transactions becoming stale during work, nested transaction rejection, and stale lock recovery.
 
