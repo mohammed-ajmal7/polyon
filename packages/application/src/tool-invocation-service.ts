@@ -554,9 +554,19 @@ export class ToolInvocationService {
               `Continuation checkpoint approval not found: ${continuationCheckpoint.approvalId}.`,
             );
           }
+          if (checkpointApproval.status !== "APPROVED") {
+            throw new Error(
+              `Continuation checkpoint approval ${continuationCheckpoint.approvalId} is not approved.`,
+            );
+          }
           if (checkpointApproval.toolContinuation === undefined) {
             throw new Error(
               `Continuation checkpoint approval ${continuationCheckpoint.approvalId} has no tool continuation.`,
+            );
+          }
+          if (checkpointApproval.toolContinuation.state === "COMPLETED") {
+            throw new Error(
+              `Continuation checkpoint approval ${continuationCheckpoint.approvalId} is already completed.`,
             );
           }
           stores.approvals.save({
