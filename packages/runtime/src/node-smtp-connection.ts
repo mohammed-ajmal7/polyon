@@ -11,7 +11,13 @@ const MAX_RESPONSE_BYTES = 64 * 1024;
 export class NodeSmtpConnectionFactory implements SmtpConnectionFactory {
   async connect(options: ValidatedSmtpTransportOptions): Promise<SmtpConnection> {
     const socket = options.secure
-      ? connectTls({ host: options.host, port: options.port, servername: options.host })
+      ? connectTls({
+          host: options.host,
+          port: options.port,
+          servername: options.host,
+          minVersion: options.minTlsVersion,
+          rejectUnauthorized: true,
+        })
       : connectNet({ host: options.host, port: options.port });
 
     await waitForConnection(socket, options.connectionTimeoutMs);
@@ -37,14 +43,23 @@ class NodeSmtpConnection implements SmtpConnection {
     this.bindSocket(socket);
   }
 
-  async startTls(serverName: string, timeoutMs: number): Promise<void> {
+  async startTls(
+    serverName: string,
+    timeoutMs: number,
+    minTlsVersion: "TLSv1.2" | "TLSv1.3",
+  ): Promise<void> {
     const plainSocket = this.socket;
     this.unbindSocket(plainSocket);
 
-    const tlsSocket = connectTls({ socket: plainSocket, servername: serverName });
-    await waitForSecureConnection(tlsSocket, timeoutMs);
+    const tlsSocket = connectTls({
+      socket: plainSocket,
+      servername: serverName,
+      minVersion: minTlsVersion,
+      rejectUnauthorized: true,
+    });
     this.socket = tlsSocket;
     this.bindSocket(tlsSocket);
+    await waitForSecureConnection(tlsSocket, timeoutMs);
   }
 
   read(): Promise<string> {
