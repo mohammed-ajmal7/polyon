@@ -1,7 +1,12 @@
 import type { Execution } from "@polyon/contracts";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { InMemoryExecutionCoordinator } from "./execution-coordinator";
+import { InMemoryDomainStores } from "@polyon/storage";
+
+import {
+  ExecutionCoordinatorError,
+  InMemoryExecutionCoordinator,
+} from "./execution-coordinator";
 import { InMemoryExecutionQueue } from "./execution-queue";
 
 const execution: Execution = {
@@ -15,13 +20,31 @@ const execution: Execution = {
   updatedAt: "2026-09-27T01:00:00.000Z",
 };
 
-describe("InMemoryExecutionCoordinator", () => {
-  it("runs the next queued execution and completes it", async () => {
-    const queue = new InMemoryExecutionQueue();
-    queue.enqueue(execution);
+function createCoordinator(
+  runner: Parameters<typeof InMemoryExecutionCoordinator>[0]["runner"],
+) {
+  const stores = new InMemoryDomainStores();
+  const queue = new InMemoryExecutionQueue();
 
-    const coordinator = new InMemoryExecutionCoordinator(queue, {
+  stores.executions.save(execution);
+  queue.enqueue(execution);
+
+  return {
+    stores,
+    queue,
+    coordinator: new InMemoryExecutionCoordinator({
+      queue,
+      runner,
+      executions: stores.executions,
+    }),
+  };
+}
+
+describe("InMemoryExecutionCoordinator", () => {
+  it("persists RUNNING before invoking the runner and persists success", async () => {
+    const { stores, queue, coordinator } = createCoordinator({
       async run(current) {
+        expect(stores.executions.get("execution-1")?.status).toBe("RUNNING");
         expect(current.status).toBe("RUNNING");
         expect(current.startedAt).toBe("2026-09-27T01:02:00.000Z");
 
@@ -38,14 +61,12 @@ describe("InMemoryExecutionCoordinator", () => {
       completedAt: "2026-09-27T01:05:00.000Z",
       updatedAt: "2026-09-27T01:05:00.000Z",
     });
+    expect(stores.executions.get("execution-1")?.status).toBe("SUCCEEDED");
     expect(queue.size()).toBe(0);
   });
 
   it("records runner failures as failed executions", async () => {
-    const queue = new InMemoryExecutionQueue();
-    queue.enqueue(execution);
-
-    const coordinator = new InMemoryExecutionCoordinator(queue, {
+    const { stores, coordinator } = createCoordinator({
       async run() {
         throw new Error("Provider unavailable.");
       },
@@ -57,13 +78,14 @@ describe("InMemoryExecutionCoordinator", () => {
       status: "FAILED",
       error: "Provider unavailable.",
     });
+    expect(stores.executions.get("execution-1")).toMatchObject({
+      status: "FAILED",
+      error: "Provider unavailable.",
+    });
   });
 
   it("records explicit runner failure results", async () => {
-    const queue = new InMemoryExecutionQueue();
-    queue.enqueue(execution);
-
-    const coordinator = new InMemoryExecutionCoordinator(queue, {
+    const { stores, coordinator } = createCoordinator({
       async run() {
         return {
           status: "FAILED",
@@ -78,17 +100,72 @@ describe("InMemoryExecutionCoordinator", () => {
       status: "FAILED",
       error: "Model returned an invalid response.",
     });
+    expect(stores.executions.get("execution-1")).toMatchObject({
+      status: "FAILED",
+      error: "Model returned an invalid response.",
+    });
+  });
+
+  it("fails closed when a queued execution is not persisted", async () => {
+    const queue = new InMemoryExecutionQueue();
+    const runner = { run: vi.fn(async () => ({ status: "SUCCEEDED" as const })) };
+
+    queue.enqueue(execution);
+
+    const coordinator = new InMemoryExecutionCoordinator({
+      queue,
+      runner,
+      executions: new InMemoryDomainStores().executions,
+    });
+
+    await expect(
+      coordinator.runNext("2026-09-27T01:02:00.000Z", "2026-09-27T01:05:00.000Z"),
+    ).rejects.toMatchObject({
+      name: "ExecutionCoordinatorError",
+      kind: "EXECUTION_NOT_PERSISTED",
+    });
+    expect(runner.run).not.toHaveBeenCalled();
+    expect(queue.size()).toBe(0);
+  });
+
+  it("fails closed when persisted state is no longer queued", async () => {
+    const stores = new InMemoryDomainStores();
+    const queue = new InMemoryExecutionQueue();
+    const runner = { run: vi.fn(async () => ({ status: "SUCCEEDED" as const })) };
+
+    stores.executions.save({
+      ...execution,
+      status: "CANCELLED",
+    });
+    queue.enqueue(execution);
+
+    const coordinator = new InMemoryExecutionCoordinator({
+      queue,
+      runner,
+      executions: stores.executions,
+    });
+
+    await expect(
+      coordinator.runNext("2026-09-27T01:02:00.000Z", "2026-09-27T01:05:00.000Z"),
+    ).rejects.toMatchObject({
+      name: "ExecutionCoordinatorError",
+      kind: "PERSISTED_EXECUTION_NOT_QUEUED",
+    });
+    expect(runner.run).not.toHaveBeenCalled();
+    expect(queue.size()).toBe(0);
   });
 
   it("returns undefined when no execution is queued", async () => {
-    const coordinator = new InMemoryExecutionCoordinator(
-      new InMemoryExecutionQueue(),
-      {
+    const stores = new InMemoryDomainStores();
+    const coordinator = new InMemoryExecutionCoordinator({
+      queue: new InMemoryExecutionQueue(),
+      runner: {
         async run() {
           return { status: "SUCCEEDED" };
         },
       },
-    );
+      executions: stores.executions,
+    });
 
     await expect(
       coordinator.runNext("2026-09-27T01:02:00.000Z", "2026-09-27T01:05:00.000Z"),
