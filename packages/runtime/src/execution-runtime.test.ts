@@ -462,6 +462,81 @@ describe("createExecutionRuntime", () => {
     }
   });
 
+  it("recovers multiple durable queued executions in persisted FIFO order and reports recovery health", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "polyon-execution-multi-recovery-"));
+
+    try {
+      const firstProcessStores = new FileDomainStores(directory);
+      const work = [1, 2, 3].map(createWorkItem);
+
+      for (const item of work) {
+        firstProcessStores.tasks.save(item.task);
+        firstProcessStores.executions.save(item.execution);
+      }
+
+      const secondProcessStores = new FileDomainStores(directory);
+      const order: string[] = [];
+      const runtime = createRuntime(secondProcessStores, {
+        runner: {
+          async run(currentExecution) {
+            order.push(currentExecution.id);
+            return { status: "SUCCEEDED" as const };
+          },
+        },
+      });
+
+      expect(runtime.health).toMatchObject({
+        status: "STOPPED",
+        queuedExecutionCount: 0,
+        activeExecutionCount: 0,
+        recoveredExecutionCount: 0,
+      });
+
+      const startup = runtime.start();
+
+      expect(startup.recoveredExecutionIds).toEqual([
+        "execution-1",
+        "execution-2",
+        "execution-3",
+      ]);
+
+      await vi.waitFor(() => {
+        expect(order).toEqual([
+          "execution-1",
+          "execution-2",
+          "execution-3",
+        ]);
+      });
+
+      expect(runtime.health).toMatchObject({
+        status: "RUNNING",
+        queuedExecutionCount: 0,
+        activeExecutionCount: 0,
+        recoveredExecutionCount: 3,
+      });
+      expect(runtime.health.lastRecoveryAt).toBeDefined();
+
+      for (const item of work) {
+        expect(
+          secondProcessStores.executions.get(item.execution.id)?.status,
+        ).toBe("SUCCEEDED");
+        expect(secondProcessStores.tasks.get(item.task.id)?.status).toBe(
+          "SUCCEEDED",
+        );
+      }
+
+      expect(
+        secondProcessStores.events
+          .list()
+          .filter((event) => event.kind === "EXECUTION_RECOVERED"),
+      ).toHaveLength(3);
+
+      runtime.stop();
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("handles missing and terminal execution cancellation requests", () => {
     const stores = new InMemoryDomainStores();
     const runtime = createRuntime(stores);
