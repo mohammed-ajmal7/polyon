@@ -75,6 +75,11 @@ describe("IntegrationInvocationService", () => {
       expect(result.output).toEqual({ sent: true });
     }
     expect(invoke).toHaveBeenCalledOnce();
+    expect(invoke).toHaveBeenCalledWith({
+      invocationId: "integration-invocation-1",
+      operation: "send_message",
+      input: { text: "hello" },
+    });
     expect(stores.policyDecisions.get("integration-decision-1")).toMatchObject({
       action: "EXTERNAL_COMMUNICATION",
       riskLevel: "HIGH",
