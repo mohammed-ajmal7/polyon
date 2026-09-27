@@ -15,15 +15,16 @@ function cleanup(root: string): void {
 }
 
 function createRepositoryPair(): {
+  readonly base: string;
   readonly root: string;
   readonly remote: string;
 } {
-  const root = mkdtempSync(join(tmpdir(), "polyon-git-publish-"));
-  const remote = join(root, "remote.git");
+  const base = mkdtempSync(join(tmpdir(), "polyon-git-publish-"));
+  const remote = join(base, "remote.git");
 
   execFileSync("git", ["init", "--bare", "-q", remote]);
 
-  const worktree = join(root, "work");
+  const worktree = join(base, "work");
   execFileSync("git", ["init", "-q", worktree]);
   execFileSync("git", [
     "-C",
@@ -50,7 +51,7 @@ function createRepositoryPair(): {
 
   execFileSync("git", ["-C", worktree, "switch", "-c", "main"]);
   execFileSync("git", ["-C", worktree, "commit", "--allow-empty", "-q", "-m", "chore: initialize"]);
-  return { root: worktree, remote };
+  return { base, root: worktree, remote };
 }
 
 describe("ScopedGitPublishToolAdapter", () => {
@@ -86,7 +87,7 @@ describe("ScopedGitPublishToolAdapter", () => {
 
       expect(remoteHead).toBe(localHead);
     } finally {
-      cleanup(pair.root.replace(/\/g, "/").split("/work").slice(0, -1)[0] || pair.root);
+      cleanup(pair.base);
     }
   });
 
