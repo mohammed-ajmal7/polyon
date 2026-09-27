@@ -11,6 +11,7 @@ import type { MemoryService } from "./memory-service";
 import type { ResearchService } from "./research-service";
 
 const MEMORY_TOOL_ID = "memory.search.scoped";
+const MEMORY_WRITE_TOOL_ID = "memory.remember";
 const RESEARCH_TOOL_ID = "research.search.bounded";
 
 interface MemorySearchInput {
@@ -63,6 +64,53 @@ export function registerKnowledgeTools(
     },
     enabled: true,
   };
+
+  const rememberTool: Tool = {
+    id: MEMORY_WRITE_TOOL_ID,
+    name: "Remember durable memory",
+    description: "Persists an explicitly requested memory entry in a bounded scope.",
+    kind: "OTHER",
+    actionKinds: ["WRITE"],
+    inputSchema: {
+      type: "object",
+      required: ["id", "kind", "scope", "text"],
+      additionalProperties: false,
+      properties: {
+        id: { type: "string", minLength: 1, maxLength: 200 },
+        kind: { type: "string", enum: ["FACT", "PREFERENCE", "DECISION", "SUMMARY", "OTHER"] },
+        scope: { type: "string", enum: ["PRIVATE", "PROJECT", "MISSION", "TASK"] },
+        text: { type: "string", minLength: 1, maxLength: 50_000 },
+        tags: { type: "array", maxItems: 32, items: { type: "string", minLength: 1, maxLength: 100 } },
+        sourceIds: { type: "array", maxItems: 100, items: { type: "string", minLength: 1, maxLength: 200 } },
+        missionId: { type: "string", maxLength: 200 },
+        taskId: { type: "string", maxLength: 200 },
+      },
+    },
+    enabled: true,
+  };
+
+  tools.register(rememberTool);
+  adapters.register({
+    toolId: rememberTool.id,
+    async invoke(request) {
+      const input = request.input as {
+        readonly id: string;
+        readonly kind: "FACT" | "PREFERENCE" | "DECISION" | "SUMMARY" | "OTHER";
+        readonly scope: "PRIVATE" | "PROJECT" | "MISSION" | "TASK";
+        readonly text: string;
+        readonly tags?: readonly string[];
+        readonly sourceIds?: readonly string[];
+        readonly missionId?: string;
+        readonly taskId?: string;
+      };
+      return {
+        output: memory.remember({
+          ...input,
+          now: new Date().toISOString(),
+        }),
+      };
+    },
+  });
 
   tools.register(memoryTool);
   adapters.register({

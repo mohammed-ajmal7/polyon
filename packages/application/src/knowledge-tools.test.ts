@@ -68,4 +68,30 @@ describe("knowledge tool adapters", () => {
     expect(stores.sources.list()).toHaveLength(1);
     expect(stores.evidence.list()).toHaveLength(1);
   });
+  it("registers durable memory writes as a governed WRITE tool", async () => {
+    const stores = new InMemoryDomainStores();
+    const memory = new MemoryService(stores.memory, stores.events);
+    const tools = new InMemoryToolRegistry();
+    const adapters = new InMemoryToolAdapterRegistry();
+    registerKnowledgeTools(tools, adapters, memory);
+
+    const adapter = adapters.get("memory.remember");
+    const result = await adapter?.invoke({
+      input: {
+        id: "memory-write-1",
+        kind: "DECISION",
+        scope: "PROJECT",
+        text: "Use bounded execution.",
+        tags: ["decision"],
+      },
+    });
+
+    expect(tools.get("memory.remember")?.actionKinds).toEqual(["WRITE"]);
+    expect(result?.output).toMatchObject({
+      id: "memory-write-1",
+      kind: "DECISION",
+    });
+    expect(stores.memory.get("memory-write-1")).toBeDefined();
+  });
+
 });
