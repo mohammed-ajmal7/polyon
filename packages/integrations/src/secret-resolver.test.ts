@@ -20,7 +20,11 @@ describe("EnvironmentSecretResolver", () => {
         POLYON_TELEGRAM_TOKEN: secret,
       },
       references: {
-        "telegram.primary": "POLYON_TELEGRAM_TOKEN",
+        "telegram.primary": {
+          provider: "telegram",
+          kind: "OAUTH_ACCESS_TOKEN",
+          environmentVariable: "POLYON_TELEGRAM_TOKEN",
+        },
       },
     });
 
@@ -46,6 +50,39 @@ describe("EnvironmentSecretResolver", () => {
 
     await expect(resolver.resolve(reference)).rejects.toMatchObject({
       kind: "SECRET_NOT_AVAILABLE",
+    });
+  });
+
+  it("rejects a reference whose provider or kind does not match", async () => {
+    const resolver = new EnvironmentSecretResolver({
+      environment: {
+        POLYON_TELEGRAM_TOKEN: "secret",
+      },
+      references: {
+        "telegram.primary": {
+          provider: "telegram",
+          kind: "OAUTH_ACCESS_TOKEN",
+          environmentVariable: "POLYON_TELEGRAM_TOKEN",
+        },
+      },
+    });
+
+    await expect(
+      resolver.resolve({
+        ...reference,
+        provider: "email",
+      }),
+    ).rejects.toMatchObject({
+      kind: "INVALID_REFERENCE",
+    });
+
+    await expect(
+      resolver.resolve({
+        ...reference,
+        kind: "API_KEY",
+      }),
+    ).rejects.toMatchObject({
+      kind: "INVALID_REFERENCE",
     });
   });
 
