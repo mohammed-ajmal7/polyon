@@ -284,10 +284,13 @@ describe("SmtpTransport", () => {
       { username: "mailer@example.com", password: "secret" },
     );
 
-    const message = connection.write.mock.calls
-      .map(([value]) => value)
-      .filter((value): value is string => value.startsWith("Message-ID:"))
-      .join("");
+    const writes = connection.write.mock.calls.map(([value]) => value);
+    const dataStart = writes.indexOf("DATA");
+    const dataEnd = writes.indexOf(".\r\n", dataStart + 1);
+    if (dataStart < 0 || dataEnd < 0) {
+      throw new Error("SMTP DATA framing was not captured.");
+    }
+    const message = writes.slice(dataStart + 1, dataEnd).join("");
 
     expect(message).toContain("From: mailer@example.com\r\n");
     expect(message).toContain("Content-Transfer-Encoding: base64\r\n");
