@@ -13,6 +13,14 @@ export {
 } from "./provider-adapter-registry";
 
 export {
+  OpenAICompatibleTextModelAdapter,
+  type OpenAICompatibleFetch,
+  type OpenAICompatibleFetchInit,
+  type OpenAICompatibleResponse,
+  type OpenAICompatibleTextModelAdapterOptions,
+} from "./openai-compatible-text-model-adapter";
+
+export {
   ModelGateway,
   ModelGatewayError,
   type ModelCatalog,
