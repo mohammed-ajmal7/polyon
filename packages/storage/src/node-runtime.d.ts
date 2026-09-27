@@ -36,7 +36,6 @@ declare module "node:path" {
   export function join(...paths: string[]): string;
 }
 
-
 declare module "node:crypto" {
   export function randomUUID(): string;
 }
