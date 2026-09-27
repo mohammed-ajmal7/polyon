@@ -122,7 +122,9 @@ async function expectCode(connection: SmtpConnection, ...expectedCodes: number[]
     }
 
     if (match[2] === " ") {
-      return lines.join("");
+      return lines
+        .map((line) => line.replace(/\r?\n$/, ""))
+        .join("\r\n");
     }
   }
 }
