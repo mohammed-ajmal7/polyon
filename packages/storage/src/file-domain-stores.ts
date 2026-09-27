@@ -1,3 +1,5 @@
+/// <reference path="./node-runtime.d.ts" />
+
 import { join } from "node:path";
 
 import type {
