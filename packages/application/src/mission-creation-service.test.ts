@@ -1,4 +1,4 @@
-import { InMemoryDomainStores } from "@polyon/storage";
+import { InMemoryDomainStores, InMemoryEventStore } from "@polyon/storage";
 import { describe, expect, it } from "vitest";
 
 import { MissionCreationService, MissionCreationServiceError } from "./mission-creation-service";
