@@ -26,6 +26,13 @@ export interface PolyonCompositionOptions {
   readonly terminalMaxOutputBytes?: number;
   readonly terminalEnvironmentKeys?: readonly string[];
   readonly terminalEnabled?: boolean;
+  readonly gitRoot?: string;
+  readonly gitExecutable?: string;
+  readonly gitDefaultTimeoutMs?: number;
+  readonly gitMaxTimeoutMs?: number;
+  readonly gitMaxOutputBytes?: number;
+  readonly gitEnvironmentKeys?: readonly string[];
+  readonly gitEnabled?: boolean;
   readonly toolPolicy?: Policy;
   readonly toolRequiredCapabilityIds?: readonly string[];
   readonly maxToolRounds?: number;
@@ -89,7 +96,8 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   if (
     options.filesystemRoot !== undefined ||
     (options.terminalRoot !== undefined &&
-      options.terminalAllowedCommands !== undefined)
+      options.terminalAllowedCommands !== undefined) ||
+    options.gitRoot !== undefined
   ) {
     registerBuiltinTools(builtinTools, {
       filesystemRoot: options.filesystemRoot,
@@ -102,6 +110,13 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
       terminalMaxOutputBytes: options.terminalMaxOutputBytes,
       terminalEnvironmentKeys: options.terminalEnvironmentKeys,
       terminalEnabled: options.terminalEnabled,
+      gitRoot: options.gitRoot,
+      gitExecutable: options.gitExecutable,
+      gitDefaultTimeoutMs: options.gitDefaultTimeoutMs,
+      gitMaxTimeoutMs: options.gitMaxTimeoutMs,
+      gitMaxOutputBytes: options.gitMaxOutputBytes,
+      gitEnvironmentKeys: options.gitEnvironmentKeys,
+      gitEnabled: options.gitEnabled,
     });
   }
 
