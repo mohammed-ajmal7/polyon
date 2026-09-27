@@ -28,6 +28,11 @@ import type {
   Task,
 } from "@polyon/contracts";
 
+import {
+  durableMigrations,
+  migrateDurableSnapshot,
+} from "./migrations";
+import { DurableMigrationError } from "./migrations";
 import { StorageConcurrencyError } from "./transaction";
 
 export interface DurableDomainState {
@@ -200,6 +205,8 @@ function withCommitLock<T>(filePath: string, work: () => T): T {
   }
 }
 
+export const CURRENT_DURABLE_DOMAIN_VERSION = 1;
+
 export class FileDomainDatabase {
   private state: DurableDomainState;
   private revision: string;
@@ -273,10 +280,56 @@ export class FileDomainDatabase {
     }
 
     const raw = readFileSync(this.filePath, "utf8");
+    const value = JSON.parse(raw);
 
-    return {
-      state: validateState(this.filePath, JSON.parse(raw)),
-      revision: revisionForRaw(raw),
-    };
+    let migration;
+    try {
+      migration = migrateDurableSnapshot(
+        value,
+        CURRENT_DURABLE_DOMAIN_VERSION,
+        durableMigrations,
+      );
+    } catch (error) {
+      if (error instanceof DurableMigrationError) {
+        throw new Error(
+          `Cannot open durable domain snapshot ${this.filePath}: ${error.message}`,
+          { cause: error },
+        );
+      }
+
+      throw error;
+    }
+
+    if (!migration.migrated) {
+      return {
+        state: validateState(this.filePath, value),
+        revision: revisionForRaw(raw),
+      };
+    }
+
+    return withCommitLock(this.filePath, () => {
+      const currentRaw = readFileSync(this.filePath, "utf8");
+      const currentValue = JSON.parse(currentRaw);
+      const currentMigration = migrateDurableSnapshot(
+        currentValue,
+        CURRENT_DURABLE_DOMAIN_VERSION,
+        durableMigrations,
+      );
+
+      if (!currentMigration.migrated) {
+        return {
+          state: validateState(this.filePath, currentValue),
+          revision: revisionForRaw(currentRaw),
+        };
+      }
+
+      const migratedState = validateState(this.filePath, currentMigration.value);
+      writeAtomically(this.filePath, migratedState);
+
+      return {
+        state: migratedState,
+        revision: revisionForRaw(serializeState(migratedState)),
+      };
+    });
   }
 }
