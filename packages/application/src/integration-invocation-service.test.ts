@@ -240,7 +240,7 @@ describe("IntegrationInvocationService", () => {
 
   it("applies agent-scoped policy rules to integration invocations", async () => {
     const invoke = vi.fn(async () => ({ output: "sent" }));
-    const { service } = createService({
+    const { service, stores } = createService({
       integrationId: "telegram-primary",
       kind: "TELEGRAM",
       actionKinds: ["EXTERNAL_COMMUNICATION"],
