@@ -7,7 +7,7 @@ import type {
   PolicyDecision,
   RiskLevel,
 } from "@polyon/contracts";
-import { createApprovalRequest, transitionApprovalStatus } from "@polyon/core";
+import { transitionApprovalStatus } from "@polyon/core";
 import type {
   ApprovalRequestStore,
   DomainStoreTransactionContext,
@@ -135,6 +135,7 @@ export class IntegrationInvocationService {
       requestedAt: input.requestedAt,
       evaluatedAt: input.evaluatedAt,
       actorId: input.actorId,
+      agentId: input.agentId,
       missionId: input.missionId,
       taskId: input.taskId,
       executionId: input.executionId,
