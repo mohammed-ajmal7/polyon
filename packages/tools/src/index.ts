@@ -34,6 +34,15 @@ export {
 export type { ToolArtifactResult } from "./tool-adapter";
 
 export {
+  ScopedGitCommitToolAdapter,
+  ScopedGitCommitToolError,
+  type ScopedGitCommitToolAdapterOptions,
+  type ScopedGitCommitToolErrorKind,
+  type ScopedGitCommitToolInput,
+  type ScopedGitCommitToolOutput,
+} from "./scoped-git-commit-tool-adapter";
+
+export {
   ScopedGitWriteToolAdapter,
   ScopedGitWriteToolError,
   type ScopedGitWriteOperation,
