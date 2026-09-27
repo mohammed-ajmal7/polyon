@@ -168,11 +168,17 @@ export class SmtpTransport implements EmailTransport {
 
 async function writeData(connection: SmtpConnection, message: string): Promise<void> {
   const maxChunkBytes = 64 * 1024;
-  const bytes = new TextEncoder().encode(message);
+  const encoded = new TextEncoder().encode(message);
 
-  for (let offset = 0; offset < bytes.length; offset += maxChunkBytes) {
-    const chunk = bytes.slice(offset, offset + maxChunkBytes);
-    await connection.write(new TextDecoder().decode(chunk));
+  if (encoded.byteLength !== message.length) {
+    throw new SmtpTransportError(
+      "PROTOCOL",
+      "SMTP message serialization produced unexpected non-ASCII output.",
+    );
+  }
+
+  for (let offset = 0; offset < message.length; offset += maxChunkBytes) {
+    await connection.write(message.slice(offset, offset + maxChunkBytes));
   }
 }
 
