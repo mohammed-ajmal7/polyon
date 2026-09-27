@@ -1,13 +1,20 @@
 import type { DomainEvent, Execution, ExecutionId } from "@polyon/contracts";
 
-import type { EventStore, ExecutionStore } from "@polyon/storage";
+import type {
+  ApprovalRequestStore,
+  EventStore,
+  ExecutionStore,
+} from "@polyon/storage";
 
 import type {
   ExecutionCoordinator,
   ExecutionRunOutcome,
 } from "./execution-coordinator";
 import type { ExecutionRunContext } from "./execution-runner";
-import { recoverQueuedExecutions } from "./execution-recovery";
+import {
+  recoverExecutions,
+  recoverQueuedExecutions,
+} from "./execution-recovery";
 import type { ExecutionQueue } from "./execution-queue";
 
 export interface ExecutionWorkerClock {
@@ -18,6 +25,7 @@ export interface ExecutionWorkerDependencies {
   readonly queue: ExecutionQueue;
   readonly coordinator: ExecutionCoordinator;
   readonly executions: ExecutionStore;
+  readonly approvals?: ApprovalRequestStore;
   readonly events: EventStore;
   readonly clock: ExecutionWorkerClock;
 }
@@ -52,6 +60,9 @@ function appendRecoveryEvent(
   events: EventStore,
   executions: ExecutionStore,
   executionId: ExecutionId,
+  reason:
+    | "PROCESS_STARTUP"
+    | "RESUMABLE_TOOL_CONTINUATION_RESTART",
 ): void {
   const execution = executions.get(executionId);
 
@@ -76,7 +87,7 @@ function appendRecoveryEvent(
     data: {
       attempt: execution.attempt,
       status: execution.status,
-      reason: "PROCESS_STARTUP",
+      reason,
     },
   };
 
@@ -97,16 +108,24 @@ export class InMemoryExecutionWorker implements ExecutionWorker {
       return { recoveredExecutionIds: [] };
     }
 
-    const recoveredExecutionIds = recoverQueuedExecutions(
+    const recoveries = recoverExecutions(
       this.dependencies.executions,
       this.dependencies.queue,
+      this.dependencies.approvals,
+      this.dependencies.clock.now(),
+    );
+    const recoveredExecutionIds = recoveries.map(
+      (recovery) => recovery.executionId,
     );
 
-    for (const executionId of recoveredExecutionIds) {
+    for (const recovery of recoveries) {
       appendRecoveryEvent(
         this.dependencies.events,
         this.dependencies.executions,
-        executionId,
+        recovery.executionId,
+        recovery.kind === "INTERRUPTED_TOOL_CONTINUATION"
+          ? "RESUMABLE_TOOL_CONTINUATION_RESTART"
+          : "PROCESS_STARTUP",
       );
     }
 
