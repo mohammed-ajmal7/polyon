@@ -223,9 +223,7 @@ export class GoogleDriveIntegrationAdapter
       ? undefined
       : { maxResponseBytes: this.maxResponseBytes });
 
-    return {
-      file: parseFileMetadata(response),
-    };
+    return await parseFileMetadata(response);
   }
 }
 
