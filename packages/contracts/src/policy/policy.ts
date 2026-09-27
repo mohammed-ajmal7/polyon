@@ -18,6 +18,7 @@ export interface PolicyRule {
   readonly agentId?: AgentId;
   readonly capabilityId?: CapabilityId;
   readonly toolId?: ToolId;
+  readonly integrationId?: string;
 
   readonly action?: ActionKind;
   readonly riskLevel?: RiskLevel;
