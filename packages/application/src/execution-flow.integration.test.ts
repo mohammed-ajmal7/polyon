@@ -69,6 +69,7 @@ describe("governed execution flow", () => {
       (current) => stores.tasks.save(current),
       (taskId) => stores.tasks.get(taskId),
       () => stores.executions.list(),
+      events,
     );
 
     const dispatched = missionService.dispatchReadyTasks({
