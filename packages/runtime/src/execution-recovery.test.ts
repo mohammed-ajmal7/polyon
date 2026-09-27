@@ -5,11 +5,9 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 import type { Execution, Task } from "@polyon/contracts";
-import {
-  InMemoryExecutionCoordinator,
-  InMemoryExecutionQueue,
-  recoverQueuedExecutions,
-} from "@polyon/runtime";
+import { InMemoryExecutionCoordinator } from "./execution-coordinator";
+import { InMemoryExecutionQueue } from "./execution-queue";
+import { recoverQueuedExecutions } from "./execution-recovery";
 import { describe, expect, it } from "vitest";
 
 import { FileDomainStores, InMemoryDomainStores } from "@polyon/storage";
