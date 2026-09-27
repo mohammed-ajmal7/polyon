@@ -53,3 +53,5 @@ export {
   type ExecutionRuntimeCancellationResult,
   type ExecutionRuntimeHealth,
 } from "./execution-runtime";
+
+export { NodeSmtpConnectionFactory } from "./node-smtp-connection";
