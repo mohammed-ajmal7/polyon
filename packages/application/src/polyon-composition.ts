@@ -206,7 +206,7 @@ export interface PolyonComposition {
   readonly agentToolOrchestration: AgentToolOrchestrationService;
   readonly codingAgent: CodingAgentService;
   readonly memory: MemoryService;
-  readonly semanticMemory?: import("./semantic-memory-service").SemanticMemoryService;
+  readonly semanticMemory?: SemanticMemoryService;
   readonly research?: ResearchService;
   readonly researchSynthesis: ResearchSynthesisService;
   readonly creative?: CreativeJobService;
