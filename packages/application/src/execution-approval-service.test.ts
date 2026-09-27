@@ -1,4 +1,4 @@
-import type { ApprovalRequest, Execution } from "@polyon/contracts";
+import type { ApprovalRequest, Execution, Task } from "@polyon/contracts";
 import { describe, expect, it } from "vitest";
 
 import { InMemoryExecutionQueue } from "@polyon/runtime";
@@ -21,6 +21,18 @@ const execution: Execution = {
   updatedAt: "2026-09-27T01:00:00.000Z",
 };
 
+const task: Task = {
+  id: "task-1",
+  missionId: "mission-1",
+  kind: "CODING",
+  title: "Build runtime",
+  description: "Implement runtime.",
+  status: "APPROVAL_REQUIRED",
+  dependsOn: [],
+  createdAt: "2026-09-27T01:00:00.000Z",
+  updatedAt: "2026-09-27T01:01:00.000Z",
+};
+
 const approval: ApprovalRequest = {
   id: "approval-1",
   policyId: "policy-1",
@@ -39,9 +51,12 @@ const approval: ApprovalRequest = {
 function createService() {
   const stores = new InMemoryDomainStores();
   const queue = new InMemoryExecutionQueue();
+  stores.tasks.save(task);
+
   const service = new ExecutionApprovalService({
     approvals: stores.approvals,
     executions: stores.executions,
+    tasks: stores.tasks,
     queue,
   });
 
@@ -95,6 +110,7 @@ describe("ExecutionApprovalService", () => {
     });
     expect(stores.approvals.get("approval-1")?.status).toBe("APPROVED");
     expect(stores.executions.get("execution-1")?.status).toBe("QUEUED");
+    expect(stores.tasks.get("task-1")?.status).toBe("APPROVED");
     expect(queue.peek()?.id).toBe("execution-1");
   });
 
@@ -115,6 +131,7 @@ describe("ExecutionApprovalService", () => {
       error: "User rejected the execution.",
     });
     expect(stores.approvals.get("approval-1")?.status).toBe("REJECTED");
+    expect(stores.tasks.get("task-1")?.status).toBe("REJECTED");
     expect(queue.size()).toBe(0);
   });
 
@@ -129,6 +146,7 @@ describe("ExecutionApprovalService", () => {
     expect(result.execution.status).toBe("REJECTED");
     expect(result.nextStep).toBe("REJECTED");
     expect(stores.approvals.get("approval-1")?.status).toBe("EXPIRED");
+    expect(stores.tasks.get("task-1")?.status).toBe("REJECTED");
     expect(queue.size()).toBe(0);
   });
 
@@ -142,6 +160,7 @@ describe("ExecutionApprovalService", () => {
 
     expect(result.execution.status).toBe("CANCELLED");
     expect(stores.approvals.get("approval-1")?.status).toBe("CANCELLED");
+    expect(stores.tasks.get("task-1")?.status).toBe("CANCELLED");
   });
 
   it("rejects a non-execution approval action for every resolution path", () => {

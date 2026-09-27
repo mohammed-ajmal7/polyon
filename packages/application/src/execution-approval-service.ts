@@ -2,6 +2,7 @@ import type {
   ActorId,
   ApprovalRequest,
   Execution,
+  Task,
 } from "@polyon/contracts";
 
 import {
@@ -10,10 +11,11 @@ import {
   rejectExecution,
   transitionApprovalStatus,
   transitionExecutionStatus,
+  transitionTaskStatus,
 } from "@polyon/core";
 
 import type { ExecutionQueue } from "@polyon/runtime";
-import type { ApprovalRequestStore, ExecutionStore } from "@polyon/storage";
+import type { ApprovalRequestStore, ExecutionStore, TaskStore } from "@polyon/storage";
 
 export interface ResolveExecutionApprovalInput {
   readonly status: "APPROVED" | "REJECTED" | "EXPIRED" | "CANCELLED";
@@ -22,7 +24,11 @@ export interface ResolveExecutionApprovalInput {
   readonly rejectionReason?: string;
 }
 
-export type ExecutionApprovalServiceErrorKind = "EXECUTION_NOT_AWAITING_APPROVAL";
+export type ExecutionApprovalServiceErrorKind =
+  | "EXECUTION_NOT_AWAITING_APPROVAL"
+  | "TASK_NOT_PERSISTED"
+  | "TASK_MISSION_MISMATCH"
+  | "TASK_NOT_AWAITING_APPROVAL";
 
 export class ExecutionApprovalServiceError extends Error {
   readonly kind: ExecutionApprovalServiceErrorKind;
@@ -43,6 +49,7 @@ export interface ExecutionApprovalResolution {
 export interface ExecutionApprovalServiceDependencies {
   readonly approvals: ApprovalRequestStore;
   readonly executions: ExecutionStore;
+  readonly tasks: TaskStore;
   readonly queue: ExecutionQueue;
 }
 
@@ -86,6 +93,29 @@ export class ExecutionApprovalService {
 
     validateExecutionApprovalBinding(approval, execution);
 
+    const task = this.dependencies.tasks.get(execution.taskId);
+
+    if (task === undefined) {
+      throw new ExecutionApprovalServiceError(
+        "TASK_NOT_PERSISTED",
+        `Cannot resolve approval for execution ${execution.id} because task is not persisted: ${execution.taskId}.`,
+      );
+    }
+
+    if (task.missionId !== execution.missionId) {
+      throw new ExecutionApprovalServiceError(
+        "TASK_MISSION_MISMATCH",
+        "Persisted task mission does not match the execution mission.",
+      );
+    }
+
+    if (task.status !== "APPROVAL_REQUIRED") {
+      throw new ExecutionApprovalServiceError(
+        "TASK_NOT_AWAITING_APPROVAL",
+        `Cannot resolve approval while task status is ${task.status}.`,
+      );
+    }
+
     const resolvedApproval = transitionApprovalStatus(
       approval,
       input.status,
@@ -104,9 +134,15 @@ export class ExecutionApprovalService {
         "QUEUED",
         input.resolvedAt,
       );
+      const approvedTask = transitionTaskStatus(
+        task,
+        "APPROVED",
+        input.resolvedAt,
+      );
 
       this.dependencies.approvals.save(resolvedApproval);
       this.dependencies.executions.save(queuedExecution);
+      this.dependencies.tasks.save(approvedTask);
       this.dependencies.queue.enqueue(queuedExecution);
 
       return {
@@ -120,13 +156,20 @@ export class ExecutionApprovalService {
       input.rejectionReason ??
       "Execution approval was " + input.status.toLowerCase() + ".";
 
+    const targetTaskStatus = input.status === "CANCELLED" ? "CANCELLED" : "REJECTED";
     const updatedExecution =
       input.status === "CANCELLED"
         ? cancelExecution(execution, input.resolvedAt)
         : rejectExecution(execution, input.resolvedAt, reason);
+    const updatedTask = transitionTaskStatus(
+      task,
+      targetTaskStatus,
+      input.resolvedAt,
+    );
 
     this.dependencies.approvals.save(resolvedApproval);
     this.dependencies.executions.save(updatedExecution);
+    this.dependencies.tasks.save(updatedTask);
 
     return {
       approval: resolvedApproval,

@@ -87,6 +87,7 @@ function createService() {
   const service = new MissionExecutionService(
     dispatch,
     (task) => stores.tasks.save(task),
+    (taskId) => stores.tasks.get(taskId),
     () => stores.executions.list(),
   );
 
@@ -115,8 +116,8 @@ describe("MissionExecutionService", () => {
     expect(result.awaitingApproval).toEqual([]);
     expect(result.rejected).toEqual([]);
     expect(queue.size()).toBe(2);
-    expect(stores.tasks.get("task-1")?.status).toBe("READY");
-    expect(stores.tasks.get("task-2")?.status).toBe("READY");
+    expect(stores.tasks.get("task-1")?.status).toBe("RUNNING");
+    expect(stores.tasks.get("task-2")?.status).toBe("RUNNING");
   });
 
   it("does not dispatch a dependent task before its dependency succeeds", () => {
@@ -134,6 +135,37 @@ describe("MissionExecutionService", () => {
     });
 
     expect(result.dispatched.map((plan) => plan.execution.taskId)).not.toContain("task-3");
+    expect(queue.size()).toBe(2);
+  });
+
+  it("does not redispatch a task whose persisted state is already active", () => {
+    const { stores, queue, service } = createService();
+
+    const first = service.dispatchReadyTasks({
+      mission,
+      tasks,
+      actorId: "agent-1",
+      policy,
+      requestedBy: "user-1",
+      now: "2026-09-27T01:02:00.000Z",
+      riskLevel: "MEDIUM",
+      identities,
+    });
+
+    const second = service.dispatchReadyTasks({
+      mission,
+      tasks,
+      actorId: "agent-1",
+      policy,
+      requestedBy: "user-1",
+      now: "2026-09-27T01:03:00.000Z",
+      riskLevel: "MEDIUM",
+      identities,
+    });
+
+    expect(first.dispatched).toHaveLength(2);
+    expect(second.dispatched).toEqual([]);
+    expect(stores.executions.list()).toHaveLength(2);
     expect(queue.size()).toBe(2);
   });
 
@@ -156,6 +188,7 @@ describe("MissionExecutionService", () => {
 
     expect(result.awaitingApproval).toHaveLength(1);
     expect(result.awaitingApproval[0]?.execution.status).toBe("APPROVAL_REQUIRED");
+    expect(stores.tasks.get("task-1")?.status).toBe("APPROVAL_REQUIRED");
     expect(stores.approvals.list()).toHaveLength(1);
     expect(queue.size()).toBe(0);
   });
@@ -180,6 +213,7 @@ describe("MissionExecutionService", () => {
     expect(result.rejected).toHaveLength(1);
     expect(result.rejected[0]?.execution.status).toBe("REJECTED");
     expect(stores.executions.get("execution-task-1-1")?.status).toBe("REJECTED");
+    expect(stores.tasks.get("task-1")?.status).toBe("REJECTED");
     expect(queue.size()).toBe(0);
   });
 

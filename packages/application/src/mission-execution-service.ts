@@ -9,6 +9,7 @@ import type {
 import {
   getReadyTaskIds,
   markTaskReady,
+  transitionTaskStatus,
   validateMissionTaskPlan,
   type TaskDependency,
 } from "@polyon/core";
@@ -55,34 +56,35 @@ export class MissionExecutionService {
   constructor(
     private readonly executionDispatch: ExecutionDispatchService,
     private readonly saveTask: (task: Task) => void,
+    private readonly getTask: (taskId: Task["id"]) => Task | undefined,
     private readonly listExecutions: () => readonly { taskId: string; attempt: number }[],
   ) {}
 
   dispatchReadyTasks(input: DispatchReadyTasksInput): DispatchReadyTasksResult {
-    const validation = validateMissionTaskPlan(input.mission, input.tasks);
+    const currentTasks = input.tasks.map((task) => this.getTask(task.id) ?? task);
+    const validation = validateMissionTaskPlan(input.mission, currentTasks);
 
     if (!validation.valid) {
       throw new MissionExecutionValidationError(validation.errors);
     }
 
-    const dependencies: readonly TaskDependency[] = input.tasks.map((task) => ({
+    const dependencies: readonly TaskDependency[] = currentTasks.map((task) => ({
       id: task.id,
       status: task.status,
     }));
 
-    const readyTaskIds = getReadyTaskIds(input.tasks);
+    const readyTaskIds = getReadyTaskIds(currentTasks);
     const currentExecutions = this.listExecutions();
     const plans: ExecutionDispatchPlan[] = [];
 
     for (const taskId of readyTaskIds) {
-      const task = input.tasks.find((candidate) => candidate.id === taskId);
+      const task = currentTasks.find((candidate) => candidate.id === taskId);
 
       if (task === undefined) {
         continue;
       }
 
       const readyTask = markTaskReady(task, dependencies, input.now);
-      this.saveTask(readyTask);
 
       const attempt =
         currentExecutions
@@ -91,24 +93,32 @@ export class MissionExecutionService {
 
       const executionId = input.identities.executionId(task.id, attempt);
 
-      plans.push(
-        this.executionDispatch.dispatch({
-          task: readyTask,
-          dependencies,
-          actorId: input.actorId,
-          agentId: input.agentId,
-          executionId,
-          attempt,
-          policy: input.policy,
-          decisionId: input.identities.policyDecisionId(task.id, executionId),
-          approvalRequestId: input.identities.approvalRequestId(task.id, executionId),
-          requestedBy: input.requestedBy,
-          requestedAt: input.now,
-          evaluatedAt: input.now,
-          riskLevel: input.riskLevel,
-          expiresAt: input.expiresAt,
-        }),
-      );
+      const plan = this.executionDispatch.dispatch({
+        task: readyTask,
+        dependencies,
+        actorId: input.actorId,
+        agentId: input.agentId,
+        executionId,
+        attempt,
+        policy: input.policy,
+        decisionId: input.identities.policyDecisionId(task.id, executionId),
+        approvalRequestId: input.identities.approvalRequestId(task.id, executionId),
+        requestedBy: input.requestedBy,
+        requestedAt: input.now,
+        evaluatedAt: input.now,
+        riskLevel: input.riskLevel,
+        expiresAt: input.expiresAt,
+      });
+
+      const taskStatus =
+        plan.nextStep === "ENQUEUE"
+          ? "RUNNING"
+          : plan.nextStep === "AWAIT_APPROVAL"
+            ? "APPROVAL_REQUIRED"
+            : "REJECTED";
+
+      this.saveTask(transitionTaskStatus(readyTask, taskStatus, input.now));
+      plans.push(plan);
     }
 
     return {
