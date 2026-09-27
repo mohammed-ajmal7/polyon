@@ -52,7 +52,7 @@ export interface McpServerDependencies {
 export class McpServerService {
   constructor(private readonly dependencies: McpServerDependencies) {}
 
-  handle(
+  async handle(
     request: McpJsonRpcRequest,
     headers: {
       readonly protocolVersion?: string;
@@ -116,7 +116,7 @@ export class McpServerService {
 
     if (tool !== undefined) {
       const action = selectAction(tool);
-      const outcome = this.dependencies.toolInvocation.invoke({
+      const outcome = await this.dependencies.toolInvocation.invoke({
         invocationId: "mcp:" + String(request.id),
         toolId: tool.id,
         input,
@@ -131,7 +131,7 @@ export class McpServerService {
         actorId: this.dependencies.actorId,
       });
 
-      return pendingPromiseResponse(request.id, outcome);
+      return toolOutcomeResponse(request.id, outcome);
     }
 
     const integration = parseIntegrationToolId(name);
@@ -150,7 +150,7 @@ export class McpServerService {
     const action = registered.actionKinds[0];
     if (action === undefined) return rpcError(request.id, -32602, "MCP integration has no action classification.");
 
-    const outcome = this.dependencies.integrationInvocation.invoke({
+    const outcome = await this.dependencies.integrationInvocation.invoke({
       invocationId: "mcp:" + String(request.id),
       integrationId: registered.integrationId,
       operation: integration.operation,
@@ -166,21 +166,22 @@ export class McpServerService {
       actorId: this.dependencies.actorId,
     });
 
-    return pendingPromiseResponse(request.id, outcome);
+    return toolOutcomeResponse(request.id, outcome);
   }
 }
 
-function pendingPromiseResponse(
-  id: string | number | null,
-  value: Promise<unknown>,
-): McpJsonRpcResponse {
-  // The current HTTP route awaits the service result. This wrapper exists so
-  // the sync shape stays explicit at the protocol boundary.
-  return {
-    jsonrpc: "2.0",
-    id,
-    result: value,
-  };
+function toolOutcomeResponse(id: string | number | null, outcome: any): McpJsonRpcResponse {
+  switch (outcome.status) {
+    case "SUCCEEDED":
+      return { jsonrpc: "2.0", id, result: { content: [{ type: "text", text: JSON.stringify(outcome.output) }] } };
+    case "APPROVAL_REQUIRED":
+      return { jsonrpc: "2.0", id, result: { isError: true, content: [{ type: "text", text: "Human approval required.", approvalRequestId: outcome.approvalRequest.id }] } };
+    case "REJECTED":
+    case "FAILED":
+      return { jsonrpc: "2.0", id, result: { isError: true, content: [{ type: "text", text: outcome.error }] } };
+    default:
+      return { jsonrpc: "2.0", id, error: { code: -32000, message: "MCP tool invocation failed." } };
+  }
 }
 
 function rpcError(
