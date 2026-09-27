@@ -57,8 +57,3 @@ export {
   InvalidApprovalTransitionError,
   transitionApprovalStatus,
 } from "./policy/index";
-
-export {
-  applyExecutionRunAuthorization,
-  ExecutionRunAuthorizationApplicationError,
-} from "./work/execution-run-authorization";
