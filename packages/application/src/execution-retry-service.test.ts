@@ -86,7 +86,7 @@ function createService() {
     queue,
     events,
     service: new ExecutionRetryService(
-      stores.executions,
+      stores.tasks,
       stores.tasks,
       events,
       executionService,

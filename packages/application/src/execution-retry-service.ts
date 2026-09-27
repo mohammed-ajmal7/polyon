@@ -2,7 +2,7 @@ import type { ActorId, Mission, Policy, Task } from "@polyon/contracts";
 
 import { retryTask, type TaskDependency } from "@polyon/core";
 
-import type { EventStore, ExecutionStore, TaskStore } from "@polyon/storage";
+import type { EventStore, TaskStore } from "@polyon/storage";
 
 import {
   MissionExecutionService,
@@ -24,7 +24,6 @@ export interface RetryFailedTaskInput {
 
 export class ExecutionRetryService {
   constructor(
-    private readonly executions: ExecutionStore,
     private readonly tasks: TaskStore,
     private readonly events: EventStore,
     private readonly executionService: MissionExecutionService,
