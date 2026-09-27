@@ -231,6 +231,37 @@ describe("MissionPlanService", () => {
     ]);
   });
 
+  it("does not apply an approval after the mission leaves planning", () => {
+    const { stores, service } = createService();
+
+    service.submit({
+      ...baseInput,
+      policy: createPolicy("REQUIRE_APPROVAL"),
+    });
+
+    stores.missions.save({
+      ...mission,
+      status: "RUNNING",
+    });
+
+    expect(() =>
+      service.resolveApproval({
+        approvalId: "approval-1",
+        status: "APPROVED",
+        resolvedAt: "2026-09-27T02:20:00.000Z",
+        resolvedBy: "user-1",
+      }),
+    ).toThrowError(
+      new MissionPlanServiceError(
+        "MISSION_NOT_PLANNING",
+        "Cannot apply a plan while mission mission-1 is RUNNING.",
+      ),
+    );
+
+    expect(stores.approvals.get("approval-1")?.status).toBe("PENDING");
+    expect(stores.missions.get("mission-1")?.taskIds).toEqual([]);
+  });
+
   it.each(["REJECTED", "EXPIRED", "CANCELLED"] as const)(
     "resolves a %s approval without applying the plan",
     (status) => {
