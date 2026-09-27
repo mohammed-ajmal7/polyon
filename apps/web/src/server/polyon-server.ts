@@ -2,7 +2,7 @@ import { join } from "node:path";
 
 import type { Agent, Model, Policy, Provider, SecretReference } from "@polyon/contracts";
 import { BoundedHttpClient, EnvironmentSecretResolver, SmtpTransport, type EmailTransport } from "@polyon/integrations";
-import { OpenAICompatibleTextModelAdapter } from "@polyon/providers";
+import { OpenAICompatibleEmbeddingAdapter, OpenAICompatibleTextModelAdapter } from "@polyon/providers";
 import { EncryptedFileSecretResolver, NodeSmtpConnectionFactory } from "@polyon/runtime";
 import { BoundedWebResearchRetriever, ConfiguredHttpCreativeAdapter, ConfiguredHttpResearchProvider, createPolyonComposition, type PolyonComposition } from "@polyon/application";
 
@@ -23,6 +23,7 @@ export function getPolyonComposition(): PolyonComposition {
 
 function buildOptions() {
   const model = buildModelRegistration();
+  const embedding = buildEmbeddingRegistration();
   const email = buildEmailRegistration();
   const secretResolver = email === undefined ? undefined : buildSecretResolver();
   const researchRetriever = buildResearchRetriever();
@@ -30,6 +31,7 @@ function buildOptions() {
   return {
     storageRoot: process.env.POLYON_DATA_DIR?.trim() || join(process.cwd(), ".polyon-data"),
     ...(model === undefined ? {} : { agents: [model.agent], models: [model.model], providers: [model.registration] }),
+    ...(embedding === undefined ? {} : { embeddingProvider: embedding }),
     ...(secretResolver === undefined ? {} : { secretResolver }),
     ...(researchRetriever === undefined ? {} : { researchRetriever }),
     ...(creativeAdapter === undefined ? {} : { creativeAdapter }),
@@ -40,6 +42,37 @@ function buildOptions() {
       emailTransport: email.transport,
     }),
   };
+}
+
+function buildEmbeddingRegistration() {
+  const endpoint = process.env.POLYON_EMBEDDING_ENDPOINT?.trim();
+  const modelId = process.env.POLYON_EMBEDDING_MODEL_ID?.trim();
+  if (endpoint === undefined || endpoint === "" || modelId === undefined || modelId === "") return undefined;
+
+  const providerId = process.env.POLYON_EMBEDDING_PROVIDER_ID?.trim() || "configured-embedding-provider";
+  const model: Model = {
+    id: modelId,
+    providerId,
+    name: process.env.POLYON_EMBEDDING_MODEL_NAME?.trim() || modelId,
+    kind: "EMBEDDING",
+    capabilityIds: [],
+    enabled: true,
+  };
+  const provider: Provider = {
+    id: providerId,
+    name: process.env.POLYON_EMBEDDING_PROVIDER_NAME?.trim() || "Configured embedding provider",
+    kind: "HOSTED_MODEL",
+    enabled: true,
+  };
+  const adapter = new OpenAICompatibleEmbeddingAdapter({
+    providerId,
+    endpoint,
+    ...(process.env.POLYON_EMBEDDING_API_KEY === undefined
+      ? {}
+      : { apiKey: process.env.POLYON_EMBEDDING_API_KEY }),
+  });
+
+  return { provider, model, adapter };
 }
 
 function buildModelRegistration() {
