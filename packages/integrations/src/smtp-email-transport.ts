@@ -14,6 +14,7 @@ export interface SmtpConnection {
   read(): Promise<string>;
   write(command: string): Promise<void>;
   close(): Promise<void>;
+  startTls(): Promise<void>;
 }
 
 export interface SmtpConnectionFactory {
@@ -64,7 +65,17 @@ export class SmtpTransport implements EmailTransport {
 
     try {
       await expectCode(connection, 220);
-      await this.command(connection, `EHLO ${this.options.heloName}`, 250);
+      const ehloResponse = await this.command(connection, `EHLO ${this.options.heloName}`, 250);
+
+      if (this.options.startTls) {
+        if (!hasSmtpCapability(ehloResponse, "STARTTLS")) {
+          throw new Error("SMTP server does not support STARTTLS.");
+        }
+        await this.command(connection, "STARTTLS", 220);
+        await connection.startTls();
+        await this.command(connection, `EHLO ${this.options.heloName}`, 250);
+      }
+
       await this.command(connection, `AUTH LOGIN`, 334);
       await this.command(connection, encodeBase64(credential.username), 334);
       await this.command(connection, encodeBase64(credential.password), 235);
@@ -87,21 +98,39 @@ export class SmtpTransport implements EmailTransport {
     }
   }
 
-  private async command(connection: SmtpConnection, command: string, ...codes: number[]) {
+  private async command(
+    connection: SmtpConnection,
+    command: string,
+    ...codes: number[]
+  ): Promise<string> {
     await connection.write(command);
-    await expectCode(connection, ...codes);
+    return expectCode(connection, ...codes);
   }
 }
 
 async function expectCode(connection: SmtpConnection, ...expectedCodes: number[]): Promise<string> {
-  const response = await connection.read();
-  const match = /^(\d{3})(?:[ -])(.*?)(?:\r?\n)?$/.exec(response);
+  const lines: string[] = [];
 
-  if (match === null || !expectedCodes.includes(Number(match[1]))) {
-    throw new Error("SMTP server returned an unexpected response.");
+  while (true) {
+    const response = await connection.read();
+    lines.push(response);
+
+    const match = /^(\d{3})([ -])(.*?)(?:\r?\n)?$/.exec(response);
+
+    if (match === null || !expectedCodes.includes(Number(match[1]))) {
+      throw new Error("SMTP server returned an unexpected response.");
+    }
+
+    if (match[2] === " ") {
+      return lines.join("");
+    }
   }
+}
 
-  return response;
+function hasSmtpCapability(response: string, capability: string): boolean {
+  return response
+    .split(/\r?\n/)
+    .some((line) => line.slice(4).trim().toUpperCase() === capability);
 }
 
 function buildMessage(input: EmailSendInput, messageIdDomain: string): string {
