@@ -17,6 +17,7 @@ import { FileDomainStores } from "@polyon/storage";
 import { describe, expect, it, vi } from "vitest";
 
 import { AgentToolOrchestrationService } from "./agent-tool-orchestration-service";
+import { IntegrationInvocationService } from "./integration-invocation-service";
 import { ToolInvocationService } from "./tool-invocation-service";
 
 const now = "2026-09-27T02:00:00.000Z";
@@ -88,6 +89,15 @@ function createOrchestrator(
     invokeText: modelInvoke,
   } as unknown as AgentGateway;
 
+  const integrations = new InMemoryIntegrationAdapterRegistry();
+  const integrationInvocation = new IntegrationInvocationService({
+    integrations,
+    approvals: stores.approvals,
+    policyDecisions: stores.policyDecisions,
+    events: stores.events,
+    unitOfWork: stores,
+  });
+
   const toolInvocation = new ToolInvocationService({
     tools,
     adapters,
@@ -100,6 +110,8 @@ function createOrchestrator(
   const orchestrator = new AgentToolOrchestrationService({
     agentGateway: gateway,
     toolInvocation,
+    integrationInvocation,
+    integrations,
     tools,
     approvals: stores.approvals,
     executions: stores.executions,
@@ -109,7 +121,7 @@ function createOrchestrator(
     enqueueExecution: vi.fn(),
   });
 
-  return { orchestrator, toolInvocation };
+  return { orchestrator, toolInvocation, integrations, integrationInvocation };
 }
 
 describe("AgentToolOrchestrationService", () => {
@@ -184,6 +196,139 @@ describe("AgentToolOrchestrationService", () => {
       expect(modelToolContent).toContain("[Tool output truncated:");
       expect(new TextEncoder().encode(modelToolContent).byteLength).toBeLessThanOrEqual(128);
       expect(modelToolContent).not.toBe("x".repeat(2048));
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("lets the agent call a configured read-only integration through the unified model loop", async () => {
+    const root = mkdtempSync(join(tmpdir(), "polyon-agent-integration-"));
+    let calls = 0;
+
+    try {
+      const stores = new FileDomainStores(root);
+      const integration: IntegrationAdapter = {
+        integrationId: "google-drive-primary",
+        kind: "GOOGLE_DRIVE",
+        actionKinds: ["READ"],
+        supportedOperations: ["LIST_FILES"],
+        sideEffectClass: "READ_ONLY",
+        async invoke() {
+          return {
+            output: {
+              files: [{ id: "file-1", name: "notes.txt" }],
+            },
+          };
+        },
+      };
+
+      const gateway = {
+        async invokeText({ request }: { request: TextModelRequest }) {
+          calls += 1;
+
+          if (calls === 1) {
+            expect(request.tools).toEqual(
+              expect.arrayContaining([
+                expect.objectContaining({
+                  toolId: "integration.invoke:google-drive-primary:LIST_FILES",
+                }),
+              ]),
+            );
+
+            return {
+              agentId,
+              modelId: model.id,
+              providerId: provider.id,
+              source: "PREFERRED" as const,
+              output: {
+                content: "",
+                finishReason: "TOOL_CALL" as const,
+                toolCalls: [
+                  {
+                    id: "integration-call-1",
+                    toolId: "integration.invoke:google-drive-primary:LIST_FILES",
+                    input: {},
+                  },
+                ],
+              },
+            };
+          }
+
+          expect(request.messages).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                role: "TOOL",
+                content: expect.stringContaining("notes.txt"),
+              }),
+            ]),
+          );
+
+          return {
+            agentId,
+            modelId: model.id,
+            providerId: provider.id,
+            source: "PREFERRED" as const,
+            output: {
+              content: "Found notes.txt.",
+              finishReason: "STOP" as const,
+            },
+          };
+        },
+      } as unknown as AgentGateway;
+
+      const tools = new InMemoryToolRegistry();
+      const adapters = new InMemoryToolAdapterRegistry();
+      const toolInvocation = new ToolInvocationService({
+        tools,
+        adapters,
+        approvals: stores.approvals,
+        policyDecisions: stores.policyDecisions,
+        events: stores.events,
+        unitOfWork: stores,
+      });
+
+      const integrations = new InMemoryIntegrationAdapterRegistry();
+      integrations.register(integration);
+      const integrationInvocation = new IntegrationInvocationService({
+        integrations,
+        approvals: stores.approvals,
+        policyDecisions: stores.policyDecisions,
+        events: stores.events,
+        unitOfWork: stores,
+      });
+
+      const orchestrator = new AgentToolOrchestrationService({
+        agentGateway: gateway,
+        toolInvocation,
+        integrationInvocation,
+        integrations,
+        tools,
+        approvals: stores.approvals,
+        executions: stores.executions,
+        tasks: stores.tasks,
+        events: stores.events,
+        unitOfWork: stores,
+        enqueueExecution: () => {},
+      });
+
+      const result = await orchestrator.invoke({
+        agentId,
+        requiredCapabilityIds: ["text.generate"],
+        request: {
+          messages: [{ role: "USER", content: "List my Drive files." }],
+        },
+        policy: {
+          ...policy,
+          defaultEffect: "ALLOW",
+        },
+        actorId: "actor.test",
+      });
+
+      expect(result.status).toBe("SUCCEEDED");
+      if (result.status === "SUCCEEDED") {
+        expect(result.response.content).toBe("Found notes.txt.");
+      }
+      expect(calls).toBe(2);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
