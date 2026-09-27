@@ -2,7 +2,7 @@ import type { Mission, Policy, Task } from "@polyon/contracts";
 import { describe, expect, it } from "vitest";
 
 import { InMemoryExecutionQueue } from "@polyon/runtime";
-import { InMemoryDomainStores } from "@polyon/storage";
+import { InMemoryDomainStores, InMemoryEventStore } from "@polyon/storage";
 import { ExecutionDispatchService } from "./execution-dispatch-service";
 import {
   MissionExecutionService,
@@ -83,6 +83,7 @@ function createService() {
     executions: stores.executions,
     approvals: stores.approvals,
     policyDecisions: stores.policyDecisions,
+    events: new InMemoryEventStore(),
   });
   const service = new MissionExecutionService(
     dispatch,
