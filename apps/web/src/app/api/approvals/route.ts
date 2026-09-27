@@ -1,5 +1,5 @@
 import { isAuthenticated } from "@/server/auth";
-import { getPolyonActorId, getPolyonComposition, isSameOrigin } from "@/server/polyon-server";
+import { getPolyonActorId, getPolyonComposition, getPolyonPolicy, isSameOrigin } from "@/server/polyon-server";
 
 export const runtime = "nodejs";
 const MAX_REQUEST_BYTES = 16_384;

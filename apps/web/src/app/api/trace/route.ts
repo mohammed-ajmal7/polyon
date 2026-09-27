@@ -1,5 +1,6 @@
 import { TraceQueryService } from "@polyon/application";
 import { isAuthenticated } from "@/server/auth";
+import { getPolyonComposition } from "@/server/polyon-server";
 export const runtime = "nodejs";
 
 export async function GET(request: Request): Promise<Response> {
