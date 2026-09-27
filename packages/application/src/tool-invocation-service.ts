@@ -278,7 +278,7 @@ export class ToolInvocationService {
           invocationId: input.invocationId,
           toolId: tool.id,
           policyDecision: authorization.policyDecision,
-          approvalRequest,
+          approvalRequest: persistedApproval,
         };
       }
 
