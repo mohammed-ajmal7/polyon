@@ -17,6 +17,7 @@ import {
 import {
   ArtifactCatalogService,
   CommandIngressService,
+  CodingAgentService,
   ConversationAgentOrchestrationService,
   IntegrationCatalogService,
   IntegrationInvocationService,
@@ -189,6 +190,7 @@ export interface PolyonComposition {
   readonly artifactCatalog: ArtifactCatalogService;
   readonly localArtifactContent?: LocalArtifactContentService;
   readonly agentToolOrchestration: AgentToolOrchestrationService;
+  readonly codingAgent: CodingAgentService;
   readonly memory: MemoryService;
   readonly research?: ResearchService;
   readonly researchSynthesis: ResearchSynthesisService;
@@ -664,8 +666,10 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     missionGraphExecution,
   );
   const executionRetry = new ExecutionRetryService(stores.tasks, stores.events, missionExecution);
+  const codingAgent = new CodingAgentService(agentToolOrchestration);
   const conversationOrchestration = new ConversationAgentOrchestrationService(
     agentToolOrchestration,
+    codingAgent,
     stores.conversations,
     stores.messages,
     stores.events,
