@@ -75,6 +75,7 @@ export function authorizeIntegrationInvocation(
     riskLevel: input.riskLevel,
     actorId: input.actorId,
     agentId: input.agentId,
+    integrationId: input.integration.integrationId,
     missionId: input.missionId,
     taskId: input.taskId,
     evaluatedAt: input.evaluatedAt,
