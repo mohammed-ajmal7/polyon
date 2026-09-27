@@ -577,9 +577,10 @@ describe("SmtpTransport", () => {
         },
       ),
     ).rejects.toMatchObject({
-      name: "SmtpTransportError",
+      name: "SmtpEnvelopeError",
       kind: "PERMANENT",
       smtpCode: 500,
+      message: "SMTP envelope was rejected.",
     });
 
     expect(connection.close).toHaveBeenCalledTimes(1);
