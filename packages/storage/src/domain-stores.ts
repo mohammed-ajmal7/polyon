@@ -5,6 +5,7 @@ import type {
   Execution,
   Message,
   Mission,
+  MissionPlanProposal,
   PolicyDecision,
   Task,
 } from "@polyon/contracts";
@@ -17,6 +18,7 @@ export type ConversationStore = EntityStore<Conversation>;
 export type ExecutionStore = EntityStore<Execution>;
 export type MessageStore = EntityStore<Message>;
 export type MissionStore = EntityStore<Mission>;
+export type MissionPlanProposalStore = EntityStore<MissionPlanProposal>;
 export type PolicyDecisionStore = EntityStore<PolicyDecision>;
 export type TaskStore = EntityStore<Task>;
 
@@ -27,6 +29,7 @@ export interface DomainStores {
   readonly executions: ExecutionStore;
   readonly messages: MessageStore;
   readonly missions: MissionStore;
+  readonly missionPlanProposals: MissionPlanProposalStore;
   readonly policyDecisions: PolicyDecisionStore;
   readonly tasks: TaskStore;
 }
@@ -38,6 +41,8 @@ export class InMemoryDomainStores implements DomainStores {
   readonly executions: ExecutionStore = new InMemoryEntityStore<Execution>();
   readonly messages: MessageStore = new InMemoryEntityStore<Message>();
   readonly missions: MissionStore = new InMemoryEntityStore<Mission>();
+  readonly missionPlanProposals: MissionPlanProposalStore =
+    new InMemoryEntityStore<MissionPlanProposal>();
   readonly policyDecisions: PolicyDecisionStore = new InMemoryEntityStore<PolicyDecision>();
   readonly tasks: TaskStore = new InMemoryEntityStore<Task>();
 }
