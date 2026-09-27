@@ -3,14 +3,12 @@ export interface SmtpTransportOptions {
   readonly port: number;
   readonly secure: boolean;
   readonly startTls?: boolean;
-  readonly minTlsVersion?: "TLSv1.2" | "TLSv1.3";
   readonly connectionTimeoutMs?: number;
   readonly maxMessageBytes?: number;
 }
 
 const DEFAULT_CONNECTION_TIMEOUT_MS = 10_000;
 const DEFAULT_MAX_MESSAGE_BYTES = 1_000_000;
-const DEFAULT_MIN_TLS_VERSION = "TLSv1.2" as const;
 const MAX_CONNECTION_TIMEOUT_MS = 60_000;
 const MAX_MESSAGE_BYTES = 10_000_000;
 
@@ -19,7 +17,6 @@ export interface ValidatedSmtpTransportOptions {
   readonly port: number;
   readonly secure: boolean;
   readonly startTls: boolean;
-  readonly minTlsVersion: "TLSv1.2" | "TLSv1.3";
   readonly connectionTimeoutMs: number;
   readonly maxMessageBytes: number;
 }
@@ -41,12 +38,6 @@ export function validateSmtpTransportOptions(
   if (options.secure && startTls) {
     throw new RangeError("SMTP secure and STARTTLS modes are mutually exclusive.");
   }
-
-  if (!options.secure && !startTls) {
-    throw new RangeError("Authenticated SMTP transport requires TLS via secure or STARTTLS.");
-  }
-
-  const minTlsVersion = options.minTlsVersion ?? DEFAULT_MIN_TLS_VERSION;
 
   const connectionTimeoutMs = options.connectionTimeoutMs ?? DEFAULT_CONNECTION_TIMEOUT_MS;
 
@@ -77,7 +68,6 @@ export function validateSmtpTransportOptions(
     port: options.port,
     secure: options.secure,
     startTls,
-    minTlsVersion,
     connectionTimeoutMs,
     maxMessageBytes,
   };
