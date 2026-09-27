@@ -116,8 +116,8 @@ describe("MissionExecutionService", () => {
     expect(result.awaitingApproval).toEqual([]);
     expect(result.rejected).toEqual([]);
     expect(queue.size()).toBe(2);
-    expect(stores.tasks.get("task-1")?.status).toBe("RUNNING");
-    expect(stores.tasks.get("task-2")?.status).toBe("RUNNING");
+    expect(stores.tasks.get("task-1")?.status).toBe("APPROVED");
+    expect(stores.tasks.get("task-2")?.status).toBe("APPROVED");
   });
 
   it("does not dispatch a dependent task before its dependency succeeds", () => {

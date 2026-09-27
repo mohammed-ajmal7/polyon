@@ -110,9 +110,9 @@ export class MissionExecutionService {
         expiresAt: input.expiresAt,
       });
 
-      const taskStatus =
+        const taskStatus =
         plan.nextStep === "ENQUEUE"
-          ? "RUNNING"
+          ? "APPROVED"
           : plan.nextStep === "AWAIT_APPROVAL"
             ? "APPROVAL_REQUIRED"
             : "REJECTED";
