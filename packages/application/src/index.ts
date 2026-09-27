@@ -87,3 +87,14 @@ export {
   type ConversationQueryErrorKind,
   type ConversationSnapshot,
 } from "./conversation-query";
+
+export {
+  ToolInvocationService,
+  ToolInvocationServiceError,
+  type InvokeApprovedToolInput,
+  type InvokeToolInput,
+  type ResolveToolApprovalInput,
+  type ToolInvocationOutcome,
+  type ToolInvocationServiceDependencies,
+  type ToolInvocationServiceErrorKind,
+} from "./tool-invocation-service";
