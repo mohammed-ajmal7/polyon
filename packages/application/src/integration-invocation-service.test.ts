@@ -159,7 +159,13 @@ describe("IntegrationInvocationService", () => {
       invoke,
     });
 
-    await service.invoke(baseInput);
+    await service.invoke({
+      ...baseInput,
+      policy: {
+        ...policy,
+        defaultEffect: "REQUIRE_APPROVAL",
+      },
+    });
     service.resolveApproval({
       approvalId: "integration-approval-1",
       status: "APPROVED",
