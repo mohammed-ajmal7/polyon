@@ -95,7 +95,7 @@ export class ResearchService {
           actorId: input.actorId,
           missionId: input.missionId,
           taskId: input.taskId,
-          occurredAt: source.retrievedAt,
+          occurredAt: source.retrievedAt ?? input.now,
           data: { sourceId: source.id, kind: source.kind, title: source.title, locator: source.locator },
         });
         this.events.append({
