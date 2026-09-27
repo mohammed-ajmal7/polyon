@@ -180,3 +180,5 @@ export { ConversationAgentOrchestrationService, type ConversationAgentTarget, ty
 
 export { ResearchSynthesisService, type SynthesizeResearchInput, type ResearchSynthesisResult } from "./research-synthesis-service";
 export { CreativeJobService, type CreativeAdapter, type CreativeJobRequest, type CreativeOperation } from "./creative-job-service";
+
+export { ConfiguredHttpResearchProvider, type ConfiguredHttpResearchProviderOptions } from "./configured-http-research-provider";
