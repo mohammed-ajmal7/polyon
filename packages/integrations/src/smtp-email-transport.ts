@@ -38,6 +38,13 @@ export class SmtpTransportError extends Error {
   }
 }
 
+export class SmtpAuthenticationError extends SmtpTransportError {
+  constructor(kind: "TRANSIENT" | "PERMANENT" | "PROTOCOL", smtpCode?: number) {
+    super(kind, "SMTP authentication failed.", smtpCode);
+    this.name = "SmtpAuthenticationError";
+  }
+}
+
 export class SmtpEnvelopeError extends SmtpTransportError {
   constructor(kind: "TRANSIENT" | "PERMANENT" | "PROTOCOL", smtpCode?: number) {
     super(kind, "SMTP envelope was rejected.", smtpCode);
