@@ -112,7 +112,6 @@ describe("MissionCreationService", () => {
     stores.conversations.save({
       ...missionConversation,
       kind: "DIRECT",
-      missionId: undefined,
     });
 
     const service = new MissionCreationService({
@@ -131,6 +130,39 @@ describe("MissionCreationService", () => {
         createdAt: "2026-09-27T02:11:00.000Z",
       }),
     ).toThrowError(MissionCreationServiceError);
+
+    expect(stores.missions.get("mission-1")).toBeUndefined();
+    expect(events.list()).toEqual([]);
+  });
+
+  it("rejects a conversation that is already bound to a mission", () => {
+    const { stores, events } = serviceDependencies();
+    stores.conversations.save({
+      ...missionConversation,
+      missionId: "existing-mission",
+    });
+
+    const service = new MissionCreationService({
+      conversations: stores.conversations,
+      missions: stores.missions,
+      events,
+    });
+
+    expect(() =>
+      service.create({
+        id: "mission-1",
+        objective: "New mission",
+        actorId: "user-1",
+        eventId: "event-1",
+        conversationId: "conversation-1",
+        createdAt: "2026-09-27T02:11:00.000Z",
+      }),
+    ).toThrowError(
+      new MissionCreationServiceError(
+        "CONVERSATION_ALREADY_BOUND",
+        "Conversation conversation-1 is already bound to mission existing-mission.",
+      ),
+    );
 
     expect(stores.missions.get("mission-1")).toBeUndefined();
     expect(events.list()).toEqual([]);
