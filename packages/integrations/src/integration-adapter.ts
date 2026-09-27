@@ -3,6 +3,7 @@ export type IntegrationKind = "GOOGLE_DRIVE" | "TELEGRAM" | "EMAIL";
 export type IntegrationId = string;
 
 export interface IntegrationInvocationRequest<TInput = unknown> {
+  readonly invocationId: string;
   readonly operation: string;
   readonly input: TInput;
 }
