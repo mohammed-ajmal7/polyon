@@ -12,6 +12,7 @@ declare module "node:fs" {
   export function realpathSync(path: string): string;
   export function statSync(path: string): {
     readonly size: number;
+    readonly mtimeMs: number;
     isDirectory(): boolean;
     isFile(): boolean;
   };
