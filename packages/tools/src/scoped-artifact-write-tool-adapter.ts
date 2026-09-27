@@ -2,7 +2,6 @@ import {
   closeSync,
   existsSync,
   fsyncSync,
-  mkdirSync,
   openSync,
   readFileSync,
   realpathSync,
@@ -11,7 +10,7 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import {
   dirname,
   isAbsolute,
@@ -138,7 +137,7 @@ export class ScopedArtifactWriteToolAdapter
               : { mimeType: input.mimeType }),
             location: target,
             status: "AVAILABLE",
-            sizeBytes: Buffer.byteLength(existing, "utf8"),
+            sizeBytes: byteLength(existing),
             sha256: existingSha,
             created: false,
           },
@@ -152,9 +151,16 @@ export class ScopedArtifactWriteToolAdapter
     }
 
     const parent = dirname(target);
-    mkdirSync(parent, { recursive: true });
 
-    const tempPath = `${target}.${randomUUID()}.tmp`;
+    if (!existsSync(parent) || !statSync(parent).isDirectory()) {
+      throw new ScopedArtifactWriteToolError(
+        "PATH_CONFLICT",
+        `Artifact parent directory does not exist: ${parent}.`,
+      );
+    }
+
+    const tempPath =
+      `${target}.${sha256(input.content).slice(0, 16)}.tmp`;
 
     try {
       writeFileSync(tempPath, input.content, "utf8");
@@ -192,7 +198,7 @@ export class ScopedArtifactWriteToolAdapter
           : { mimeType: input.mimeType }),
         location: target,
         status: "AVAILABLE",
-        sizeBytes: Buffer.byteLength(persisted, "utf8"),
+        sizeBytes: byteLength(persisted),
         sha256: sha256(persisted),
         created: true,
       },
@@ -255,6 +261,10 @@ function readExisting(path: string): string | undefined {
 
 function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
+}
+
+function byteLength(value: string): number {
+  return new TextEncoder().encode(value).byteLength;
 }
 
 function isInsideRoot(rootDir: string, candidate: string): boolean {
