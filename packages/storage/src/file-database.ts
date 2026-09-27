@@ -29,6 +29,7 @@ import type {
 } from "@polyon/contracts";
 
 import {
+  CURRENT_DURABLE_DOMAIN_VERSION,
   DurableMigrationError,
   durableMigrations,
   migrateDurableSnapshot,
@@ -205,8 +206,6 @@ function withCommitLock<T>(filePath: string, work: () => T): T {
     }
   }
 }
-
-export const CURRENT_DURABLE_DOMAIN_VERSION = 1;
 
 export class FileDomainDatabase {
   private state: DurableDomainState;
