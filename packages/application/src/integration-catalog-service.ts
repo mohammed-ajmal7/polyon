@@ -68,6 +68,7 @@ function toEntry(adapter: {
   readonly kind: IntegrationKind;
   readonly actionKinds: readonly ActionKind[];
   readonly supportedOperations: readonly string[];
+  readonly sideEffectClass: import("@polyon/contracts").IntegrationSideEffectClass;
 }): IntegrationCatalogEntry {
   return {
     integrationId: adapter.integrationId,
