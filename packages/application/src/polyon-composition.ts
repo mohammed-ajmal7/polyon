@@ -669,7 +669,6 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   const codingAgent = new CodingAgentService(agentToolOrchestration);
   const conversationOrchestration = new ConversationAgentOrchestrationService(
     agentToolOrchestration,
-    codingAgent,
     stores.conversations,
     stores.messages,
     stores.events,
@@ -736,6 +735,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     artifactCatalog,
     ...(localArtifactContent === undefined ? {} : { localArtifactContent }),
     agentToolOrchestration,
+    codingAgent,
     memory,
     ...(research === undefined ? {} : { research }),
     researchSynthesis,
