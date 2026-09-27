@@ -34,6 +34,7 @@ export interface AgentToolOrchestrationInput {
   readonly taskId?: string;
   readonly executionId?: string;
   readonly maxToolRounds?: number;
+  readonly maxToolOutputBytes?: number;
   readonly defaultRiskLevel?: RiskLevel;
   readonly checkpointApprovalId?: string;
   readonly now?: () => string;
@@ -120,6 +121,9 @@ export class AgentToolOrchestrationService {
         };
       }
 
+      const maxToolOutputBytes = input.maxToolOutputBytes ?? DEFAULT_MAX_TOOL_OUTPUT_BYTES;
+      assertPositiveLimit(maxToolOutputBytes, "maxToolOutputBytes");
+
       const assistantMessage: ModelMessage = {
         role: "ASSISTANT",
         content: currentResponse.content,
@@ -157,7 +161,7 @@ export class AgentToolOrchestrationService {
           role: "TOOL",
           name: toolCall.toolId,
           toolCallId: toolCall.id,
-          content: stringifyToolOutput(outcome.output),
+          content: stringifyToolOutput(outcome.output, maxToolOutputBytes),
         });
       }
 
@@ -597,14 +601,35 @@ function defaultRiskForAction(action: ActionKind): RiskLevel {
   }
 }
 
-function stringifyToolOutput(output: unknown): string {
-  if (typeof output === "string") {
-    return output;
+const DEFAULT_MAX_TOOL_OUTPUT_BYTES = 131_072;
+
+function assertPositiveLimit(value: number, field: string): void {
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new RangeError(`${field} must be a positive integer.`);
+  }
+}
+
+function stringifyToolOutput(output: unknown, maxBytes = DEFAULT_MAX_TOOL_OUTPUT_BYTES): string {
+  const text =
+    typeof output === "string"
+      ? output
+      : (() => {
+          try {
+            return JSON.stringify(output);
+          } catch {
+            return String(output);
+          }
+        })();
+
+  const bytes = new TextEncoder().encode(text);
+
+  if (bytes.byteLength <= maxBytes) {
+    return text;
   }
 
-  try {
-    return JSON.stringify(output);
-  } catch {
-    return String(output);
-  }
+  const prefix = new TextDecoder().decode(bytes.slice(0, maxBytes));
+  return (
+    `[Tool output truncated: original ${bytes.byteLength} bytes; limit ${maxBytes} bytes.]\n` +
+    prefix
+  );
 }
