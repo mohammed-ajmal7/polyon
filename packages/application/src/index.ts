@@ -1,4 +1,13 @@
 export {
+  LocalArtifactContentService,
+  LocalArtifactContentServiceError,
+  type LocalArtifactContent,
+  type LocalArtifactContentServiceDependencies,
+  type LocalArtifactContentServiceErrorKind,
+  type LocalArtifactContentServiceOptions,
+} from "./local-artifact-content-service";
+
+export {
   ArtifactCatalogService,
   ArtifactCatalogServiceError,
   type ArtifactCatalogFilter,
