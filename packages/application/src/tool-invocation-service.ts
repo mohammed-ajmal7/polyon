@@ -14,6 +14,7 @@ import { transitionApprovalStatus } from "@polyon/core";
 import {
   authorizeToolInvocation,
   ToolAuthorizationError,
+  ToolInputValidationError,
   type ToolAdapterRegistry,
   type ToolRegistry,
 } from "@polyon/tools";
@@ -306,6 +307,31 @@ export class ToolInvocationService {
         agentId: input.agentId,
         expiresAt: input.expiresAt,
       });
+
+      try {
+        const { validateToolInput } = await import("@polyon/tools");
+        validateToolInput(tool, input.input);
+      } catch (error) {
+        if (!(error instanceof ToolInputValidationError)) {
+          throw error;
+        }
+
+        const message = `Tool input validation failed at ${error.path}: ${error.message}`;
+        return this.failInvocation(
+          input,
+          tool,
+          authorization.policyDecision,
+          input.action,
+          input.riskLevel,
+          {
+            actorId: input.actorId,
+            missionId: input.missionId,
+            taskId: input.taskId,
+            executionId: input.executionId,
+          },
+          message,
+        );
+      }
 
       if (authorization.status === "APPROVAL_REQUIRED") {
         const approvalRequest = authorization.approvalRequest!;
