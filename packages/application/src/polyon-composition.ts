@@ -17,6 +17,7 @@ import {
 import {
   ArtifactCatalogService,
   CommandIngressService,
+  ConversationAgentOrchestrationService,
   IntegrationCatalogService,
   IntegrationInvocationService,
   LocalArtifactContentService,
@@ -30,6 +31,7 @@ import {
   DebateOrchestrationService,
   ExecutionRetryService,
   MissionExecutionService,
+  MissionExecutionOrchestrationService,
   MissionTaskOrchestrationService,
   ToolInvocationService,
   registerKnowledgeTools,
@@ -146,6 +148,8 @@ export interface PolyonCompositionOptions {
 
 export interface PolyonComposition {
   readonly commandIngress: CommandIngressService;
+  readonly conversationOrchestration: ConversationAgentOrchestrationService;
+  readonly missionExecutionOrchestration: MissionExecutionOrchestrationService;
   readonly stores: FileDomainStores;
   readonly agents: InMemoryAgentRegistry;
   readonly models: InMemoryModelRegistry;
@@ -582,9 +586,46 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   });
 
   const executionRetry = new ExecutionRetryService(stores.tasks, stores.events, missionExecution);
+  const conversationOrchestration = new ConversationAgentOrchestrationService(
+    agentToolOrchestration,
+    stores.conversations,
+    stores.messages,
+    stores.events,
+    stores,
+  );
+
+  const missionExecutionOrchestration = new MissionExecutionOrchestrationService(
+    new MissionCreationService({
+      conversations: stores.conversations,
+      missions: stores.missions,
+      events: stores.events,
+      unitOfWork: stores,
+    }),
+    new MissionLifecycleService({
+      missions: stores.missions,
+      tasks: stores.tasks,
+      events: stores.events,
+      unitOfWork: stores,
+    }),
+    new MissionPlanService({
+      missions: stores.missions,
+      tasks: stores.tasks,
+      proposals: stores.missionPlanProposals,
+      policyDecisions: stores.policyDecisions,
+      approvals: stores.approvals,
+      events: stores.events,
+      unitOfWork: stores,
+    }),
+    missionExecution,
+    stores.tasks,
+  );
+
+
 
   return {
     commandIngress,
+    conversationOrchestration,
+    missionExecutionOrchestration,
     stores,
     agents,
     models,
