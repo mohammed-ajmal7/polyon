@@ -1,3 +1,34 @@
+describe("InMemoryDomainStores", () => {
+  it("rolls back all domain collections and events when a transaction throws", () => {
+    const stores = new InMemoryDomainStores();
+
+    expect(() =>
+      stores.transaction(({ missions, events }) => {
+        missions.save({
+          id: "mission-rollback-1",
+          objective: "Should roll back.",
+          constraints: [],
+          status: "DRAFT",
+          taskIds: [],
+          createdAt: "2026-09-27T04:00:00.000Z",
+          updatedAt: "2026-09-27T04:00:00.000Z",
+        });
+        events.append({
+          id: "event-rollback-1",
+          kind: "MISSION_CREATED",
+          missionId: "mission-rollback-1",
+          occurredAt: "2026-09-27T04:00:00.000Z",
+          data: {},
+        });
+        throw new Error("rollback");
+      }),
+    ).toThrow("rollback");
+
+    expect(stores.missions.get("mission-rollback-1")).toBeUndefined();
+    expect(stores.events.get("event-rollback-1")).toBeUndefined();
+  });
+});
+
 /// <reference path="./node-runtime.d.ts" />
 
 import { mkdtempSync, rmSync } from "node:fs";
@@ -6,6 +37,7 @@ import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 
 import { FileDomainStores } from "./file-domain-stores";
+import { InMemoryDomainStores } from "./domain-stores";
 
 describe("FileDomainStores", () => {
   it("reopens the same durable domain stores without losing entities", () => {
