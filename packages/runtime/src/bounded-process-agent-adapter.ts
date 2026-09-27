@@ -188,7 +188,7 @@ export class BoundedProcessAgentAdapter {
         ));
       }, timeoutMs);
 
-      const finish = (error?: Error): void => {
+      const finish = (error?: unknown): void => {
         if (settled) return;
         settled = true;
         clearTimeout(timeout);

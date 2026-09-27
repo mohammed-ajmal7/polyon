@@ -40,3 +40,4 @@ export class JsonInteroperabilityAdapter implements InteroperabilityAdapter {
     return envelope;
   }
 }
+

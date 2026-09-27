@@ -1,7 +1,8 @@
 import { BoundedHttpClient } from "@polyon/integrations";
 import type { SourceKind } from "@polyon/contracts";
 
-import type { ResearchRetriever, ResearchSearchResult } from "./bounded-web-research-retriever";
+import type { ResearchSearchResult } from "./bounded-web-research-retriever";
+import type { ResearchRetriever } from "./research-service";
 
 export interface ConfiguredHttpResearchProviderOptions {
   readonly endpoint: string;
