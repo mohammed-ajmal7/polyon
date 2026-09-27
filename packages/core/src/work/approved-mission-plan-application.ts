@@ -66,7 +66,7 @@ export function applyApprovedMissionPlanProposal(
   }
 
   try {
-    return applyMissionPlanProposal(proposal, mission, tasks);
+    return applyMissionPlanProposal(proposal, mission, tasks, evaluatedAt);
   } catch (error) {
     if (error instanceof InvalidMissionPlanProposalError) {
       throw new ApprovedMissionPlanApplicationError("INVALID_PROPOSAL", error.message);
