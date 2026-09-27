@@ -1,4 +1,4 @@
-import type { Model, Provider } from "@polyon/contracts";
+import type { Model, Provider, TextModelRequest, TextModelResponse } from "@polyon/contracts";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -69,6 +69,69 @@ describe("ModelGateway", () => {
     await expect(gateway.invoke("model-1", "hello")).resolves.toEqual({
       output: "model-1:hello",
     });
+  });
+
+
+  it("supports structured text model invocations", async () => {
+    const gateway = createGateway({
+      providerId: "provider-1",
+      async invoke({ input }) {
+        const request = input as TextModelRequest;
+        const response: TextModelResponse = {
+          content: request.messages.map((message) => message.content).join(" "),
+          finishReason: "STOP",
+        };
+
+        return { output: response };
+      },
+    });
+
+    await expect(
+      gateway.invokeText("model-1", {
+        messages: [
+          { role: "SYSTEM", content: "You are helpful." },
+          { role: "USER", content: "Hello POLYON." },
+        ],
+      }),
+    ).resolves.toEqual({
+      output: {
+        content: "You are helpful. Hello POLYON.",
+        finishReason: "STOP",
+      },
+    });
+  });
+
+  it("rejects text invocation for a non-text model", () => {
+    const { providers } = createCatalogs(model, provider);
+    const imageModel: Model = {
+      ...model,
+      kind: "IMAGE",
+    };
+    const models: ModelCatalog = {
+      get: (id: string) => (id === imageModel.id ? imageModel : undefined),
+    };
+    const adapters = new InMemoryProviderAdapterRegistry();
+
+    adapters.register({
+      providerId: "provider-1",
+      async invoke() {
+        return { output: "unused" };
+      },
+    });
+
+    const gateway = new ModelGateway({ models, providers, adapters });
+
+    expect(() =>
+      gateway.invokeText("model-1", {
+        messages: [{ role: "USER", content: "hello" }],
+      }),
+    ).toThrowError(
+      new ModelGatewayError(
+        "MODEL_KIND_UNSUPPORTED",
+        "model-1",
+        "Text invocation requires a TEXT model: model-1.",
+      ),
+    );
   });
 
   it("enforces an invocation timeout even when an adapter ignores abort", async () => {
