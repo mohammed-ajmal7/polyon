@@ -145,6 +145,8 @@ describe("ExecutionApprovalService", () => {
   });
 
   it("rejects a non-execution approval action for every resolution path", () => {
+    const { service } = createService();
+
     expect(() =>
       service.resolve(
         { ...approval, action: "PLAN_APPLY" },
@@ -155,6 +157,8 @@ describe("ExecutionApprovalService", () => {
   });
 
   it("rejects an approval bound to another execution before rejection", () => {
+    const { service } = createService();
+
     expect(() =>
       service.resolve(
         { ...approval, executionId: "execution-2" },
