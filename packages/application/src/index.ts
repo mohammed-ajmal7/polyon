@@ -9,3 +9,11 @@ export {
   type ExecutionDispatchServiceDependencies,
   type PersistedExecutionDispatch,
 } from "./execution-dispatch-service";
+
+export {
+  MissionExecutionService,
+  MissionExecutionValidationError,
+  type DispatchReadyTasksInput,
+  type DispatchReadyTasksResult,
+  type ExecutionIdentityFactory,
+} from "./mission-execution-service";
