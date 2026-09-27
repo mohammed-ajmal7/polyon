@@ -204,9 +204,6 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
                 ...(tool.inputSchema === undefined
                   ? {}
                   : { inputSchema: tool.inputSchema }),
-                ...(tool.inputSchema === undefined
-                  ? {}
-                  : { inputSchema: tool.inputSchema }),
               })),
             toolOrchestrator: {
               continueFromResponse: async ({ execution, request, response }) => {
@@ -231,7 +228,17 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
                     executionId: execution.id,
                     maxToolRounds: options.maxToolRounds,
                   },
+                  request,
+                  response,
                 );
+
+                if (result.status === "NO_CONTINUATION") {
+                  return {
+                    status: "FAILED" as const,
+                    response,
+                    error: "Tool continuation disappeared before orchestration resumed.",
+                  };
+                }
 
                 return {
                   status: result.status,
