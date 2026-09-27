@@ -20,16 +20,12 @@ export class SecretResolverError extends Error {
 }
 
 export interface EnvironmentSecretResolverOptions {
-  readonly environment:
-    | Readonly<Record<string, string | undefined>>
-    | NodeJS.ProcessEnv;
+  readonly environment: Readonly<Record<string, string | undefined>>;
   readonly references: Readonly<Record<string, string>>;
 }
 
 export class EnvironmentSecretResolver implements SecretResolver {
-  private readonly environment:
-    | Readonly<Record<string, string | undefined>>
-    | NodeJS.ProcessEnv;
+  private readonly environment: Readonly<Record<string, string | undefined>>;
   private readonly references: ReadonlyMap<string, string>;
 
   constructor(options: EnvironmentSecretResolverOptions) {
