@@ -1,11 +1,12 @@
 import type { Conversation, Execution, Task } from "@polyon/contracts";
+import { InMemoryExecutionCoordinator, InMemoryExecutionQueue } from "@polyon/runtime";
+import { InMemoryDomainStores, InMemoryEventStore } from "@polyon/storage";
+import { describe, expect, it } from "vitest";
+
 import {
   ExecutionResultService,
   type PersistExecutionResultInput,
 } from "./execution-result-service";
-import { InMemoryExecutionCoordinator, InMemoryExecutionQueue } from "@polyon/runtime";
-import { InMemoryDomainStores, InMemoryEventStore } from "@polyon/storage";
-import { describe, expect, it } from "vitest";
 
 const execution: Execution = {
   id: "execution-1",
@@ -58,7 +59,10 @@ describe("execution result integration", () => {
         async run(current) {
           expect(current.id).toBe("execution-1");
           expect(stores.executions.get("execution-1")?.status).toBe("RUNNING");
-          return { status: "SUCCEEDED" };
+          return {
+            status: "SUCCEEDED",
+            output: "Build completed.",
+          };
         },
       },
       executions: stores.executions,
@@ -66,16 +70,24 @@ describe("execution result integration", () => {
       events,
     });
 
-    const completed = await coordinator.runNext(
+    const completed = await coordinator.runNextWithResult(
       "2026-09-27T03:01:00.000Z",
       "2026-09-27T03:05:00.000Z",
     );
 
-    expect(completed?.status).toBe("SUCCEEDED");
+    expect(completed?.execution.status).toBe("SUCCEEDED");
+    expect(completed?.result).toEqual({
+      status: "SUCCEEDED",
+      output: "Build completed.",
+    });
 
-    const output = "Build completed.";
+    const output = completed!.result.status === "SUCCEEDED" ? completed!.result.output : undefined;
+    if (output === undefined) {
+      throw new Error("Expected a successful execution output.");
+    }
+
     const resultInput: PersistExecutionResultInput = {
-      executionId: completed!.id,
+      executionId: completed!.execution.id,
       conversationId: "conversation-1",
       messageId: "message-1",
       actorId: "agent-1",
