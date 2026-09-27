@@ -322,6 +322,9 @@ The current execution system has boundaries and in-memory implementations. It st
 
 The provider adapter boundary exists. Concrete adapters still need to be added and tested.
 
+The provider layer now also has a reliability boundary: model invocations accept cancellation signals, support explicit timeouts, normalize adapter failures into typed provider invocation errors, and can retry only failures explicitly classified as retryable. These controls are exposed through AgentGateway without coupling agents to a concrete provider.
+
+
 The architecture should permit hosted models, local models, CLI agents, and remote agents without embedding their assumptions into core.
 
 ### Real tool execution
