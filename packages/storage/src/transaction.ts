@@ -2,17 +2,10 @@ import type { DomainEvent } from "@polyon/contracts";
 
 import type { DomainStores } from "./domain-stores";
 import type { DurableDomainState } from "./file-database";
+import type { EventStore } from "./event-store";
 
 export interface DomainStoreTransactionContext extends DomainStores {
-  readonly events: {
-    append(event: DomainEvent): void;
-    get(eventId: DomainEvent["id"]): DomainEvent | undefined;
-    list(): readonly DomainEvent[];
-    listByConversation(conversationId: NonNullable<DomainEvent["conversationId"]>): readonly DomainEvent[];
-    listByMission(missionId: NonNullable<DomainEvent["missionId"]>): readonly DomainEvent[];
-    listByTask(taskId: NonNullable<DomainEvent["taskId"]>): readonly DomainEvent[];
-    listByExecution(executionId: NonNullable<DomainEvent["executionId"]>): readonly DomainEvent[];
-  };
+  readonly events: EventStore;
 }
 
 export interface DomainUnitOfWork {
@@ -20,3 +13,5 @@ export interface DomainUnitOfWork {
 }
 
 export type DurableCollectionKey = keyof Omit<DurableDomainState, "version">;
+
+export type DurableCollection<TEntity extends { readonly id: string }> = readonly TEntity[];
