@@ -451,7 +451,6 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
                 return { status: "NO_CONTINUATION" as const };
               }
               return {
-    commandIngress,
                 status:
                   result.status === "SUCCEEDED"
                     ? ("SUCCEEDED" as const)
@@ -578,6 +577,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   const executionRetry = new ExecutionRetryService(stores.tasks, stores.events, missionExecution);
 
   return {
+    commandIngress,
     stores,
     agents,
     models,
