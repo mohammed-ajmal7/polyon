@@ -12,6 +12,8 @@ import type {
   Tool,
 } from "@polyon/contracts";
 import type { AgentGateway } from "@polyon/agents";
+import { transitionExecutionStatus, transitionTaskStatus } from "@polyon/core";
+import type { ExecutionStore, EventStore, TaskStore, DomainUnitOfWork } from "@polyon/storage";
 
 import type { ToolInvocationOutcome, ToolInvocationService } from "./tool-invocation-service";
 
@@ -52,6 +54,11 @@ export interface AgentToolOrchestrationDependencies {
   readonly agentGateway: AgentGateway;
   readonly toolInvocation: ToolInvocationService;
   readonly tools: { get(toolId: string): Tool | undefined; list(): readonly Tool[] };
+  readonly executions: ExecutionStore;
+  readonly tasks: TaskStore;
+  readonly events: EventStore;
+  readonly unitOfWork?: DomainUnitOfWork;
+  readonly queue?: { enqueue(execution: import("@polyon/contracts").Execution): void };
 }
 
 export class AgentToolOrchestrationService {
@@ -172,6 +179,11 @@ export class AgentToolOrchestrationService {
   private async invokeTool(
     input: AgentToolOrchestrationInput,
     toolCall: ModelToolCall,
+    continuation: {
+      readonly request: TextModelRequest;
+      readonly response: TextModelResponse;
+      readonly rounds: number;
+    },
   ): Promise<ToolInvocationOutcome> {
     const tool = this.dependencies.tools.get(toolCall.toolId);
     if (tool === undefined) {
@@ -212,6 +224,14 @@ export class AgentToolOrchestrationService {
       ...(input.taskId === undefined ? {} : { taskId: input.taskId }),
       ...(input.executionId === undefined ? {} : { executionId: input.executionId }),
       agentId: input.agentId,
+      toolContinuation: {
+        agentId: input.agentId,
+        requiredCapabilityIds: input.requiredCapabilityIds,
+        request: continuation.request,
+        response: continuation.response,
+        toolCall,
+        rounds: continuation.rounds,
+      },
     });
   }
 
@@ -251,3 +271,50 @@ function stringifyToolOutput(output: unknown): string {
     return String(output);
   }
 }
+
+  
+  private async pauseExecutionForApproval(
+    executionId: string | undefined,
+    approvalId: string,
+  ): Promise<void> {
+    if (executionId === undefined) return;
+    const execution = this.dependencies.executions.get(executionId);
+    if (execution === undefined || execution.status !== "RUNNING") return;
+    const task = this.dependencies.tasks.get(execution.taskId);
+    if (task === undefined) throw new Error(`Task not found for execution ${executionId}.`);
+
+    const now = new Date().toISOString();
+    const operation = (stores: {
+      executions: ExecutionStore;
+      tasks: TaskStore;
+      events: EventStore;
+    }) => {
+      const pausedExecution = transitionExecutionStatus(execution, "PAUSED", now);
+      const pausedTask = transitionTaskStatus(task, "PAUSED", now);
+      stores.executions.save(pausedExecution);
+      stores.tasks.save(pausedTask);
+      stores.events.append({
+        id: `EXECUTION_STATUS_CHANGED:${execution.id}:RUNNING:PAUSED:${now}:TOOL_APPROVAL`,
+        kind: "EXECUTION_STATUS_CHANGED",
+        actorId: execution.actorId,
+        missionId: execution.missionId,
+        taskId: execution.taskId,
+        executionId: execution.id,
+        occurredAt: now,
+        data: { from: "RUNNING", to: "PAUSED", reason: "TOOL_APPROVAL", approvalRequestId: approvalId },
+      });
+      stores.events.append({
+        id: `TASK_STATUS_CHANGED:${task.id}:RUNNING:PAUSED:${now}:TOOL_APPROVAL`,
+        kind: "TASK_STATUS_CHANGED",
+        missionId: task.missionId,
+        taskId: task.id,
+        occurredAt: now,
+        data: { from: "RUNNING", to: "PAUSED", reason: "TOOL_APPROVAL", approvalRequestId: approvalId },
+      });
+    };
+    if (this.dependencies.unitOfWork === undefined) {
+      operation(this.dependencies);
+    } else {
+      this.dependencies.unitOfWork.transaction(operation);
+    }
+  }
