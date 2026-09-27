@@ -14,7 +14,7 @@ export interface SmtpConnection {
   read(): Promise<string>;
   write(command: string): Promise<void>;
   close(): Promise<void>;
-  startTls(): Promise<void>;
+  startTls(serverName: string, timeoutMs: number): Promise<void>;
 }
 
 export interface SmtpConnectionFactory {
