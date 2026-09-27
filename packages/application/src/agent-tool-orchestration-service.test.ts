@@ -15,12 +15,13 @@ import type {
 import type { AgentGateway } from "@polyon/agents";
 import { InMemoryIntegrationAdapterRegistry, type IntegrationAdapter } from "@polyon/integrations";
 import { InMemoryToolAdapterRegistry, InMemoryToolRegistry, type ToolAdapter } from "@polyon/tools";
-import { FileDomainStores } from "@polyon/storage";
+import { FileDomainStores, InMemoryDomainStores } from "@polyon/storage";
 import { describe, expect, it, vi } from "vitest";
 
 import { AgentToolOrchestrationService } from "./agent-tool-orchestration-service";
 import { IntegrationInvocationService } from "./integration-invocation-service";
 import { ToolInvocationService } from "./tool-invocation-service";
+import { KnowledgeContextService } from "./knowledge-context-service";
 
 const now = "2026-09-27T02:00:00.000Z";
 const agentId: AgentId = "agent.test";
@@ -148,18 +149,17 @@ describe("AgentToolOrchestrationService", () => {
       updatedAt: "2026-09-28T00:00:01.000Z",
     });
 
-    const gateway = {
-      invokeText: vi.fn(async (input) => ({
-        agentId: input.agentId,
-        modelId: "model-1",
-        providerId: "provider-1",
-        source: "preferred" as const,
-        output: {
-          content: input.request.messages[0]?.content ?? "ok",
-          finishReason: "STOP" as const,
-        },
-      })),
-    } as never;
+    const invokeText = vi.fn(async (input: { agentId: string; request: TextModelRequest }) => ({
+      agentId: input.agentId,
+      modelId: "model-1",
+      providerId: "provider-1",
+      source: "preferred" as const,
+      output: {
+        content: input.request.messages[0]?.content ?? "ok",
+        finishReason: "STOP" as const,
+      },
+    }));
+    const gateway = { invokeText } as unknown as AgentGateway;
 
     const knowledge = new KnowledgeContextService(
       stores.memory,
@@ -171,7 +171,7 @@ describe("AgentToolOrchestrationService", () => {
       agentGateway: gateway,
       toolInvocation: {} as never,
       integrationInvocation: {} as never,
-      integrations: { list: () => [], get: () => undefined },
+      integrations: new InMemoryIntegrationAdapterRegistry(),
       tools: { list: () => [], get: () => undefined },
       approvals: stores.approvals,
       executions: stores.executions,
@@ -204,7 +204,9 @@ describe("AgentToolOrchestrationService", () => {
       },
     });
 
-    const request = gateway.invokeText.mock.calls[0]?.[0].request;
+    const firstCall = invokeText.mock.calls[0];
+    if (firstCall === undefined) throw new Error("Agent gateway was not invoked.");
+    const request = firstCall[0].request;
     expect(request.messages[0]?.content).toContain("project-memory");
     expect(request.messages[0]?.content).not.toContain("private-memory");
   });

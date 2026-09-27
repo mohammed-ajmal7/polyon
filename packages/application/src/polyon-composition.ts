@@ -46,6 +46,7 @@ import {
   MissionTaskOrchestrationService,
   ToolInvocationService,
   registerKnowledgeTools,
+  registerCreativeTools,
   type ReadyTaskHandler,
 } from "@polyon/application";
 import {
