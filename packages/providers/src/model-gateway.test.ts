@@ -32,10 +32,10 @@ function createCatalogs(
 ): { models: ModelCatalog; providers: ProviderCatalog } {
   return {
     models: {
-      get: (id) => (id === modelValue.id ? modelValue : undefined),
+      get: (id: string) => (id === modelValue.id ? modelValue : undefined),
     },
     providers: {
-      get: (id) => (id === providerValue.id ? providerValue : undefined),
+      get: (id: string) => (id === providerValue.id ? providerValue : undefined),
     },
   };
 }
@@ -84,7 +84,7 @@ describe("ModelGateway", () => {
 
     const { providers } = createCatalogs(model, provider);
     const models: ModelCatalog = {
-      get: (id) => (id === disabledModel.id ? disabledModel : undefined),
+      get: (id: string) => (id === disabledModel.id ? disabledModel : undefined),
     };
     const adapters = new InMemoryProviderAdapterRegistry();
 
