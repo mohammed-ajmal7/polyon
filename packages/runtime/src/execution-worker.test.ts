@@ -1,6 +1,6 @@
 import type { Execution, Task } from "@polyon/contracts";
 
-import { InMemoryEventStore, InMemoryDomainStores } from "@polyon/storage";
+import { InMemoryDomainStores } from "@polyon/storage";
 import { describe, expect, it } from "vitest";
 
 import { InMemoryExecutionCoordinator } from "./execution-coordinator";
