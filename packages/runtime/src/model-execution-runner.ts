@@ -1,5 +1,6 @@
 import type {
   Execution,
+  ModelToolDefinition,
   TextModelRequest,
 } from "@polyon/contracts";
 import {
@@ -33,6 +34,7 @@ export interface ModelExecutionRunnerDependencies {
   readonly tasks: TaskStore;
   readonly modelOptions?: ModelInvocationOptions;
   readonly systemPrompt?: string;
+  readonly toolDefinitions?: readonly ModelToolDefinition[];
   readonly toolOrchestrator?: ModelExecutionToolOrchestrator;
 }
 
@@ -72,15 +74,20 @@ ${task.description}`,
     ];
 
     try {
+      const modelRequest: TextModelRequest = {
+        messages,
+        ...(this.dependencies.toolDefinitions === undefined
+          ? {}
+          : { tools: this.dependencies.toolDefinitions }),
+      };
+
       const modelOptions: ModelInvocationOptions = {
         ...this.dependencies.modelOptions,
         ...(context === undefined ? {} : { signal: context.signal }),
       };
       const result = await this.dependencies.modelGateway.invokeText(
         execution.modelId,
-        {
-          messages,
-        },
+        modelRequest,
         modelOptions,
       );
 
@@ -112,7 +119,7 @@ ${task.description}`,
 
         const continuation = await this.dependencies.toolOrchestrator.continueFromResponse({
           execution,
-          request: { messages },
+          request: modelRequest,
           response: result.output,
           signal: context?.signal ?? new AbortController().signal,
         });
