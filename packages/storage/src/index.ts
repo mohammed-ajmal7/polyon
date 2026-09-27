@@ -9,6 +9,7 @@ export {
   type ExecutionStore,
   type MessageStore,
   type MissionStore,
+  type MissionPlanProposalStore,
   type PolicyDecisionStore,
   type TaskStore,
 } from "./domain-stores";
