@@ -127,6 +127,89 @@ function createOrchestrator(
 }
 
 describe("AgentToolOrchestrationService", () => {
+  it("injects only explicitly authorized knowledge context", async () => {
+    const stores = new InMemoryDomainStores();
+    stores.memory.save({
+      id: "private-memory",
+      kind: "FACT",
+      scope: "PRIVATE",
+      text: "private secret context",
+      tags: ["secret"],
+      createdAt: "2026-09-28T00:00:00.000Z",
+      updatedAt: "2026-09-28T00:00:00.000Z",
+    });
+    stores.memory.save({
+      id: "project-memory",
+      kind: "FACT",
+      scope: "PROJECT",
+      text: "project approval context",
+      tags: ["approval"],
+      createdAt: "2026-09-28T00:00:00.000Z",
+      updatedAt: "2026-09-28T00:00:01.000Z",
+    });
+
+    const gateway = {
+      invokeText: vi.fn(async (input) => ({
+        agentId: input.agentId,
+        modelId: "model-1",
+        providerId: "provider-1",
+        source: "preferred" as const,
+        output: {
+          content: input.request.messages[0]?.content ?? "ok",
+          finishReason: "STOP" as const,
+        },
+      })),
+    } as never;
+
+    const knowledge = new KnowledgeContextService(
+      stores.memory,
+      stores.evidence,
+      stores.sources,
+    );
+
+    const orchestrator = new AgentToolOrchestrationService({
+      agentGateway: gateway,
+      toolInvocation: {} as never,
+      integrationInvocation: {} as never,
+      integrations: { list: () => [], get: () => undefined },
+      tools: { list: () => [], get: () => undefined },
+      approvals: stores.approvals,
+      executions: stores.executions,
+      tasks: stores.tasks,
+      events: stores.events,
+      unitOfWork: stores,
+      enqueueExecution: () => undefined,
+    });
+
+    await orchestrator.invoke({
+      agentId: "agent-1",
+      requiredCapabilityIds: [],
+      request: { messages: [{ role: "USER", content: "What is relevant?" }] },
+      policy: {
+        id: "policy",
+        name: "policy",
+        description: "policy",
+        approvalMode: "ASK_EVERYTHING",
+        rules: [],
+        defaultEffect: "REQUIRE_APPROVAL",
+        enabled: true,
+        createdAt: "2026-09-28T00:00:00.000Z",
+        updatedAt: "2026-09-28T00:00:00.000Z",
+      },
+      actorId: "actor",
+      knowledgeContext: {
+        service: knowledge,
+        query: "approval",
+        allowedScopes: ["PROJECT"],
+      },
+    });
+
+    const request = gateway.invokeText.mock.calls[0]?.[0].request;
+    expect(request.messages[0]?.content).toContain("project-memory");
+    expect(request.messages[0]?.content).not.toContain("private-memory");
+  });
+
+
   it("bounds large tool output before returning it to the model", async () => {
     const root = mkdtempSync(join(tmpdir(), "polyon-tool-output-limit-"));
     let calls = 0;
