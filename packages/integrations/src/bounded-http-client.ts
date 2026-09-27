@@ -15,6 +15,7 @@ export interface BoundedHttpResponse {
 
 export interface BoundedHttpClientOptions {
   readonly allowedHosts: readonly string[];
+  readonly allowedPorts?: readonly number[];
   readonly defaultTimeoutMs?: number;
   readonly maxTimeoutMs?: number;
   readonly defaultMaxResponseBytes?: number;
@@ -47,6 +48,7 @@ const DEFAULT_MAX_RESPONSE_BYTES = 1_048_576;
 
 export class BoundedHttpClient {
   private readonly allowedHosts: ReadonlySet<string>;
+  private readonly allowedPorts: ReadonlySet<number>;
   private readonly defaultTimeoutMs: number;
   private readonly maxTimeoutMs: number;
   private readonly defaultMaxResponseBytes: number;
@@ -61,6 +63,15 @@ export class BoundedHttpClient {
     this.allowedHosts = new Set(
       options.allowedHosts.map((host) => normalizeHost(host)),
     );
+
+    const allowedPorts = options.allowedPorts ?? [80, 443];
+    if (
+      allowedPorts.length === 0 ||
+      allowedPorts.some((port) => !Number.isInteger(port) || port <= 0 || port > 65_535)
+    ) {
+      throw new RangeError("allowedPorts must contain valid TCP port numbers.");
+    }
+    this.allowedPorts = new Set(allowedPorts);
 
     this.defaultTimeoutMs = options.defaultTimeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.maxTimeoutMs = options.maxTimeoutMs ?? this.defaultTimeoutMs;
@@ -96,6 +107,14 @@ export class BoundedHttpClient {
       throw new BoundedHttpClientError(
         "HOST_NOT_ALLOWED",
         `HTTP host is not allowlisted: ${url.hostname}.`,
+      );
+    }
+
+    const effectivePort = Number(url.port || (url.protocol === "https:" ? 443 : 80));
+    if (!this.allowedPorts.has(effectivePort)) {
+      throw new BoundedHttpClientError(
+        "HOST_NOT_ALLOWED",
+        `HTTP port is not allowlisted: ${effectivePort}.`,
       );
     }
 
