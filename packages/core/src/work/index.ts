@@ -1,5 +1,5 @@
 export { applyMissionPlanProposal } from "./mission-plan-application";
-export { completeExecution, ExecutionControlError, startExecution } from "./execution-control";
+export { completeExecution, ExecutionControlError, pauseExecution, resumeExecution, startExecution } from "./execution-control";
 export { createRetryExecution, ExecutionRetryError } from "./execution-retry";
 export {
   applyExecutionRunAuthorization,
