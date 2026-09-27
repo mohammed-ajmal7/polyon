@@ -148,6 +148,24 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
       ...(options.toolPolicy === undefined
         ? {}
         : {
+            resumeApprovedToolContinuation: async (executionId) => {
+              const result = await agentToolOrchestration.resumeApprovedExecution(
+                executionId,
+                options.toolPolicy!,
+              );
+              return {
+                status: result.status === "SUCCEEDED"
+                  ? "SUCCEEDED" as const
+                  : result.status === "APPROVAL_REQUIRED"
+                    ? "PAUSED" as const
+                    : result.status === "REJECTED"
+                      ? "REJECTED" as const
+                      : "FAILED" as const,
+                ...(result.status === "SUCCEEDED"
+                  ? { output: result.response.content }
+                  : { error: "Approved tool continuation failed." }),
+              };
+            },
             toolDefinitions: builtinTools.tools.list()
               .filter((tool) => tool.enabled)
               .map((tool) => ({
