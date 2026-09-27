@@ -23,6 +23,16 @@ export {
 } from "./tool-authorization";
 
 export {
+  ScopedGitWriteToolAdapter,
+  ScopedGitWriteToolError,
+  type ScopedGitWriteOperation,
+  type ScopedGitWriteToolAdapterOptions,
+  type ScopedGitWriteToolErrorKind,
+  type ScopedGitWriteToolInput,
+  type ScopedGitWriteToolOutput,
+} from "./scoped-git-write-tool-adapter";
+
+export {
   ScopedGitReadToolAdapter,
   ScopedGitReadToolError,
   type ScopedGitReadOperation,
