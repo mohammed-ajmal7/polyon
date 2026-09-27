@@ -161,6 +161,7 @@ function appendApprovalRequestedEvent(
       riskLevel: approval.riskLevel,
       status: approval.status,
       toolId: approval.toolId,
+      invocationId: approval.invocationId,
     },
   });
 }
@@ -183,6 +184,7 @@ function appendApprovalResolvedEvent(
       from,
       to: approval.status,
       toolId: approval.toolId,
+      invocationId: approval.invocationId,
     },
   });
 }
@@ -263,6 +265,7 @@ export class ToolInvocationService {
         missionId: input.missionId,
         taskId: input.taskId,
         executionId: input.executionId,
+        invocationId: input.invocationId,
         agentId: input.agentId,
         expiresAt: input.expiresAt,
       });
@@ -379,6 +382,13 @@ export class ToolInvocationService {
       throw new ToolInvocationServiceError(
         "TOOL_APPROVAL_TOOL_MISMATCH",
         `Tool approval ${approval.id} is not bound to tool ${input.toolId}.`,
+      );
+    }
+
+    if (approval.invocationId !== input.invocationId) {
+      throw new ToolInvocationServiceError(
+        "TOOL_APPROVAL_TOOL_MISMATCH",
+        `Tool approval ${approval.id} is not bound to invocation ${input.invocationId}.`,
       );
     }
 
