@@ -90,12 +90,12 @@ export function advanceDebatePhase(debate: Debate, now: string): Debate {
 }
 
 export function decideDebate(debate: Debate, decidedAt: string): Debate {
-  if (!canTransitionDebate(debate.status, "DECIDED")) {
-    throw new InvalidStateTransitionError("debate", debate.status, "DECIDED");
+  if (debate.status !== "ADJUDICATING" || debate.phase !== "ADJUDICATION") {
+    throw new DebateControlError("A debate can only be decided during adjudication.");
   }
 
-  if (debate.phase !== "ADJUDICATION") {
-    throw new DebateControlError("A debate can only be decided during adjudication.");
+  if (!canTransitionDebate(debate.status, "DECIDED")) {
+    throw new InvalidStateTransitionError("debate", debate.status, "DECIDED");
   }
 
   return {
