@@ -29,7 +29,10 @@ class NodeSmtpConnection implements SmtpConnection {
   private pendingRead:
     { resolve: (value: string) => void; reject: (error: Error) => void } | undefined;
 
-  constructor(socket: Socket | TLSSocket, private readonly timeoutMs: number) {
+  constructor(
+    socket: Socket | TLSSocket,
+    private readonly timeoutMs: number,
+  ) {
     this.socket = socket;
     this.bindSocket(socket);
   }
@@ -150,7 +153,6 @@ function waitForConnection(socket: Socket | TLSSocket, timeoutMs: number): Promi
     socket.once("error", fail);
   });
 }
-
 
 function waitForSecureConnection(socket: TLSSocket, timeoutMs: number): Promise<void> {
   return new Promise((resolve, reject) => {
