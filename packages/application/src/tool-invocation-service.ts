@@ -43,6 +43,7 @@ export interface InvokeToolInput {
   readonly executionId?: string;
   readonly agentId?: string;
   readonly expiresAt?: string;
+  readonly toolContinuation?: ApprovalRequest["toolContinuation"];
 }
 
 export interface ResolveToolApprovalInput {
@@ -267,7 +268,11 @@ export class ToolInvocationService {
 
       if (authorization.status === "APPROVAL_REQUIRED") {
         const approvalRequest = authorization.approvalRequest!;
-        this.persistAuthorization(input, authorization.policyDecision, approvalRequest);
+        const persistedApproval =
+          input.toolContinuation === undefined
+            ? approvalRequest
+            : { ...approvalRequest, toolContinuation: input.toolContinuation };
+        this.persistAuthorization(input, authorization.policyDecision, persistedApproval);
         return {
           status: "APPROVAL_REQUIRED",
           invocationId: input.invocationId,
