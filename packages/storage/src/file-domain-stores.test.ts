@@ -41,6 +41,77 @@ describe("FileDomainStores", () => {
     }
   });
 
+  it("commits mission and event changes as one durable transaction", () => {
+    const directory = mkdtempSync(join(tmpdir(), "polyon-domain-"));
+
+    try {
+      const stores = new FileDomainStores(directory);
+
+      stores.transaction(({ missions, events }) => {
+        missions.save({
+          id: "mission-1",
+          objective: "Commit atomically.",
+          constraints: [],
+          status: "DRAFT",
+          taskIds: [],
+          createdAt: "2026-09-27T04:00:00.000Z",
+          updatedAt: "2026-09-27T04:00:00.000Z",
+        });
+        events.append({
+          id: "event-1",
+          kind: "MISSION_CREATED",
+          missionId: "mission-1",
+          occurredAt: "2026-09-27T04:00:00.000Z",
+          data: {},
+        });
+      });
+
+      const reopened = new FileDomainStores(directory);
+
+      expect(reopened.missions.get("mission-1")?.objective).toBe(
+        "Commit atomically.",
+      );
+      expect(reopened.events.get("event-1")?.kind).toBe("MISSION_CREATED");
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("rolls back the transaction when work throws", () => {
+    const directory = mkdtempSync(join(tmpdir(), "polyon-domain-"));
+
+    try {
+      const stores = new FileDomainStores(directory);
+
+      expect(() =>
+        stores.transaction(({ missions, events }) => {
+          missions.save({
+            id: "mission-1",
+            objective: "Should not persist.",
+            constraints: [],
+            status: "DRAFT",
+            taskIds: [],
+            createdAt: "2026-09-27T04:00:00.000Z",
+            updatedAt: "2026-09-27T04:00:00.000Z",
+          });
+          events.append({
+            id: "event-1",
+            kind: "MISSION_CREATED",
+            missionId: "mission-1",
+            occurredAt: "2026-09-27T04:00:00.000Z",
+            data: {},
+          });
+          throw new Error("transaction failed");
+        }),
+      ).toThrow("transaction failed");
+
+      expect(new FileDomainStores(directory).missions.get("mission-1")).toBeUndefined();
+      expect(new FileDomainStores(directory).events.get("event-1")).toBeUndefined();
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("keeps domain stores on the existing replaceable interfaces", () => {
     const directory = mkdtempSync(join(tmpdir(), "polyon-domain-"));
 
