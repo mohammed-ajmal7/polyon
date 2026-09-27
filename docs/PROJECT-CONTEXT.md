@@ -566,7 +566,7 @@ Requirements:
 
 ### Phase 5 — Governed tool execution
 
-Status: governed filesystem-read execution and bounded agent-driven tool orchestration are implemented. Tool approvals persist a durable continuation checkpoint, pause the execution/task, and re-queue the execution after approval. Approved tool results are checkpointed transactionally with their success audit before the resumed model call, allowing restart recovery to skip a completed tool and continue from the saved model request/response state.
+Status: governed filesystem-read execution and bounded agent-driven tool orchestration are implemented. Tool approvals persist durable continuation checkpoints, pause the execution/task, and re-queue the execution after approval. Approved tool results are checkpointed transactionally with their success audit before the resumed model call, and subsequent resumed model/tool rounds use the active approval as a durable checkpoint anchor. Startup recovery now distinguishes an interrupted approved continuation from an interrupted pending approval: approved work is re-queued, while a pending approval is recovered to PAUSED so the human gate is never bypassed.
 
 The current governed tool invocation path is:
 
