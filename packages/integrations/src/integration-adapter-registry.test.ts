@@ -9,6 +9,7 @@ import {
 const googleDrive: IntegrationAdapter = {
   integrationId: "drive-primary",
   kind: "GOOGLE_DRIVE",
+  sideEffectClass: "EXTERNAL_SIDE_EFFECT",
   actionKinds: ["WRITE"],
   supportedOperations: ["CREATE"],
   async invoke() {
