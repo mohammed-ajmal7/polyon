@@ -140,8 +140,6 @@ describe("ExecutionResultService", () => {
     stores.executions.save({
       ...execution,
       status: "RUNNING",
-      completedAt: undefined,
-      error: undefined,
     });
 
     expect(() =>
