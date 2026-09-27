@@ -305,8 +305,6 @@ export class IntegrationInvocationService {
         integrationId: input.integrationId,
         operation: input.operation,
         input: input.input,
-        action: approval.action,
-        riskLevel: approval.riskLevel,
         policy: {
           id: approval.policyId,
           name: "approved integration invocation",
