@@ -1,0 +1,17 @@
+services:
+  polyon:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./apps/web/.env
+    environment:
+      POLYON_DATA_DIR: /data
+    volumes:
+      - polyon-data:/data
+    restart: unless-stopped
+
+volumes:
+  polyon-data:
