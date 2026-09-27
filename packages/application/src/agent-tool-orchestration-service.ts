@@ -13,7 +13,7 @@ import type {
 } from "@polyon/contracts";
 import type { AgentGateway } from "@polyon/agents";
 import { transitionExecutionStatus, transitionTaskStatus } from "@polyon/core";
-import type { ExecutionStore, EventStore, TaskStore, DomainUnitOfWork } from "@polyon/storage";
+import type { ApprovalRequestStore, ExecutionStore, EventStore, TaskStore, DomainUnitOfWork } from "@polyon/storage";
 
 import type { ToolInvocationOutcome, ToolInvocationService } from "./tool-invocation-service";
 
@@ -54,6 +54,7 @@ export interface AgentToolOrchestrationDependencies {
   readonly agentGateway: AgentGateway;
   readonly toolInvocation: ToolInvocationService;
   readonly tools: { get(toolId: string): Tool | undefined; list(): readonly Tool[] };
+  readonly approvals: ApprovalRequestStore;
   readonly executions: ExecutionStore;
   readonly tasks: TaskStore;
   readonly events: EventStore;
@@ -283,10 +284,80 @@ export class AgentToolOrchestrationService {
   }
 
   async resumeApprovedExecution(executionId: string): Promise<AgentToolOrchestrationResult> {
-    const approval = this.dependencies.tools === undefined
-      ? undefined
-      : undefined;
-    throw new Error("resumeApprovedExecution requires an approval store.");
+    const approval = this.dependencies.approvals
+      .list()
+      .find((candidate) => candidate.executionId === executionId && candidate.status === "APPROVED" && candidate.toolContinuation !== undefined);
+
+    if (approval === undefined || approval.toolContinuation === undefined) {
+      throw new Error(`No approved tool continuation exists for execution ${executionId}.`);
+    }
+
+    const continuation = approval.toolContinuation;
+    const outcome = await this.dependencies.toolInvocation.invokeApproved({
+      invocationId: continuation.toolCall.id.startsWith("tool-call:")
+        ? continuation.toolCall.id
+        : `tool-call:${continuation.toolCall.id}`,
+      approvalId: approval.id,
+      toolId: continuation.toolCall.toolId,
+      input: continuation.toolCall.input,
+    });
+
+    if (outcome.status !== "SUCCEEDED") {
+      return {
+        status: outcome.status,
+        response: continuation.response,
+        error: outcome.status === "APPROVAL_REQUIRED" ? "Tool approval unexpectedly remained required." : outcome.error,
+        ...(outcome.status === "APPROVAL_REQUIRED" ? { approval: outcome.approvalRequest } : {}),
+        rounds: continuation.rounds,
+      } as AgentToolOrchestrationResult;
+    }
+
+    const toolMessage: ModelMessage = {
+      role: "TOOL",
+      name: continuation.toolCall.toolId,
+      toolCallId: continuation.toolCall.id,
+      content: stringifyToolOutput(outcome.output),
+    };
+
+    const request: TextModelRequest = {
+      ...continuation.request,
+      messages: [
+        ...continuation.request.messages,
+        {
+          role: "ASSISTANT",
+          content: continuation.response.content,
+          toolCalls: continuation.response.toolCalls,
+        },
+        toolMessage,
+      ],
+    };
+
+    const next = await this.dependencies.agentGateway.invokeText({
+      agentId: continuation.agentId,
+      requiredCapabilityIds: continuation.requiredCapabilityIds,
+      request: this.withToolDefinitions(request),
+    });
+
+    return this.continueFromResponse(
+      {
+        agentId: continuation.agentId,
+        requiredCapabilityIds: continuation.requiredCapabilityIds,
+        request,
+        policy: {
+          id: approval.policyId,
+          name: "Persisted approval continuation",
+          enabled: true,
+          rules: [],
+        },
+        actorId: approval.requestedBy,
+        missionId: approval.missionId,
+        taskId: approval.taskId,
+        executionId,
+        maxToolRounds: 8,
+      },
+      request,
+      next.output,
+    );
   }
 }
 
