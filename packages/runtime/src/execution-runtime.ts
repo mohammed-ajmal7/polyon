@@ -7,10 +7,7 @@ import {
   type ExecutionCoordinator,
   type ExecutionRunOutcome,
 } from "./execution-coordinator";
-import {
-  InMemoryExecutionQueue,
-  type ExecutionQueue,
-} from "./execution-queue";
+import { InMemoryExecutionQueue, type ExecutionQueue } from "./execution-queue";
 import type { ExecutionRunner } from "./execution-runner";
 import {
   InMemoryExecutionWorker,
