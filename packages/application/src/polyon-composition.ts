@@ -1,6 +1,6 @@
 import type { Agent, Model, Provider } from "@polyon/contracts";
 import { AgentGateway, InMemoryAgentRegistry, InMemoryModelRegistry, InMemoryProviderRegistry } from "@polyon/agents";
-import { ExecutionApprovalService, ExecutionDispatchService, ExecutionResultService, ExecutionRetryService, MissionExecutionService, MissionTaskOrchestrationService, type ReadyTaskHandler } from "@polyon/application";
+import { ExecutionApprovalService, ExecutionDispatchService, ExecutionResultService, ExecutionRetryService, MissionExecutionService, MissionTaskOrchestrationService, ToolInvocationService, type ReadyTaskHandler } from "@polyon/application";
 import { InMemoryProviderAdapterRegistry, ModelGateway, type ModelProviderAdapter } from "@polyon/providers";
 import { FileDomainStores } from "@polyon/storage";
 import { createExecutionRuntime, ModelExecutionRunner, type ExecutionRunOutcome, type ExecutionRuntime, type ExecutionRuntimeCompletionHandler, type ExecutionRuntimeWait, type ExecutionWorkerClock } from "@polyon/runtime";
@@ -47,6 +47,7 @@ export interface PolyonComposition {
   readonly executionResults: ExecutionResultService;
   readonly executionApproval: ExecutionApprovalService;
   readonly executionRetry: ExecutionRetryService;
+  readonly toolInvocation: ToolInvocationService;
   readonly runtime: ExecutionRuntime;
 }
 
@@ -184,6 +185,15 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
 
   const executionRetry = new ExecutionRetryService(stores.tasks, stores.events, missionExecution);
 
+  const toolInvocation = new ToolInvocationService({
+    tools: builtinTools.tools,
+    adapters: builtinTools.adapters,
+    approvals: stores.approvals,
+    policyDecisions: stores.policyDecisions,
+    events: stores.events,
+    unitOfWork: stores,
+  });
+
   return {
     stores,
     agents,
@@ -200,6 +210,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     executionResults,
     executionApproval,
     executionRetry,
+    toolInvocation,
     runtime,
   };
 }
