@@ -60,3 +60,17 @@ function verifySession(value: string, secret: string): boolean {
   const expected = createHmac("sha256", secret).update(payload).digest("base64url");
   return safeEqual(signature, expected);
 }
+
+
+export async function authenticateRequest(request: Request): Promise<boolean> {
+  const configured = process.env.POLYON_API_TOKEN?.trim();
+  if (configured === undefined || configured === "") return true;
+
+  const authorization = request.headers.get("authorization");
+  if (authorization !== null && authorization.startsWith("Bearer ")) {
+    const token = authorization.slice("Bearer ".length).trim();
+    if (safeEqual(token, configured)) return true;
+  }
+
+  return isAuthenticated();
+}

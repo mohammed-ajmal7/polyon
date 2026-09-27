@@ -192,3 +192,14 @@ export function isSameOrigin(request: Request): boolean {
     return false;
   }
 }
+
+
+export function getPolyonBaseUrl(request?: Request): string {
+  const configured = process.env.POLYON_PUBLIC_BASE_URL?.trim();
+  if (configured !== undefined && configured !== "") return configured.replace(/\/$/u, "");
+  if (request !== undefined) {
+    const url = new URL(request.url);
+    return url.origin;
+  }
+  return "http://localhost:3000";
+}
