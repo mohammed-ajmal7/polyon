@@ -39,6 +39,10 @@ describe("FileDomainDatabase migrations", () => {
           migrate(state) {
             return {
               ...state,
+              debates: [],
+              evidence: [],
+              memory: [],
+              sources: [],
               migrated: true,
             };
           },
