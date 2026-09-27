@@ -675,11 +675,7 @@ export class ToolInvocationService {
           }
 
           stores.artifacts.save(artifact);
-          appendArtifactCreatedEvent(
-            stores.events,
-            artifact,
-            input as InvokeToolInput,
-          );
+          appendArtifactCreatedEvent(stores.events, artifact, context);
         }
 
         if (approval?.toolContinuation !== undefined) {
