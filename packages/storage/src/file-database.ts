@@ -8,6 +8,7 @@ import {
   openSync,
   readFileSync,
   renameSync,
+  statSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -140,6 +141,8 @@ function writeAtomically(filePath: string, state: DurableDomainState): void {
   }
 }
 
+const STALE_LOCK_AFTER_MS = 5 * 60 * 1000;
+
 function acquireCommitLock(filePath: string): string {
   const lockPath = `${filePath}.lock`;
 
@@ -149,15 +152,38 @@ function acquireCommitLock(filePath: string): string {
     return lockPath;
   } catch (error) {
     if (
+      !(error instanceof Error) ||
+      !("code" in error) ||
+      error.code !== "EEXIST"
+    ) {
+      throw error;
+    }
+  }
+
+  try {
+    const age = Date.now() - statSync(lockPath).mtimeMs;
+
+    if (age > STALE_LOCK_AFTER_MS) {
+      unlinkSync(lockPath);
+      const descriptor = openSync(lockPath, "wx");
+      closeSync(descriptor);
+      return lockPath;
+    }
+  } catch (error) {
+    if (
       error instanceof Error &&
       "code" in error &&
-      error.code === "EEXIST"
+      error.code === "ENOENT"
     ) {
-      throw new StorageConcurrencyError(lockPath);
+      const descriptor = openSync(lockPath, "wx");
+      closeSync(descriptor);
+      return lockPath;
     }
 
     throw error;
   }
+
+  throw new StorageConcurrencyError(lockPath);
 }
 
 function withCommitLock<T>(filePath: string, work: () => T): T {
