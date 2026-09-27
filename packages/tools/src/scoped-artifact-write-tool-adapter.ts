@@ -20,7 +20,11 @@ import {
 } from "node:path";
 
 import type { ArtifactKind, ArtifactStatus } from "@polyon/contracts";
-import type { ToolAdapter, ToolInvocationRequest } from "./tool-adapter";
+import type {
+  ToolAdapter,
+  ToolArtifactResult,
+  ToolInvocationRequest,
+} from "./tool-adapter";
 
 export interface ScopedArtifactWriteToolInput {
   readonly name: string;
@@ -127,20 +131,23 @@ export class ScopedArtifactWriteToolAdapter
       const existingSha = sha256(existing);
 
       if (existingSha === sha256(input.content)) {
+        const output = {
+          artifactId,
+          name: input.name,
+          kind,
+          ...(input.mimeType === undefined
+            ? {}
+            : { mimeType: input.mimeType }),
+          location: target,
+          status: "AVAILABLE" as const,
+          sizeBytes: byteLength(existing),
+          sha256: existingSha,
+          created: false,
+        };
+
         return {
-          output: {
-            artifactId,
-            name: input.name,
-            kind,
-            ...(input.mimeType === undefined
-              ? {}
-              : { mimeType: input.mimeType }),
-            location: target,
-            status: "AVAILABLE",
-            sizeBytes: byteLength(existing),
-            sha256: existingSha,
-            created: false,
-          },
+          output,
+          artifacts: [toArtifactResult(output)],
         };
       }
 
@@ -188,20 +195,23 @@ export class ScopedArtifactWriteToolAdapter
 
     const persisted = readFileSync(target, "utf8");
 
+    const output = {
+      artifactId,
+      name: input.name,
+      kind,
+      ...(input.mimeType === undefined
+        ? {}
+        : { mimeType: input.mimeType }),
+      location: target,
+      status: "AVAILABLE" as const,
+      sizeBytes: byteLength(persisted),
+      sha256: sha256(persisted),
+      created: true,
+    };
+
     return {
-      output: {
-        artifactId,
-        name: input.name,
-        kind,
-        ...(input.mimeType === undefined
-          ? {}
-          : { mimeType: input.mimeType }),
-        location: target,
-        status: "AVAILABLE",
-        sizeBytes: byteLength(persisted),
-        sha256: sha256(persisted),
-        created: true,
-      },
+      output,
+      artifacts: [toArtifactResult(output)],
     };
   }
 
@@ -274,4 +284,25 @@ function isInsideRoot(rootDir: string, candidate: string): boolean {
     rel === "" ||
     (!isAbsolute(rel) && rel !== ".." && !rel.startsWith(".." + sep))
   );
+}
+
+
+function toArtifactResult(
+  output: {
+    readonly artifactId: string;
+    readonly name: string;
+    readonly kind: import("@polyon/contracts").ArtifactKind;
+    readonly mimeType?: string;
+    readonly location: string;
+    readonly status: import("@polyon/contracts").ArtifactStatus;
+  },
+): ToolArtifactResult {
+  return {
+    id: output.artifactId,
+    kind: output.kind,
+    name: output.name,
+    ...(output.mimeType === undefined ? {} : { mimeType: output.mimeType }),
+    location: output.location,
+    status: output.status,
+  };
 }
