@@ -330,7 +330,7 @@ function buildMessage(
     ...foldAddressHeader("To", input.to),
     ...(input.cc === undefined ? [] : foldAddressHeader("Cc", input.cc)),
     ...(input.replyTo === undefined ? [] : [`Reply-To: ${input.replyTo}`]),
-    ...foldHeaderValue("Subject", encodeHeaderText(input.subject)),
+    ...foldTextHeader("Subject", encodeHeaderText(input.subject)),
     "MIME-Version: 1.0",
   ];
 
@@ -363,6 +363,36 @@ function buildMessage(
     `--${boundary}--`,
     "",
   ].join("\r\n");
+}
+
+function foldTextHeader(name: string, value: string): string[] {
+  const prefix = `${name}: `;
+  const maxLineBytes = 998;
+  const existingLines = value.split("\r\n ");
+  if (existingLines.length > 1) {
+    return existingLines.map((line, index) => (index === 0 ? prefix + line : " " + line));
+  }
+
+  const words = value.split(/\s+/u);
+  const lines: string[] = [];
+  let current = prefix;
+
+  for (const word of words) {
+    const separator = current === prefix ? "" : " ";
+    const candidate = current + separator + word;
+    if (current !== prefix && new TextEncoder().encode(candidate).byteLength > maxLineBytes) {
+      lines.push(current);
+      current = " " + word;
+      continue;
+    }
+    if (current === prefix && new TextEncoder().encode(candidate).byteLength > maxLineBytes) {
+      throw new RangeError(`SMTP ${name} header contains an overlong value.`);
+    }
+    current = candidate;
+  }
+
+  lines.push(current);
+  return lines;
 }
 
 function foldAddressHeader(name: string, addresses: readonly string[]): string[] {
