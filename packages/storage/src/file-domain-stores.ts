@@ -74,14 +74,23 @@ export class FileDomainStores implements DurableDomainStores {
   }
 
   transaction<T>(work: (context: DomainStoreTransactionContext) => T): T {
-    const stagedState = this.database.snapshot();
-    const stagedContext = createStateContext(stagedState);
+    if (this.transactionActive) {
+      throw new DomainTransactionError();
+    }
 
-    const result = work(stagedContext);
+    this.transactionActive = true;
 
-    this.database.replace(stagedState);
-    Object.assign(this.state, stagedState);
+    try {
+      const stagedState = this.database.snapshot();
+      const stagedContext = createStateContext(stagedState);
+      const result = work(stagedContext);
 
-    return result;
+      this.database.replace(stagedState);
+      Object.assign(this.state, stagedState);
+
+      return result;
+    } finally {
+      this.transactionActive = false;
+    }
   }
 }
