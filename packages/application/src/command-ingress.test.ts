@@ -22,6 +22,45 @@ const dependencies = () => {
 const createdAt = "2026-09-27T01:10:00.000Z";
 
 describe("CommandIngressService", () => {
+  it("runs conversation, message, and event persistence through the supplied unit of work", () => {
+    const stores = new InMemoryDomainStores();
+    let transactionCalls = 0;
+
+    const unitOfWork = {
+      transaction<T>(
+        work: Parameters<InMemoryDomainStores["transaction"]>[0],
+      ): T {
+        transactionCalls += 1;
+        return stores.transaction(work) as T;
+      },
+    };
+
+    const service = new CommandIngressService({
+      conversations: stores.conversations,
+      messages: stores.messages,
+      events: stores.events,
+      unitOfWork,
+    });
+
+    const result = service.submit({
+      mode: "Mission",
+      command: "Create transactionally.",
+      actorId: "user-1",
+      conversationId: "conversation-transaction-1",
+      messageId: "message-transaction-1",
+      eventId: "event-transaction-1",
+      participantIds: ["user-1"],
+      createdAt,
+    });
+
+    expect(transactionCalls).toBe(1);
+    expect(stores.conversations.get("conversation-transaction-1")).toEqual(
+      result.conversation,
+    );
+    expect(stores.messages.get("message-transaction-1")).toEqual(result.message);
+    expect(stores.events.get("event-transaction-1")).toEqual(result.event);
+  });
+
   it("creates a conversation, persists the user message, and records a trace event", () => {
     const { stores, events, service } = dependencies();
 
