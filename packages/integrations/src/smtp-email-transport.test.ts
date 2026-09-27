@@ -243,6 +243,107 @@ describe("SmtpTransport", () => {
     expect(connection.close).toHaveBeenCalledTimes(1);
   });
 
+
+  it("rejects an invalid SMTP envelope before opening a connection", async () => {
+    const connection = createConnection([]);
+    const factory = { connect: vi.fn(async () => connection) };
+
+    const transport = new SmtpTransport(
+      {
+        host: "smtp.example.com",
+        port: 465,
+        secure: true,
+        heloName: "polyon.local",
+        messageIdDomain: "polyon.local",
+      },
+      factory,
+    );
+
+    await expect(
+      transport.send(
+        { to: ["attacker\r\nBcc: victim@example.com"], subject: "Hello", text: "Hello" },
+        { username: "mailer@example.com", password: "secret" },
+      ),
+    ).rejects.toMatchObject({
+      name: "SmtpEnvelopeError",
+      kind: "PROTOCOL",
+      message: "SMTP envelope was rejected.",
+    });
+
+    expect(factory.connect).not.toHaveBeenCalled();
+  });
+
+  it("classifies permanent RCPT failures as envelope errors", async () => {
+    const connection = createConnection([
+      "220 ready",
+      "250 hello AUTH LOGIN",
+      "334 VXNlcm5hbWU6",
+      "334 UGFzc3dvcmQ6",
+      "235 authenticated",
+      "250 sender accepted",
+      "550 mailbox unavailable; internal recipient data",
+    ]);
+    const factory = { connect: vi.fn(async () => connection) };
+
+    const transport = new SmtpTransport(
+      {
+        host: "smtp.example.com",
+        port: 465,
+        secure: true,
+        heloName: "polyon.local",
+        messageIdDomain: "polyon.local",
+      },
+      factory,
+    );
+
+    await expect(
+      transport.send(
+        { to: ["user@example.com"], subject: "Hello", text: "Hello" },
+        { username: "mailer@example.com", password: "secret" },
+      ),
+    ).rejects.toMatchObject({
+      name: "SmtpEnvelopeError",
+      kind: "PERMANENT",
+      smtpCode: 550,
+      message: "SMTP envelope was rejected.",
+    });
+  });
+
+  it("classifies transient MAIL FROM failures as envelope errors", async () => {
+    const connection = createConnection([
+      "220 ready",
+      "250 hello AUTH LOGIN",
+      "334 VXNlcm5hbWU6",
+      "334 UGFzc3dvcmQ6",
+      "235 authenticated",
+      "451 temporary sender failure; internal queue id",
+    ]);
+    const factory = { connect: vi.fn(async () => connection) };
+
+    const transport = new SmtpTransport(
+      {
+        host: "smtp.example.com",
+        port: 465,
+        secure: true,
+        heloName: "polyon.local",
+        messageIdDomain: "polyon.local",
+      },
+      factory,
+    );
+
+    await expect(
+      transport.send(
+        { to: ["user@example.com"], subject: "Hello", text: "Hello" },
+        { username: "mailer@example.com", password: "secret" },
+      ),
+    ).rejects.toMatchObject({
+      name: "SmtpEnvelopeError",
+      kind: "TRANSIENT",
+      smtpCode: 451,
+      message: "SMTP envelope was rejected.",
+    });
+  });
+
   it("closes the connection when the SMTP server rejects a command", async () => {
     const connection = createConnection([
       "220 ready",
