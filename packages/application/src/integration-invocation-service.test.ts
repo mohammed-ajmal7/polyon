@@ -65,6 +65,7 @@ describe("IntegrationInvocationService", () => {
       integrationId: "telegram-primary",
       kind: "TELEGRAM",
       actionKinds: ["EXTERNAL_COMMUNICATION"],
+      supportedOperations: ["send_message"],
       invoke,
     });
 
@@ -104,6 +105,7 @@ describe("IntegrationInvocationService", () => {
       integrationId: "telegram-primary",
       kind: "TELEGRAM",
       actionKinds: ["EXTERNAL_COMMUNICATION"],
+      supportedOperations: ["send_message"],
       invoke,
     });
 
@@ -166,6 +168,7 @@ describe("IntegrationInvocationService", () => {
       integrationId: "telegram-primary",
       kind: "TELEGRAM",
       actionKinds: ["EXTERNAL_COMMUNICATION"],
+      supportedOperations: ["send_message"],
       invoke,
     });
 
@@ -224,6 +227,7 @@ describe("IntegrationInvocationService", () => {
       integrationId: "telegram-primary",
       kind: "TELEGRAM",
       actionKinds: ["EXTERNAL_COMMUNICATION"],
+      supportedOperations: ["send_message"],
       invoke,
     });
 
@@ -254,6 +258,7 @@ describe("IntegrationInvocationService", () => {
       integrationId: "telegram-primary",
       kind: "TELEGRAM",
       actionKinds: ["EXTERNAL_COMMUNICATION"],
+      supportedOperations: ["send_message"],
       invoke,
     });
 
