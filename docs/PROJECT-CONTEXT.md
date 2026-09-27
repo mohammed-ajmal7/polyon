@@ -251,7 +251,7 @@ Implemented boundaries include:
 - integration adapter interface/registry;
 - planned integration kinds for Google Drive, Telegram, and Email.
 
-A concrete bounded filesystem-read tool now exists behind the tool adapter boundary, and the application-level ToolInvocationService enforces tool lookup, policy decisions, approvals, invocation tracing, input-schema validation, and adapter execution. Model-facing tool definitions carry the declared input schema and use provider-safe function names while preserving the canonical POLYON tool ID for routing and audit. Broader consequential tool categories and external integrations remain to be implemented.
+A concrete bounded filesystem-read tool and an opt-in scoped terminal execution tool now exist behind the tool adapter boundary. The terminal tool requires an explicit command allowlist, keeps execution inside a configured root, disables shell interpretation, enforces timeout/output limits, and passes only an explicit environment-variable allowlist to the child process. The application-level ToolInvocationService enforces tool lookup, policy decisions, approvals, invocation tracing, input-schema validation, and adapter execution. Model-facing tool definitions carry the declared input schema and use provider-safe function names while preserving the canonical POLYON tool ID for routing and audit. Broader consequential tool categories and external integrations remain to be implemented.
 
 ### Conversations and application ingress
 
