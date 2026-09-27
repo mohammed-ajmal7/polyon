@@ -24,6 +24,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Debug SMTP Formatter
+        run: |
+          pnpm exec prettier packages/integrations/src/email-integration-adapter.test.ts --write
+          git diff -- packages/integrations/src/email-integration-adapter.test.ts
+
       - name: Typecheck
         run: pnpm typecheck
 
