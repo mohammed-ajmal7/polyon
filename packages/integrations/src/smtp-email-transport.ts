@@ -72,7 +72,7 @@ export class SmtpTransport implements EmailTransport {
           throw new Error("SMTP server does not support STARTTLS.");
         }
         await this.command(connection, "STARTTLS", 220);
-        await connection.startTls();
+        await connection.startTls(this.options.host, this.options.connectionTimeoutMs);
         await this.command(connection, `EHLO ${this.options.heloName}`, 250);
       }
 
