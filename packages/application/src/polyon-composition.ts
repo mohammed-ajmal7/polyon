@@ -26,9 +26,11 @@ import {
   ExecutionResultService,
   AgentToolOrchestrationService,
   MemoryService,
+  MissionPlanningService,
   MissionCreationService,
   MissionLifecycleService,
   MissionPlanService,
+  MissionPlanOrchestrationService,
   ResearchService,
   ResearchSynthesisService,
   CreativeJobService,
@@ -157,6 +159,7 @@ export interface PolyonComposition {
   readonly commandIngress: CommandIngressService;
   readonly conversationOrchestration: ConversationAgentOrchestrationService;
   readonly missionExecutionOrchestration: MissionExecutionOrchestrationService;
+  readonly missionPlanOrchestration: MissionPlanOrchestrationService;
   readonly stores: FileDomainStores;
   readonly agents: InMemoryAgentRegistry;
   readonly models: InMemoryModelRegistry;
@@ -612,6 +615,22 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     unitOfWork: stores,
   });
 
+  const missionPlanOrchestration = new MissionPlanOrchestrationService(
+    stores.missions,
+    new MissionPlanningService(agentGateway, stores.tasks, stores.events, stores),
+    new MissionPlanService({
+      missions: stores.missions,
+      tasks: stores.tasks,
+      proposals: stores.missionPlanProposals,
+      policyDecisions: stores.policyDecisions,
+      approvals: stores.approvals,
+      events: stores.events,
+      unitOfWork: stores,
+    }),
+    taskOrchestration,
+    stores,
+  );
+
   const executionRetry = new ExecutionRetryService(stores.tasks, stores.events, missionExecution);
   const conversationOrchestration = new ConversationAgentOrchestrationService(
     agentToolOrchestration,
@@ -653,6 +672,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     commandIngress,
     conversationOrchestration,
     missionExecutionOrchestration,
+    missionPlanOrchestration,
     stores,
     agents,
     models,
