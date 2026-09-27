@@ -182,7 +182,7 @@ export default function Home() {
           <header className="border-b border-white/8 bg-[#080b10]/90 px-5 py-4 backdrop-blur-xl sm:px-7">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div><div className="text-xs font-medium tracking-[0.18em] text-violet-300/80">AI OPERATIONS HQ</div><h1 className="mt-1 text-xl font-semibold tracking-tight text-white sm:text-2xl">One command. Many intelligences.</h1></div>
-              <div className="flex items-center gap-3"><div className="hidden rounded-xl border border-white/8 bg-white/[0.025] px-3 py-2 text-xs text-slate-400 md:block">{overview?.actorId ?? "local-user"} · live</div><div className="grid size-10 place-items-center rounded-xl border border-white/8 bg-white/[0.025] text-sm font-medium text-slate-300">HQ</div></div>
+              <div className="flex items-center gap-3"><div className="hidden rounded-xl border border-white/8 bg-white/[0.025] px-3 py-2 text-xs text-slate-400 md:block">{overview?.actorId ?? "local-user"} · live</div><button type="button" onClick={() => void fetch("/api/auth", { method: "DELETE" }).then(() => window.location.reload())} className="rounded-xl border border-white/8 bg-white/[0.025] px-3 py-2 text-xs text-slate-400 transition hover:bg-white/7 hover:text-slate-200">Log out</button><div className="grid size-10 place-items-center rounded-xl border border-white/8 bg-white/[0.025] text-sm font-medium text-slate-300">HQ</div></div>
             </div>
           </header>
 
