@@ -53,6 +53,7 @@
 - self-hosted Dockerfile + compose configuration;
 - CI typecheck/test/lint/format/build gates.
 - Readiness health checks fail closed on composition/configuration initialization errors and return a stable `503` response without leaking initialization details.
+- Optional semantic memory now has a provider-independent embedding gateway, durable versioned vectors with content hashes, bounded cosine search, and an authenticated memory API mode; automatic indexing/reindex recovery remains.
 
 ## Intentional remaining work
 
