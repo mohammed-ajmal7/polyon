@@ -31,6 +31,8 @@ export {
   type ScopedArtifactWriteToolOutput,
 } from "./scoped-artifact-write-tool-adapter";
 
+export type { ToolArtifactResult } from "./tool-adapter";
+
 export {
   ScopedGitWriteToolAdapter,
   ScopedGitWriteToolError,
