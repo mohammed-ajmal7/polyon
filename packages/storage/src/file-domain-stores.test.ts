@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { FileDomainStores } from "./file-domain-stores";
 import { InMemoryDomainStores } from "./domain-stores";
 
-describe("FileDomainStores", () => {
+describe("InMemoryDomainStores", () => {
   it("rejects nested transactions", () => {
     const stores = new InMemoryDomainStores();
 
