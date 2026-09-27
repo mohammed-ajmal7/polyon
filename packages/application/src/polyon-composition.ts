@@ -2,6 +2,7 @@ import type { Agent, Model, Policy, Provider } from "@polyon/contracts";
 import {
   InMemoryIntegrationAdapterRegistry,
   type IntegrationAdapter,
+  type SecretResolver,
 } from "@polyon/integrations";
 import {
   AgentGateway,
@@ -56,6 +57,7 @@ export interface PolyonCompositionOptions {
   readonly models?: readonly Model[];
   readonly providers?: readonly PolyonProviderRegistration[];
   readonly integrations?: readonly IntegrationAdapter[];
+  readonly secretResolver?: SecretResolver;
   readonly filesystemRoot?: string;
   readonly filesystemReadMaxBytes?: number;
   readonly filesystemReadEnabled?: boolean;
@@ -122,6 +124,7 @@ export interface PolyonComposition {
   readonly providers: InMemoryProviderRegistry;
   readonly providerAdapters: InMemoryProviderAdapterRegistry;
   readonly integrations: InMemoryIntegrationAdapterRegistry;
+  readonly secretResolver?: SecretResolver;
   readonly modelGateway: ModelGateway;
   readonly agentGateway: AgentGateway;
   readonly tools: ToolRegistry;
@@ -470,6 +473,9 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     providers,
     providerAdapters,
     integrations,
+    ...(options.secretResolver === undefined
+      ? {}
+      : { secretResolver: options.secretResolver }),
     modelGateway,
     agentGateway,
     tools: builtinTools.tools,
