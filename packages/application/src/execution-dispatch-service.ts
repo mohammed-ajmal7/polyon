@@ -33,11 +33,47 @@ export interface ExecutionDispatchServiceDependencies {
   readonly unitOfWork?: DomainUnitOfWork;
 }
 
+type ExecutionDispatchStores = Pick<
+  DomainStoreTransactionContext,
+  "executions" | "approvals" | "policyDecisions" | "events"
+>;
+
+export interface PersistedExecutionDispatch {
+  readonly execution: ExecutionDispatchPlan["execution"];
+  readonly policyDecision: PolicyDecision;
+  readonly approvalRequest?: ApprovalRequest;
+  readonly nextStep: ExecutionDispatchPlan["nextStep"];
+}
+
+function appendExecutionStatusChangedEvent(
+  events: EventStore,
+  execution: Execution,
+  from: ExecutionStatus,
+  to: ExecutionStatus,
+  occurredAt: string,
+): void {
+  const event: DomainEvent = {
+    id: `EXECUTION_STATUS_CHANGED:${execution.id}:${from}:${to}:${occurredAt}`,
+    kind: "EXECUTION_STATUS_CHANGED",
+    actorId: execution.actorId,
+    missionId: execution.missionId,
+    taskId: execution.taskId,
+    executionId: execution.id,
+    occurredAt,
+    data: {
+      from,
+      to,
+    },
+  };
+
+  events.append(event);
+}
+
 export class ExecutionDispatchService {
   constructor(private readonly dependencies: ExecutionDispatchServiceDependencies) {}
 
   dispatch(input: PrepareExecutionDispatchInput): PersistedExecutionDispatch {
-    const operation = (stores: Pick<DomainStoreTransactionContext, "executions" | "approvals" | "policyDecisions" | "events">) =>
+    const operation = (stores: ExecutionDispatchStores) =>
       this.dispatchWithStores(stores, input);
 
     const result =
@@ -53,7 +89,7 @@ export class ExecutionDispatchService {
   }
 
   private dispatchWithStores(
-    stores: Pick<DomainStoreTransactionContext, "executions" | "approvals" | "policyDecisions" | "events">,
+    stores: ExecutionDispatchStores,
     input: PrepareExecutionDispatchInput,
   ): PersistedExecutionDispatch {
     if (stores.executions.get(input.executionId) !== undefined) {
@@ -126,6 +162,10 @@ export class ExecutionDispatchService {
       );
     }
 
+    if (plan.nextStep === "ENQUEUE") {
+      stores.queue.enqueue(plan.execution);
+    }
+
     return plan;
   
   }
@@ -135,7 +175,7 @@ export class ExecutionDispatchService {
     execution: PersistedExecutionDispatch["execution"],
     now: string,
   ): PersistedExecutionDispatch["execution"] {
-    const operation = (stores: Pick<DomainStoreTransactionContext, "executions" | "approvals" | "events">) =>
+    const operation = (stores: ExecutionDispatchStores) =>
       this.queueApprovedWithStores(stores, approval, execution, now);
 
     const queued =
@@ -148,7 +188,7 @@ export class ExecutionDispatchService {
   }
 
   private queueApprovedWithStores(
-    stores: Pick<DomainStoreTransactionContext, "executions" | "approvals" | "events">,
+    stores: ExecutionDispatchStores,
     approval: ApprovalRequest,
     execution: PersistedExecutionDispatch["execution"],
     now: string,
