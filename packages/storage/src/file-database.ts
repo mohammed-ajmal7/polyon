@@ -72,7 +72,7 @@ function clone<T>(value: T): T {
 
 function emptyState(): DurableDomainState {
   return {
-    version: 2,
+    version: 3,
     approvals: [],
     debates: [],
     evidence: [],
@@ -106,7 +106,7 @@ function validateState(filePath: string, value: unknown): DurableDomainState {
     throw new Error(`Invalid durable domain snapshot: ${filePath}.`);
   }
 
-  if (!("version" in value) || value.version !== 2) {
+  if (!("version" in value) || value.version !== 3) {
     throw new Error(`Unsupported durable domain snapshot version: ${filePath}.`);
   }
 
