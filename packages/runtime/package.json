@@ -10,6 +10,7 @@
   "dependencies": {
     "@polyon/contracts": "workspace:*",
     "@polyon/core": "workspace:*",
+    "@polyon/providers": "workspace:*",
     "@polyon/storage": "workspace:*"
   },
   "devDependencies": {
