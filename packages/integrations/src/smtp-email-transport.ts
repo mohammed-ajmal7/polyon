@@ -129,9 +129,7 @@ async function expectCode(connection: SmtpConnection, ...expectedCodes: number[]
 
 function hasSmtpCapability(response: string, capability: string): boolean {
   const normalizedCapability = capability.toUpperCase();
-  return response
-    .split(/\r?\n/)
-    .some((line) => /^\d{3}[- ]/.test(line) && line.slice(4).trim().toUpperCase() === normalizedCapability);
+  return new RegExp(`^\\d{3}-${normalizedCapability}(?:\\r?\\n|$)`, "mi").test(response);
 }
 
 function buildMessage(input: EmailSendInput, messageIdDomain: string): string {
