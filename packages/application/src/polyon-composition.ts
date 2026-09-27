@@ -1,10 +1,9 @@
 import type { Agent, Model, Provider } from "@polyon/contracts";
-import type { ExecutionRunOutcome } from "@polyon/runtime";
 import { AgentGateway, InMemoryAgentRegistry, InMemoryModelRegistry, InMemoryProviderRegistry } from "@polyon/agents";
 import { ExecutionApprovalService, ExecutionDispatchService, ExecutionResultService, ExecutionRetryService, MissionExecutionService, MissionTaskOrchestrationService, type ReadyTaskHandler } from "@polyon/application";
 import { InMemoryProviderAdapterRegistry, ModelGateway, type ModelProviderAdapter } from "@polyon/providers";
 import { FileDomainStores } from "@polyon/storage";
-import { createExecutionRuntime, ModelExecutionRunner, type ExecutionRuntime, type ExecutionRuntimeWait, type ExecutionWorkerClock } from "@polyon/runtime";
+import { createExecutionRuntime, ModelExecutionRunner, type ExecutionRunOutcome, type ExecutionRuntime, type ExecutionRuntimeCompletionHandler, type ExecutionRuntimeWait, type ExecutionWorkerClock } from "@polyon/runtime";
 import { createInMemoryBuiltinToolRegistries, registerBuiltinTools, type ToolAdapterRegistry, type ToolRegistry } from "@polyon/tools";
 
 export interface PolyonProviderRegistration {
