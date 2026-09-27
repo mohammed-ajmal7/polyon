@@ -9,7 +9,7 @@ const transitions: Readonly<Record<TaskStatus, readonly TaskStatus[]>> = {
   RUNNING: ["PAUSED", "SUCCEEDED", "FAILED", "CANCELLED"],
   PAUSED: ["RUNNING", "CANCELLED"],
   SUCCEEDED: [],
-  FAILED: [],
+  FAILED: ["READY"],
   CANCELLED: [],
   REJECTED: [],
 };
