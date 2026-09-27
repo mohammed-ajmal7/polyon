@@ -243,9 +243,7 @@ describe("durable routed execution restart", () => {
         "EXECUTION_STATUS_CHANGED",
         "EXECUTION_RECOVERED",
         "EXECUTION_STATUS_CHANGED",
-        "TASK_STATUS_CHANGED",
         "EXECUTION_STATUS_CHANGED",
-        "TASK_STATUS_CHANGED",
       ]);
     } finally {
       rmSync(directory, { recursive: true, force: true });
