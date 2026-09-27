@@ -118,7 +118,20 @@ describe("OpenAICompatibleTextModelAdapter", () => {
       }),
     });
 
-    await expect(adapter.invoke({ modelId: "model-1", input: request })).resolves.toEqual({
+    const toolAwareRequest: TextModelRequest = {
+      ...request,
+      tools: [
+        {
+          toolId: "builtin.filesystem.read",
+          name: "builtin_filesystem_read",
+          description: "Reads a bounded file.",
+        },
+      ],
+    };
+
+    await expect(
+      adapter.invoke({ modelId: "model-1", input: toolAwareRequest }),
+    ).resolves.toEqual({
       output: {
         content: "",
         finishReason: "TOOL_CALL",
