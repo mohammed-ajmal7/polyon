@@ -1,6 +1,7 @@
 import type { Agent, Model, Policy, Provider, SecretReference } from "@polyon/contracts";
 import {
   GoogleDriveIntegrationAdapter,
+  TelegramIntegrationAdapter,
   InMemoryIntegrationAdapterRegistry,
   type IntegrationAdapter,
   type SecretResolver,
@@ -65,6 +66,12 @@ export interface PolyonCompositionOptions {
   readonly googleDriveMaxResponseBytes?: number;
   readonly googleDriveDefaultPageSize?: number;
   readonly googleDriveMaxPageSize?: number;
+  readonly telegramIntegrationId?: string;
+  readonly telegramSecretReference?: SecretReference;
+  readonly telegramMaxResponseBytes?: number;
+  readonly telegramMaxRequestBytes?: number;
+  readonly telegramDefaultTimeoutMs?: number;
+  readonly telegramMaxTimeoutMs?: number;
   readonly filesystemRoot?: string;
   readonly filesystemReadMaxBytes?: number;
   readonly filesystemReadEnabled?: boolean;
@@ -184,6 +191,32 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
         ...(options.googleDriveMaxPageSize === undefined
           ? {}
           : { maxPageSize: options.googleDriveMaxPageSize }),
+      }),
+    );
+  }
+
+  if (
+    options.secretResolver !== undefined &&
+    options.telegramIntegrationId !== undefined &&
+    options.telegramSecretReference !== undefined
+  ) {
+    integrations.register(
+      new TelegramIntegrationAdapter({
+        integrationId: options.telegramIntegrationId,
+        secretResolver: options.secretResolver,
+        secretReference: options.telegramSecretReference,
+        ...(options.telegramMaxResponseBytes === undefined
+          ? {}
+          : { maxResponseBytes: options.telegramMaxResponseBytes }),
+        ...(options.telegramMaxRequestBytes === undefined
+          ? {}
+          : { maxRequestBytes: options.telegramMaxRequestBytes }),
+        ...(options.telegramDefaultTimeoutMs === undefined
+          ? {}
+          : { defaultTimeoutMs: options.telegramDefaultTimeoutMs }),
+        ...(options.telegramMaxTimeoutMs === undefined
+          ? {}
+          : { maxTimeoutMs: options.telegramMaxTimeoutMs }),
       }),
     );
   }

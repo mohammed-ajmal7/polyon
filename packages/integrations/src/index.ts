@@ -1,4 +1,15 @@
 export {
+  TelegramIntegrationAdapter,
+  TelegramIntegrationAdapterError,
+  type TelegramIntegrationAdapterErrorKind,
+  type TelegramIntegrationAdapterOptions,
+  type TelegramOperation,
+  type TelegramParseMode,
+  type TelegramSendMessageInput,
+  type TelegramSendMessageOutput,
+} from "./telegram-integration-adapter";
+
+export {
   GoogleDriveIntegrationAdapter,
   GoogleDriveIntegrationAdapterError,
   type GoogleDriveFileMetadata,

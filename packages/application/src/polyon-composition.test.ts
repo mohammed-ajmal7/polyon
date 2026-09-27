@@ -306,6 +306,34 @@ describe("createPolyonComposition", () => {
     }
   });
 
+  it("opts into the Telegram integration only with an explicit secret reference", () => {
+    const root = mkdtempSync(join(tmpdir(), "polyon-composition-telegram-"));
+
+    try {
+      const secretResolver: import("@polyon/integrations").SecretResolver = {
+        resolve: vi.fn(async () => "telegram-token"),
+      };
+      const composition = createPolyonComposition({
+        storageRoot: root,
+        secretResolver,
+        telegramIntegrationId: "telegram-primary",
+        telegramSecretReference: {
+          id: "telegram.primary",
+          kind: "API_KEY",
+          provider: "telegram",
+        },
+      });
+
+      expect(composition.integrations.get("telegram-primary")).toMatchObject({
+        kind: "TELEGRAM",
+        actionKinds: ["EXTERNAL_COMMUNICATION"],
+        supportedOperations: ["SEND_MESSAGE"],
+      });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("opts into the Google Drive integration only with an explicit secret reference", () => {
     const root = mkdtempSync(join(tmpdir(), "polyon-composition-google-drive-"));
 

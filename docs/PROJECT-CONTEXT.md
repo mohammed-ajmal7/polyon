@@ -251,7 +251,7 @@ Implemented boundaries include:
 - integration adapter interface/registry;
 - planned integration kinds for Google Drive, Telegram, and Email.
 
-A concrete bounded filesystem-read tool, an opt-in scoped terminal execution tool, and structured scoped Git read/write tools now exist behind the tool adapter boundary. The terminal tool requires an explicit command allowlist, keeps execution inside a configured root, disables shell interpretation, enforces timeout/output limits, and passes only an explicit environment-variable allowlist to the child process. Git read operations are limited to STATUS/DIFF/LOG/SHOW. Git write operations are limited to CREATE_BRANCH/STAGE_PATHS/UNSTAGE_PATHS and are classified as WRITE so normal policy/approval controls apply. The application-level ToolInvocationService enforces tool lookup, policy decisions, approvals, invocation tracing, input-schema validation, and adapter execution. Model-facing tool definitions carry the declared input schema and use provider-safe function names while preserving the canonical POLYON tool ID for routing and audit. Git commit/publish is now partially implemented with separate bounded tools: structured local commit is a governed WRITE operation, and remote publish is a governed PUBLISH operation with an explicit remote allowlist and safe branch/ref construction. Artifact text creation is a governed WRITE tool whose returned metadata is durably registered and traced; the application also exposes a deterministic artifact catalog for metadata queries and an explicitly configured bounded local artifact-content reader that resolves artifact locations only within its configured root. Agent tool catalogs can discover these as structured `artifact.list.scoped` and `artifact.read.scoped` READ tools when the corresponding capabilities are configured. Model-facing tool results are bounded by a configurable byte limit, including resumed approval continuations, while durable tool results remain intact. External integrations remain to be implemented.
+A concrete bounded filesystem-read tool, an opt-in scoped terminal execution tool, and structured scoped Git read/write tools now exist behind the tool adapter boundary. The terminal tool requires an explicit command allowlist, keeps execution inside a configured root, disables shell interpretation, enforces timeout/output limits, and passes only an explicit environment-variable allowlist to the child process. Git read operations are limited to STATUS/DIFF/LOG/SHOW. Git write operations are limited to CREATE_BRANCH/STAGE_PATHS/UNSTAGE_PATHS and are classified as WRITE so normal policy/approval controls apply. The application-level ToolInvocationService enforces tool lookup, policy decisions, approvals, invocation tracing, input-schema validation, and adapter execution. Model-facing tool definitions carry the declared input schema and use provider-safe function names while preserving the canonical POLYON tool ID for routing and audit. Git commit/publish is now partially implemented with separate bounded tools: structured local commit is a governed WRITE operation, and remote publish is a governed PUBLISH operation with an explicit remote allowlist and safe branch/ref construction. Artifact text creation is a governed WRITE tool whose returned metadata is durably registered and traced; the application also exposes a deterministic artifact catalog for metadata queries and an explicitly configured bounded local artifact-content reader that resolves artifact locations only within its configured root. Agent tool catalogs can discover these as structured `artifact.list.scoped` and `artifact.read.scoped` READ tools when the corresponding capabilities are configured. Model-facing tool results are bounded by a configurable byte limit, including resumed approval continuations, while durable tool results remain intact. Google Drive and Telegram have concrete integration adapters; direct agent-facing external integration orchestration and Email remain to be implemented.
 
 ### Conversations and application ingress
 
@@ -347,9 +347,9 @@ Every consequential tool action must pass policy/approval controls.
 
 ### Real external integrations
 
-Google Drive now has a concrete bounded READ adapter with OAuth access-token resolution, HTTPS/host/port allowlisting, response-size and pagination limits, and deterministic metadata parsing. It is exposed through the application-level integration invocation boundary with policy/approval and durable invocation tracing. Integration adapters also declare their supported operations, and unsupported operations are rejected before policy approval or external execution.
+Google Drive now has a concrete bounded READ adapter with OAuth access-token resolution, HTTPS/host/port allowlisting, response-size and pagination limits, and deterministic metadata parsing. It is exposed through the application-level integration invocation boundary with policy/approval and durable invocation tracing. Telegram now has a bounded outbound `SEND_MESSAGE` adapter using the HTTPS Bot API, an explicit API-key secret reference, request/response limits, and policy/approval enforcement. Integration adapters also declare their supported operations, and unsupported operations are rejected before policy approval or external execution.
 
-Telegram and Email still need concrete adapters and authentication/token handling.
+Email still needs a concrete adapter and authentication/token handling.
 
 Secrets must never be exposed to the web client or committed to Git.
 
@@ -607,11 +607,18 @@ Add coding-agent adapters, isolated execution, Git operations, artifacts, and re
 
 ### Phase 9 — External integrations
 
-Implement only:
+Status: in progress.
 
-- Google Drive;
-- Telegram;
-- Email.
+Implemented:
+
+- Google Drive READ adapter;
+- Telegram bounded SEND_MESSAGE adapter.
+
+Remaining:
+
+- Email;
+- direct agent-facing external integration orchestration;
+- production credential lifecycle beyond environment-backed secret references.
 
 Build authentication and secret storage without exposing credentials to the browser.
 

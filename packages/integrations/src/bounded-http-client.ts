@@ -1,7 +1,8 @@
 export interface BoundedHttpRequest {
   readonly url: string;
-  readonly method?: "GET" | "HEAD";
+  readonly method?: "GET" | "HEAD" | "POST";
   readonly headers?: Readonly<Record<string, string>>;
+  readonly body?: string;
   readonly signal?: AbortSignal;
 }
 
@@ -20,6 +21,8 @@ export interface BoundedHttpClientOptions {
   readonly maxTimeoutMs?: number;
   readonly defaultMaxResponseBytes?: number;
   readonly maxResponseBytes?: number;
+  readonly defaultMaxRequestBytes?: number;
+  readonly maxRequestBytes?: number;
   readonly allowInsecureHttp?: boolean;
 }
 
@@ -32,6 +35,7 @@ export type BoundedHttpClientErrorKind =
   | "TIMEOUT"
   | "CANCELLED"
   | "RESPONSE_TOO_LARGE"
+  | "REQUEST_TOO_LARGE"
   | "NETWORK_ERROR";
 
 export class BoundedHttpClientError extends Error {
@@ -46,6 +50,7 @@ export class BoundedHttpClientError extends Error {
 
 const DEFAULT_TIMEOUT_MS = 15_000;
 const DEFAULT_MAX_RESPONSE_BYTES = 1_048_576;
+const DEFAULT_MAX_REQUEST_BYTES = 65_536;
 
 export class BoundedHttpClient {
   private readonly allowedHosts: ReadonlySet<string>;
@@ -54,6 +59,8 @@ export class BoundedHttpClient {
   private readonly maxTimeoutMs: number;
   private readonly defaultMaxResponseBytes: number;
   private readonly maxResponseBytes: number;
+  private readonly defaultMaxRequestBytes: number;
+  private readonly maxRequestBytes: number;
   private readonly allowInsecureHttp: boolean;
 
   constructor(options: BoundedHttpClientOptions) {
@@ -76,6 +83,9 @@ export class BoundedHttpClient {
     this.maxTimeoutMs = options.maxTimeoutMs ?? this.defaultTimeoutMs;
     this.defaultMaxResponseBytes = options.defaultMaxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES;
     this.maxResponseBytes = options.maxResponseBytes ?? this.defaultMaxResponseBytes;
+    this.defaultMaxRequestBytes =
+      options.defaultMaxRequestBytes ?? DEFAULT_MAX_REQUEST_BYTES;
+    this.maxRequestBytes = options.maxRequestBytes ?? this.defaultMaxRequestBytes;
     this.allowInsecureHttp = options.allowInsecureHttp ?? false;
 
     assertPositiveLimit(this.defaultTimeoutMs, "defaultTimeoutMs");
@@ -87,9 +97,15 @@ export class BoundedHttpClient {
 
     assertPositiveLimit(this.defaultMaxResponseBytes, "defaultMaxResponseBytes");
     assertPositiveLimit(this.maxResponseBytes, "maxResponseBytes");
+    assertPositiveLimit(this.defaultMaxRequestBytes, "defaultMaxRequestBytes");
+    assertPositiveLimit(this.maxRequestBytes, "maxRequestBytes");
 
     if (this.maxResponseBytes < this.defaultMaxResponseBytes) {
       throw new RangeError("maxResponseBytes must be at least defaultMaxResponseBytes.");
+    }
+
+    if (this.maxRequestBytes < this.defaultMaxRequestBytes) {
+      throw new RangeError("maxRequestBytes must be at least defaultMaxRequestBytes.");
     }
   }
 
@@ -98,6 +114,7 @@ export class BoundedHttpClient {
     options?: {
       readonly timeoutMs?: number;
       readonly maxResponseBytes?: number;
+      readonly maxRequestBytes?: number;
     },
   ): Promise<BoundedHttpResponse> {
     const url = parseUrl(input.url, this.allowInsecureHttp);
@@ -119,10 +136,37 @@ export class BoundedHttpClient {
 
     const method = input.method ?? "GET";
 
-    if (method !== "GET" && method !== "HEAD") {
+    if (method !== "GET" && method !== "HEAD" && method !== "POST") {
       throw new BoundedHttpClientError(
         "METHOD_NOT_ALLOWED",
         `HTTP method is not allowed: ${method}.`,
+      );
+    }
+
+    if (input.body !== undefined && method !== "POST") {
+      throw new BoundedHttpClientError(
+        "METHOD_NOT_ALLOWED",
+        "HTTP request bodies are only allowed for POST requests.",
+      );
+    }
+
+    const maxRequestBytes = options?.maxRequestBytes ?? this.defaultMaxRequestBytes;
+    assertPositiveLimit(maxRequestBytes, "maxRequestBytes");
+
+    if (maxRequestBytes > this.maxRequestBytes) {
+      throw new BoundedHttpClientError(
+        "REQUEST_TOO_LARGE",
+        `HTTP request limit exceeds the configured maximum: ${maxRequestBytes} bytes.`,
+      );
+    }
+
+    if (
+      input.body !== undefined &&
+      new TextEncoder().encode(input.body).byteLength > maxRequestBytes
+    ) {
+      throw new BoundedHttpClientError(
+        "REQUEST_TOO_LARGE",
+        `HTTP request body exceeds the ${maxRequestBytes}-byte limit.`,
       );
     }
 
@@ -172,6 +216,7 @@ export class BoundedHttpClient {
         method,
         redirect: "error",
         headers: input.headers,
+        body: input.body,
         signal: controller.signal,
       });
 

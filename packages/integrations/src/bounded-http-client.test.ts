@@ -107,20 +107,75 @@ describe("BoundedHttpClient", () => {
     expect(new TextDecoder().decode(result.body)).toBe("ok");
   });
 
-  it("allows only GET and HEAD", async () => {
+  it("allows GET, HEAD, and bounded POST bodies", async () => {
     const fetchMock = vi.fn(async () => response("ok"));
     vi.stubGlobal("fetch", fetchMock);
 
     const client = new BoundedHttpClient({
       allowedHosts: ["api.example.com"],
+      defaultMaxRequestBytes: 64,
+      maxRequestBytes: 64,
+    });
+
+    await client.request({
+      url: "https://api.example.com/data",
+    });
+
+    await client.request({
+      url: "https://api.example.com/data",
+      method: "HEAD",
+    });
+
+    await client.request({
+      url: "https://api.example.com/data",
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: '{"ok":true}',
+    });
+
+    const postInit = fetchMock.mock.calls[2]?.[1];
+    expect(postInit).toMatchObject({
+      method: "POST",
+      body: '{"ok":true}',
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("rejects request bodies for non-POST requests and enforces request byte limits", async () => {
+    const fetchMock = vi.fn(async () => response("ok"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = new BoundedHttpClient({
+      allowedHosts: ["api.example.com"],
+      defaultMaxRequestBytes: 8,
+      maxRequestBytes: 8,
     });
 
     await expect(
       client.request({
         url: "https://api.example.com/data",
-        method: "POST" as never,
+        body: "body",
       }),
     ).rejects.toMatchObject({ kind: "METHOD_NOT_ALLOWED" });
+
+    await expect(
+      client.request({
+        url: "https://api.example.com/data",
+        method: "POST",
+        body: "123456789",
+      }),
+    ).rejects.toMatchObject({ kind: "REQUEST_TOO_LARGE" });
+
+    await expect(
+      client.request(
+        {
+          url: "https://api.example.com/data",
+          method: "POST",
+          body: "123456789",
+        },
+        { maxRequestBytes: 9 },
+      ),
+    ).rejects.toMatchObject({ kind: "REQUEST_TOO_LARGE" });
 
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -185,6 +240,8 @@ describe("BoundedHttpClient", () => {
       maxTimeoutMs: 1000,
       defaultMaxResponseBytes: 32,
       maxResponseBytes: 32,
+      defaultMaxRequestBytes: 32,
+      maxRequestBytes: 32,
     });
 
     await expect(
@@ -194,6 +251,17 @@ describe("BoundedHttpClient", () => {
     await expect(
       client.request({ url: "https://api.example.com/data" }, { maxResponseBytes: 33 }),
     ).rejects.toMatchObject({ kind: "RESPONSE_TOO_LARGE" });
+
+    await expect(
+      client.request(
+        {
+          url: "https://api.example.com/data",
+          method: "POST",
+          body: "ok",
+        },
+        { maxRequestBytes: 33 },
+      ),
+    ).rejects.toMatchObject({ kind: "REQUEST_TOO_LARGE" });
   });
 
   it("keeps the transport timeout active when a caller signal is supplied", async () => {
