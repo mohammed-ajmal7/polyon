@@ -62,7 +62,8 @@ function appendRecoveryEvent(
   executionId: ExecutionId,
   reason:
     | "PROCESS_STARTUP"
-    | "RESUMABLE_TOOL_CONTINUATION_RESTART",
+    | "RESUMABLE_TOOL_CONTINUATION_RESTART"
+    | "PENDING_TOOL_APPROVAL_RESTART",
 ): void {
   const execution = executions.get(executionId);
 
@@ -125,7 +126,9 @@ export class InMemoryExecutionWorker implements ExecutionWorker {
         recovery.executionId,
         recovery.kind === "INTERRUPTED_TOOL_CONTINUATION"
           ? "RESUMABLE_TOOL_CONTINUATION_RESTART"
-          : "PROCESS_STARTUP",
+          : recovery.kind === "PENDING_TOOL_APPROVAL_RESTART"
+            ? "PENDING_TOOL_APPROVAL_RESTART"
+            : "PROCESS_STARTUP",
       );
     }
 
