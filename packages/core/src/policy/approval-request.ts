@@ -19,6 +19,7 @@ export interface CreateApprovalRequestInput {
   readonly taskId?: TaskId;
   readonly executionId?: ExecutionId;
   readonly toolId?: ToolId;
+  readonly integrationId?: string;
   readonly invocationId?: string;
   readonly expiresAt?: string;
 }
@@ -47,6 +48,7 @@ export function createApprovalRequest(
     taskId: input.taskId,
     executionId: input.executionId,
     toolId: input.toolId,
+    integrationId: input.integrationId,
     invocationId: input.invocationId,
     action: decision.action,
     riskLevel: decision.riskLevel,
