@@ -1,4 +1,15 @@
 export {
+  EmailIntegrationAdapter,
+  EmailIntegrationAdapterError,
+  type EmailIntegrationAdapterErrorKind,
+  type EmailIntegrationAdapterOptions,
+  type EmailOperation,
+  type EmailSendInput,
+  type EmailSendOutput,
+  type EmailTransport,
+} from "./email-integration-adapter";
+
+export {
   TelegramIntegrationAdapter,
   TelegramIntegrationAdapterError,
   type TelegramIntegrationAdapterErrorKind,
