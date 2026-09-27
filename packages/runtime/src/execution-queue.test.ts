@@ -29,6 +29,35 @@ describe("InMemoryExecutionQueue", () => {
     expect(queue.size()).toBe(0);
   });
 
+  it("reports whether an execution is queued", () => {
+    const queue = new InMemoryExecutionQueue();
+
+    expect(queue.has("execution-1")).toBe(false);
+
+    queue.enqueue(queuedExecution("execution-1"));
+
+    expect(queue.has("execution-1")).toBe(true);
+
+    queue.dequeue();
+
+    expect(queue.has("execution-1")).toBe(false);
+  });
+
+  it("rejects duplicate queued executions", () => {
+    const queue = new InMemoryExecutionQueue();
+    const execution = queuedExecution("execution-1");
+
+    queue.enqueue(execution);
+
+    expect(() => queue.enqueue(execution)).toThrowError(
+      new ExecutionQueueError(
+        "EXECUTION_ALREADY_QUEUED",
+        "execution-1",
+        "QUEUED",
+      ),
+    );
+  });
+
   it("peeks without removing the execution", () => {
     const queue = new InMemoryExecutionQueue();
     queue.enqueue(queuedExecution("execution-1"));

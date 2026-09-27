@@ -1,6 +1,8 @@
 import type { Execution, ExecutionId, ExecutionStatus } from "@polyon/contracts";
 
-export type ExecutionQueueErrorKind = "EXECUTION_NOT_QUEUED";
+export type ExecutionQueueErrorKind =
+  | "EXECUTION_NOT_QUEUED"
+  | "EXECUTION_ALREADY_QUEUED";
 
 export class ExecutionQueueError extends Error {
   readonly kind: ExecutionQueueErrorKind;
@@ -22,6 +24,7 @@ export class ExecutionQueueError extends Error {
 
 export interface ExecutionQueue {
   enqueue(execution: Execution): void;
+  has(executionId: ExecutionId): boolean;
   peek(): Execution | undefined;
   dequeue(): Execution | undefined;
   size(): number;
@@ -43,7 +46,19 @@ export class InMemoryExecutionQueue implements ExecutionQueue {
       );
     }
 
+    if (this.has(execution.id)) {
+      throw new ExecutionQueueError(
+        "EXECUTION_ALREADY_QUEUED",
+        execution.id,
+        execution.status,
+      );
+    }
+
     this.queue.push(cloneExecution(execution));
+  }
+
+  has(executionId: ExecutionId): boolean {
+    return this.queue.some((execution) => execution.id === executionId);
   }
 
   peek(): Execution | undefined {
