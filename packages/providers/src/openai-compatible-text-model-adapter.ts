@@ -118,7 +118,7 @@ export class OpenAICompatibleTextModelAdapter implements TextModelProviderAdapte
       headers,
       body: JSON.stringify({
         model: modelId,
-        messages: input.messages,
+        messages: input.messages.map(toOpenAIMessage),
         ...(input.tools === undefined
           ? {}
           : {
@@ -296,11 +296,7 @@ function mapUsage(value: OpenAIChatResponse["usage"]): TextModelUsage | undefine
 }
 
 
-function parseToolCalls(
-  value: OpenAIChatResponse["choices"] extends readonly (infer T)[]
-    ? T extends { message?: infer M } ? M extends { tool_calls?: infer C } ? C : never : never
-    : never,
-): TextModelResponse["toolCalls"] | undefined {
+function parseToolCalls(value: unknown): TextModelResponse["toolCalls"] | undefined {
   if (!Array.isArray(value) || value.length === 0) {
     return undefined;
   }
@@ -334,4 +330,35 @@ function parseToolCalls(
   }
 
   return calls.length === 0 ? undefined : calls;
+}
+
+function toOpenAIMessage(message: TextModelRequest["messages"][number]): Record<string, unknown> {
+  if (message.role === "ASSISTANT" && message.toolCalls !== undefined) {
+    return {
+      role: "assistant",
+      content: message.content,
+      tool_calls: message.toolCalls.map((call) => ({
+        id: call.id,
+        type: "function",
+        function: {
+          name: call.toolId,
+          arguments: JSON.stringify(call.input),
+        },
+      })),
+    };
+  }
+
+  if (message.role === "TOOL") {
+    return {
+      role: "tool",
+      content: message.content,
+      tool_call_id: message.toolCallId,
+    };
+  }
+
+  return {
+    role: message.role.toLowerCase(),
+    content: message.content,
+    ...(message.name === undefined ? {} : { name: message.name }),
+  };
 }
