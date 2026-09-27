@@ -58,31 +58,39 @@ export class AgentToolOrchestrationService {
   constructor(private readonly dependencies: AgentToolOrchestrationDependencies) {}
 
   async invoke(input: AgentToolOrchestrationInput): Promise<AgentToolOrchestrationResult> {
+    const initial = await this.dependencies.agentGateway.invokeText({
+      agentId: input.agentId,
+      requiredCapabilityIds: input.requiredCapabilityIds,
+      request: this.withToolDefinitions(input.request),
+    });
+
+    return this.continueFromResponse(
+      input,
+      this.withToolDefinitions(input.request),
+      initial.output,
+    );
+  }
+
+  async continueFromResponse(
+    input: AgentToolOrchestrationInput,
+    request: TextModelRequest,
+    response: TextModelResponse,
+  ): Promise<AgentToolOrchestrationResult> {
     const maxRounds = input.maxToolRounds ?? 8;
     if (!Number.isInteger(maxRounds) || maxRounds <= 0) {
       throw new RangeError("maxToolRounds must be a positive integer.");
     }
 
-    let request = this.withToolDefinitions(input.request);
+    let currentRequest = this.withToolDefinitions(request);
+    let currentResponse = response;
     let rounds = 0;
 
-    while (true) {
-      const result = await this.dependencies.agentGateway.invokeText({
-        agentId: input.agentId,
-        requiredCapabilityIds: input.requiredCapabilityIds,
-        request,
-      });
-      const response = result.output;
-
-      if (response.toolCalls === undefined || response.toolCalls.length === 0) {
-        return { status: "SUCCEEDED", response, rounds };
-      }
-
+    while (currentResponse.toolCalls !== undefined && currentResponse.toolCalls.length > 0) {
       rounds += 1;
       if (rounds > maxRounds) {
         return {
           status: "FAILED",
-          response,
+          response: currentResponse,
           error: `Tool-call round limit exceeded: ${maxRounds}.`,
           rounds,
         };
@@ -90,18 +98,18 @@ export class AgentToolOrchestrationService {
 
       const assistantMessage: ModelMessage = {
         role: "ASSISTANT",
-        content: response.content,
-        toolCalls: response.toolCalls,
+        content: currentResponse.content,
+        toolCalls: currentResponse.toolCalls,
       };
 
       const toolMessages: ModelMessage[] = [];
-      for (const toolCall of response.toolCalls) {
+      for (const toolCall of currentResponse.toolCalls) {
         const outcome = await this.invokeTool(input, toolCall);
 
         if (outcome.status === "APPROVAL_REQUIRED") {
           return {
             status: "APPROVAL_REQUIRED",
-            response,
+            response: currentResponse,
             approval: outcome.approvalRequest,
             rounds,
           };
@@ -110,7 +118,7 @@ export class AgentToolOrchestrationService {
         if (outcome.status === "REJECTED" || outcome.status === "FAILED") {
           return {
             status: outcome.status,
-            response,
+            response: currentResponse,
             error: outcome.error,
             rounds,
           };
@@ -124,11 +132,24 @@ export class AgentToolOrchestrationService {
         });
       }
 
-      request = {
-        ...request,
-        messages: [...request.messages, assistantMessage, ...toolMessages],
+      currentRequest = {
+        ...currentRequest,
+        messages: [...currentRequest.messages, assistantMessage, ...toolMessages],
       };
+
+      const next = await this.dependencies.agentGateway.invokeText({
+        agentId: input.agentId,
+        requiredCapabilityIds: input.requiredCapabilityIds,
+        request: currentRequest,
+      });
+      currentResponse = next.output;
     }
+
+    return {
+      status: "SUCCEEDED",
+      response: currentResponse,
+      rounds,
+    };
   }
 
   private withToolDefinitions(request: TextModelRequest): TextModelRequest {
