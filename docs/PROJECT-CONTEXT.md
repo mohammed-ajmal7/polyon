@@ -313,7 +313,7 @@ Implemented:
 - adversarial, recovery, and volume sanity coverage across application/runtime/storage/security paths.
 
 Remaining depth:
-- richer semantic/embedding retrieval;
+- provider-independent embedding routing and bounded persisted semantic memory search are implemented; automatic indexing/reindex recovery and vector-scale optimization remain.
 - advanced MCP/A2A protocol capabilities;
 - optional enterprise/multi-user auth;
 - production-scale performance and broader E2E testing;
