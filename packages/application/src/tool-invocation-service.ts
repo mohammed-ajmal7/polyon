@@ -95,6 +95,7 @@ export type ToolInvocationServiceErrorKind =
   | "TOOL_APPROVAL_NOT_FOUND"
   | "TOOL_APPROVAL_NOT_APPROVED"
   | "TOOL_APPROVAL_TOOL_MISMATCH"
+  | "TOOL_APPROVAL_INVOCATION_MISMATCH"
   | "TOOL_APPROVAL_POLICY_NOT_FOUND"
   | "TOOL_INVOCATION_ALREADY_RECORDED";
 
@@ -387,7 +388,7 @@ export class ToolInvocationService {
 
     if (approval.invocationId !== input.invocationId) {
       throw new ToolInvocationServiceError(
-        "TOOL_APPROVAL_TOOL_MISMATCH",
+        "TOOL_APPROVAL_INVOCATION_MISMATCH",
         `Tool approval ${approval.id} is not bound to invocation ${input.invocationId}.`,
       );
     }
