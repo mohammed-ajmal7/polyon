@@ -7,10 +7,10 @@
 
 - Repository: `mohammed-ajmal7/polyon`
 - Working branch: `feature/core-architecture`
-- Current branch tip: `0c3dcede8032bdcfc0e9d8ac73ad3231908455d6`
-- Latest fully verified implementation CI run: `36333404991`
-- That verified run was **GREEN** — install, typecheck, tests, lint, and format check all passed.
-- Current branch has newer docs-only commits after that green run; the latest current CI run is `36333541410` and is still in progress.
+- Current branch tip: `b6aa63a4eb6533becf8006a9731687c07647b85d`
+- Latest CI run for the current tip: `36333554670`.
+- That run passed install, typecheck, tests, and lint, but failed the format check on this handoff file.
+- The repository code/tests are the final source of truth if this file conflicts with implementation.
 - The repository code/tests are the final source of truth if this file conflicts with implementation.
 
 ## What POLYON is
@@ -87,7 +87,7 @@ Do not claim CI is green unless the current branch/run proves it.
 
 Before starting new implementation, inspect the latest commits and CI again because the branch may have advanced since this handoff.
 
-The next work should continue the existing production-hardening path. A likely near-term area is completing the Email integration behind the same adapter -> policy/approval -> bounded transport -> durable audit model, but first inspect the current repository because the implementation may have advanced.
+The next production work should continue the existing production-hardening path after the current CI failure is repaired. A likely near-term area is completing the Email integration behind the same adapter -> policy/approval -> bounded transport -> durable audit model, but first inspect the current repository because the implementation may have advanced.
 
 ## Useful files
 
