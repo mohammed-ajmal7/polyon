@@ -24,6 +24,7 @@ import type {
   ToolAdapter,
   ToolArtifactResult,
   ToolInvocationRequest,
+  type ToolInvocationResult,
 } from "./tool-adapter";
 
 export interface ScopedArtifactWriteToolInput {
@@ -103,7 +104,7 @@ export class ScopedArtifactWriteToolAdapter
 
   async invoke(
     request: ToolInvocationRequest<ScopedArtifactWriteToolInput>,
-  ): Promise<{ output: ScopedArtifactWriteToolOutput }> {
+  ): Promise<ToolInvocationResult<ScopedArtifactWriteToolOutput>> {
     const input = request.input;
 
     if (
