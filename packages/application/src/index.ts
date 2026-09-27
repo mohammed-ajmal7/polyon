@@ -1,4 +1,11 @@
 export {
+  AgentToolOrchestrationService,
+  type AgentToolOrchestrationDependencies,
+  type AgentToolOrchestrationInput,
+  type AgentToolOrchestrationResult,
+} from "./agent-tool-orchestration-service";
+
+export {
   prepareExecutionDispatch,
   type ExecutionDispatchPlan,
   type PrepareExecutionDispatchInput,
