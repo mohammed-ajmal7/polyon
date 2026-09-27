@@ -19,6 +19,12 @@ export interface PolyonCompositionOptions {
   readonly filesystemRoot?: string;
   readonly filesystemReadMaxBytes?: number;
   readonly filesystemReadEnabled?: boolean;
+  readonly terminalRoot?: string;
+  readonly terminalAllowedCommands?: readonly string[];
+  readonly terminalDefaultTimeoutMs?: number;
+  readonly terminalMaxTimeoutMs?: number;
+  readonly terminalMaxOutputBytes?: number;
+  readonly terminalEnabled?: boolean;
   readonly toolPolicy?: Policy;
   readonly toolRequiredCapabilityIds?: readonly string[];
   readonly maxToolRounds?: number;
@@ -79,11 +85,21 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   const agentGateway = new AgentGateway({ agents, models, providers, modelGateway });
   const builtinTools = createInMemoryBuiltinToolRegistries();
 
-  if (options.filesystemRoot !== undefined) {
+  if (
+    options.filesystemRoot !== undefined ||
+    (options.terminalRoot !== undefined &&
+      options.terminalAllowedCommands !== undefined)
+  ) {
     registerBuiltinTools(builtinTools, {
       filesystemRoot: options.filesystemRoot,
       filesystemReadMaxBytes: options.filesystemReadMaxBytes,
       filesystemReadEnabled: options.filesystemReadEnabled,
+      terminalRoot: options.terminalRoot,
+      terminalAllowedCommands: options.terminalAllowedCommands,
+      terminalDefaultTimeoutMs: options.terminalDefaultTimeoutMs,
+      terminalMaxTimeoutMs: options.terminalMaxTimeoutMs,
+      terminalMaxOutputBytes: options.terminalMaxOutputBytes,
+      terminalEnabled: options.terminalEnabled,
     });
   }
 
@@ -183,6 +199,9 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
                 toolId: tool.id,
                 name: tool.id.replace(/[^A-Za-z0-9_-]/g, "_") || "polyon_tool",
                 description: tool.description,
+                ...(tool.inputSchema === undefined
+                  ? {}
+                  : { inputSchema: tool.inputSchema }),
                 ...(tool.inputSchema === undefined
                   ? {}
                   : { inputSchema: tool.inputSchema }),
