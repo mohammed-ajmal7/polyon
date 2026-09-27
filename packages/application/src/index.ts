@@ -200,3 +200,5 @@ export { McpServerService, type McpJsonRpcRequest, type McpJsonRpcResponse, type
 export { A2AServerService, type A2AJsonRpcRequest, type A2AJsonRpcResponse, type A2AServerDependencies } from "./a2a-server-service";
 
 export { registerCreativeTools } from "./creative-tools";
+
+export { SemanticMemoryService, type SemanticMemorySearchInput, type SemanticMemorySearchResult } from "./semantic-memory-service";
