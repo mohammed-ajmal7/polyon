@@ -78,6 +78,7 @@ export interface PolyonCompositionOptions {
   readonly emailSecretReference?: SecretReference;
   readonly emailSmtpUsername?: string;
   readonly emailTransport?: EmailTransport;
+  readonly researchRetriever?: ResearchRetriever;
   readonly filesystemRoot?: string;
   readonly filesystemReadMaxBytes?: number;
   readonly filesystemReadEnabled?: boolean;
@@ -161,6 +162,9 @@ export interface PolyonComposition {
   readonly artifactCatalog: ArtifactCatalogService;
   readonly localArtifactContent?: LocalArtifactContentService;
   readonly agentToolOrchestration: AgentToolOrchestrationService;
+  readonly memory: MemoryService;
+  readonly research?: ResearchService;
+  readonly debates: DebateOrchestrationService;
   readonly runtime: ExecutionRuntime;
 }
 
@@ -258,6 +262,19 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
 
   const modelGateway = new ModelGateway({ models, providers, adapters: providerAdapters });
   const agentGateway = new AgentGateway({ agents, models, providers, modelGateway });
+
+  const memory = new MemoryService(stores.memory, stores.events, stores);
+  const debates = new DebateOrchestrationService(agentGateway, stores.debates, stores.events, stores);
+  const research =
+    options.researchRetriever === undefined
+      ? undefined
+      : new ResearchService(
+          options.researchRetriever,
+          stores.sources,
+          stores.evidence,
+          stores.events,
+          stores,
+        );
   const builtinTools = createInMemoryBuiltinToolRegistries();
 
   if (
@@ -574,6 +591,9 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     artifactCatalog,
     ...(localArtifactContent === undefined ? {} : { localArtifactContent }),
     agentToolOrchestration,
+    memory,
+    ...(research === undefined ? {} : { research }),
+    debates,
     runtime,
   };
 }
