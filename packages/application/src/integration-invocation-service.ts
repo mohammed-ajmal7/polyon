@@ -126,6 +126,8 @@ export class IntegrationInvocationService {
 
     const authorization = authorizeIntegrationInvocation({
       integration,
+      integrationId: input.integrationId,
+      invocationId: input.invocationId,
       action: input.action,
       policy: input.policy,
       riskLevel: input.riskLevel,
