@@ -11,6 +11,7 @@ const google: IntegrationAdapter = {
   kind: "GOOGLE_DRIVE",
   actionKinds: ["READ"],
   supportedOperations: ["LIST_FILES", "GET_METADATA"],
+  sideEffectClass: "READ_ONLY",
   async invoke() {
     return { output: {} };
   },
@@ -21,6 +22,7 @@ const email: IntegrationAdapter = {
   kind: "EMAIL",
   actionKinds: ["EXTERNAL_COMMUNICATION"],
   supportedOperations: ["send"],
+  sideEffectClass: "NON_IDEMPOTENT",
   async invoke() {
     return { output: {} };
   },
@@ -47,7 +49,6 @@ describe("IntegrationCatalogService", () => {
         kind: "GOOGLE_DRIVE",
         actionKinds: ["READ"],
         supportedOperations: ["LIST_FILES", "GET_METADATA"],
-      sideEffectClass: "READ_ONLY",
         sideEffectClass: "READ_ONLY",
       },
     ]);
