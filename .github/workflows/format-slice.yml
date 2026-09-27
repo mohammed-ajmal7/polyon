@@ -4,22 +4,6 @@ on:
   push:
     branches:
       - feature/core-architecture
-    paths:
-      - packages/application/src/builtin-filesystem-tool.integration.test.ts
-      - packages/application/src/durable-execution-restart.integration.test.ts
-      - packages/application/src/index.ts
-      - packages/application/src/tool-invocation-service.test.ts
-      - packages/application/src/tool-invocation-service.ts
-      - packages/contracts/src/policy/approval.ts
-      - packages/core/src/policy/approval-request.ts
-      - packages/tools/src/builtin-tools.test.ts
-      - packages/tools/src/builtin-tools.ts
-      - packages/tools/src/index.ts
-      - packages/tools/src/node-runtime.d.ts
-      - packages/tools/src/scoped-filesystem-read-adapter.test.ts
-      - packages/tools/src/scoped-filesystem-read-adapter.ts
-      - packages/tools/src/tool-authorization.ts
-
 permissions:
   contents: write
 
