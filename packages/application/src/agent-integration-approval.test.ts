@@ -78,7 +78,143 @@ const policy: Policy = {
   updatedAt: now,
 };
 
-describe("agent-driven integration approval", () => {
+describe("agent-driven integration approval", () => {  it("reconciles an uncertain non-idempotent integration without replaying it", async () => {
+    const stores = new InMemoryDomainStores();
+    stores.tasks.save(task);
+    stores.executions.save(execution);
+
+    let externalCalls = 0;
+    const integrations = new InMemoryIntegrationAdapterRegistry();
+    integrations.register({
+      integrationId: "telegram-primary",
+      kind: "TELEGRAM",
+      actionKinds: ["EXTERNAL_COMMUNICATION"],
+      supportedOperations: ["SEND_MESSAGE"],
+      sideEffectClass: "NON_IDEMPOTENT",
+      async invoke() {
+        externalCalls += 1;
+        return { output: { messageId: 99 } };
+      },
+    });
+
+    const gateway = {
+      async invokeText() {
+        return {
+          agentId: agent.id,
+          modelId: "model.telegram",
+          providerId: "provider.telegram",
+          source: "PREFERRED" as const,
+          output: {
+            content: "The message was already sent.",
+            finishReason: "STOP" as const,
+          },
+        };
+      },
+    } as unknown as AgentGateway;
+
+    const tools = new (await import("@polyon/tools")).InMemoryToolRegistry();
+    const adapters = new (await import("@polyon/tools")).InMemoryToolAdapterRegistry();
+    const toolInvocation = new ToolInvocationService({
+      tools,
+      adapters,
+      approvals: stores.approvals,
+      policyDecisions: stores.policyDecisions,
+      events: stores.events,
+      unitOfWork: stores,
+    });
+    const integrationInvocation = new IntegrationInvocationService({
+      integrations,
+      approvals: stores.approvals,
+      policyDecisions: stores.policyDecisions,
+      events: stores.events,
+      unitOfWork: stores,
+    });
+    const orchestrator = new AgentToolOrchestrationService({
+      agentGateway: gateway,
+      toolInvocation,
+      integrationInvocation,
+      integrations,
+      tools,
+      approvals: stores.approvals,
+      executions: stores.executions,
+      tasks: stores.tasks,
+      events: stores.events,
+      unitOfWork: stores,
+      enqueueExecution: () => {},
+    });
+
+    stores.approvals.save({
+      id: "approval-reconcile",
+      policyId: policy.id,
+      policyDecisionId: "decision-reconcile",
+      executionId: execution.id,
+      integrationId: "telegram-primary",
+      invocationId: "tool-call:reconcile",
+      action: "EXTERNAL_COMMUNICATION",
+      riskLevel: "MEDIUM",
+      requestedBy: execution.actorId,
+      reason: "Possible side effect.",
+      status: "APPROVED",
+      requestedAt: now,
+      resolvedAt: now,
+      integrationInvocation: {
+        operation: "SEND_MESSAGE",
+        input: { chatId: 100, text: "hello" },
+      },
+      integrationContinuation: {
+        agentId: agent.id,
+        requiredCapabilityIds: ["text.generate"],
+        request: {
+          messages: [{ role: "USER", content: "Send hello." }],
+        },
+        response: {
+          content: "",
+          finishReason: "TOOL_CALL",
+          toolCalls: [
+            {
+              id: "reconcile",
+              toolId: "integration.invoke:telegram-primary:SEND_MESSAGE",
+              input: { chatId: 100, text: "hello" },
+            },
+          ],
+        },
+        toolCall: {
+          id: "reconcile",
+          toolId: "integration.invoke:telegram-primary:SEND_MESSAGE",
+          input: { chatId: 100, text: "hello" },
+        },
+        rounds: 1,
+        integrationId: "telegram-primary",
+        operation: "SEND_MESSAGE",
+        input: { chatId: 100, text: "hello" },
+        sideEffectClass: "NON_IDEMPOTENT",
+        state: "RECONCILIATION_REQUIRED",
+      },
+    });
+
+    const result = await orchestrator.reconcileIntegrationExecution({
+      approvalId: "approval-reconcile",
+      action: "MARK_COMPLETED",
+      resolvedAt: "2026-09-27T03:05:00.000Z",
+      output: { messageId: 42 },
+    });
+
+    expect(result).toEqual({
+      status: "ENQUEUED",
+      executionId: execution.id,
+    });
+    expect(externalCalls).toBe(0);
+    expect(
+      stores.approvals.get("approval-reconcile")?.integrationContinuation,
+    ).toMatchObject({
+      state: "AWAITING_MODEL",
+      integrationOutput: { messageId: 42 },
+    });
+    expect(stores.executions.get(execution.id)?.status).toBe("QUEUED");
+    expect(stores.tasks.get(task.id)?.status).toBe("RUNNING");
+  });
+
+
   it("persists an integration continuation, blocks the side effect, then resumes after approval", async () => {
     const stores = new InMemoryDomainStores();
     stores.tasks.save(task);
