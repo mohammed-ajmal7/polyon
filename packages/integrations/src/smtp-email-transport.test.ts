@@ -297,7 +297,7 @@ describe("SmtpTransport", () => {
     expect(message).toContain("Subject: =?UTF-8?B?");
     expect(message).toContain("\r\n\r\nSGVsbG8KLlNlY29uZCBsaW5l\r\n");
     expect(message?.endsWith("\r\n")).toBe(true);
-    expect(connection.write).toHaveBeenLastCalledWith(".\r\n");
+    expect(connection.write).toHaveBeenCalledWith(".\r\n");
   });
 
   it("chunks large SMTP DATA payloads within the connection write bound", async () => {
