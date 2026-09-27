@@ -94,7 +94,11 @@ describe("EnvironmentSecretResolver", () => {
         POLYON_TELEGRAM_TOKEN: secret,
       },
       references: {
-        "telegram.primary": "POLYON_TELEGRAM_TOKEN",
+        "telegram.primary": {
+          provider: "telegram",
+          kind: "OAUTH_ACCESS_TOKEN",
+          environmentVariable: "POLYON_TELEGRAM_TOKEN",
+        },
       },
     });
 
