@@ -12,6 +12,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@polyon/application": "workspace:*",
+    "@polyon/contracts": "workspace:*",
     "next": "16.3.6",
     "react": "19.2.8",
     "react-dom": "19.2.8"
