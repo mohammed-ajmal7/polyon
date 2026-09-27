@@ -1,4 +1,5 @@
 name: Repair repository formatting
+# one-time trigger
 
 on:
   push:
