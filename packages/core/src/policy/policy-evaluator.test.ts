@@ -106,6 +106,62 @@ describe("evaluatePolicy", () => {
     expect(decision.effect).toBe("DENY");
   });
 
+  it("matches contextual scope fields", () => {
+    const policy = {
+      ...basePolicy,
+      defaultEffect: "DENY" as const,
+      rules: [
+        {
+          priority: 20,
+          actorId: "user-1",
+          missionId: "mission-1",
+          taskId: "task-1",
+          agentId: "agent-1",
+          capabilityId: "coding",
+          toolId: "tool-1",
+          action: "TERMINAL" as const,
+          riskLevel: "HIGH" as const,
+          effect: "ALLOW" as const,
+        },
+      ],
+    };
+
+    const decision = evaluatePolicy(policy, {
+      ...input,
+      actorId: "user-1",
+      missionId: "mission-1",
+      taskId: "task-1",
+      agentId: "agent-1",
+      capabilityId: "coding",
+      toolId: "tool-1",
+      action: "TERMINAL",
+      riskLevel: "HIGH",
+    });
+
+    expect(decision.effect).toBe("ALLOW");
+  });
+
+  it("requires contextual scope fields to match exactly", () => {
+    const policy = {
+      ...basePolicy,
+      defaultEffect: "ALLOW" as const,
+      rules: [
+        {
+          priority: 20,
+          missionId: "mission-1",
+          effect: "DENY" as const,
+        },
+      ],
+    };
+
+    const decision = evaluatePolicy(policy, {
+      ...input,
+      missionId: "mission-2",
+    });
+
+    expect(decision.effect).toBe("ALLOW");
+  });
+
   it("allows a rule without conditions to match every action", () => {
     const policy = {
       ...basePolicy,

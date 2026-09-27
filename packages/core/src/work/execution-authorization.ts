@@ -63,6 +63,10 @@ export function authorizeExecutionRun(
     decisionId: input.decisionId,
     action: "EXECUTION_RUN",
     riskLevel: input.riskLevel,
+    actorId: input.execution.actorId,
+    missionId: input.execution.missionId,
+    taskId: input.execution.taskId,
+    agentId: input.execution.agentId,
     evaluatedAt: input.evaluatedAt,
   });
 
