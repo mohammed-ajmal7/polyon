@@ -110,6 +110,7 @@ export function authorizeIntegrationInvocation(
       requestedBy: input.requestedBy,
       integrationId: input.integrationId ?? input.integration.integrationId,
       invocationId: input.invocationId,
+      integrationInvocation: input.integrationInvocation,
       requestedAt: input.requestedAt,
       missionId: input.missionId,
       taskId: input.taskId,
