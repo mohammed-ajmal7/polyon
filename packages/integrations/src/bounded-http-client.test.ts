@@ -71,6 +71,26 @@ describe("BoundedHttpClient", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("rejects non-allowlisted ports on an otherwise trusted host", async () => {
+    const fetchMock = vi.fn(async () => response("ok"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = new BoundedHttpClient({
+      allowedHosts: ["api.example.com"],
+      allowedPorts: [443],
+    });
+
+    await expect(
+      client.request({
+        url: "https://api.example.com:8443/status",
+      }),
+    ).rejects.toMatchObject({
+      kind: "HOST_NOT_ALLOWED",
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("permits configured HTTP for local development only", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => response("ok")));
 
