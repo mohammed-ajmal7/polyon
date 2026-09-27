@@ -3,10 +3,6 @@ export { markTaskReady, TaskReadyError } from "./task-ready-transition";
 export { cancelExecution, completeExecution, ExecutionControlError, pauseExecution, rejectExecution, resumeExecution, startExecution } from "./execution-control";
 export { createRetryExecution, ExecutionRetryError } from "./execution-retry";
 export {
-  applyExecutionRunAuthorization,
-  ExecutionRunAuthorizationApplicationError,
-} from "./execution-run-authorization";
-export {
   applyApprovedExecutionRun,
   ApprovedExecutionRunError,
 } from "./approved-execution-run";
