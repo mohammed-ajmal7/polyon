@@ -2,7 +2,7 @@ import type { Policy, Tool } from "@polyon/contracts";
 import { describe, expect, it, vi } from "vitest";
 
 import { InMemoryToolAdapterRegistry, InMemoryToolRegistry, type ToolAdapter } from "@polyon/tools";
-import { InMemoryDomainStores, InMemoryEventStore } from "@polyon/storage";
+import { InMemoryDomainStores } from "@polyon/storage";
 
 import { ToolInvocationService, type InvokeToolInput } from "./tool-invocation-service";
 
@@ -61,7 +61,7 @@ function createService(adapter?: ToolAdapter) {
   const tools = new InMemoryToolRegistry();
   const adapters = new InMemoryToolAdapterRegistry();
   const stores = new InMemoryDomainStores();
-  const events = new InMemoryEventStore();
+  const events = stores.events;
 
   tools.register(tool);
   if (adapter !== undefined) {
@@ -77,6 +77,7 @@ function createService(adapter?: ToolAdapter) {
       approvals: stores.approvals,
       policyDecisions: stores.policyDecisions,
       events,
+      unitOfWork: stores,
     }),
   };
 }
@@ -104,6 +105,44 @@ describe("ToolInvocationService", () => {
       "TOOL_INVOKED",
       "TOOL_INVOKED",
     ]);
+  });
+
+  it("persists artifacts returned by a tool adapter", async () => {
+    const artifact = {
+      id: "artifact-1",
+      kind: "REPORT" as const,
+      name: "report.txt",
+      mimeType: "text/plain",
+      location: "/artifacts/report.txt",
+      status: "AVAILABLE" as const,
+    };
+
+    const invoke = vi.fn(async () => ({
+      output: {
+        location: artifact.location,
+      },
+      artifacts: [artifact],
+    }));
+    const { stores, events, service } = createService({
+      toolId: "tool-1",
+      invoke,
+    });
+
+    const result = await service.invoke(baseInput);
+
+    expect(result.status).toBe("SUCCEEDED");
+    expect(stores.artifacts.get("artifact-1")).toMatchObject({
+      id: "artifact-1",
+      executionId: "execution-1",
+      missionId: "mission-1",
+      taskId: "task-1",
+      name: "report.txt",
+    });
+    expect(events.get("ARTIFACT_CREATED:artifact-1")?.data).toMatchObject({
+      artifactId: "artifact-1",
+      executionId: "execution-1",
+      location: "/artifacts/report.txt",
+    });
   });
 
   it("denies the tool without invoking its adapter", async () => {
