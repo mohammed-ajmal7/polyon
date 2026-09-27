@@ -113,6 +113,16 @@ export {
 } from "./conversation-query";
 
 export {
+  IntegrationInvocationService,
+  IntegrationInvocationServiceError,
+  type IntegrationInvocationOutcome,
+  type IntegrationInvocationServiceDependencies,
+  type IntegrationInvocationServiceErrorKind,
+  type InvokeApprovedIntegrationInput,
+  type InvokeIntegrationInput,
+} from "./integration-invocation-service";
+
+export {
   ToolInvocationService,
   ToolInvocationServiceError,
   type InvokeApprovedToolInput,
