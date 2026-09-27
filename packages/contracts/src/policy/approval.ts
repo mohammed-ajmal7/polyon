@@ -15,6 +15,7 @@ export interface ApprovalRequest {
   readonly proposalId?: MissionPlanProposalId;
   readonly taskId?: TaskId;
   readonly executionId?: ExecutionId;
+  readonly toolId?: import("../tool/ids").ToolId;
 
   readonly action: ActionKind;
   readonly riskLevel: RiskLevel;
