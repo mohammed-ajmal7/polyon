@@ -3,13 +3,15 @@ import type {
   TextModelRequest,
   TextModelResponse,
   TextModelUsage,
+  type ModelId,
+  type ProviderId,
 } from "@polyon/contracts";
 
 import { ProviderInvocationError } from "./provider-errors";
 import type { TextModelProviderAdapter, ProviderInvocationResult } from "./provider-adapter";
 
 export interface OpenAICompatibleTextModelAdapterOptions {
-  readonly providerId: string;
+  readonly providerId: ProviderId;
   readonly endpoint: string;
   readonly apiKey?: string;
   readonly fetch?: OpenAICompatibleFetch;
@@ -75,7 +77,7 @@ export class OpenAICompatibleTextModelAdapter implements TextModelProviderAdapte
     input,
     signal,
   }: {
-    readonly modelId: string;
+    readonly modelId: ModelId;
     readonly input: TextModelRequest;
     readonly signal?: AbortSignal;
   }): Promise<ProviderInvocationResult<TextModelResponse>> {
@@ -92,7 +94,7 @@ export class OpenAICompatibleTextModelAdapter implements TextModelProviderAdapte
   }
 
   private async request(
-    modelId: string,
+    modelId: ModelId,
     input: TextModelRequest,
     signal?: AbortSignal,
   ): Promise<OpenAICompatibleResponse> {
@@ -155,7 +157,7 @@ export class OpenAICompatibleTextModelAdapter implements TextModelProviderAdapte
 
   private mapHttpError(
     status: number,
-    modelId: string,
+    modelId: ModelId,
     payload: unknown,
   ): ProviderInvocationError {
     const message = extractErrorMessage(payload) ?? `Provider request failed with HTTP ${status}.`;
