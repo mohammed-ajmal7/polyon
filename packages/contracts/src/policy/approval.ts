@@ -24,6 +24,10 @@ export interface ApprovalRequest {
   readonly toolId?: import("../tool/ids").ToolId;
   readonly integrationId?: string;
   readonly invocationId?: string;
+  readonly integrationInvocation?: {
+    readonly operation: string;
+    readonly input: unknown;
+  };
 
   readonly action: ActionKind;
   readonly riskLevel: RiskLevel;
