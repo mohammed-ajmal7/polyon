@@ -36,6 +36,11 @@ export interface ModelExecutionRunnerDependencies {
   readonly systemPrompt?: string;
   readonly toolDefinitions?: readonly ModelToolDefinition[];
   readonly toolOrchestrator?: ModelExecutionToolOrchestrator;
+  readonly resumeApprovedToolContinuation?: (executionId: string) => Promise<{
+    readonly status: "SUCCEEDED" | "FAILED" | "PAUSED" | "REJECTED";
+    readonly output?: string;
+    readonly error?: string;
+  }>;
 }
 
 export class ModelExecutionRunner implements ExecutionRunner {
@@ -58,6 +63,21 @@ export class ModelExecutionRunner implements ExecutionRunner {
       return {
         status: "FAILED",
         error: `Task not found for execution ${execution.id}: ${execution.taskId}.`,
+      };
+    }
+
+    if (this.dependencies.resumeApprovedToolContinuation !== undefined) {
+      const resumed = await this.dependencies.resumeApprovedToolContinuation(execution.id);
+      if (resumed.status !== "SUCCEEDED") {
+        return {
+          status: resumed.status === "PAUSED" ? "PAUSED" : "FAILED",
+          error: resumed.error ?? "Approved tool continuation failed.",
+          ...(resumed.output === undefined ? {} : { output: resumed.output }),
+        };
+      }
+      return {
+        status: "SUCCEEDED",
+        output: resumed.output ?? "",
       };
     }
 
@@ -133,7 +153,7 @@ ${task.description}`,
 
         if (continuation.status === "APPROVAL_REQUIRED") {
           return {
-            status: "FAILED",
+            status: "PAUSED",
             error: "Execution paused for required tool approval.",
             output: continuation.response.content,
           };
