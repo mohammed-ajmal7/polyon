@@ -16,9 +16,7 @@ import {
   ModelGateway,
   type ModelProviderAdapter,
 } from "@polyon/providers";
-import {
-  ExecutionDispatchService,
-} from "@polyon/application";
+import { ExecutionDispatchService } from "@polyon/application";
 import {
   InMemoryExecutionCoordinator,
   InMemoryExecutionQueue,
@@ -112,14 +110,12 @@ describe("durable routed execution restart", () => {
   it("recovers and executes a routed model-backed task after a process restart", async () => {
     const directory = mkdtempSync(join(tmpdir(), "polyon-application-restart-"));
     const adapterRegistry = new InMemoryProviderAdapterRegistry();
-    const invoke = vi.fn(
-      async (): Promise<{ output: TextModelResponse }> => ({
-        output: {
-          content: "Recovered model execution completed.",
-          finishReason: "STOP",
-        },
-      }),
-    );
+    const invoke = vi.fn(async (): Promise<{ output: TextModelResponse }> => ({
+      output: {
+        content: "Recovered model execution completed.",
+        finishReason: "STOP",
+      },
+    }));
     const adapter: ModelProviderAdapter = {
       providerId: "provider-1",
       invoke: invoke as ModelProviderAdapter["invoke"],
@@ -132,11 +128,7 @@ describe("durable routed execution restart", () => {
 
       firstProcessStores.tasks.save(task);
 
-      const dispatch = createDispatchService(
-        firstProcessStores,
-        firstQueue,
-        firstRouting,
-      );
+      const dispatch = createDispatchService(firstProcessStores, firstQueue, firstRouting);
 
       const dispatched = dispatch.dispatch({
         task,
@@ -233,9 +225,7 @@ describe("durable routed execution restart", () => {
       });
 
       expect(
-        secondProcessStores.events
-          .listByExecution("execution-1")
-          .map((event) => event.kind),
+        secondProcessStores.events.listByExecution("execution-1").map((event) => event.kind),
       ).toEqual([
         "EXECUTION_CREATED",
         "POLICY_DECIDED",

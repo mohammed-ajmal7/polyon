@@ -117,10 +117,7 @@ type ToolInvocationStores = Pick<
 function appendPolicyDecisionEvent(
   events: EventStore,
   decision: PolicyDecision,
-  context: Pick<
-    InvokeToolInput,
-    "actorId" | "missionId" | "taskId" | "executionId" | "toolId"
-  >,
+  context: Pick<InvokeToolInput, "actorId" | "missionId" | "taskId" | "executionId" | "toolId">,
 ): void {
   const event: DomainEvent = {
     id: `POLICY_DECIDED:${decision.id}`,
@@ -144,10 +141,7 @@ function appendPolicyDecisionEvent(
   events.append(event);
 }
 
-function appendApprovalRequestedEvent(
-  events: EventStore,
-  approval: ApprovalRequest,
-): void {
+function appendApprovalRequestedEvent(events: EventStore, approval: ApprovalRequest): void {
   events.append({
     id: `APPROVAL_REQUESTED:${approval.id}`,
     kind: "APPROVAL_REQUESTED",
@@ -360,9 +354,7 @@ export class ToolInvocationService {
     return resolved;
   }
 
-  async invokeApproved(
-    input: InvokeApprovedToolInput,
-  ): Promise<ToolInvocationOutcome> {
+  async invokeApproved(input: InvokeApprovedToolInput): Promise<ToolInvocationOutcome> {
     const approval = this.dependencies.approvals.get(input.approvalId);
 
     if (approval === undefined) {
@@ -413,18 +405,11 @@ export class ToolInvocationService {
 
     assertInvocationNotRecorded(this.dependencies.events, input.invocationId);
 
-    return this.executeAuthorized(
-      input,
-      tool,
-      decision,
-      approval.action,
-      approval.riskLevel,
-      {
-        missionId: approval.missionId,
-        taskId: approval.taskId,
-        executionId: approval.executionId,
-      },
-    );
+    return this.executeAuthorized(input, tool, decision, approval.action, approval.riskLevel, {
+      missionId: approval.missionId,
+      taskId: approval.taskId,
+      executionId: approval.executionId,
+    });
   }
 
   private async executeAuthorized(
@@ -440,14 +425,12 @@ export class ToolInvocationService {
     },
   ): Promise<ToolInvocationOutcome> {
     const action = approvedAction ?? (input as InvokeToolInput).action;
-    const riskLevel =
-      approvedRiskLevel ?? (input as InvokeToolInput).riskLevel;
+    const riskLevel = approvedRiskLevel ?? (input as InvokeToolInput).riskLevel;
     const context = {
       actorId: (input as InvokeToolInput).actorId,
       missionId: approvalContext?.missionId ?? (input as InvokeToolInput).missionId,
       taskId: approvalContext?.taskId ?? (input as InvokeToolInput).taskId,
-      executionId:
-        approvalContext?.executionId ?? (input as InvokeToolInput).executionId,
+      executionId: approvalContext?.executionId ?? (input as InvokeToolInput).executionId,
     };
 
     const adapter = this.dependencies.adapters.get(tool.id);
@@ -499,8 +482,7 @@ export class ToolInvocationService {
         output: result.output,
       };
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Tool adapter invocation failed.";
+      const message = error instanceof Error ? error.message : "Tool adapter invocation failed.";
 
       return this.failInvocation(
         input,
@@ -576,10 +558,7 @@ export class ToolInvocationService {
     const tool = this.dependencies.tools.get(toolId);
 
     if (tool === undefined) {
-      throw new ToolInvocationServiceError(
-        "TOOL_NOT_FOUND",
-        `Tool not found: ${toolId}.`,
-      );
+      throw new ToolInvocationServiceError("TOOL_NOT_FOUND", `Tool not found: ${toolId}.`);
     }
 
     return tool;

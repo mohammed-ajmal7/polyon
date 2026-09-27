@@ -17,19 +17,14 @@ describe("registerBuiltinTools", () => {
     expect(registration.tool).toEqual({
       id: BUILTIN_TOOL_IDS.filesystemRead,
       name: "Scoped filesystem read",
-      description:
-        "Reads a bounded file from the configured POLYON filesystem root.",
+      description: "Reads a bounded file from the configured POLYON filesystem root.",
       kind: "FILESYSTEM",
       actionKinds: ["READ"],
       enabled: true,
     });
     expect(registration.adapter.toolId).toBe(BUILTIN_TOOL_IDS.filesystemRead);
-    expect(registries.tools.get(BUILTIN_TOOL_IDS.filesystemRead)).toEqual(
-      registration.tool,
-    );
-    expect(registries.adapters.get(BUILTIN_TOOL_IDS.filesystemRead)).toBe(
-      registration.adapter,
-    );
+    expect(registries.tools.get(BUILTIN_TOOL_IDS.filesystemRead)).toEqual(registration.tool);
+    expect(registries.adapters.get(BUILTIN_TOOL_IDS.filesystemRead)).toBe(registration.adapter);
   });
 
   it("can disable the built-in tool without removing its adapter boundary", () => {
@@ -41,8 +36,6 @@ describe("registerBuiltinTools", () => {
     });
 
     expect(registration.tool.enabled).toBe(false);
-    expect(registries.adapters.get(BUILTIN_TOOL_IDS.filesystemRead)).toBe(
-      registration.adapter,
-    );
+    expect(registries.adapters.get(BUILTIN_TOOL_IDS.filesystemRead)).toBe(registration.adapter);
   });
 });

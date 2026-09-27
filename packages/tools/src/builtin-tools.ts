@@ -33,8 +33,7 @@ export function registerBuiltinTools(
   const filesystemReadTool: Tool = {
     id: BUILTIN_TOOL_IDS.filesystemRead,
     name: "Scoped filesystem read",
-    description:
-      "Reads a bounded file from the configured POLYON filesystem root.",
+    description: "Reads a bounded file from the configured POLYON filesystem root.",
     kind: "FILESYSTEM",
     actionKinds: ["READ"],
     enabled: options.filesystemReadEnabled ?? true,

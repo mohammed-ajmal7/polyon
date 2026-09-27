@@ -1,13 +1,6 @@
 /// <reference path="./node-runtime.d.ts" />
 
-import {
-  closeSync,
-  existsSync,
-  openSync,
-  readSync,
-  realpathSync,
-  statSync,
-} from "node:fs";
+import { closeSync, existsSync, openSync, readSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
 import type { ToolAdapter, ToolInvocationRequest } from "./tool-adapter";
@@ -24,11 +17,7 @@ export interface FilesystemReadToolOutput {
 }
 
 export type FilesystemReadToolErrorKind =
-  | "INVALID_INPUT"
-  | "OUTSIDE_ROOT"
-  | "NOT_FOUND"
-  | "NOT_A_FILE"
-  | "FILE_TOO_LARGE";
+  "INVALID_INPUT" | "OUTSIDE_ROOT" | "NOT_FOUND" | "NOT_A_FILE" | "FILE_TOO_LARGE";
 
 export class FilesystemReadToolError extends Error {
   readonly kind: FilesystemReadToolErrorKind;
@@ -61,9 +50,10 @@ function isPathInsideRoot(rootDir: string, candidatePath: string): boolean {
   return rel === "" || (!isAbsolute(rel) && rel !== ".." && !rel.startsWith(".." + sep));
 }
 
-export class ScopedFilesystemReadToolAdapter
-  implements ToolAdapter<FilesystemReadToolInput, FilesystemReadToolOutput>
-{
+export class ScopedFilesystemReadToolAdapter implements ToolAdapter<
+  FilesystemReadToolInput,
+  FilesystemReadToolOutput
+> {
   readonly toolId: string;
   private readonly rootDir: string;
   private readonly defaultMaxBytes: number;
@@ -73,10 +63,7 @@ export class ScopedFilesystemReadToolAdapter
       throw new RangeError("toolId must not be empty.");
     }
 
-    assertPositiveByteLimit(
-      options.defaultMaxBytes ?? DEFAULT_MAX_BYTES,
-      "defaultMaxBytes",
-    );
+    assertPositiveByteLimit(options.defaultMaxBytes ?? DEFAULT_MAX_BYTES, "defaultMaxBytes");
 
     const absoluteRoot = resolve(options.rootDir);
 
@@ -157,13 +144,7 @@ export class ScopedFilesystemReadToolAdapter
 
     try {
       const buffer = new Uint8Array(maxBytes + 1);
-      const bytesRead = readSync(
-        fileDescriptor,
-        buffer,
-        0,
-        buffer.length,
-        0,
-      );
+      const bytesRead = readSync(fileDescriptor, buffer, 0, buffer.length, 0);
 
       if (bytesRead > maxBytes) {
         throw new FilesystemReadToolError(

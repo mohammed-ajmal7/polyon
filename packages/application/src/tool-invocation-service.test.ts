@@ -1,11 +1,7 @@
 import type { Policy, Tool } from "@polyon/contracts";
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  InMemoryToolAdapterRegistry,
-  InMemoryToolRegistry,
-  type ToolAdapter,
-} from "@polyon/tools";
+import { InMemoryToolAdapterRegistry, InMemoryToolRegistry, type ToolAdapter } from "@polyon/tools";
 import { InMemoryDomainStores, InMemoryEventStore } from "@polyon/storage";
 
 import { ToolInvocationService, type InvokeToolInput } from "./tool-invocation-service";

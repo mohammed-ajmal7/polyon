@@ -80,18 +80,14 @@ describe("builtin filesystem tool integration", () => {
         },
       });
 
-      expect(
-        stores.policyDecisions.get("decision-filesystem-read-1"),
-      ).toMatchObject({
+      expect(stores.policyDecisions.get("decision-filesystem-read-1")).toMatchObject({
         effect: "ALLOW",
         action: "READ",
         riskLevel: "LOW",
       });
 
       expect(
-        stores.events
-          .listByExecution("execution-filesystem-read-1")
-          .map((event) => event.kind),
+        stores.events.listByExecution("execution-filesystem-read-1").map((event) => event.kind),
       ).toEqual(["POLICY_DECIDED", "TOOL_INVOKED", "TOOL_INVOKED"]);
     } finally {
       rmSync(root, { recursive: true, force: true });

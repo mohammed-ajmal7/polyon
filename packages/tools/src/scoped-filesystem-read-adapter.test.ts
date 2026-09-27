@@ -70,9 +70,7 @@ describe("ScopedFilesystemReadToolAdapter", () => {
       rootDir: root,
     });
 
-    await expect(
-      adapter.invoke({ input: { path: "linked.txt" } }),
-    ).rejects.toMatchObject({
+    await expect(adapter.invoke({ input: { path: "linked.txt" } })).rejects.toMatchObject({
       kind: "OUTSIDE_ROOT",
     });
   });
@@ -86,9 +84,7 @@ describe("ScopedFilesystemReadToolAdapter", () => {
       rootDir: root,
     });
 
-    await expect(
-      adapter.invoke({ input: { path: "folder" } }),
-    ).rejects.toMatchObject({
+    await expect(adapter.invoke({ input: { path: "folder" } })).rejects.toMatchObject({
       kind: "NOT_A_FILE",
     });
   });
@@ -103,9 +99,7 @@ describe("ScopedFilesystemReadToolAdapter", () => {
       defaultMaxBytes: 5,
     });
 
-    await expect(
-      adapter.invoke({ input: { path: "large.txt" } }),
-    ).rejects.toMatchObject({
+    await expect(adapter.invoke({ input: { path: "large.txt" } })).rejects.toMatchObject({
       kind: "FILE_TOO_LARGE",
     });
   });
@@ -131,17 +125,11 @@ describe("ScopedFilesystemReadToolAdapter", () => {
       kind: "INVALID_INPUT",
     });
 
-    await expect(
-      adapter.invoke({ input: { path: "missing.txt" } }),
-    ).rejects.toMatchObject({
+    await expect(adapter.invoke({ input: { path: "missing.txt" } })).rejects.toMatchObject({
       kind: "NOT_FOUND",
     });
 
-    const error = new FilesystemReadToolError(
-      "INVALID_INPUT",
-      "",
-      "invalid",
-    );
+    const error = new FilesystemReadToolError("INVALID_INPUT", "", "invalid");
     expect(error.kind).toBe("INVALID_INPUT");
   });
 });
