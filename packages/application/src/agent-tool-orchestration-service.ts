@@ -295,7 +295,8 @@ export class AgentToolOrchestrationService {
       stores.tasks.save(queuedTask);
       stores.events.append({
         id:
-          `EXECUTION_STATUS_CHANGED:${execution.id}:PAUSED:QUEUED:${input.resolvedAt}:TOOL_APPROVAL`,
+          `EXECUTION_STATUS_CHANGED:${execution.id}:PAUSED:QUEUED:${input.resolvedAt}:TOOL_` +
+            "APPROVAL",
         kind: "EXECUTION_STATUS_CHANGED",
         actorId: execution.actorId,
         missionId: execution.missionId,
