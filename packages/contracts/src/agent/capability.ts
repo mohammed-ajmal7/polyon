@@ -1,3 +1,5 @@
+export type { CapabilityId } from "./ids";
+
 import type { CapabilityId } from "./ids";
 
 export type CapabilityKind =
