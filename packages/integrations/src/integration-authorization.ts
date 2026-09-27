@@ -17,6 +17,8 @@ import type { IntegrationAdapter, IntegrationId } from "./integration-adapter";
 
 export interface AuthorizeIntegrationInvocationInput {
   readonly integration: IntegrationAdapter;
+  readonly integrationId?: IntegrationId;
+  readonly invocationId?: string;
   readonly action: import("@polyon/contracts").ActionKind;
   readonly policy: Policy;
   readonly riskLevel: RiskLevel;
@@ -101,6 +103,8 @@ export function authorizeIntegrationInvocation(
     approvalRequest: createApprovalRequest(decision, {
       id: input.approvalRequestId,
       requestedBy: input.requestedBy,
+      integrationId: input.integrationId ?? input.integration.integrationId,
+      invocationId: input.invocationId,
       requestedAt: input.requestedAt,
       missionId: input.missionId,
       taskId: input.taskId,
