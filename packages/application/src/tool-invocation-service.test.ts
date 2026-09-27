@@ -194,6 +194,7 @@ describe("ToolInvocationService", () => {
           input: { value: "hello" },
         },
         rounds: 1,
+        state: "AWAITING_TOOL",
       },
     });
 
