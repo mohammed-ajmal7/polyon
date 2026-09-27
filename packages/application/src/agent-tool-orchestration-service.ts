@@ -580,8 +580,11 @@ export class AgentToolOrchestrationService {
       .filter((tool) => tool.enabled)
       .map((tool) => ({
         toolId: tool.id,
-        name: tool.id,
+        name: toModelToolName(tool.id),
         description: tool.description,
+        ...(tool.inputSchema === undefined
+          ? {}
+          : { inputSchema: tool.inputSchema }),
       }));
 
     return tools.length === 0 ? request : { ...request, tools };
@@ -615,6 +618,11 @@ function appendToolResult(
       },
     ],
   };
+}
+
+function toModelToolName(toolId: string): string {
+  const name = toolId.replace(/[^A-Za-z0-9_-]/g, "_");
+  return name.length > 0 ? name : "polyon_tool";
 }
 
 function selectAction(tool: Tool): ActionKind {
