@@ -92,6 +92,13 @@ export function applyExecutionRunAuthorization(
       );
     }
 
+    if (authorization.policyDecision.effect !== "ALLOW") {
+      throw new ExecutionRunAuthorizationApplicationError(
+        "AUTHORIZATION_EFFECT_MISMATCH",
+        "Authorized execution runs must have an ALLOW policy decision.",
+      );
+    }
+
     return transitionExecutionStatus(execution, "QUEUED", now);
   }
 
