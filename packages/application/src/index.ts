@@ -1,4 +1,12 @@
 export {
+  IntegrationCatalogService,
+  IntegrationCatalogServiceError,
+  type IntegrationCatalogEntry,
+  type IntegrationCatalogFilter,
+  type IntegrationCatalogServiceErrorKind,
+} from "./integration-catalog-service";
+
+export {
   LocalArtifactContentService,
   LocalArtifactContentServiceError,
   type LocalArtifactContent,
