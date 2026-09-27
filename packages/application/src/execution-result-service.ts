@@ -13,6 +13,8 @@ import type {
 import type {
   ArtifactStore,
   ConversationStore,
+  DomainStoreTransactionContext,
+  DomainUnitOfWork,
   EventStore,
   ExecutionStore,
   MessageStore,
@@ -64,118 +66,33 @@ export interface ExecutionResultServiceDependencies {
   readonly messages: MessageStore;
   readonly artifacts: ArtifactStore;
   readonly events: EventStore;
-}
-
-export class ExecutionResultServiceError extends Error {
-  readonly kind: ExecutionResultServiceErrorKind;
-
-  constructor(kind: ExecutionResultServiceErrorKind, message: string) {
-    super(message);
-    this.name = "ExecutionResultServiceError";
-    this.kind = kind;
-  }
-}
-
-function isTerminalExecution(status: Execution["status"]): boolean {
-  return (
-    status === "SUCCEEDED" ||
-    status === "FAILED" ||
-    status === "CANCELLED" ||
-    status === "REJECTED"
-  );
-}
-
-function createResultMessage(
-  input: PersistExecutionResultInput,
-  execution: Execution,
-): Message {
-  return {
-    id: input.messageId,
-    conversationId: input.conversationId,
-    actorId: input.actorId,
-    role: execution.status === "FAILED" ? "SYSTEM" : "AGENT",
-    kind: execution.status === "FAILED" ? "ERROR" : "TEXT",
-    content: input.output,
-    createdAt: input.createdAt,
-  };
-}
-
-function createArtifact(
-  input: PersistExecutionArtifactInput,
-  execution: Execution,
-): Artifact {
-  return {
-    id: input.id,
-    kind: input.kind,
-    name: input.name,
-    ...(input.mimeType !== undefined ? { mimeType: input.mimeType } : {}),
-    location: input.location,
-    status: input.status ?? "AVAILABLE",
-    missionId: execution.missionId,
-    taskId: execution.taskId,
-    executionId: execution.id,
-    createdAt: input.createdAt,
-    updatedAt: input.createdAt,
-  };
-}
-
-function appendMessageCreatedEvent(
-  events: EventStore,
-  message: Message,
-  execution: Execution,
-): DomainEvent {
-  const event: DomainEvent = {
-    id: "MESSAGE_CREATED:" + message.id,
-    kind: "MESSAGE_CREATED",
-    actorId: message.actorId,
-    conversationId: message.conversationId,
-    missionId: execution.missionId,
-    taskId: execution.taskId,
-    executionId: execution.id,
-    occurredAt: message.createdAt,
-    data: {
-      messageId: message.id,
-      conversationId: message.conversationId,
-      executionId: execution.id,
-      kind: message.kind,
-    },
-  };
-
-  events.append(event);
-  return event;
-}
-
-function appendArtifactCreatedEvent(
-  events: EventStore,
-  artifact: Artifact,
-  conversationId: string,
-): DomainEvent {
-  const event: DomainEvent = {
-    id: "ARTIFACT_CREATED:" + artifact.id,
-    kind: "ARTIFACT_CREATED",
-    conversationId,
-    missionId: artifact.missionId,
-    taskId: artifact.taskId,
-    executionId: artifact.executionId,
-    occurredAt: artifact.createdAt,
-    data: {
-      artifactId: artifact.id,
-      name: artifact.name,
-      kind: artifact.kind,
-      location: artifact.location,
-      status: artifact.status,
-    },
-  };
-
-  events.append(event);
-  return event;
+  readonly unitOfWork?: DomainUnitOfWork;
 }
 
 export class ExecutionResultService {
   constructor(private readonly dependencies: ExecutionResultServiceDependencies) {}
 
   persist(input: PersistExecutionResultInput): PersistedExecutionResult {
-    const execution = this.dependencies.executions.get(input.executionId);
+    const operation = (
+      stores: Pick<
+        DomainStoreTransactionContext,
+        "executions" | "conversations" | "messages" | "artifacts" | "events"
+      >,
+    ) => this.persistWithStores(stores, input);
+
+    return this.dependencies.unitOfWork === undefined
+      ? operation(this.dependencies)
+      : this.dependencies.unitOfWork.transaction(operation);
+  }
+
+  private persistWithStores(
+    stores: Pick<
+      DomainStoreTransactionContext,
+      "executions" | "conversations" | "messages" | "artifacts" | "events"
+    >,
+    input: PersistExecutionResultInput,
+  ): PersistedExecutionResult {
+    const execution = stores.executions.get(input.executionId);
 
     if (execution === undefined) {
       throw new ExecutionResultServiceError(
@@ -195,7 +112,7 @@ export class ExecutionResultService {
       );
     }
 
-    const conversation = this.dependencies.conversations.get(input.conversationId);
+    const conversation = stores.conversations.get(input.conversationId);
 
     if (conversation === undefined) {
       throw new ExecutionResultServiceError(
@@ -244,7 +161,7 @@ export class ExecutionResultService {
       );
     }
 
-    if (this.dependencies.messages.get(input.messageId) !== undefined) {
+    if (stores.messages.get(input.messageId) !== undefined) {
       throw new ExecutionResultServiceError(
         "MESSAGE_EXISTS",
         "Message already exists: " + input.messageId + ".",
@@ -263,7 +180,7 @@ export class ExecutionResultService {
 
       artifactIds.add(artifact.id);
 
-      if (this.dependencies.artifacts.get(artifact.id) !== undefined) {
+      if (stores.artifacts.get(artifact.id) !== undefined) {
         throw new ExecutionResultServiceError(
           "ARTIFACT_EXISTS",
           "Artifact already exists: " + artifact.id + ".",
@@ -281,17 +198,17 @@ export class ExecutionResultService {
       updatedAt: input.createdAt,
     };
 
-    this.dependencies.messages.save(message);
+    stores.messages.save(message);
     for (const artifact of artifacts) {
-      this.dependencies.artifacts.save(artifact);
+      stores.artifacts.save(artifact);
     }
-    this.dependencies.conversations.save(updatedConversation);
+    stores.conversations.save(updatedConversation);
 
     const events: DomainEvent[] = [];
-    events.push(appendMessageCreatedEvent(this.dependencies.events, message, execution));
+    events.push(appendMessageCreatedEvent(stores.events, message, execution));
     for (const artifact of artifacts) {
       events.push(
-        appendArtifactCreatedEvent(this.dependencies.events, artifact, conversation.id),
+        appendArtifactCreatedEvent(stores.events, artifact, conversation.id),
       );
     }
 
@@ -302,5 +219,6 @@ export class ExecutionResultService {
       artifacts,
       events,
     };
+  
   }
 }
