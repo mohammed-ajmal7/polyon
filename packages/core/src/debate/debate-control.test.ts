@@ -73,6 +73,7 @@ describe("debate control", () => {
       "2026-09-27T01:06:00.000Z",
       "2026-09-27T01:07:00.000Z",
       "2026-09-27T01:08:00.000Z",
+      "2026-09-27T01:09:00.000Z",
     ]) {
       debate = advanceDebatePhase(debate, now);
     }
@@ -89,7 +90,7 @@ describe("debate control", () => {
   it("decides an adjudicating debate", () => {
     let debate = startDebate(create(), "2026-09-27T01:01:00.000Z");
 
-    for (let index = 0; index < 7; index += 1) {
+    for (let index = 0; index < 8; index += 1) {
       debate = advanceDebatePhase(debate, `2026-09-27T01:0${index + 2}:00.000Z`);
     }
 
