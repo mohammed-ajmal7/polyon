@@ -354,7 +354,7 @@ describe("SmtpTransport", () => {
     await transport.send(
       {
         to: recipients,
-        subject: Array.from({ length: 120 }, () => "long").join(" "),
+        subject: Array.from({ length: 199 }, () => "long").join(" "),
         text: "hello",
       },
       { username: "mailer@example.com", password: "secret" },
