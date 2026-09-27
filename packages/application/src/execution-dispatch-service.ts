@@ -5,6 +5,7 @@ import type {
   ExecutionStatus,
   PolicyDecision,
 } from "@polyon/contracts";
+import type { ExecutionRoutingRegistries } from "@polyon/agents";
 
 import { applyApprovedExecutionRun } from "@polyon/core";
 
@@ -30,6 +31,7 @@ export interface ExecutionDispatchServiceDependencies {
   readonly approvals: ApprovalRequestStore;
   readonly policyDecisions: PolicyDecisionStore;
   readonly events: EventStore;
+  readonly routing?: ExecutionRoutingRegistries;
   readonly unitOfWork?: DomainUnitOfWork;
 }
 
@@ -96,7 +98,7 @@ export class ExecutionDispatchService {
       throw new Error(`Execution already exists: ${input.executionId}.`);
     }
 
-    const plan = prepareExecutionDispatch(input);
+    const plan = prepareExecutionDispatch(input, this.dependencies.routing);
 
     stores.executions.save(plan.execution);
     stores.policyDecisions.save(plan.policyDecision);
@@ -132,6 +134,24 @@ export class ExecutionDispatchService {
         reason: plan.policyDecision.reason,
       },
     });
+
+    if (plan.routing !== undefined) {
+      stores.events.append({
+        id: `EXECUTION_ROUTED:${plan.execution.id}`,
+        kind: "EXECUTION_ROUTED",
+        actorId: plan.execution.actorId,
+        missionId: plan.execution.missionId,
+        taskId: plan.execution.taskId,
+        executionId: plan.execution.id,
+        occurredAt: plan.execution.updatedAt,
+        data: {
+          agentId: plan.routing.resolution.agent.id,
+          modelId: plan.routing.resolution.model.id,
+          providerId: plan.routing.resolution.provider.id,
+          source: plan.routing.resolution.source,
+        },
+      });
+    }
 
     if (plan.approvalRequest !== undefined) {
       stores.approvals.save(plan.approvalRequest);

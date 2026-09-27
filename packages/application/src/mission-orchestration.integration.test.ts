@@ -1,4 +1,10 @@
 import type { Mission, Policy, Task } from "@polyon/contracts";
+import type { ModelGateway } from "@polyon/providers";
+import {
+  InMemoryAgentRegistry,
+  InMemoryModelRegistry,
+  InMemoryProviderRegistry,
+} from "@polyon/agents";
 import {
   CommandIngressService,
   ConversationQueryService,
@@ -9,7 +15,11 @@ import {
   MissionLifecycleService,
   MissionPlanService,
 } from "@polyon/application";
-import { InMemoryExecutionCoordinator, InMemoryExecutionQueue } from "@polyon/runtime";
+import {
+  InMemoryExecutionCoordinator,
+  InMemoryExecutionQueue,
+  ModelExecutionRunner,
+} from "@polyon/runtime";
 import { InMemoryDomainStores, InMemoryEventStore } from "@polyon/storage";
 import { describe, expect, it } from "vitest";
 
@@ -133,12 +143,43 @@ describe("mission orchestration", () => {
       causedByEventId: planned.events.at(-1)?.id,
     });
 
+    const agents = new InMemoryAgentRegistry();
+    const models = new InMemoryModelRegistry();
+    const providers = new InMemoryProviderRegistry();
+    agents.register({
+      id: "agent-1",
+      name: "Coder",
+      role: "Coding agent",
+      description: "Runs coding tasks.",
+      status: "ACTIVE",
+      capabilityIds: ["coding"],
+      preferredModelId: "model-1",
+      fallbackModelIds: [],
+      createdAt: "2026-09-27T03:00:00.000Z",
+      updatedAt: "2026-09-27T03:00:00.000Z",
+    });
+    models.register({
+      id: "model-1",
+      providerId: "provider-1",
+      name: "Coding model",
+      kind: "TEXT",
+      capabilityIds: ["coding"],
+      enabled: true,
+    });
+    providers.register({
+      id: "provider-1",
+      name: "Hosted provider",
+      kind: "HOSTED_MODEL",
+      enabled: true,
+    });
+
     const dispatch = new ExecutionDispatchService({
       queue,
       executions: stores.executions,
       approvals: stores.approvals,
       policyDecisions: stores.policyDecisions,
       events,
+      routing: { agents, models, providers },
     });
 
     const executionService = new MissionExecutionService(
@@ -162,6 +203,7 @@ describe("mission orchestration", () => {
       tasks: [stores.tasks.get(task.id)!],
       actorId: "agent-1",
       agentId: "agent-1",
+      requiredCapabilityIds: ["coding"],
       policy,
       requestedBy: "user-1",
       now: "2026-09-27T03:09:00.000Z",
@@ -172,17 +214,37 @@ describe("mission orchestration", () => {
     expect(dispatched.dispatched).toHaveLength(1);
     expect(stores.tasks.get(task.id)?.status).toBe("APPROVED");
 
+    const modelGateway = {
+      async invokeText(
+        modelId: string,
+        request: { messages: readonly { role: string; content: string }[] },
+      ) {
+        expect(modelId).toBe("model-1");
+        expect(request.messages).toEqual([
+          {
+            role: "SYSTEM",
+            content: "You are the POLYON coding agent.",
+          },
+          {
+            role: "USER",
+            content: "Task: Build runtime slice\n\nComplete one bounded execution.",
+          },
+        ]);
+        return {
+          output: {
+            content: "Runtime slice completed.",
+          },
+        };
+      },
+    } as unknown as ModelGateway;
+
     const coordinator = new InMemoryExecutionCoordinator({
       queue,
-      runner: {
-        async run(execution) {
-          expect(execution.status).toBe("RUNNING");
-          return {
-            status: "SUCCEEDED",
-            output: "Runtime slice completed.",
-          };
-        },
-      },
+      runner: new ModelExecutionRunner({
+        modelGateway,
+        tasks: stores.tasks,
+        systemPrompt: "You are the POLYON coding agent.",
+      }),
       executions: stores.executions,
       tasks: stores.tasks,
       events,
@@ -193,7 +255,12 @@ describe("mission orchestration", () => {
       "2026-09-27T03:11:00.000Z",
     );
 
-    expect(completed?.execution.status).toBe("SUCCEEDED");
+    expect(completed?.execution).toMatchObject({
+      status: "SUCCEEDED",
+      agentId: "agent-1",
+      modelId: "model-1",
+      providerId: "provider-1",
+    });
 
     const resultService = new ExecutionResultService({
       executions: stores.executions,
@@ -264,6 +331,7 @@ describe("mission orchestration", () => {
       "MISSION_STATUS_CHANGED",
       "EXECUTION_CREATED",
       "POLICY_DECIDED",
+      "EXECUTION_ROUTED",
       "EXECUTION_STATUS_CHANGED",
       "TASK_STATUS_CHANGED",
       "TASK_STATUS_CHANGED",

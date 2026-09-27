@@ -8,6 +8,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@polyon/agents": "workspace:*",
     "@polyon/contracts": "workspace:*",
     "@polyon/core": "workspace:*",
     "@polyon/runtime": "workspace:*",

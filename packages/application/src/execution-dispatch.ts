@@ -2,6 +2,7 @@ import type {
   ActorId,
   AgentId,
   ApprovalRequest,
+  CapabilityId,
   ApprovalRequestId,
   Execution,
   Policy,
@@ -10,6 +11,11 @@ import type {
   RiskLevel,
   Task,
 } from "@polyon/contracts";
+import {
+  bindExecutionRouting,
+  type BoundExecutionRouting,
+  type ExecutionRoutingRegistries,
+} from "@polyon/agents";
 
 import type { TaskDependency } from "@polyon/core";
 
@@ -26,6 +32,7 @@ export interface PrepareExecutionDispatchInput {
   readonly dependencies: readonly TaskDependency[];
   readonly actorId: ActorId;
   readonly agentId?: AgentId;
+  readonly requiredCapabilityIds?: readonly CapabilityId[];
   readonly executionId: string;
   readonly attempt: number;
 
@@ -44,11 +51,13 @@ export interface ExecutionDispatchPlan {
   readonly execution: Execution;
   readonly policyDecision: PolicyDecision;
   readonly approvalRequest?: ApprovalRequest;
+  readonly routing?: BoundExecutionRouting;
   readonly nextStep: "ENQUEUE" | "AWAIT_APPROVAL" | "REJECTED";
 }
 
 export function prepareExecutionDispatch(
   input: PrepareExecutionDispatchInput,
+  routing?: ExecutionRoutingRegistries,
 ): ExecutionDispatchPlan {
   const execution = createExecutionForTask(input.task, input.dependencies, {
     id: input.executionId,
@@ -71,16 +80,29 @@ export function prepareExecutionDispatch(
       expiresAt: input.expiresAt,
     });
 
-    const updatedExecution = applyExecutionRunAuthorization(
+    const authorizedExecution = applyExecutionRunAuthorization(
       authorization,
       execution,
       input.evaluatedAt,
     );
+    const boundRouting =
+      input.agentId === undefined || routing === undefined
+        ? undefined
+        : bindExecutionRouting(
+            {
+              execution: authorizedExecution,
+              agentId: input.agentId,
+              requiredCapabilityIds: input.requiredCapabilityIds ?? [],
+              boundAt: input.evaluatedAt,
+            },
+            routing,
+          );
 
     return {
-      execution: updatedExecution,
+      execution: boundRouting?.execution ?? authorizedExecution,
       policyDecision: authorization.policyDecision,
       approvalRequest: authorization.approvalRequest,
+      ...(boundRouting === undefined ? {} : { routing: boundRouting }),
       nextStep: authorization.status === "AUTHORIZED" ? "ENQUEUE" : "AWAIT_APPROVAL",
     };
   } catch (error) {

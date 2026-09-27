@@ -1,4 +1,10 @@
-import type { ApprovalRequest, Execution } from "@polyon/contracts";
+import type { ApprovalRequest, Agent, Execution, Model, Provider } from "@polyon/contracts";
+import {
+  InMemoryAgentRegistry,
+  InMemoryModelRegistry,
+  InMemoryProviderRegistry,
+  type ExecutionRoutingRegistries,
+} from "@polyon/agents";
 import { describe, expect, it } from "vitest";
 
 import { InMemoryExecutionQueue } from "@polyon/runtime";
@@ -45,7 +51,46 @@ const input = {
   riskLevel: "MEDIUM" as const,
 };
 
-function createService() {
+function createRouting(): ExecutionRoutingRegistries {
+  const agents = new InMemoryAgentRegistry();
+  const models = new InMemoryModelRegistry();
+  const providers = new InMemoryProviderRegistry();
+
+  const agent: Agent = {
+    id: "agent-1",
+    name: "Coder",
+    role: "Coding agent",
+    description: "Writes code.",
+    status: "ACTIVE",
+    capabilityIds: ["coding"],
+    preferredModelId: "model-1",
+    fallbackModelIds: [],
+    createdAt: "2026-09-27T01:00:00.000Z",
+    updatedAt: "2026-09-27T01:00:00.000Z",
+  };
+  const model: Model = {
+    id: "model-1",
+    providerId: "provider-1",
+    name: "Coding model",
+    kind: "TEXT",
+    capabilityIds: ["coding"],
+    enabled: true,
+  };
+  const provider: Provider = {
+    id: "provider-1",
+    name: "Provider",
+    kind: "HOSTED_MODEL",
+    enabled: true,
+  };
+
+  agents.register(agent);
+  models.register(model);
+  providers.register(provider);
+
+  return { agents, models, providers };
+}
+
+function createService(routing?: ExecutionRoutingRegistries) {
   const stores = new InMemoryDomainStores();
   const queue = new InMemoryExecutionQueue();
   const events = new InMemoryEventStore();
@@ -60,6 +105,7 @@ function createService() {
       approvals: stores.approvals,
       policyDecisions: stores.policyDecisions,
       events,
+      routing,
     }),
   };
 }
@@ -126,6 +172,69 @@ describe("ExecutionDispatchService", () => {
       from: "PENDING",
       to: "QUEUED",
     });
+  });
+
+  it("binds the selected agent, model, and provider before enqueueing", () => {
+    const { stores, queue, events, service } = createService(createRouting());
+
+    const result = service.dispatch({
+      ...input,
+      requiredCapabilityIds: ["coding"],
+    });
+
+    expect(result.execution).toMatchObject({
+      status: "QUEUED",
+      agentId: "agent-1",
+      modelId: "model-1",
+      providerId: "provider-1",
+    });
+    expect(stores.executions.get("execution-1")).toEqual(result.execution);
+    expect(queue.peek()?.modelId).toBe("model-1");
+    expect(events.list().map((event) => event.kind)).toEqual([
+      "EXECUTION_CREATED",
+      "POLICY_DECIDED",
+      "EXECUTION_ROUTED",
+      "EXECUTION_STATUS_CHANGED",
+    ]);
+    expect(events.get("EXECUTION_ROUTED:execution-1")?.data).toEqual({
+      agentId: "agent-1",
+      modelId: "model-1",
+      providerId: "provider-1",
+      source: "PREFERRED",
+    });
+  });
+
+  it("fails closed before persistence when no compatible model can be routed", () => {
+    const agents = new InMemoryAgentRegistry();
+    const models = new InMemoryModelRegistry();
+    const providers = new InMemoryProviderRegistry();
+
+    agents.register({
+      id: "agent-1",
+      name: "Coder",
+      role: "Coding agent",
+      description: "Writes code.",
+      status: "ACTIVE",
+      capabilityIds: ["coding"],
+      preferredModelId: "missing-model",
+      fallbackModelIds: [],
+      createdAt: "2026-09-27T01:00:00.000Z",
+      updatedAt: "2026-09-27T01:00:00.000Z",
+    });
+
+    const routing: ExecutionRoutingRegistries = { agents, models, providers };
+    const { stores, queue, events, service } = createService(routing);
+
+    expect(() =>
+      service.dispatch({
+        ...input,
+        requiredCapabilityIds: ["coding"],
+      }),
+    ).toThrow("No compatible enabled model is available for agent: agent-1.");
+    expect(stores.executions.get("execution-1")).toBeUndefined();
+    expect(stores.policyDecisions.get("decision-1")).toBeUndefined();
+    expect(queue.size()).toBe(0);
+    expect(events.list()).toEqual([]);
   });
 
   it("persists an approval-required execution without enqueueing it", () => {

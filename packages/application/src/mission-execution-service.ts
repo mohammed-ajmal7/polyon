@@ -1,6 +1,7 @@
 import type {
   ActorId,
   AgentId,
+  CapabilityId,
   DomainEvent,
   Mission,
   Policy,
@@ -100,6 +101,7 @@ export interface DispatchReadyTasksInput {
   readonly tasks: readonly Task[];
   readonly actorId: ActorId;
   readonly agentId?: AgentId;
+  readonly requiredCapabilityIds?: readonly CapabilityId[];
   readonly policy: Policy;
   readonly requestedBy: ActorId;
   readonly now: string;
@@ -168,6 +170,7 @@ export class MissionExecutionService {
         dependencies,
         actorId: input.actorId,
         agentId: input.agentId,
+        requiredCapabilityIds: input.requiredCapabilityIds,
         executionId,
         attempt,
         policy: input.policy,
