@@ -32,7 +32,11 @@ describe("EnvironmentSecretResolver", () => {
     const resolver = new EnvironmentSecretResolver({
       environment: {},
       references: {
-        "telegram.primary": "POLYON_TELEGRAM_TOKEN",
+        "telegram.primary": {
+          provider: "telegram",
+          kind: "OAUTH_ACCESS_TOKEN",
+          environmentVariable: "POLYON_TELEGRAM_TOKEN",
+        },
       },
     });
 
@@ -111,7 +115,11 @@ describe("EnvironmentSecretResolver", () => {
         new EnvironmentSecretResolver({
           environment: {},
           references: {
-            "../secret": "POLYON_SECRET",
+            "../secret": {
+              provider: "telegram",
+              kind: "OAUTH_ACCESS_TOKEN",
+              environmentVariable: "POLYON_SECRET",
+            },
           },
         }),
     ).toThrow(RangeError);
@@ -121,7 +129,11 @@ describe("EnvironmentSecretResolver", () => {
         new EnvironmentSecretResolver({
           environment: {},
           references: {
-            "safe.reference": "INVALID-NAME",
+            "safe.reference": {
+              provider: "telegram",
+              kind: "OAUTH_ACCESS_TOKEN",
+              environmentVariable: "INVALID-NAME",
+            },
           },
         }),
     ).toThrow(RangeError);
