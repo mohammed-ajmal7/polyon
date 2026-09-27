@@ -7,7 +7,7 @@ import type {
   Task,
 } from "@polyon/contracts";
 
-import { transitionMissionStatus } from "@polyon/core";
+import { canTransitionMission, transitionMissionStatus } from "@polyon/core";
 import type { EventStore, MissionStore, TaskStore } from "@polyon/storage";
 
 export interface TransitionMissionStatusInput {
@@ -64,7 +64,10 @@ function isTerminal(status: MissionStatus): boolean {
   return status === "SUCCEEDED" || status === "FAILED" || status === "CANCELLED";
 }
 
-function deriveProgressStatus(tasks: readonly Task[]): MissionStatus | undefined {
+function deriveProgressStatus(
+  missionStatus: MissionStatus,
+  tasks: readonly Task[],
+): MissionStatus | undefined {
   if (tasks.length === 0) {
     return undefined;
   }
@@ -90,6 +93,7 @@ function deriveProgressStatus(tasks: readonly Task[]): MissionStatus | undefined
   }
 
   if (
+    (missionStatus === "RUNNING" || missionStatus === "WAITING") &&
     tasks.some(
       (task) =>
         task.status === "PENDING" ||
@@ -214,7 +218,11 @@ export class MissionLifecycleService {
     }
 
     const tasks = loadMissionTasks(mission, this.dependencies.tasks);
-    const nextStatus = deriveProgressStatus(tasks);
+    const candidateStatus = deriveProgressStatus(mission.status, tasks);
+    const nextStatus =
+      candidateStatus !== undefined && canTransitionMission(mission.status, candidateStatus)
+        ? candidateStatus
+        : undefined;
 
     if (nextStatus === undefined || nextStatus === mission.status) {
       return {
