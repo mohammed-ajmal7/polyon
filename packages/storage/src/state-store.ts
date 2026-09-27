@@ -74,7 +74,7 @@ function itemsClone<TEntity extends { readonly id: string }>(
   return items.map((item) => structuredClone(item));
 }
 
-class StateEventStore implements EventStore {
+export class StateEventStore implements EventStore {
   constructor(
     private readonly getState: StateGetter,
     private readonly persist: StatePersister,
@@ -117,10 +117,10 @@ class StateEventStore implements EventStore {
   }
 }
 
-export function createStateTransactionContext(
+export function createStateContext(
   state: DurableDomainState,
+  persist: StatePersister = () => undefined,
 ): DomainStoreTransactionContext {
-  const persist = () => undefined;
   const getState = () => state;
 
   return {
