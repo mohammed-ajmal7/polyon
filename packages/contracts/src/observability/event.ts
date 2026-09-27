@@ -4,6 +4,7 @@ import type { ExecutionId, MissionId, TaskId } from "../work/ids";
 import type { EventId } from "./ids";
 
 export type EventKind =
+  | "MISSION_CREATED"
   | "MISSION_STATUS_CHANGED"
   | "TASK_STATUS_CHANGED"
   | "POLICY_DECIDED"
