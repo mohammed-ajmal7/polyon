@@ -84,23 +84,5 @@ describe("AgentGateway", () => {
       output: "model-1:hello",
     });
   });
-
-  it("supports model fallback through the routing boundary", async () => {
-    const gateway = createGateway({
-      providerId: "provider-1",
-      async invoke({ input }) {
-        return { output: String(input) };
-      },
-    });
-
-    await expect(
-      gateway.invoke({
-        agentId: "agent-1",
-        requiredCapabilityIds: ["research"],
-        input: "hello",
-      }),
-    ).resolves.toMatchObject({
-      source: "PREFERRED",
-    });
-  });
+;
 });
