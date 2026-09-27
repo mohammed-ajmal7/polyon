@@ -1,3 +1,5 @@
+export const CURRENT_DURABLE_DOMAIN_VERSION = 1;
+
 export interface DurableMigration {
   readonly fromVersion: number;
   readonly toVersion: number;
