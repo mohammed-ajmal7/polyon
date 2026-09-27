@@ -49,7 +49,9 @@ export interface ScopedGitReadToolAdapterOptions {
   readonly environmentKeys?: readonly string[];
 }
 
-const OPERATION_ARGS: Readonly<Record<ScopedGitReadOperation, readonly string[]>> = {
+const OPERATION_ARGS: Readonly<
+  Record<ScopedGitReadOperation, readonly string[]>
+> = {
   STATUS: ["status", "--short", "--branch"],
   DIFF: ["diff", "--no-ext-diff", "--no-color"],
   LOG: ["log", "--oneline", "-20"],
@@ -98,7 +100,7 @@ export class ScopedGitReadToolAdapter
       );
     }
 
-    const args = buildArgs(input);
+    const args = OPERATION_ARGS[input.operation];
 
     try {
       const result = await this.terminal.invoke({
@@ -136,9 +138,7 @@ export class ScopedGitReadToolAdapter
     }
   }
 
-  private gitExecutable(): string {
-    return this.gitExecutablePath;
-  }
+
 }
 
 function isGitOperation(value: unknown): value is ScopedGitReadOperation {
@@ -150,16 +150,3 @@ function isGitOperation(value: unknown): value is ScopedGitReadOperation {
   );
 }
 
-function buildArgs(input: ScopedGitReadToolInput): readonly string[] {
-  const operationArgs = OPERATION_ARGS[input.operation];
-
-  if (input.operation === "SHOW" || input.operation === "STATUS" || input.operation === "DIFF") {
-    return operationArgs;
-  }
-
-  if (input.operation === "LOG") {
-    return operationArgs;
-  }
-
-  return operationArgs;
-}
