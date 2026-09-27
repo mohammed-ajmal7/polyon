@@ -215,6 +215,7 @@ describe("EmailIntegrationAdapter", () => {
       host: "smtp.example.com",
       port: 465,
       secure: true,
+      startTls: false,
       connectionTimeoutMs: 10_000,
       maxMessageBytes: 1_000_000,
     });
