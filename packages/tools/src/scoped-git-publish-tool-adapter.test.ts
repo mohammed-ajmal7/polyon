@@ -50,7 +50,15 @@ function createRepositoryPair(): {
   ]);
 
   execFileSync("git", ["-C", worktree, "switch", "-c", "main"]);
-  execFileSync("git", ["-C", worktree, "commit", "--allow-empty", "-q", "-m", "chore: initialize"]);
+  execFileSync("git", [
+    "-C",
+    worktree,
+    "commit",
+    "--allow-empty",
+    "-q",
+    "-m",
+    "chore: initialize",
+  ]);
   return { base, root: worktree, remote };
 }
 
