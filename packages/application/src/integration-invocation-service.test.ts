@@ -261,5 +261,20 @@ describe("IntegrationInvocationService", () => {
 
     expect(result.status).toBe("REJECTED");
     expect(invoke).not.toHaveBeenCalled();
+    expect(
+      stores.policyDecisions.get("integration-decision-agent-deny"),
+    ).toMatchObject({
+      effect: "DENY",
+    });
+    expect(
+      stores.events.get(
+        "INTEGRATION_INVOKED:integration-invocation-agent-deny:REJECTED",
+      ),
+    ).toMatchObject({
+      data: {
+        status: "REJECTED",
+        integrationId: "telegram-primary",
+      },
+    });
   });
 });
