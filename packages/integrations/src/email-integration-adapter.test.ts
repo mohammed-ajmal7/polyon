@@ -216,6 +216,7 @@ describe("EmailIntegrationAdapter", () => {
       port: 465,
       secure: true,
       startTls: false,
+      authMechanism: "LOGIN",
       connectionTimeoutMs: 10_000,
       maxMessageBytes: 1_000_000,
     });
