@@ -333,6 +333,7 @@ export class IntegrationInvocationService {
   ): Promise<IntegrationInvocationOutcome> {
     try {
       const result: IntegrationInvocationResult = await integration.invoke({
+        invocationId: input.invocationId,
         operation: input.operation,
         input: input.input,
       });
