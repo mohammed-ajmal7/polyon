@@ -374,11 +374,12 @@ The main cross-store application write paths are now transaction-aware:
 
 Runtime queueing remains outside the storage transaction because it is an external runtime side effect. Durable queue recovery is still required.
 
+Durable storage now has optimistic concurrency protection. File-backed writes carry a SHA-256 snapshot revision; stale direct writes and stale transactions are rejected instead of overwriting newer state. The final filesystem replacement is guarded by an atomic lock, with stale-lock recovery for crashes during the short commit window. Concurrency tests cover stale writers, transactions becoming stale during work, nested transaction rejection, and stale lock recovery.
+
 Still required for the full Phase 3 target:
 
-- concurrency/locking semantics for multiple writers;
 - formal migration execution beyond the current snapshot version marker;
-- crash-recovery tests around multi-store operations;
+- broader crash-recovery tests around multi-store operations;
 - durable execution-queue recovery/reconciliation.
 
 Persistence must support recovery and traceability without coupling the application to one database forever.
