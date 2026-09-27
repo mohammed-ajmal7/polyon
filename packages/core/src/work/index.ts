@@ -28,7 +28,7 @@ export {
 export { canTransitionExecution } from "./execution-lifecycle";
 export { canTransitionMission } from "./mission-lifecycle";
 export { canTransitionTask } from "./task-lifecycle";
-export { areTaskDependenciesSatisfied } from "./task-readiness";
+export { areTaskDependenciesSatisfied, type TaskDependency } from "./task-readiness";
 export { getReadyTaskIds } from "./task-ready";
 export { transitionExecutionStatus } from "./execution-transition";
 export { transitionMissionStatus } from "./mission-transition";
