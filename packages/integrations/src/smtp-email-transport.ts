@@ -38,10 +38,17 @@ export class SmtpTransportError extends Error {
   }
 }
 
-export class SmtpEnvelopeError extends SmtpTransportError {\n  constructor(kind: "TRANSIENT" | "PERMANENT" | "PROTOCOL", smtpCode?: number) {\n    super(kind, "SMTP envelope was rejected.", smtpCode);\n    this.name = "SmtpEnvelopeError";\n  }\n}\n\nexport class SmtpAuthenticationError extends SmtpTransportError {
+export class SmtpEnvelopeError extends SmtpTransportError {
   constructor(kind: "TRANSIENT" | "PERMANENT" | "PROTOCOL", smtpCode?: number) {
-    super(kind, "SMTP authentication failed.", smtpCode);
-    this.name = "SmtpAuthenticationError";
+    super(kind, "SMTP envelope was rejected.", smtpCode);
+    this.name = "SmtpEnvelopeError";
+  }
+}
+
+export class SmtpDeliveryError extends SmtpTransportError {
+  constructor(kind: "TRANSIENT" | "PERMANENT" | "PROTOCOL", smtpCode?: number) {
+    super(kind, "SMTP server did not accept the message for delivery.", smtpCode);
+    this.name = "SmtpDeliveryError";
   }
 }
 
@@ -57,12 +64,12 @@ export class SmtpTransport implements EmailTransport {
     const heloName = options.heloName.trim();
     const messageIdDomain = options.messageIdDomain.trim();
 
-    if (heloName === "") {
-      throw new RangeError("SMTP HELO name must not be empty.");
+    if (heloName === "" || !isAsciiHeaderValue(heloName)) {
+      throw new RangeError("SMTP HELO name must be non-empty and ASCII-safe.");
     }
 
-    if (messageIdDomain === "") {
-      throw new RangeError("SMTP message ID domain must not be empty.");
+    if (messageIdDomain === "" || !isAsciiHeaderValue(messageIdDomain)) {
+      throw new RangeError("SMTP message ID domain must be non-empty and ASCII-safe.");
     }
 
     this.options = {
@@ -74,9 +81,11 @@ export class SmtpTransport implements EmailTransport {
   }
 
   async send(input: EmailSendInput, credential: EmailSmtpCredential): Promise<EmailSendOutput> {
-    validateEnvelope(input, credential);\n\n    const message = buildMessage(input, this.options.messageIdDomain);
+    validateEnvelope(input, credential);\n\n    const message = buildMessage(input, credential.username, this.options.messageIdDomain);
+    const messageBytes = new TextEncoder().encode(message).byteLength;
+    const dataFrameBytes = messageBytes + 3;
 
-    if (new TextEncoder().encode(message).byteLength > this.options.maxMessageBytes) {
+    if (dataFrameBytes > this.options.maxMessageBytes) {
       throw new Error("SMTP message exceeds configured maximum size.");
     }
 
@@ -115,8 +124,16 @@ export class SmtpTransport implements EmailTransport {
 
       await this.command(connection, "DATA", 354);
       await connection.write(message);
-      await connection.write("\r\n.");
-      await expectCode(connection, 250);
+      await connection.write(".\r\n");
+
+      try {
+        await expectCode(connection, 250);
+      } catch (error) {
+        if (error instanceof SmtpTransportError) {
+          throw new SmtpDeliveryError(error.kind, error.smtpCode);
+        }
+        throw error;
+      }
       await this.command(connection, "QUIT", 221);
 
       const messageId = extractMessageId(message);
@@ -194,6 +211,10 @@ function validateEnvelope(input: EmailSendInput, credential: EmailSmtpCredential
   if (recipients.length === 0 || recipients.some((recipient) => !isSmtpAddress(recipient))) {
     throw new SmtpEnvelopeError("PROTOCOL");
   }
+}
+
+function isAsciiHeaderValue(value: string): boolean {
+  return /^[\x20-\x7e]*$/.test(value);
 }
 
 function isSmtpAddress(value: string): boolean {
@@ -278,14 +299,19 @@ function hasSmtpAuthMechanism(response: string, mechanism: SmtpAuthMechanism): b
   });
 }
 
-function buildMessage(input: EmailSendInput, messageIdDomain: string): string {
+function buildMessage(
+  input: EmailSendInput,
+  sender: string,
+  messageIdDomain: string,
+): string {
   const messageId = `<${Date.now()}-${Math.random().toString(16).slice(2)}@${messageIdDomain}>`;
   const headers = [
     `Message-ID: ${messageId}`,
+    `From: ${sender}`,
     `To: ${input.to.join(", ")}`,
     ...(input.cc === undefined ? [] : [`Cc: ${input.cc.join(", ")}`]),
     ...(input.replyTo === undefined ? [] : [`Reply-To: ${input.replyTo}`]),
-    `Subject: ${input.subject.replace(/[\r\n]/g, " ")}`,
+    `Subject: ${encodeHeaderText(input.subject)}`,
     "MIME-Version: 1.0",
   ];
 
@@ -293,30 +319,77 @@ function buildMessage(input: EmailSendInput, messageIdDomain: string): string {
     return [
       ...headers,
       "Content-Type: text/plain; charset=utf-8",
+      "Content-Transfer-Encoding: base64",
       "",
-      normalizeBody(input.text),
-    ].join("\r\n");
+      encodeMimeBody(input.text),
+    ].join("\r\n") + "\r\n";
   }
+
+  const boundary = `=_POLYON_${messageId.slice(1, -1).replace(/[^A-Za-z0-9]/g, "")}`;
 
   return [
     ...headers,
-    'Content-Type: multipart/alternative; boundary="polyon-boundary"',
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
     "",
-    "--polyon-boundary",
+    `--${boundary}`,
     "Content-Type: text/plain; charset=utf-8",
+    "Content-Transfer-Encoding: base64",
     "",
-    normalizeBody(input.text),
-    "--polyon-boundary",
+    encodeMimeBody(input.text),
+    `--${boundary}`,
     "Content-Type: text/html; charset=utf-8",
+    "Content-Transfer-Encoding: base64",
     "",
-    normalizeBody(input.html),
-    "--polyon-boundary--",
+    encodeMimeBody(input.html),
+    `--${boundary}--`,
+    "",
   ].join("\r\n");
 }
 
-function normalizeBody(value: string): string {
-  return value.replace(/\r?\n/g, "\r\n").replace(/^\./gm, "..");
+function encodeHeaderText(value: string): string {
+  if (isAsciiHeaderValue(value)) {
+    return value;
+  }
+
+  const bytes = new TextEncoder().encode(value);
+  return splitUtf8Bytes(bytes, 45)
+    .map((chunk) => `=?UTF-8?B?${bytesToBase64(chunk)}?=`)
+    .join("\r\n ");
 }
+
+function encodeMimeBody(value: string): string {
+  const normalized = value.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const encoded = bytesToBase64(new TextEncoder().encode(normalized));
+  return encoded.match(/.{1,76}/g)?.join("\r\n") ?? "";
+}
+
+function splitUtf8Bytes(bytes: Uint8Array, maxBytes: number): Uint8Array[] {
+  const chunks: Uint8Array[] = [];
+  let start = 0;
+
+  while (start < bytes.length) {
+    let end = Math.min(start + maxBytes, bytes.length);
+    while (end > start && (bytes[end] & 0xc0) === 0x80) {
+      end -= 1;
+    }
+    chunks.push(bytes.slice(start, end));
+    start = end;
+  }
+
+  return chunks;
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunkSize = 0x8000;
+
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
+  }
+
+  return btoa(binary);
+}
+
 
 function extractMessageId(message: string): string {
   const match = /^Message-ID:\s*(<[^>]+>)/m.exec(message);
@@ -329,5 +402,5 @@ function extractMessageId(message: string): string {
 }
 
 function encodeBase64(value: string): string {
-  return btoa(value);
+  return bytesToBase64(new TextEncoder().encode(value));
 }
