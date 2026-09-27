@@ -50,8 +50,9 @@ describe("ResearchSynthesisService", () => {
       now: "2026-09-28T00:00:01.000Z",
     });
 
-    const firstCall = invokeText.mock.calls[0];
-    if (firstCall === undefined) throw new Error("Research synthesizer was not invoked.");
+    const firstCall = invokeText.mock.calls[0] as [{
+      request: { messages: Array<{ content?: unknown }> }
+    }];
     expect(firstCall[0].request.messages[1]?.content).toContain(
       "[evidence:evidence-1 source:source-1 Source 1]",
     );
