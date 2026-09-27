@@ -122,6 +122,7 @@ describe("recoverQueuedExecutions", () => {
         stores.executions,
         queue,
         stores.approvals,
+        stores.tasks,
         "2026-09-27T01:05:00.000Z",
       ),
     ).toEqual([
@@ -135,6 +136,81 @@ describe("recoverQueuedExecutions", () => {
     expect(stores.executions.get("execution-2")?.updatedAt).toBe(
       "2026-09-27T01:05:00.000Z",
     );
+    },
+  );
+
+  it(
+    "pauses an interrupted execution when a tool approval is still pending",
+    () => {
+      const stores = new InMemoryDomainStores();
+      const queue = new InMemoryExecutionQueue();
+
+      stores.tasks.save({
+        ...approvedTask,
+        status: "RUNNING",
+      });
+      stores.executions.save({
+        ...queued("execution-3"),
+        status: "RUNNING",
+        taskId: "task-1",
+      });
+      stores.approvals.save({
+        id: "approval-3",
+        policyId: "policy-1",
+        policyDecisionId: "decision-3",
+        executionId: "execution-3",
+        toolId: "tool-1",
+        invocationId: "tool-call:3",
+        action: "TERMINAL",
+        riskLevel: "MEDIUM",
+        requestedBy: "agent-1",
+        reason: "Human approval required.",
+        status: "PENDING",
+        requestedAt: "2026-09-27T01:00:00.000Z",
+        toolContinuation: {
+          agentId: "agent-1",
+          requiredCapabilityIds: ["text.generate"],
+          request: {
+            messages: [{ role: "USER", content: "Run the tool." }],
+          },
+          response: {
+            content: "",
+            finishReason: "TOOL_CALL",
+            toolCalls: [
+              {
+                id: "3",
+                toolId: "tool-1",
+                input: {},
+              },
+            ],
+          },
+          toolCall: {
+            id: "3",
+            toolId: "tool-1",
+            input: {},
+          },
+          rounds: 1,
+          state: "AWAITING_TOOL",
+        },
+      });
+
+      expect(
+        recoverExecutions(
+          stores.executions,
+          queue,
+          stores.approvals,
+          stores.tasks,
+          "2026-09-27T01:05:00.000Z",
+        ),
+      ).toEqual([
+        {
+          executionId: "execution-3",
+          kind: "PENDING_TOOL_APPROVAL_RESTART",
+        },
+      ]);
+      expect(stores.executions.get("execution-3")?.status).toBe("PAUSED");
+      expect(stores.tasks.get("task-1")?.status).toBe("PAUSED");
+      expect(queue.size()).toBe(0);
     },
   );
 
