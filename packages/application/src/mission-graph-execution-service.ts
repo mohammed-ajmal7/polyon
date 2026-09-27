@@ -46,6 +46,7 @@ export class MissionGraphExecutionService {
       .filter((task): task is Task => task !== undefined);
 
     const result = this.execution.dispatchReadyTasks({
+      mission,
       tasks: missionTasks,
       actorId: input.actorId,
       ...(input.agentId === undefined ? {} : { agentId: input.agentId }),
