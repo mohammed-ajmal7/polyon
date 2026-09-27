@@ -203,6 +203,83 @@ describe("recoverQueuedExecutions", () => {
     expect(queue.size()).toBe(0);
   });
 
+  it("pauses rather than replays a non-idempotent integration after restart", () => {
+    const stores = new InMemoryDomainStores();
+    const queue = new InMemoryExecutionQueue();
+
+    stores.tasks.save({
+      ...approvedTask,
+      status: "RUNNING",
+    });
+    stores.executions.save({
+      ...queued("execution-telegram"),
+      status: "RUNNING",
+      taskId: "task-1",
+    });
+    stores.approvals.save({
+      id: "approval-telegram",
+      policyId: "policy-1",
+      policyDecisionId: "decision-telegram",
+      executionId: "execution-telegram",
+      integrationId: "telegram-primary",
+      invocationId: "tool-call:telegram",
+      action: "EXTERNAL_COMMUNICATION",
+      riskLevel: "MEDIUM",
+      requestedBy: "agent-1",
+      reason: "Human approval required.",
+      status: "APPROVED",
+      requestedAt: "2026-09-27T01:00:00.000Z",
+      resolvedAt: "2026-09-27T01:01:00.000Z",
+      integrationContinuation: {
+        agentId: "agent-1",
+        requiredCapabilityIds: ["text.generate"],
+        request: {
+          messages: [{ role: "USER", content: "Send." }],
+        },
+        response: {
+          content: "",
+          finishReason: "TOOL_CALL",
+          toolCalls: [
+            {
+              id: "telegram",
+              toolId: "integration.invoke:telegram-primary:SEND_MESSAGE",
+              input: { chatId: 1, text: "Send." },
+            },
+          ],
+        },
+        toolCall: {
+          id: "telegram",
+          toolId: "integration.invoke:telegram-primary:SEND_MESSAGE",
+          input: { chatId: 1, text: "Send." },
+        },
+        rounds: 1,
+        integrationId: "telegram-primary",
+        operation: "SEND_MESSAGE",
+        input: { chatId: 1, text: "Send." },
+        sideEffectClass: "NON_IDEMPOTENT",
+        state: "AWAITING_INTEGRATION",
+      },
+    });
+
+    expect(
+      recoverExecutions(
+        stores.executions,
+        queue,
+        stores.approvals,
+        stores.tasks,
+        "2026-09-27T01:05:00.000Z",
+      ),
+    ).toEqual([
+      {
+        executionId: "execution-telegram",
+        kind: "NON_IDEMPOTENT_INTEGRATION_RECONCILIATION",
+      },
+    ]);
+    expect(queue.size()).toBe(0);
+    expect(stores.executions.get("execution-telegram")?.status).toBe("PAUSED");
+    expect(stores.tasks.get("task-1")?.status).toBe("PAUSED");
+  });
+
   it("does not duplicate executions already present in the queue", () => {
     const stores = new InMemoryDomainStores();
     const queue = new InMemoryExecutionQueue();
