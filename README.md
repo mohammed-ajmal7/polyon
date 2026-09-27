@@ -29,7 +29,7 @@ The current branch contains the core operating loop for:
 - model/provider routing with a concrete OpenAI-compatible adapter;
 - governed filesystem, terminal, Git, artifact, and integration tools;
 - Google Drive, Telegram, and SMTP Email adapters;
-- durable memory, Source/Evidence records, bounded web research, and evidence-grounded synthesis;
+- durable memory, Source/Evidence records, bounded web research, evidence-grounded synthesis, and optional semantic memory search with durable embeddings;
 - explicit bounded coding-agent tool/process execution;
 - authenticated private web APIs, approval inbox, live trace/state APIs;
 - local file-backed persistence, migrations, optimistic concurrency, backup/restore, and self-hosted Docker deployment.
@@ -84,7 +84,7 @@ The repository also contains focused integration/recovery/security tests across 
 
 The core POLYON operating loop is implemented. Remaining work is primarily depth, scale, and deployment-specific:
 
-- richer embedding/semantic retrieval beyond the deterministic local lexical/context path;
+- automatic startup/recovery scheduling for semantic memory indexing and vector-scale optimization;
 - advanced MCP/A2A capabilities such as streaming, push notifications, subscriptions, and broader specification coverage;
 - multi-user/enterprise identity and tenancy (the product remains intentionally personal);
 - production-scale performance testing and a wider adversarial end-to-end matrix;
