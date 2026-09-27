@@ -105,7 +105,7 @@ export class ScopedGitReadToolAdapter
     try {
       const result = await this.terminal.invoke({
         input: {
-          command: this.gitExecutable(),
+          command: this.gitExecutablePath,
           args,
           timeoutMs: input.timeoutMs,
           maxOutputBytes: input.maxOutputBytes,
