@@ -37,6 +37,7 @@ export interface MissionPlanServiceDependencies {
   readonly policyDecisions: PolicyDecisionStore;
   readonly approvals: ApprovalRequestStore;
   readonly events: EventStore;
+  readonly unitOfWork?: DomainUnitOfWork;
 }
 
 export interface SubmitMissionPlanInput {
@@ -246,8 +247,7 @@ type MissionPlanStores = Pick<
 
 export class MissionPlanService {
   constructor(
-    private readonly dependencies: MissionPlanServiceDependencies & { readonly unitOfWork?: DomainUnitOfWork },
-  ) {}
+    private readonly dependencies: MissionPlanServiceDependencies,  ) {}
 
   submit(input: SubmitMissionPlanInput): MissionPlanSubmissionResult {
     const operation = (stores: MissionPlanStores) => this.submitWithStores(stores, input);
