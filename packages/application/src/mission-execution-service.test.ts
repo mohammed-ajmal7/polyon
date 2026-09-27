@@ -78,6 +78,7 @@ const identities = {
 function createService() {
   const stores = new InMemoryDomainStores();
   const queue = new InMemoryExecutionQueue();
+  const events = new InMemoryEventStore();
   const dispatch = new ExecutionDispatchService({
     queue,
     executions: stores.executions,
@@ -90,9 +91,10 @@ function createService() {
     (task) => stores.tasks.save(task),
     (taskId) => stores.tasks.get(taskId),
     () => stores.executions.list(),
+    events,
   );
 
-  return { stores, queue, service };
+  return { stores, queue, events, service };
 }
 
 describe("MissionExecutionService", () => {
@@ -116,6 +118,36 @@ describe("MissionExecutionService", () => {
     expect(queue.size()).toBe(2);
     expect(stores.tasks.get("task-1")?.status).toBe("APPROVED");
     expect(stores.tasks.get("task-2")?.status).toBe("APPROVED");
+  });
+
+  it("records task status changes during dispatch", () => {
+    const { events, service } = createService();
+
+    service.dispatchReadyTasks({
+      mission,
+      tasks: [tasks[0]!],
+      actorId: "agent-1",
+      policy,
+      requestedBy: "user-1",
+      now: "2026-09-27T01:02:00.000Z",
+      riskLevel: "MEDIUM",
+      identities,
+    });
+
+    expect(events.listByTask("task-1").map((event) => ({
+      kind: event.kind,
+      actorId: event.actorId,
+      data: event.data,
+    }))).toEqual([
+      {
+        kind: "TASK_STATUS_CHANGED",
+        actorId: "agent-1",
+        data: {
+          from: "PENDING",
+          to: "APPROVED",
+        },
+      },
+    ]);
   });
 
   it("does not dispatch a dependent task before its dependency succeeds", () => {

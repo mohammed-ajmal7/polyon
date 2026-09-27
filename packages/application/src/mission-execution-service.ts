@@ -1,4 +1,12 @@
-import type { ActorId, AgentId, Mission, Policy, Task } from "@polyon/contracts";
+import type {
+  ActorId,
+  AgentId,
+  DomainEvent,
+  Mission,
+  Policy,
+  Task,
+  TaskStatus,
+} from "@polyon/contracts";
 
 import {
   getReadyTaskIds,
@@ -8,8 +16,34 @@ import {
   type TaskDependency,
 } from "@polyon/core";
 
+import type { EventStore } from "@polyon/storage";
+
 import type { ExecutionDispatchPlan } from "./execution-dispatch";
 import { ExecutionDispatchService } from "./execution-dispatch-service";
+
+function appendTaskStatusChangedEvent(
+  events: EventStore,
+  task: Task,
+  from: TaskStatus,
+  to: TaskStatus,
+  actorId: ActorId,
+  occurredAt: string,
+): void {
+  const event: DomainEvent = {
+    id: `TASK_STATUS_CHANGED:${task.id}:${from}:${to}:${occurredAt}`,
+    kind: "TASK_STATUS_CHANGED",
+    actorId,
+    missionId: task.missionId,
+    taskId: task.id,
+    occurredAt,
+    data: {
+      from,
+      to,
+    },
+  };
+
+  events.append(event);
+}
 
 function validateDispatchTasks(mission: Mission, tasks: readonly Task[]): void {
   const taskIds = new Set<string>();
@@ -96,6 +130,7 @@ export class MissionExecutionService {
     private readonly saveTask: (task: Task) => void,
     private readonly getTask: (taskId: Task["id"]) => Task | undefined,
     private readonly listExecutions: () => readonly { taskId: string; attempt: number }[],
+    private readonly events: EventStore,
   ) {}
 
   dispatchReadyTasks(input: DispatchReadyTasksInput): DispatchReadyTasksResult {
@@ -152,7 +187,16 @@ export class MissionExecutionService {
             ? "APPROVAL_REQUIRED"
             : "REJECTED";
 
-      this.saveTask(transitionTaskStatus(readyTask, taskStatus, input.now));
+      const updatedTask = transitionTaskStatus(readyTask, taskStatus, input.now);
+      this.saveTask(updatedTask);
+      appendTaskStatusChangedEvent(
+        this.events,
+        updatedTask,
+        task.status,
+        updatedTask.status,
+        input.actorId,
+        input.now,
+      );
       plans.push(plan);
     }
 
