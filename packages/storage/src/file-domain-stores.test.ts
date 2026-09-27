@@ -1,4 +1,14 @@
-describe("InMemoryDomainStores", () => {
+/// <reference path="./node-runtime.d.ts" />
+
+import { mkdtempSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { describe, expect, it } from "vitest";
+
+import { FileDomainStores } from "./file-domain-stores";
+import { InMemoryDomainStores } from "./domain-stores";
+
+describe("FileDomainStores", () => {
   it("rejects nested transactions", () => {
     const stores = new InMemoryDomainStores();
 
@@ -36,16 +46,6 @@ describe("InMemoryDomainStores", () => {
     expect(stores.events.get("event-rollback-1")).toBeUndefined();
   });
 });
-
-/// <reference path="./node-runtime.d.ts" />
-
-import { mkdtempSync, rmSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
-import { describe, expect, it } from "vitest";
-
-import { FileDomainStores } from "./file-domain-stores";
-import { InMemoryDomainStores } from "./domain-stores";
 
 describe("FileDomainStores", () => {
   it("rejects nested transactions", () => {
@@ -190,3 +190,4 @@ describe("FileDomainStores", () => {
     }
   });
 });
+
