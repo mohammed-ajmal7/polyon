@@ -34,6 +34,15 @@ export {
 export type { ToolArtifactResult } from "./tool-adapter";
 
 export {
+  ScopedGitPublishToolAdapter,
+  ScopedGitPublishToolError,
+  type ScopedGitPublishToolAdapterOptions,
+  type ScopedGitPublishToolErrorKind,
+  type ScopedGitPublishToolInput,
+  type ScopedGitPublishToolOutput,
+} from "./scoped-git-publish-tool-adapter";
+
+export {
   ScopedGitCommitToolAdapter,
   ScopedGitCommitToolError,
   type ScopedGitCommitToolAdapterOptions,
