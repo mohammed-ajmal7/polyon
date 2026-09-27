@@ -14,6 +14,11 @@ export async function isAuthenticated(): Promise<boolean> {
   return session === undefined ? false : verifySession(session, expected);
 }
 
+export async function clearSession(): Promise<void> {
+  const store = await cookies();
+  store.delete(COOKIE_NAME);
+}
+
 export async function issueSession(token: string): Promise<boolean> {
   const expected = process.env.POLYON_API_TOKEN?.trim();
   if (expected === undefined || expected === "") return true;
