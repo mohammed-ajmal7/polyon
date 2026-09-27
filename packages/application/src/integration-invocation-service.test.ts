@@ -66,6 +66,7 @@ describe("IntegrationInvocationService", () => {
       kind: "TELEGRAM",
       actionKinds: ["EXTERNAL_COMMUNICATION"],
       supportedOperations: ["send_message"],
+      sideEffectClass: "NON_IDEMPOTENT",
       invoke,
     });
 
@@ -107,6 +108,7 @@ describe("IntegrationInvocationService", () => {
       kind: "TELEGRAM",
       actionKinds: ["EXTERNAL_COMMUNICATION"],
       supportedOperations: ["send_message"],
+      sideEffectClass: "NON_IDEMPOTENT",
       invoke,
     });
 
@@ -170,6 +172,7 @@ describe("IntegrationInvocationService", () => {
       kind: "TELEGRAM",
       actionKinds: ["EXTERNAL_COMMUNICATION"],
       supportedOperations: ["send_message"],
+      sideEffectClass: "NON_IDEMPOTENT",
       invoke,
     });
 
@@ -212,6 +215,7 @@ describe("IntegrationInvocationService", () => {
       kind: "TELEGRAM",
       actionKinds: ["EXTERNAL_COMMUNICATION"],
       supportedOperations: ["send_message"],
+      sideEffectClass: "NON_IDEMPOTENT",
       invoke,
     });
 
@@ -271,6 +275,7 @@ describe("IntegrationInvocationService", () => {
       kind: "TELEGRAM",
       actionKinds: ["EXTERNAL_COMMUNICATION"],
       supportedOperations: ["send_message"],
+      sideEffectClass: "NON_IDEMPOTENT",
       invoke,
     });
 
@@ -302,6 +307,7 @@ describe("IntegrationInvocationService", () => {
       kind: "TELEGRAM",
       actionKinds: ["EXTERNAL_COMMUNICATION"],
       supportedOperations: ["send_message"],
+      sideEffectClass: "NON_IDEMPOTENT",
       invoke,
     });
 
