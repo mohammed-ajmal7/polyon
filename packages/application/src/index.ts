@@ -106,3 +106,8 @@ export {
   type MissionTaskOrchestrationServiceDependencies,
   type ReadyTaskHandler,
 } from "./mission-task-orchestration-service";
+
+export {
+  ExecutionRetryService,
+  type RetryFailedTaskInput,
+} from "./execution-retry-service";
