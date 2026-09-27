@@ -87,6 +87,12 @@ The file-backed database uses versioned snapshots, migrations, atomic replacemen
 
 Use the storage-layer backup service for snapshots before major upgrades or schema changes. Restore inputs are validated before replacement.
 
+## Health endpoints
+
+- `GET /api/health/live` reports whether the runtime is running and is suitable for liveness checks.
+- `GET /api/health/ready` reports readiness and returns `503` when the runtime is not running, required model configuration is missing while execution is enabled, or server composition initialization fails.
+- Readiness responses do not expose initialization error details; configuration failures fail closed.
+
 ## Operational checks
 
 Before enabling consequential execution:
