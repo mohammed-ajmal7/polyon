@@ -24,7 +24,7 @@ import type {
   ToolAdapter,
   ToolArtifactResult,
   ToolInvocationRequest,
-  type ToolInvocationResult,
+  ToolInvocationResult,
 } from "./tool-adapter";
 
 export interface ScopedArtifactWriteToolInput {
