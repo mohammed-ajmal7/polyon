@@ -12,6 +12,17 @@ const tool: Tool = {
   description: "Controlled terminal tool.",
   kind: "TERMINAL",
   actionKinds: ["TERMINAL"],
+  inputSchema: {
+    type: "object",
+    required: ["value"],
+    additionalProperties: false,
+    properties: {
+      value: {
+        type: "string",
+        minLength: 1,
+      },
+    },
+  },
   enabled: true,
 };
 
