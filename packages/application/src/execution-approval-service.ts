@@ -34,6 +34,18 @@ export class ExecutionApprovalServiceError extends Error {
   }
 }
 
+export type ExecutionApprovalServiceErrorKind = "EXECUTION_NOT_AWAITING_APPROVAL";
+
+export class ExecutionApprovalServiceError extends Error {
+  readonly kind: ExecutionApprovalServiceErrorKind;
+
+  constructor(kind: ExecutionApprovalServiceErrorKind, message: string) {
+    super(message);
+    this.name = "ExecutionApprovalServiceError";
+    this.kind = kind;
+  }
+}
+
 export interface ExecutionApprovalResolution {
   readonly approval: ApprovalRequest;
   readonly execution: Execution;
