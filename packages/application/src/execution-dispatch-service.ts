@@ -17,6 +17,8 @@ import {
 import type { ExecutionQueue } from "@polyon/runtime";
 import type {
   ApprovalRequestStore,
+  DomainStoreTransactionContext,
+  DomainUnitOfWork,
   EventStore,
   ExecutionStore,
   PolicyDecisionStore,
@@ -28,53 +30,42 @@ export interface ExecutionDispatchServiceDependencies {
   readonly approvals: ApprovalRequestStore;
   readonly policyDecisions: PolicyDecisionStore;
   readonly events: EventStore;
-}
-
-export interface PersistedExecutionDispatch {
-  readonly execution: ExecutionDispatchPlan["execution"];
-  readonly policyDecision: PolicyDecision;
-  readonly approvalRequest?: ApprovalRequest;
-  readonly nextStep: ExecutionDispatchPlan["nextStep"];
-}
-
-function appendExecutionStatusChangedEvent(
-  events: EventStore,
-  execution: Execution,
-  from: ExecutionStatus,
-  to: ExecutionStatus,
-  occurredAt: string,
-): void {
-  const event: DomainEvent = {
-    id: `EXECUTION_STATUS_CHANGED:${execution.id}:${from}:${to}:${occurredAt}`,
-    kind: "EXECUTION_STATUS_CHANGED",
-    actorId: execution.actorId,
-    missionId: execution.missionId,
-    taskId: execution.taskId,
-    executionId: execution.id,
-    occurredAt,
-    data: {
-      from,
-      to,
-    },
-  };
-
-  events.append(event);
+  readonly unitOfWork?: DomainUnitOfWork;
 }
 
 export class ExecutionDispatchService {
   constructor(private readonly dependencies: ExecutionDispatchServiceDependencies) {}
 
   dispatch(input: PrepareExecutionDispatchInput): PersistedExecutionDispatch {
-    if (this.dependencies.executions.get(input.executionId) !== undefined) {
+    const operation = (stores: Pick<DomainStoreTransactionContext, "executions" | "approvals" | "policyDecisions" | "events">) =>
+      this.dispatchWithStores(stores, input);
+
+    const result =
+      this.dependencies.unitOfWork === undefined
+        ? operation(this.dependencies)
+        : this.dependencies.unitOfWork.transaction(operation);
+
+    if (result.nextStep === "ENQUEUE") {
+      this.dependencies.queue.enqueue(result.execution);
+    }
+
+    return result;
+  }
+
+  private dispatchWithStores(
+    stores: Pick<DomainStoreTransactionContext, "executions" | "approvals" | "policyDecisions" | "events">,
+    input: PrepareExecutionDispatchInput,
+  ): PersistedExecutionDispatch {
+    if (stores.executions.get(input.executionId) !== undefined) {
       throw new Error(`Execution already exists: ${input.executionId}.`);
     }
 
     const plan = prepareExecutionDispatch(input);
 
-    this.dependencies.executions.save(plan.execution);
-    this.dependencies.policyDecisions.save(plan.policyDecision);
+    stores.executions.save(plan.execution);
+    stores.policyDecisions.save(plan.policyDecision);
 
-    this.dependencies.events.append({
+    stores.events.append({
       id: `EXECUTION_CREATED:${plan.execution.id}`,
       kind: "EXECUTION_CREATED",
       actorId: plan.execution.actorId,
@@ -88,7 +79,7 @@ export class ExecutionDispatchService {
       },
     });
 
-    this.dependencies.events.append({
+    stores.events.append({
       id: `POLICY_DECIDED:${plan.policyDecision.id}`,
       kind: "POLICY_DECIDED",
       actorId: plan.execution.actorId,
@@ -107,8 +98,8 @@ export class ExecutionDispatchService {
     });
 
     if (plan.approvalRequest !== undefined) {
-      this.dependencies.approvals.save(plan.approvalRequest);
-      this.dependencies.events.append({
+      stores.approvals.save(plan.approvalRequest);
+      stores.events.append({
         id: `APPROVAL_REQUESTED:${plan.approvalRequest.id}`,
         kind: "APPROVAL_REQUESTED",
         actorId: plan.approvalRequest.requestedBy,
@@ -127,7 +118,7 @@ export class ExecutionDispatchService {
 
     if (plan.execution.status !== "PENDING") {
       appendExecutionStatusChangedEvent(
-        this.dependencies.events,
+        stores.events,
         plan.execution,
         "PENDING",
         plan.execution.status,
@@ -136,13 +127,32 @@ export class ExecutionDispatchService {
     }
 
     if (plan.nextStep === "ENQUEUE") {
-      this.dependencies.queue.enqueue(plan.execution);
+      stores.queue.enqueue(plan.execution);
     }
 
     return plan;
+  
   }
 
   queueApproved(
+    approval: ApprovalRequest,
+    execution: PersistedExecutionDispatch["execution"],
+    now: string,
+  ): PersistedExecutionDispatch["execution"] {
+    const operation = (stores: Pick<DomainStoreTransactionContext, "executions" | "approvals" | "events">) =>
+      this.queueApprovedWithStores(stores, approval, execution, now);
+
+    const queued =
+      this.dependencies.unitOfWork === undefined
+        ? operation(this.dependencies)
+        : this.dependencies.unitOfWork.transaction(operation);
+
+    this.dependencies.queue.enqueue(queued);
+    return queued;
+  }
+
+  private queueApprovedWithStores(
+    stores: Pick<DomainStoreTransactionContext, "executions" | "approvals" | "events">,
     approval: ApprovalRequest,
     execution: PersistedExecutionDispatch["execution"],
     now: string,
@@ -155,24 +165,25 @@ export class ExecutionDispatchService {
       updatedAt: now,
     };
 
-    this.dependencies.approvals.save(approval);
-    this.dependencies.executions.save(queued);
+    stores.approvals.save(approval);
+    stores.executions.save(queued);
     appendExecutionStatusChangedEvent(
-      this.dependencies.events,
+      stores.events,
       execution,
       "APPROVAL_REQUIRED",
       "APPROVED",
       now,
     );
     appendExecutionStatusChangedEvent(
-      this.dependencies.events,
+      stores.events,
       queued,
       "APPROVED",
       "QUEUED",
       now,
     );
-    this.dependencies.queue.enqueue(queued);
+    stores.queue.enqueue(queued);
 
     return queued;
+  
   }
 }
