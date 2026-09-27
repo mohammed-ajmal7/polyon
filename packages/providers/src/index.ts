@@ -11,4 +11,11 @@ export {
   type ProviderAdapterRegistryErrorKind,
 } from "./provider-adapter-registry";
 
-export { ModelGateway, ModelGatewayError, type ModelGatewayDependencies, type ModelGatewayErrorKind } from "./model-gateway";
+export {
+  ModelGateway,
+  ModelGatewayError,
+  type ModelCatalog,
+  type ModelGatewayDependencies,
+  type ModelGatewayErrorKind,
+  type ProviderCatalog,
+} from "./model-gateway";
