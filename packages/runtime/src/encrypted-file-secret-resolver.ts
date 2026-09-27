@@ -191,10 +191,7 @@ export class EncryptedFileSecretResolver implements SecretResolver {
     mkdirSync(dirname(this.filePath), { recursive: true });
 
     const tempPath = `${this.filePath}.${process.pid}.${randomBytes(8).toString("hex")}.tmp`;
-    writeFileSync(tempPath, JSON.stringify(state) + "\n", {
-      encoding: "utf8",
-      mode: 0o600,
-    });
+    writeFileSync(tempPath, JSON.stringify(state) + "\n", "utf8");
     chmodSync(tempPath, 0o600);
 
     try {
