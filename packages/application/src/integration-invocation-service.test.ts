@@ -93,6 +93,7 @@ describe("IntegrationInvocationService", () => {
       executionId: "execution-1",
       data: {
         integrationId: "telegram-primary",
+        sideEffectClass: "NON_IDEMPOTENT",
         operation: "send_message",
         status: "SUCCEEDED",
       },
