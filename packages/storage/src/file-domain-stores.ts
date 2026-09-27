@@ -14,19 +14,18 @@ export interface DurableDomainStores extends DomainStores, DomainUnitOfWork {
 }
 
 export class FileDomainStores implements DurableDomainStores {
-  private state = this.database.snapshot();
+  private readonly database: FileDomainDatabase;
+  private readonly state: ReturnType<FileDomainDatabase["snapshot"]>;
+  private readonly context: DomainStoreTransactionContext;
 
-  constructor(readonly rootDir: string) {}
-
-  private readonly database = new FileDomainDatabase(join(this.rootDir, "domain-state.json"));
-
-  private readonly context = createStateContext(
-    this.state,
-    (state) => {
-      this.database.replace(state);
-      this.state = this.database.snapshot();
-    },
-  );
+  constructor(readonly rootDir: string) {
+    this.database = new FileDomainDatabase(join(rootDir, "domain-state.json"));
+    this.state = this.database.snapshot();
+    this.context = createStateContext(this.state, (nextState) => {
+      this.database.replace(nextState);
+      Object.assign(this.state, nextState);
+    });
+  }
 
   get approvals() {
     return this.context.approvals;
@@ -75,7 +74,7 @@ export class FileDomainStores implements DurableDomainStores {
     const result = work(stagedContext);
 
     this.database.replace(stagedState);
-    this.state = this.database.snapshot();
+    Object.assign(this.state, stagedState);
 
     return result;
   }
