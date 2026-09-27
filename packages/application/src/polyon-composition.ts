@@ -373,6 +373,8 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   const agentToolOrchestration = new AgentToolOrchestrationService({
     agentGateway,
     toolInvocation,
+    integrationInvocation,
+    integrations,
     tools: builtinTools.tools,
     approvals: stores.approvals,
     executions: stores.executions,
@@ -412,15 +414,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
                   : { error: "Approved tool continuation failed." }),
               };
             },
-            toolDefinitions: builtinTools.tools
-              .list()
-              .filter((tool) => tool.enabled)
-              .map((tool) => ({
-                toolId: tool.id,
-                name: tool.id.replace(/[^A-Za-z0-9_-]/g, "_") || "polyon_tool",
-                description: tool.description,
-                ...(tool.inputSchema === undefined ? {} : { inputSchema: tool.inputSchema }),
-              })),
+            toolDefinitions: agentToolOrchestration.modelToolDefinitions(),
             toolOrchestrator: {
               continueFromResponse: async ({ execution, request, response }) => {
                 if (execution.agentId === undefined) {
