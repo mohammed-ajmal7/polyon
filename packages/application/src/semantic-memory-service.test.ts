@@ -95,6 +95,85 @@ describe("SemanticMemoryService", () => {
     expect(stores.memoryEmbeddings.list()).toHaveLength(2);
   });
 
+
+  it("reindexes only missing or stale embeddings in bounded batches", async () => {
+    const stores = new InMemoryDomainStores();
+    const adapterRegistry = new InMemoryEmbeddingAdapterRegistry();
+    let calls = 0;
+
+    adapterRegistry.register({
+      providerId: "embedding-provider",
+      embed: async ({ input }) => {
+        calls += 1;
+        return {
+          output: {
+            vectors: input.input.map(() => [1, 0]),
+          },
+        };
+      },
+    });
+
+    const gateway = new EmbeddingGateway({
+      models: {
+        get: () => ({
+          id: "embedding-model",
+          providerId: "embedding-provider",
+          name: "Test embedding",
+          kind: "EMBEDDING",
+          capabilityIds: [],
+          enabled: true,
+        }),
+      },
+      providers: {
+        get: () => ({
+          id: "embedding-provider",
+          name: "Test provider",
+          kind: "HOSTED_MODEL",
+          enabled: true,
+        }),
+      },
+      adapters: adapterRegistry,
+    });
+
+    const service = new SemanticMemoryService(
+      stores.memory,
+      stores.memoryEmbeddings,
+      gateway,
+      stores,
+    );
+
+    for (let index = 0; index < 5; index += 1) {
+      stores.memory.save({
+        id: "memory-" + index,
+        kind: "FACT",
+        scope: "PROJECT",
+        text: "memory " + index,
+        tags: [],
+        createdAt: "2026-09-28T00:00:00.000Z",
+        updatedAt: "2026-09-28T00:00:00.000Z",
+      });
+    }
+
+    const result = await service.reindex("embedding-model", {
+      now: "2026-09-28T00:10:00.000Z",
+      batchSize: 2,
+      maxEntries: 5,
+    });
+
+    expect(result).toEqual({ indexed: 5, stale: 0, skipped: 0 });
+    expect(calls).toBe(3);
+    expect(stores.memoryEmbeddings.list()).toHaveLength(5);
+
+    const second = await service.reindex("embedding-model", {
+      now: "2026-09-28T00:11:00.000Z",
+      batchSize: 2,
+      maxEntries: 5,
+    });
+
+    expect(second).toEqual({ indexed: 0, stale: 0, skipped: 5 });
+    expect(calls).toBe(3);
+  });
+
   it("ignores stale embeddings after the source memory changes", async () => {
     const stores = new InMemoryDomainStores();
     const adapterRegistry = new InMemoryEmbeddingAdapterRegistry();
