@@ -265,7 +265,6 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
                     agentId: execution.agentId,
                     requiredCapabilityIds: options.toolRequiredCapabilityIds ?? [],
                     request,
-                    response,
                     policy: options.toolPolicy!,
                     actorId: execution.actorId,
                     missionId: execution.missionId,
