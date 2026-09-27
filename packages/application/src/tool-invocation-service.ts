@@ -105,6 +105,7 @@ export type ToolInvocationServiceErrorKind =
   | "TOOL_APPROVAL_NOT_APPROVED"
   | "TOOL_APPROVAL_TOOL_MISMATCH"
   | "TOOL_APPROVAL_INVOCATION_MISMATCH"
+  | "TOOL_APPROVAL_EXPIRED"
   | "TOOL_APPROVAL_POLICY_NOT_FOUND"
   | "TOOL_INVOCATION_ALREADY_RECORDED";
 
@@ -507,6 +508,16 @@ export class ToolInvocationService {
       throw new ToolInvocationServiceError(
         "TOOL_APPROVAL_NOT_APPROVED",
         `Tool approval ${approval.id} has status ${approval.status}.`,
+      );
+    }
+
+    if (
+      approval.expiresAt !== undefined &&
+      Date.now() >= Date.parse(approval.expiresAt)
+    ) {
+      throw new ToolInvocationServiceError(
+        "TOOL_APPROVAL_EXPIRED",
+        `Tool approval ${approval.id} has expired.`,
       );
     }
 
