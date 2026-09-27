@@ -66,6 +66,7 @@ function createCoordinator(
   return {
     stores,
     queue,
+    events,
     coordinator: new InMemoryExecutionCoordinator(dependencies),
   };
 }
@@ -98,13 +99,14 @@ describe("InMemoryExecutionCoordinator", () => {
       completedAt: "2026-09-27T01:05:00.000Z",
       updatedAt: "2026-09-27T01:05:00.000Z",
     });
+
     expect(stores.executions.get("execution-1")?.status).toBe("SUCCEEDED");
     expect(stores.tasks.get("task-1")?.status).toBe("SUCCEEDED");
     expect(queue.size()).toBe(0);
   });
 
   it("records execution and task lifecycle events", async () => {
-    const { stores, events, coordinator } = createCoordinator(runningTask);
+    const { events, coordinator } = createCoordinator(runningTask);
 
     await coordinator.runNext(
       "2026-09-27T01:02:00.000Z",
@@ -124,7 +126,30 @@ describe("InMemoryExecutionCoordinator", () => {
       from: "RUNNING",
       to: "SUCCEEDED",
     });
+    expect(events.list()[2]?.data).toEqual({
+      from: "RUNNING",
+      to: "SUCCEEDED",
+    });
   });
+
+  it("records the task approval-to-running transition", async () => {
+    const { events, coordinator } = createCoordinator(approvedTask);
+
+    await coordinator.runNext(
+      "2026-09-27T01:02:00.000Z",
+      "2026-09-27T01:05:00.000Z",
+    );
+
+    expect(events.list().map((event) => event.kind)).toEqual([
+      "TASK_STATUS_CHANGED",
+      "EXECUTION_STATUS_CHANGED",
+      "EXECUTION_STATUS_CHANGED",
+      "TASK_STATUS_CHANGED",
+    ]);
+    expect(events.list()[0]?.data).toEqual({
+      from: "APPROVED",
+      to: "RUNNING",
+    });
   });
 
   it("moves an approved task to RUNNING before the runner starts", async () => {
@@ -229,6 +254,7 @@ describe("InMemoryExecutionCoordinator", () => {
       runner,
       executions: stores.executions,
       tasks: stores.tasks,
+      events: new InMemoryEventStore(),
     });
 
     await expect(
@@ -262,6 +288,7 @@ describe("InMemoryExecutionCoordinator", () => {
       runner,
       executions: stores.executions,
       tasks: stores.tasks,
+      events: new InMemoryEventStore(),
     });
 
     await expect(
@@ -284,6 +311,7 @@ describe("InMemoryExecutionCoordinator", () => {
       },
       executions: stores.executions,
       tasks: stores.tasks,
+      events: new InMemoryEventStore(),
     });
 
     await expect(

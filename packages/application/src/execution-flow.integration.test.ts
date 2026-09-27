@@ -135,6 +135,7 @@ describe("governed execution flow", () => {
     expect(stores.executions.get("execution-task-1-1")?.status).toBe("SUCCEEDED");
     expect(stores.tasks.get("task-1")?.status).toBe("SUCCEEDED");
     expect(queue.size()).toBe(0);
+
     expect(events.list().map((event) => event.kind)).toEqual([
       "EXECUTION_CREATED",
       "POLICY_DECIDED",
@@ -143,7 +144,6 @@ describe("governed execution flow", () => {
       "APPROVAL_RESOLVED",
       "EXECUTION_STATUS_CHANGED",
       "TASK_STATUS_CHANGED",
-      "EXECUTION_STATUS_CHANGED",
       "EXECUTION_STATUS_CHANGED",
       "TASK_STATUS_CHANGED",
       "EXECUTION_STATUS_CHANGED",

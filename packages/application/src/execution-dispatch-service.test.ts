@@ -1,9 +1,10 @@
 import type { ApprovalRequest, Execution } from "@polyon/contracts";
 import { describe, expect, it } from "vitest";
 
-import { ExecutionDispatchService } from "./execution-dispatch-service";
 import { InMemoryExecutionQueue } from "@polyon/runtime";
 import { InMemoryDomainStores, InMemoryEventStore } from "@polyon/storage";
+
+import { ExecutionDispatchService } from "./execution-dispatch-service";
 
 const task = {
   id: "task-1",
@@ -29,22 +30,6 @@ const basePolicy = {
   updatedAt: "2026-09-27T00:00:00.000Z",
 };
 
-function createService() {
-  const stores = new InMemoryDomainStores();
-
-  return {
-    stores,
-    queue: new InMemoryExecutionQueue(),
-    service: new ExecutionDispatchService({
-      queue: new InMemoryExecutionQueue(),
-      executions: stores.executions,
-      approvals: stores.approvals,
-      policyDecisions: stores.policyDecisions,
-      events: new InMemoryEventStore(),
-    }),
-  };
-}
-
 const input = {
   task,
   dependencies: [],
@@ -60,17 +45,28 @@ const input = {
   riskLevel: "MEDIUM" as const,
 };
 
-describe("ExecutionDispatchService", () => {
-  it("persists and enqueues an allowed execution", () => {
-    const stores = new InMemoryDomainStores();
-    const queue = new InMemoryExecutionQueue();
-    const service = new ExecutionDispatchService({
+function createService() {
+  const stores = new InMemoryDomainStores();
+  const queue = new InMemoryExecutionQueue();
+  const events = new InMemoryEventStore();
+
+  return {
+    stores,
+    queue,
+    events,
+    service: new ExecutionDispatchService({
       queue,
       executions: stores.executions,
       approvals: stores.approvals,
       policyDecisions: stores.policyDecisions,
-      events: new InMemoryEventStore(),
-    });
+      events,
+    }),
+  };
+}
+
+describe("ExecutionDispatchService", () => {
+  it("persists and enqueues an allowed execution", () => {
+    const { stores, queue, service } = createService();
 
     expect(service.dispatch(input)).toMatchObject({
       execution: { status: "QUEUED" },
@@ -84,16 +80,7 @@ describe("ExecutionDispatchService", () => {
   });
 
   it("records dispatch trace events for an allowed execution", () => {
-    const stores = new InMemoryDomainStores();
-    const queue = new InMemoryExecutionQueue();
-    const events = new InMemoryEventStore();
-    const service = new ExecutionDispatchService({
-      queue,
-      executions: stores.executions,
-      approvals: stores.approvals,
-      policyDecisions: stores.policyDecisions,
-      events,
-    });
+    const { events, service } = createService();
 
     service.dispatch(input);
 
@@ -107,18 +94,9 @@ describe("ExecutionDispatchService", () => {
       to: "QUEUED",
     });
   });
-  });
 
   it("persists an approval-required execution without enqueueing it", () => {
-    const stores = new InMemoryDomainStores();
-    const queue = new InMemoryExecutionQueue();
-    const service = new ExecutionDispatchService({
-      queue,
-      executions: stores.executions,
-      approvals: stores.approvals,
-      policyDecisions: stores.policyDecisions,
-      events: new InMemoryEventStore(),
-    });
+    const { stores, queue, service } = createService();
 
     const result = service.dispatch({
       ...input,
@@ -135,15 +113,7 @@ describe("ExecutionDispatchService", () => {
   });
 
   it("persists policy denial as a rejected execution", () => {
-    const stores = new InMemoryDomainStores();
-    const queue = new InMemoryExecutionQueue();
-    const service = new ExecutionDispatchService({
-      queue,
-      executions: stores.executions,
-      approvals: stores.approvals,
-      policyDecisions: stores.policyDecisions,
-      events: new InMemoryEventStore(),
-    });
+    const { stores, queue, service } = createService();
 
     const result = service.dispatch({
       ...input,
@@ -160,6 +130,7 @@ describe("ExecutionDispatchService", () => {
 
   it("rejects duplicate execution identifiers", () => {
     const stores = new InMemoryDomainStores();
+
     stores.executions.save({
       id: "execution-1",
       missionId: "mission-1",
@@ -170,6 +141,7 @@ describe("ExecutionDispatchService", () => {
       createdAt: "2026-09-27T01:00:00.000Z",
       updatedAt: "2026-09-27T01:00:00.000Z",
     });
+
     const service = new ExecutionDispatchService({
       queue: new InMemoryExecutionQueue(),
       executions: stores.executions,
@@ -182,15 +154,7 @@ describe("ExecutionDispatchService", () => {
   });
 
   it("moves an approved execution to the queue", () => {
-    const stores = new InMemoryDomainStores();
-    const queue = new InMemoryExecutionQueue();
-    const service = new ExecutionDispatchService({
-      queue,
-      executions: stores.executions,
-      approvals: stores.approvals,
-      policyDecisions: stores.policyDecisions,
-      events: new InMemoryEventStore(),
-    });
+    const { queue, service } = createService();
 
     const approval: ApprovalRequest = {
       id: "approval-1",
@@ -206,6 +170,7 @@ describe("ExecutionDispatchService", () => {
       status: "APPROVED",
       requestedAt: "2026-09-27T01:01:00.000Z",
     };
+
     const execution: Execution = {
       id: "execution-1",
       missionId: "mission-1",
@@ -225,14 +190,7 @@ describe("ExecutionDispatchService", () => {
   });
 
   it("does not enqueue a rejected execution", () => {
-    const stores = new InMemoryDomainStores();
-    const queue = new InMemoryExecutionQueue();
-    const service = new ExecutionDispatchService({
-      queue,
-      executions: stores.executions,
-      approvals: stores.approvals,
-      policyDecisions: stores.policyDecisions,
-    });
+    const { queue, service } = createService();
 
     const rejected = service.dispatch({
       ...input,
