@@ -1,8 +1,10 @@
 import type { Agent, Model, Policy, Provider, SecretReference } from "@polyon/contracts";
 import {
+  EmailIntegrationAdapter,
   GoogleDriveIntegrationAdapter,
   TelegramIntegrationAdapter,
   InMemoryIntegrationAdapterRegistry,
+  type EmailTransport,
   type IntegrationAdapter,
   type SecretResolver,
 } from "@polyon/integrations";
@@ -72,6 +74,9 @@ export interface PolyonCompositionOptions {
   readonly telegramMaxRequestBytes?: number;
   readonly telegramDefaultTimeoutMs?: number;
   readonly telegramMaxTimeoutMs?: number;
+  readonly emailIntegrationId?: string;
+  readonly emailSecretReference?: SecretReference;
+  readonly emailTransport?: EmailTransport;
   readonly filesystemRoot?: string;
   readonly filesystemReadMaxBytes?: number;
   readonly filesystemReadEnabled?: boolean;
@@ -217,6 +222,22 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
         ...(options.telegramMaxTimeoutMs === undefined
           ? {}
           : { maxTimeoutMs: options.telegramMaxTimeoutMs }),
+      }),
+    );
+  }
+
+  if (
+    options.secretResolver !== undefined &&
+    options.emailIntegrationId !== undefined &&
+    options.emailSecretReference !== undefined &&
+    options.emailTransport !== undefined
+  ) {
+    integrations.register(
+      new EmailIntegrationAdapter({
+        integrationId: options.emailIntegrationId,
+        secretResolver: options.secretResolver,
+        secretReference: options.emailSecretReference,
+        transport: options.emailTransport,
       }),
     );
   }
