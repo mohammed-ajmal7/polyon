@@ -27,6 +27,7 @@ describe("validateSmtpTransportOptions", () => {
       port: 587,
       secure: false,
       startTls: true,
+      authMechanism: "LOGIN",
       connectionTimeoutMs: 10000,
       maxMessageBytes: 1_000_000,
     });
