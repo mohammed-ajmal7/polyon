@@ -40,12 +40,15 @@ describe("IntegrationCatalogService", () => {
         kind: "EMAIL",
         actionKinds: ["EXTERNAL_COMMUNICATION"],
         supportedOperations: ["send"],
+        sideEffectClass: "NON_IDEMPOTENT",
       },
       {
         integrationId: "google-drive-primary",
         kind: "GOOGLE_DRIVE",
         actionKinds: ["READ"],
         supportedOperations: ["LIST_FILES", "GET_METADATA"],
+      sideEffectClass: "READ_ONLY",
+        sideEffectClass: "READ_ONLY",
       },
     ]);
     expect(service.find("google-drive-primary")).toMatchObject({

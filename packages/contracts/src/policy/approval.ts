@@ -1,4 +1,5 @@
 import type { ActorId } from "../actor/ids";
+import type { IntegrationSideEffectClass } from "../integration/side-effect-class";
 import type { ExecutionId, MissionId, MissionPlanProposalId, TaskId } from "../work/ids";
 import type { ApprovalRequestId, PolicyDecisionId, PolicyId } from "./ids";
 import type { ActionKind, RiskLevel } from "./risk";
@@ -44,7 +45,7 @@ export interface ApprovalRequest {
     readonly integrationId: string;
     readonly operation: string;
     readonly input: unknown;
-    readonly sideEffectClass: import("../integration/side-effect-class").IntegrationSideEffectClass;
+    readonly sideEffectClass: IntegrationSideEffectClass;
     readonly state:
       | "AWAITING_INTEGRATION"
       | "AWAITING_MODEL"

@@ -10,6 +10,7 @@ export interface IntegrationCatalogEntry {
   readonly kind: IntegrationKind;
   readonly actionKinds: readonly ActionKind[];
   readonly supportedOperations: readonly string[];
+  readonly sideEffectClass: import("@polyon/contracts").IntegrationSideEffectClass;
 }
 
 export interface IntegrationCatalogFilter {
@@ -73,5 +74,6 @@ function toEntry(adapter: {
     kind: adapter.kind,
     actionKinds: [...adapter.actionKinds],
     supportedOperations: [...adapter.supportedOperations],
+    sideEffectClass: adapter.sideEffectClass,
   };
 }

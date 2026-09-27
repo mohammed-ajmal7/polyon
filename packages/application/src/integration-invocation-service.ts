@@ -325,7 +325,11 @@ export class IntegrationInvocationService {
       );
     }
 
-    if (approval.expiresAt !== undefined && Date.now() >= Date.parse(approval.expiresAt)) {
+    if (
+      approval.expiresAt !== undefined &&
+      (!Number.isFinite(Date.parse(approval.expiresAt)) ||
+        Date.now() >= Date.parse(approval.expiresAt))
+    ) {
       throw new IntegrationInvocationServiceError(
         "INTEGRATION_APPROVAL_EXPIRED",
         `Integration approval has expired: ${input.approvalId}.`,

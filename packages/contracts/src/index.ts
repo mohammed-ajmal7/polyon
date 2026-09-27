@@ -1,3 +1,5 @@
+export type { IntegrationSideEffectClass } from "./integration/side-effect-class";
+
 export type { Actor, ActorId, ActorKind, ActorStatus } from "./actor/index";
 
 export type {
