@@ -1,5 +1,7 @@
 /// <reference path="./node-runtime.d.ts" />
 
+import { randomUUID } from "node:crypto";
+
 import {
   closeSync,
   existsSync,
@@ -118,7 +120,7 @@ function writeSnapshot<TEntity extends EntityWithId>(
     version: 1,
     entities: [...entities.values()].map(cloneEntity),
   };
-  const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+  const tempPath = `${filePath}.${Date.now()}.${randomUUID()}.tmp`;
 
   writeFileSync(tempPath, JSON.stringify(snapshot) + "\n", "utf8");
 
