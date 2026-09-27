@@ -37,6 +37,7 @@ export {
 } from "./file-database";
 
 export {
+  DomainTransactionError,
   type DomainStoreTransactionContext,
   type DomainUnitOfWork,
 } from "./transaction";
