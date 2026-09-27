@@ -12,3 +12,5 @@ export {
   type MissionStore,
   type TaskStore,
 } from "./domain-stores";
+
+export { InMemoryEventStore, type EventStore } from "./event-store";

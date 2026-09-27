@@ -16,6 +16,12 @@ export type {
 } from "./agent/index";
 
 export type {
+  DomainEvent,
+  EventId,
+  EventKind,
+} from "./observability/index";
+
+export type {
   ActionKind,
   ApprovalMode,
   ApprovalRequest,

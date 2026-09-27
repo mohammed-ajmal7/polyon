@@ -1,0 +1,33 @@
+import type { ActorId } from "../actor/ids";
+import type { ExecutionId, MissionId, TaskId } from "../work/ids";
+import type { EventId } from "./ids";
+
+export type EventKind =
+  | "MISSION_STATUS_CHANGED"
+  | "TASK_STATUS_CHANGED"
+  | "POLICY_DECIDED"
+  | "APPROVAL_REQUESTED"
+  | "APPROVAL_RESOLVED"
+  | "EXECUTION_CREATED"
+  | "EXECUTION_STATUS_CHANGED"
+  | "ARTIFACT_CREATED"
+  | "TOOL_INVOKED"
+  | "MESSAGE_CREATED"
+  | "ERROR"
+  | "OTHER";
+
+export interface DomainEvent {
+  readonly id: EventId;
+  readonly kind: EventKind;
+
+  readonly actorId?: ActorId;
+  readonly missionId?: MissionId;
+  readonly taskId?: TaskId;
+  readonly executionId?: ExecutionId;
+
+  readonly traceId?: string;
+  readonly causedByEventId?: EventId;
+
+  readonly occurredAt: string;
+  readonly data: Readonly<Record<string, unknown>>;
+}
