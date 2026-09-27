@@ -1,3 +1,5 @@
+export type { ProviderId } from "./ids";
+
 import type { ProviderId } from "./ids";
 
 export type ProviderKind = "HOSTED_MODEL" | "LOCAL_MODEL" | "CLI_AGENT" | "REMOTE_AGENT" | "OTHER";
