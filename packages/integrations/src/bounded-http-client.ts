@@ -130,13 +130,27 @@ export class BoundedHttpClient {
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const externalSignal = input.signal;
+
+    let removeExternalAbortListener: (() => void) | undefined;
+
+    if (externalSignal !== undefined) {
+      if (externalSignal.aborted) {
+        controller.abort();
+      } else {
+        const onExternalAbort = () => controller.abort();
+        externalSignal.addEventListener("abort", onExternalAbort, { once: true });
+        removeExternalAbortListener = () =>
+          externalSignal.removeEventListener("abort", onExternalAbort);
+      }
+    }
 
     try {
       const response = await fetch(url, {
         method,
         redirect: "error",
         headers: input.headers,
-        signal: input.signal ?? controller.signal,
+        signal: controller.signal,
       });
 
       const contentLength = response.headers.get("content-length");
@@ -180,6 +194,7 @@ export class BoundedHttpClient {
       );
     } finally {
       clearTimeout(timer);
+      removeExternalAbortListener?.();
     }
   }
 }
