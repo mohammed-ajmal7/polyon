@@ -181,7 +181,7 @@ export { ConversationAgentOrchestrationService, type ConversationAgentTarget, ty
 export { ResearchSynthesisService, type SynthesizeResearchInput, type ResearchSynthesisResult } from "./research-synthesis-service";
 export { CreativeJobService, type CreativeAdapter, type CreativeJobRequest, type CreativeOperation } from "./creative-job-service";
 
-export { ConfiguredHttpResearchProvider, type ConfiguredHttpResearchProviderOptions } from "./configured-http-research-provider";
+export { ConfiguredHttpResearchProvider, type ConfiguredHttpResearchProviderOptions, type ResearchSearchProvider, type ResearchSearchResult } from "./configured-http-research-provider";
 
 export { MissionPlanningService, MissionPlanningValidationError, type GenerateMissionPlanInput, type GeneratedMissionPlan, type GeneratedTaskSpec } from "./mission-planning-service";
 

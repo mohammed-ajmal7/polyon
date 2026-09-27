@@ -1,8 +1,18 @@
 import { BoundedHttpClient } from "@polyon/integrations";
 import type { SourceKind } from "@polyon/contracts";
 
-import type { ResearchSearchResult } from "./bounded-web-research-retriever";
-import type { ResearchRetriever } from "./research-service";
+export interface ResearchSearchProvider {
+  search(
+    query: string,
+    options: { readonly limit: number; readonly signal?: AbortSignal },
+  ): Promise<readonly ResearchSearchResult[]>;
+}
+
+export interface ResearchSearchResult {
+  readonly title: string;
+  readonly locator: string;
+  readonly kind?: SourceKind;
+}
 
 export interface ConfiguredHttpResearchProviderOptions {
   readonly endpoint: string;
@@ -13,7 +23,7 @@ interface SearchPayload {
   readonly results: readonly ResearchSearchResult[];
 }
 
-export class ConfiguredHttpResearchProvider implements Pick<ResearchRetriever, "search"> {
+export class ConfiguredHttpResearchProvider implements ResearchSearchProvider {
   constructor(private readonly options: ConfiguredHttpResearchProviderOptions) {}
 
   async search(

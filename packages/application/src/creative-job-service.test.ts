@@ -1,43 +1,39 @@
-import {
-  validateInteroperabilityEnvelope,
-  type InteroperabilityAdapter,
-  type InteroperabilityEnvelope,
-  type InteroperabilityProtocol,
-} from "./envelope";
+import { describe, expect, it, vi } from "vitest";
 
-export class JsonInteroperabilityAdapter implements InteroperabilityAdapter {
-  constructor(
-    readonly protocol: InteroperabilityProtocol,
-    private readonly maxPayloadBytes = 256_000,
-  ) {}
+import { InMemoryDomainStores } from "@polyon/storage";
 
-  encode(envelope: InteroperabilityEnvelope): Uint8Array {
-    validateInteroperabilityEnvelope(envelope, this.maxPayloadBytes);
-    return new TextEncoder().encode(JSON.stringify(envelope));
-  }
+import { CreativeJobService } from "./creative-job-service";
 
-  decode(payload: Uint8Array): InteroperabilityEnvelope {
-    if (payload.byteLength > this.maxPayloadBytes + 2_000) {
-      throw new RangeError("Interoperability payload exceeds the configured byte limit.");
-    }
+describe("CreativeJobService", () => {
+  it("delegates to an injected creative adapter and persists the resulting artifact", async () => {
+    const stores = new InMemoryDomainStores();
+    const adapter = {
+      generate: vi.fn(async () => ({
+        artifact: {
+          kind: "IMAGE" as const,
+          name: "image.png",
+          status: "AVAILABLE" as const,
+          location: "local://image.png",
+          mimeType: "image/png",
+        },
+      })),
+    };
 
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(new TextDecoder().decode(payload));
-    } catch {
-      throw new RangeError("Interoperability payload is not valid JSON.");
-    }
+    const service = new CreativeJobService(adapter, stores.artifacts, stores.events, stores);
+    const artifact = await service.run({
+      id: "job-1",
+      operation: "IMAGE",
+      prompt: "Generate an abstract test image.",
+      outputKind: "IMAGE",
+      artifactId: "artifact-creative-1",
+      artifactName: "image.png",
+      location: "local://image.png",
+      mimeType: "image/png",
+      createdAt: "2026-09-28T00:00:00.000Z",
+    });
 
-    if (parsed === null || typeof parsed !== "object") {
-      throw new RangeError("Interoperability payload must be an envelope object.");
-    }
-
-    const envelope = parsed as InteroperabilityEnvelope;
-    if (envelope.protocol !== this.protocol) {
-      throw new RangeError("Interoperability envelope protocol does not match the adapter.");
-    }
-    validateInteroperabilityEnvelope(envelope, this.maxPayloadBytes);
-    return envelope;
-  }
-}
-
+    expect(adapter.generate).toHaveBeenCalledTimes(1);
+    expect(artifact.kind).toBe("IMAGE");
+    expect(stores.artifacts.get("artifact-creative-1")).toEqual(artifact);
+  });
+});
