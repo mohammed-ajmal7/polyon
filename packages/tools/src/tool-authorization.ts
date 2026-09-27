@@ -32,6 +32,7 @@ export interface AuthorizeToolInvocationInput {
   readonly missionId?: MissionId;
   readonly taskId?: TaskId;
   readonly executionId?: ExecutionId;
+  readonly invocationId?: string;
   readonly agentId?: AgentId;
   readonly expiresAt?: string;
 }
@@ -118,6 +119,7 @@ export function authorizeToolInvocation(
       taskId: input.taskId,
       executionId: input.executionId,
       toolId: input.tool.id,
+      invocationId: input.invocationId,
       expiresAt: input.expiresAt,
     }),
   };
