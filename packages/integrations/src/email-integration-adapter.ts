@@ -23,8 +23,13 @@ export interface EmailSendOutput {
   readonly messageId: string;
 }
 
+export interface EmailSmtpCredential {
+  readonly username: string;
+  readonly password: string;
+}
+
 export interface EmailTransport {
-  send(input: EmailSendInput, credential: string): Promise<EmailSendOutput>;
+  send(input: EmailSendInput, credential: EmailSmtpCredential): Promise<EmailSendOutput>;
 }
 
 export type EmailIntegrationAdapterErrorKind =
@@ -44,6 +49,7 @@ export interface EmailIntegrationAdapterOptions {
   readonly integrationId: string;
   readonly secretResolver: SecretResolver;
   readonly secretReference: SecretReference;
+  readonly smtpUsername: string;
   readonly transport: EmailTransport;
 }
 
@@ -60,6 +66,7 @@ export class EmailIntegrationAdapter implements IntegrationAdapter {
 
   private readonly secretResolver: SecretResolver;
   private readonly secretReference: SecretReference;
+  private readonly smtpUsername: string;
   private readonly transport: EmailTransport;
 
   constructor(options: EmailIntegrationAdapterOptions) {
@@ -71,6 +78,10 @@ export class EmailIntegrationAdapter implements IntegrationAdapter {
       throw new RangeError("Email integration requires an email secret reference.");
     }
 
+    if (options.smtpUsername.trim() === "") {
+      throw new RangeError("Email integration requires a non-empty SMTP username.");
+    }
+
     if (options.secretReference.kind !== "SMTP_CREDENTIAL") {
       throw new RangeError("Email integration requires an SMTP credential reference.");
     }
@@ -78,6 +89,7 @@ export class EmailIntegrationAdapter implements IntegrationAdapter {
     this.integrationId = options.integrationId;
     this.secretResolver = options.secretResolver;
     this.secretReference = options.secretReference;
+    this.smtpUsername = options.smtpUsername;
     this.transport = options.transport;
   }
 
@@ -92,7 +104,11 @@ export class EmailIntegrationAdapter implements IntegrationAdapter {
     }
 
     const input = parseSendEmailInput(request.input);
-    const credential = await this.secretResolver.resolve(this.secretReference);
+    const password = await this.secretResolver.resolve(this.secretReference);
+    const credential: EmailSmtpCredential = {
+      username: this.smtpUsername,
+      password,
+    };
 
     try {
       return {
