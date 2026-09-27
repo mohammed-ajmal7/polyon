@@ -24,6 +24,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Debug Runtime Formatter
+        run: |
+          pnpm exec prettier packages/runtime/src/node-smtp-connection.ts --write
+          git diff -- packages/runtime/src/node-smtp-connection.ts
+
       - name: Typecheck
         run: pnpm typecheck
 
