@@ -3,6 +3,7 @@ import type { ModelId, ProviderId } from "@polyon/contracts";
 export interface ProviderInvocationRequest<TInput = unknown> {
   readonly modelId: ModelId;
   readonly input: TInput;
+  readonly signal?: AbortSignal;
 }
 
 export interface ProviderInvocationResult<TOutput = unknown> {
