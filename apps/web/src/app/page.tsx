@@ -55,6 +55,8 @@ export default function Home() {
   const [command, setCommand] = useState("");
   const [overview, setOverview] = useState<Overview | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [authRequired, setAuthRequired] = useState(false);
+  const [authToken, setAuthToken] = useState("");
   const agents = overview?.agents ?? [];
   const approvals = overview?.approvals ?? [];
   const counts = overview?.counts ?? { executions: 0, queued: 0, active: 0, memories: 0, sources: 0, evidence: 0, debates: 0, artifacts: 0, events: 0 };
@@ -69,8 +71,29 @@ export default function Home() {
 
   async function refreshOverview() {
     const response = await fetch("/api/overview", { cache: "no-store" });
+    if (response.status === 401) {
+      setAuthRequired(true);
+      return;
+    }
     if (!response.ok) throw new Error("Unable to load the POLYON overview.");
+    setAuthRequired(false);
     setOverview((await response.json()) as Overview);
+  }
+
+  async function login() {
+    setError(null);
+    const response = await fetch("/api/auth", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token: authToken }),
+    });
+    if (!response.ok) {
+      setError("Authentication failed.");
+      return;
+    }
+    setAuthToken("");
+    setAuthRequired(false);
+    await refreshOverview();
   }
 
   useEffect(() => {
@@ -118,6 +141,17 @@ export default function Home() {
   }));
 
   return (
+{authRequired ? (
+  <div className="fixed inset-0 z-50 grid place-items-center bg-[#05070a]/95 px-5">
+    <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0c1017] p-6 shadow-2xl">
+      <div className="text-xs font-medium tracking-[0.18em] text-violet-300/80">PRIVATE AI HQ</div>
+      <h2 className="mt-2 text-xl font-semibold text-white">Authentication required</h2>
+      <p className="mt-2 text-sm leading-6 text-slate-500">Enter the server access token configured by the POLYON operator.</p>
+      <input type="password" value={authToken} onChange={(event) => setAuthToken(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void login(); }} className="mt-5 w-full rounded-xl border border-white/8 bg-black/20 px-3 py-3 text-sm text-slate-100 outline-none focus:border-violet-300/25" placeholder="POLYON API token" autoFocus />
+      <button type="button" onClick={() => void login()} className="mt-3 w-full rounded-xl bg-slate-100 px-4 py-3 text-xs font-semibold text-slate-900">Unlock POLYON</button>
+    </div>
+  </div>
+) : null}
     <main className="min-h-screen bg-[#07090d] text-slate-100">
       <div className="mx-auto flex min-h-screen max-w-[1600px]">
         <aside className="hidden w-72 shrink-0 border-r border-white/8 bg-[#090c12] px-5 py-6 lg:flex lg:flex-col">
