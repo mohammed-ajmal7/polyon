@@ -55,3 +55,8 @@ export {
 } from "./execution-runtime";
 
 export { NodeSmtpConnectionFactory } from "./node-smtp-connection";
+
+export {
+  EncryptedFileSecretResolver,
+  type EncryptedFileSecretResolverOptions,
+} from "./encrypted-file-secret-resolver";
