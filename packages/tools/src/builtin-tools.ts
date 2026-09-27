@@ -9,6 +9,15 @@ import { ScopedGitWriteToolAdapter } from "./scoped-git-write-tool-adapter";
 import { ScopedGitCommitToolAdapter } from "./scoped-git-commit-tool-adapter";
 import { ScopedGitPublishToolAdapter } from "./scoped-git-publish-tool-adapter";
 import { ScopedArtifactWriteToolAdapter } from "./scoped-artifact-write-tool-adapter";
+import {
+  ScopedArtifactListToolAdapter,
+  type ArtifactListToolInput,
+} from "./scoped-artifact-list-tool-adapter";
+import {
+  ScopedArtifactReadToolAdapter,
+  type ArtifactReadToolInput,
+  type ArtifactReadToolResolution,
+} from "./scoped-artifact-read-tool-adapter";
 import type { ToolRegistry } from "./tool-registry";
 import { InMemoryToolRegistry } from "./tool-registry";
 
@@ -20,6 +29,8 @@ export const BUILTIN_TOOL_IDS = {
   gitCommit: "git.commit.scoped" as ToolId,
   gitPublish: "git.publish.scoped" as ToolId,
   artifactWrite: "artifact.write.scoped" as ToolId,
+  artifactList: "artifact.list.scoped" as ToolId,
+  artifactRead: "artifact.read.scoped" as ToolId,
 } as const;
 
 export interface BuiltinToolRegistries {
@@ -71,6 +82,13 @@ export interface BuiltinToolOptions {
   readonly artifactDefaultKind?:
     "DOCUMENT" | "IMAGE" | "VIDEO" | "AUDIO" | "CODE" | "DATASET" | "REPORT" | "OTHER";
   readonly artifactWriteEnabled?: boolean;
+  readonly artifactList?: (filter: ArtifactListToolInput) => readonly import("@polyon/contracts").Artifact[];
+  readonly artifactListEnabled?: boolean;
+  readonly artifactRead?: (
+    artifactId: import("@polyon/contracts").ArtifactId,
+    maxBytes?: number,
+  ) => ArtifactReadToolResolution;
+  readonly artifactReadEnabled?: boolean;
 }
 
 export interface BuiltinFilesystemReadToolRegistration {
@@ -276,6 +294,70 @@ export function registerBuiltinTools(
 
     registries.tools.register(gitWriteTool);
     registries.adapters.register(gitWriteAdapter);
+  }
+
+  if (options.artifactList !== undefined) {
+    const artifactListTool: Tool = {
+      id: BUILTIN_TOOL_IDS.artifactList,
+      name: "Artifact catalog list",
+      description: "Lists durable POLYON artifacts using explicit mission, task, execution, status, and kind filters.",
+      kind: "ARTIFACT",
+      actionKinds: ["READ"],
+      inputSchema: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          missionId: { type: "string", minLength: 1 },
+          taskId: { type: "string", minLength: 1 },
+          executionId: { type: "string", minLength: 1 },
+          status: {
+            type: "string",
+            enum: ["CREATING", "AVAILABLE", "FAILED", "DELETED"],
+          },
+          kind: {
+            type: "string",
+            enum: ["DOCUMENT", "IMAGE", "VIDEO", "AUDIO", "CODE", "DATASET", "REPORT", "OTHER"],
+          },
+        },
+      },
+      enabled: options.artifactListEnabled ?? true,
+    };
+
+    const artifactListAdapter = new ScopedArtifactListToolAdapter({
+      toolId: artifactListTool.id,
+      list: options.artifactList,
+    });
+
+    registries.tools.register(artifactListTool);
+    registries.adapters.register(artifactListAdapter);
+  }
+
+  if (options.artifactRead !== undefined) {
+    const artifactReadTool: Tool = {
+      id: BUILTIN_TOOL_IDS.artifactRead,
+      name: "Artifact content read",
+      description: "Reads content from a durably registered local artifact.",
+      kind: "ARTIFACT",
+      actionKinds: ["READ"],
+      inputSchema: {
+        type: "object",
+        required: ["artifactId"],
+        additionalProperties: false,
+        properties: {
+          artifactId: { type: "string", minLength: 1 },
+          maxBytes: { type: "integer", minimum: 1 },
+        },
+      },
+      enabled: options.artifactReadEnabled ?? true,
+    };
+
+    const artifactReadAdapter = new ScopedArtifactReadToolAdapter({
+      toolId: artifactReadTool.id,
+      read: options.artifactRead,
+    });
+
+    registries.tools.register(artifactReadTool);
+    registries.adapters.register(artifactReadAdapter);
   }
 
   if (options.artifactRoot !== undefined) {
