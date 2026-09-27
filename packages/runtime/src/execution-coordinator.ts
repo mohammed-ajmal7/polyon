@@ -235,6 +235,34 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
               }
             : result;
 
+      if (effectiveResult.status === "PAUSED") {
+        const paused = {
+          ...running,
+          status: "PAUSED" as const,
+          updatedAt: completionAt,
+          error: effectiveResult.error,
+        };
+        const pausedTask = transitionTaskStatus(runningTask, "PAUSED", completionAt);
+        this.dependencies.executions.save(paused);
+        this.dependencies.tasks.save(pausedTask);
+        appendExecutionStatusChangedEvent(
+          this.dependencies.events,
+          paused,
+          running.status,
+          paused.status,
+          completionAt,
+          effectiveResult.error,
+        );
+        appendTaskStatusChangedEvent(
+          this.dependencies.events,
+          pausedTask,
+          runningTask.status,
+          pausedTask.status,
+          completionAt,
+        );
+        return { execution: paused, result: effectiveResult };
+      }
+
       const completed = completeExecution(
         running,
         effectiveResult.status === "FAILED"
