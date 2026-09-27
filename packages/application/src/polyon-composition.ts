@@ -99,7 +99,7 @@ export interface PolyonComposition {
   readonly executionRetry: ExecutionRetryService;
   readonly toolInvocation: ToolInvocationService;
   readonly artifactCatalog: ArtifactCatalogService;
-  readonly localArtifactContent: LocalArtifactContentService;
+  readonly localArtifactContent?: LocalArtifactContentService;
   readonly agentToolOrchestration: AgentToolOrchestrationService;
   readonly runtime: ExecutionRuntime;
 }
@@ -424,14 +424,9 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     executionRetry,
     toolInvocation,
     artifactCatalog,
-    localArtifactContent:
-      localArtifactContent ??
-      new LocalArtifactContentService({
-        artifacts: stores.artifacts,
-        options: {
-          rootDir: options.storageRoot,
-        },
-      }),
+    ...(localArtifactContent === undefined
+      ? {}
+      : { localArtifactContent }),
     agentToolOrchestration,
     runtime,
   };
