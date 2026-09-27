@@ -279,6 +279,9 @@ importers:
       '@polyon/core':
         specifier: workspace:*
         version: link:../core
+      '@polyon/providers':
+        specifier: workspace:*
+        version: link:../providers
       '@polyon/runtime':
         specifier: workspace:*
         version: link:../runtime
@@ -289,9 +292,6 @@ importers:
         specifier: workspace:*
         version: link:../tools
     devDependencies:
-      '@polyon/providers':
-        specifier: workspace:*
-        version: link:../providers
       typescript:
         specifier: 5.9.3
         version: 5.9.3
