@@ -192,3 +192,5 @@ export { MissionGraphExecutionService, type ExecuteMissionGraphInput, type Execu
 export { MissionWorkflowService, type ExecuteMissionWorkflowInput, type ExecuteMissionWorkflowResult, type MissionWorkflowStatus } from "./mission-workflow-service";
 
 export { KnowledgeContextService, type KnowledgeContextInput, type KnowledgeContextItem, type KnowledgeContextResult } from "./knowledge-context-service";
+
+export { ConfiguredHttpCreativeAdapter, type ConfiguredHttpCreativeAdapterOptions } from "./configured-http-creative-adapter";
