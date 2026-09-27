@@ -12,6 +12,8 @@ export type {
   ModelKind,
   ModelMessage,
   ModelMessageRole,
+  ModelToolCall,
+  ModelToolDefinition,
   Provider,
   ProviderId,
   ProviderKind,
