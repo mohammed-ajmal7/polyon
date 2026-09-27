@@ -5,6 +5,7 @@ import {
   cancelExecution,
   completeExecution,
   ExecutionControlError,
+  rejectExecution,
   pauseExecution,
   resumeExecution,
   startExecution,
