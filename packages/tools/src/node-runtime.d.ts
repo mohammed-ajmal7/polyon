@@ -1,7 +1,16 @@
 declare module "node:fs" {
   export function closeSync(fileDescriptor: number): void;
   export function existsSync(path: string): boolean;
+  export function fsyncSync(fileDescriptor: number): void;
   export function openSync(path: string, flags: string): number;
+  export function readFileSync(path: string, encoding: "utf8"): string;
+  export function renameSync(oldPath: string, newPath: string): void;
+  export function unlinkSync(path: string): void;
+  export function writeFileSync(
+    path: string,
+    data: string,
+    encoding: "utf8",
+  ): void;
   export function readSync(
     fileDescriptor: number,
     buffer: Uint8Array,
@@ -63,3 +72,12 @@ declare const process: {
   readonly platform: string;
   cwd(): string;
 };
+
+
+declare module "node:crypto" {
+  export function createHash(algorithm: "sha256"): {
+    update(data: string, encoding?: "utf8"): {
+      digest(encoding: "hex"): string;
+    };
+  };
+}
