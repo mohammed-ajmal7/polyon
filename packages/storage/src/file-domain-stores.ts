@@ -53,6 +53,10 @@ export class FileDomainStores implements DurableDomainStores {
     return this.context.memory;
   }
 
+  get memoryEmbeddings() {
+    return this.context.memoryEmbeddings;
+  }
+
   get sources() {
     return this.context.sources;
   }
