@@ -11,10 +11,16 @@ import { completeExecution, startExecution, transitionTaskStatus } from "@polyon
 import type { EventStore, ExecutionStore, TaskStore } from "@polyon/storage";
 
 import type { ExecutionQueue } from "./execution-queue";
-import type { ExecutionRunner } from "./execution-runner";
+import type { ExecutionRunResult, ExecutionRunner } from "./execution-runner";
+
+export interface ExecutionRunOutcome {
+  readonly execution: Execution;
+  readonly result: ExecutionRunResult;
+}
 
 export interface ExecutionCoordinator {
   runNext(now: string, completionAt: string): Promise<Execution | undefined>;
+  runNextWithResult(now: string, completionAt: string): Promise<ExecutionRunOutcome | undefined>;
 }
 
 export interface ExecutionCoordinatorDependencies {
@@ -93,6 +99,14 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
   constructor(private readonly dependencies: ExecutionCoordinatorDependencies) {}
 
   async runNext(now: string, completionAt: string): Promise<Execution | undefined> {
+    const outcome = await this.runNextWithResult(now, completionAt);
+    return outcome?.execution;
+  }
+
+  async runNextWithResult(
+    now: string,
+    completionAt: string,
+  ): Promise<ExecutionRunOutcome | undefined> {
     const queued = this.dependencies.queue.dequeue();
 
     if (queued === undefined) {
@@ -207,7 +221,10 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
         completionAt,
       );
 
-      return completed;
+      return {
+        execution: completed,
+        result,
+      };
     } catch (error) {
       const message = error instanceof Error ? error.message : "Execution runner failed.";
 
@@ -237,7 +254,13 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
         completionAt,
       );
 
-      return failed;
+      return {
+        execution: failed,
+        result: {
+          status: "FAILED",
+          error: message,
+        },
+      };
     }
   }
 }
