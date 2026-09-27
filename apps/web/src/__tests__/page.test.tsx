@@ -26,7 +26,7 @@ describe("POLYON AI HQ shell", () => {
   it("accepts a command and records it in activity", () => {
     render(<Home />);
 
-    const input = screen.getByPlaceholder(
+    const input = screen.getByPlaceholderText(
       "Describe the outcome you want. POLYON will turn it into governed work.",
     );
 
