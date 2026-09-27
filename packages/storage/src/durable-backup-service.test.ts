@@ -15,6 +15,7 @@ describe("DurableBackupService", () => {
       const backupPath = join(root, "backup", "state.json");
       const db = new FileDomainDatabase(dbPath);
       const service = new DurableBackupService(db);
+      db.replace(db.snapshot());
 
       service.backup(backupPath);
       expect(readFileSync(backupPath, "utf8")).toContain('"version":2');
