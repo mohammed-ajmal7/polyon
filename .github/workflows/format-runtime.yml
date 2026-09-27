@@ -1,0 +1,45 @@
+name: Format runtime slice
+
+on:
+  push:
+    branches:
+      - feature/core-architecture
+
+permissions:
+  contents: write
+
+jobs:
+  format-runtime:
+    if: "${{ !contains(github.event.head_commit.message, 'style(runtime): format execution runtime') }}"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24.13.1
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Format runtime
+        run: pnpm exec prettier --write packages/runtime/src/execution-runtime.ts
+
+      - name: Commit formatting
+        run: |
+          if git diff --quiet; then
+            echo "No formatting changes required."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add packages/runtime/src/execution-runtime.ts
+          git commit -m "style(runtime): format execution runtime"
+          git push
