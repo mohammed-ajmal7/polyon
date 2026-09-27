@@ -120,8 +120,10 @@ export class ToolInvocationServiceError extends Error {
 
 type ToolInvocationStores = Pick<
   DomainStoreTransactionContext,
-  "approvals" | "policyDecisions" | "events" | "artifacts"
->;
+  "approvals" | "policyDecisions" | "events"
+> & {
+  readonly artifacts?: ArtifactStore;
+};
 
 function appendPolicyDecisionEvent(
   events: EventStore,
@@ -606,6 +608,10 @@ export class ToolInvocationService {
 
       this.withStores((stores) => {
         for (const artifactResult of result.artifacts ?? []) {
+          if (stores.artifacts === undefined) {
+            break;
+          }
+
           const artifact: Artifact = {
             id: artifactResult.id,
             kind: artifactResult.kind,
