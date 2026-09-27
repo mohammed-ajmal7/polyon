@@ -2,6 +2,7 @@ import type { Execution, ExecutionId, Task } from "@polyon/contracts";
 import { cancelExecution, transitionTaskStatus } from "@polyon/core";
 
 import type {
+  ApprovalRequestStore,
   DomainStoreTransactionContext,
   DomainUnitOfWork,
   EventStore,
@@ -54,6 +55,7 @@ export interface ExecutionRuntimeDependencies {
   readonly runner: ExecutionRunner;
   readonly executions: ExecutionStore;
   readonly tasks: TaskStore;
+  readonly approvals?: ApprovalRequestStore;
   readonly events: EventStore;
   readonly clock: ExecutionWorkerClock;
   readonly pollIntervalMs?: number;
@@ -220,6 +222,7 @@ export function createExecutionRuntime(
     queue,
     coordinator,
     executions: dependencies.executions,
+    approvals: dependencies.approvals,
     events: dependencies.events,
     clock: dependencies.clock,
   });
