@@ -1,4 +1,4 @@
-import type { Agent, Model, Provider } from "@polyon/contracts";
+import type { Agent, Model, Policy, Provider } from "@polyon/contracts";
 import { AgentGateway, InMemoryAgentRegistry, InMemoryModelRegistry, InMemoryProviderRegistry } from "@polyon/agents";
 import { ExecutionApprovalService, ExecutionDispatchService, ExecutionResultService, AgentToolOrchestrationService, ExecutionRetryService, MissionExecutionService, MissionTaskOrchestrationService, ToolInvocationService, type ReadyTaskHandler } from "@polyon/application";
 import { InMemoryProviderAdapterRegistry, ModelGateway, type ModelProviderAdapter } from "@polyon/providers";
@@ -19,6 +19,9 @@ export interface PolyonCompositionOptions {
   readonly filesystemRoot?: string;
   readonly filesystemReadMaxBytes?: number;
   readonly filesystemReadEnabled?: boolean;
+  readonly toolPolicy?: Policy;
+  readonly toolRequiredCapabilityIds?: readonly string[];
+  readonly maxToolRounds?: number;
   readonly clock?: ExecutionWorkerClock;
   readonly executionTimeoutMs?: number;
   readonly pollIntervalMs?: number;
@@ -123,8 +126,56 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     await externalHandler?.(outcome);
   };
 
+  const toolInvocation = new ToolInvocationService({
+    tools: builtinTools.tools,
+    adapters: builtinTools.adapters,
+    approvals: stores.approvals,
+    policyDecisions: stores.policyDecisions,
+    events: stores.events,
+    unitOfWork: stores,
+  });
+
+  const agentToolOrchestration = new AgentToolOrchestrationService({
+    agentGateway,
+    toolInvocation,
+    tools: builtinTools.tools,
+  });
+
   const runtime = createExecutionRuntime({
-    runner: new ModelExecutionRunner({ modelGateway, tasks: stores.tasks }),
+    runner: new ModelExecutionRunner({
+      modelGateway,
+      tasks: stores.tasks,
+      ...(options.toolPolicy === undefined
+        ? {}
+        : {
+            toolOrchestrator: {
+              continueFromResponse: async ({ execution, request, response, signal }) => {
+                const result = await agentToolOrchestration.continueFromResponse(
+                  {
+                    agentId: execution.agentId ?? "",
+                    requiredCapabilityIds: options.toolRequiredCapabilityIds ?? [],
+                    request,
+                    response,
+                    policy: options.toolPolicy!,
+                    actorId: execution.actorId,
+                    missionId: execution.missionId,
+                    taskId: execution.taskId,
+                    executionId: execution.id,
+                    maxToolRounds: options.maxToolRounds,
+                  },
+                );
+
+                return {
+                  status: result.status,
+                  response: result.response,
+                  ...(result.status === "FAILED" || result.status === "REJECTED"
+                    ? { error: result.error }
+                    : {}),
+                };
+              },
+            },
+          }),
+    }),
     executions: stores.executions,
     tasks: stores.tasks,
     events: stores.events,
@@ -185,21 +236,6 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   });
 
   const executionRetry = new ExecutionRetryService(stores.tasks, stores.events, missionExecution);
-
-  const toolInvocation = new ToolInvocationService({
-    tools: builtinTools.tools,
-    adapters: builtinTools.adapters,
-    approvals: stores.approvals,
-    policyDecisions: stores.policyDecisions,
-    events: stores.events,
-    unitOfWork: stores,
-  });
-
-  const agentToolOrchestration = new AgentToolOrchestrationService({
-    agentGateway,
-    toolInvocation,
-    tools: builtinTools.tools,
-  });
 
   return {
     stores,
