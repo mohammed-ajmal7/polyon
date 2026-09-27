@@ -46,6 +46,47 @@ export async function POST(request: Request): Promise<Response> {
     if (approval === undefined) throw new Error("Approval not found: " + approvalId + ".");
     const resolvedAt = new Date().toISOString();
     const resolvedBy = getPolyonActorId();
+    if (approval.action === "PLAN_APPLY") {
+      const result = polyon.missionPlan.resolveApproval({
+        approvalId,
+        status,
+        resolvedAt,
+        resolvedBy,
+      });
+
+      if (result.status === "APPLIED") {
+        polyon.taskOrchestration.advanceReadyTasks({
+          missionId: result.mission.id,
+          actorId: resolvedBy,
+          now: resolvedAt,
+        });
+        const running = polyon.missionLifecycle.transition({
+          missionId: result.mission.id,
+          to: "RUNNING",
+          actorId: resolvedBy,
+          eventId: "MISSION_STATUS_CHANGED:" + result.mission.id + ":RUNNING:" + resolvedAt,
+          now: resolvedAt,
+          causedByEventId: result.events[result.events.length - 1]?.id,
+        });
+        const execution = polyon.missionGraphExecution.executeReadyTasks({
+          missionId: result.mission.id,
+          actorId: resolvedBy,
+          requiredCapabilityIds: [],
+          policy: getPolyonPolicy(),
+          riskLevel: "HIGH",
+          now: resolvedAt,
+          identities: {
+            executionId: (taskId, attempt) => "execution-" + taskId + "-" + attempt,
+            policyDecisionId: (taskId, executionId) => "decision-" + taskId + "-" + executionId,
+            approvalRequestId: (taskId, executionId) => "approval-" + taskId + "-" + executionId,
+          },
+        });
+        return Response.json({ status: result.status, approval: result.approval, mission: running.mission, execution });
+      }
+
+      return Response.json(result);
+    }
+
     if (approval.action === "EXECUTION_RUN") {
       if (approval.executionId === undefined) throw new Error("Execution approval has no execution binding.");
       const execution = polyon.stores.executions.get(approval.executionId);

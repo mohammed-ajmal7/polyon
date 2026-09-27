@@ -163,6 +163,9 @@ export interface PolyonComposition {
   readonly missionExecutionOrchestration: MissionExecutionOrchestrationService;
   readonly missionPlanOrchestration: MissionPlanOrchestrationService;
   readonly missionWorkflow: MissionWorkflowService;
+  readonly missionGraphExecution: MissionGraphExecutionService;
+  readonly missionLifecycle: MissionLifecycleService;
+  readonly missionPlan: MissionPlanService;
   readonly stores: FileDomainStores;
   readonly agents: InMemoryAgentRegistry;
   readonly models: InMemoryModelRegistry;
@@ -618,10 +621,14 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     unitOfWork: stores,
   });
 
-  const missionPlanOrchestration = new MissionPlanOrchestrationService(
-    stores.missions,
-    new MissionPlanningService(agentGateway, stores.tasks, stores.events, stores),
-    new MissionPlanService({
+  const missionLifecycle = new MissionLifecycleService({
+    missions: stores.missions,
+    tasks: stores.tasks,
+    events: stores.events,
+    unitOfWork: stores,
+  });
+
+  const missionPlanService = new MissionPlanService({
       missions: stores.missions,
       tasks: stores.tasks,
       proposals: stores.missionPlanProposals,
@@ -685,6 +692,9 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     missionExecutionOrchestration,
     missionPlanOrchestration,
     missionWorkflow,
+    missionGraphExecution,
+    missionLifecycle,
+    missionPlan: missionPlanService,
     stores,
     agents,
     models,
