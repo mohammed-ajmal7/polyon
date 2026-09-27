@@ -76,6 +76,7 @@ export interface PolyonCompositionOptions {
   readonly telegramMaxTimeoutMs?: number;
   readonly emailIntegrationId?: string;
   readonly emailSecretReference?: SecretReference;
+  readonly emailSmtpUsername?: string;
   readonly emailTransport?: EmailTransport;
   readonly filesystemRoot?: string;
   readonly filesystemReadMaxBytes?: number;
@@ -230,6 +231,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     options.secretResolver !== undefined &&
     options.emailIntegrationId !== undefined &&
     options.emailSecretReference !== undefined &&
+    options.emailSmtpUsername !== undefined &&
     options.emailTransport !== undefined
   ) {
     integrations.register(
@@ -237,6 +239,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
         integrationId: options.emailIntegrationId,
         secretResolver: options.secretResolver,
         secretReference: options.emailSecretReference,
+        smtpUsername: options.emailSmtpUsername,
         transport: options.emailTransport,
       }),
     );
