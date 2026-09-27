@@ -8,7 +8,7 @@
 
 - Repository: `mohammed-ajmal7/polyon`
 - Branch: `feature/core-architecture`
-- Latest implementation commit: `265d3fa9f7c7d0e34e383053faab43cff5f73b45`
+- Latest implementation commit: `a2f6c8a8b815edb7bca444bba108367f2d61ae50`
 - Latest fully verified clean CI remains run **880** on commit
   `145bc37cddfabfba1fc6774518ef6edba1770542`.
 - Commits after run 880 have not received a CI result through the available
@@ -86,7 +86,7 @@ SMTP currently has:
 - authenticated plaintext SMTP rejection;
 - explicit `AUTH LOGIN` mechanism policy;
 - authentication capability advertisement checking;
-- sanitized authentication errors;
+- sanitized authentication errors;\n- SMTP envelope validation before network connection;\n- sanitized and classified MAIL FROM / RCPT TO failures;
 - transient `4xx` vs permanent `5xx` response classification;
 - message-size enforcement and dot-stuffing.
 
