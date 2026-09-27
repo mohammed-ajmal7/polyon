@@ -177,6 +177,7 @@ export class IntegrationInvocationService {
           data: {
             invocationId: input.invocationId,
             integrationId: input.integrationId,
+            sideEffectClass: integration.sideEffectClass,
             operation: input.operation,
             status: "REJECTED",
             reason: error.decision.reason,
@@ -423,6 +424,7 @@ export class IntegrationInvocationService {
         data: {
           invocationId: input.invocationId,
           integrationId: input.integrationId,
+          sideEffectClass: integration.sideEffectClass,
           operation: input.operation,
           status: "SUCCEEDED",
         },
@@ -449,6 +451,7 @@ export class IntegrationInvocationService {
         data: {
           invocationId: input.invocationId,
           integrationId: input.integrationId,
+          sideEffectClass: integration.sideEffectClass,
           operation: input.operation,
           status: "FAILED",
           error: message,
