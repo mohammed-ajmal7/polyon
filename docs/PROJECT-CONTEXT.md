@@ -1,0 +1,685 @@
+# POLYON Project Context & Continuation Guide
+
+> Canonical project handoff document.
+>
+> Read this file together with `AGENTS.md` and the repository code before continuing development.
+
+## 1. What we are building
+
+POLYON means **Personal AI Operations Network**.
+
+Tagline:
+
+> **Many intelligences. One command.**
+
+POLYON is a serious personal AI workspace / AI HQ. The goal is not to build one chatbot. The goal is to build a system where one human can coordinate many AI agents, models, tools, research systems, coding agents, creative systems, and local intelligence from one command center.
+
+The human remains the final authority.
+
+The product should eventually let the user:
+
+- talk to one agent;
+- broadcast the same request to many agents;
+- run bounded, evidence-based debates between agents;
+- turn a larger objective into a mission, plan, tasks, and controlled execution;
+- let agents use approved tools;
+- route work between different models/providers without coupling the core system to a provider;
+- keep sensitive work in a private/local lane when policy requires it;
+- execute coding, research, communication, file, and creative workflows;
+- inspect what happened, why it happened, what evidence was used, and what was executed;
+- pause, resume, retry, reject, or approve consequential work.
+
+The product should behave like a personal operations headquarters rather than a single assistant.
+
+## 2. Non-negotiable principles
+
+These are architectural rules, not suggestions.
+
+### Human authority
+
+The user is always the final authority for consequential actions.
+
+### Policy before action
+
+An agent must not bypass policy/approval controls for consequential work.
+
+### Provider independence
+
+Core business logic must not depend directly on OpenAI, Anthropic, Google, Ollama, a specific CLI, or any other model/provider.
+
+### Adapter boundaries
+
+Model providers, tools, and external integrations are accessed through explicit interfaces/adapters.
+
+### Privacy first
+
+Sensitive information should stay inside the local/private execution lane whenever possible. Cloud data transfer must be policy-controlled.
+
+### Evidence and traceability
+
+Important actions and decisions must be reconstructable: request, participants, evidence, decisions, approvals, tools, execution, and resulting artifacts.
+
+### Deterministic controls
+
+Permissions, validation, state transitions, routing requirements, and safety controls should be enforced by software rather than by prompts alone.
+
+### Replaceability
+
+Models, providers, runtimes, databases, storage implementations, integrations, and execution environments must remain replaceable.
+
+### Bounded autonomy
+
+Autonomous behavior must have explicit scope, limits, and termination conditions.
+
+### Zero additional operating cost by default
+
+Do not introduce paid APIs/services unless the project owner explicitly approves them.
+
+### Planned external integrations
+
+Only these external integrations are currently in scope:
+
+- Google Drive
+- Telegram
+- Email
+
+Do not add other external integrations without explicit approval.
+
+## 3. Primary interaction modes
+
+### Direct
+
+One user request goes to one selected agent/model.
+
+```
+User -> Agent -> Tools/Models -> User
+```
+
+### Broadcast
+
+One user request is independently sent to multiple agents.
+
+```
+                 -> Agent A
+User -> Request -> Agent B
+                 -> Agent C
+```
+
+Results remain separately attributable.
+
+### Debate
+
+A finite structured process:
+
+```
+Proposal
+  -> Criticism
+  -> Evidence
+  -> Rebuttal
+  -> Adjudication
+  -> Decision
+```
+
+Debates must be bounded by limits such as rounds, participants, time, and resources. The final result must not simply be a majority vote.
+
+### Mission
+
+A larger objective becomes structured executable work:
+
+```
+User
+  -> Mission
+  -> Plan
+  -> Tasks
+  -> Authorization / Approval
+  -> Queue
+  -> Runtime
+  -> Results / Artifacts / Evidence
+```
+
+## 4. Current architecture
+
+Major areas:
+
+```
+POLYON
+|
++-- Web / User Experience
+|
++-- Application Layer
+|
++-- Core Domain
+|
++-- Agent System
+|
++-- Policy & Approval
+|
++-- Orchestration / Runtime
+|
++-- Model & Provider Adapters
+|
++-- Tool & Integration Adapters
+|
++-- Memory & Knowledge
+|
++-- Storage
+|
++-- Execution / Sandbox
+|
++-- Observability / Evidence
+```
+
+Current monorepo packages:
+
+- `@polyon/contracts` — shared domain contracts/types.
+- `@polyon/core` — technology-independent domain rules and state transitions.
+- `@polyon/application` — application services/use cases.
+- `@polyon/runtime` — execution queue/coordinator/runner boundaries.
+- `@polyon/storage` — storage interfaces and in-memory implementations.
+- `@polyon/agents` — agent/model/provider registries and routing.
+- `@polyon/providers` — model provider adapter boundary.
+- `@polyon/tools` — tool contracts, registry, and tool adapter boundary.
+- `@polyon/integrations` — external integration adapter boundary.
+- `apps/web` — Next.js web application; UI is intentionally behind the domain foundation.
+
+## 5. What has already been built
+
+The repository has already moved well past the initial skeleton.
+
+### Contracts
+
+Core contracts exist for actors, agents, capabilities, models, providers, missions, tasks, executions, policies, risk/actions, approvals, conversations, messages, evidence, artifacts, tools, and domain events.
+
+### Mission/task domain
+
+Implemented foundations include:
+
+- mission/task lifecycle rules;
+- task dependencies;
+- task readiness;
+- dependency graph validation;
+- cycle detection;
+- mission plan proposal creation;
+- mission plan validation;
+- approved plan application;
+- rejection/invalid-transition handling;
+- explicit retry creation;
+- task/execution state synchronization.
+
+### Execution governance
+
+Implemented foundations include:
+
+- execution creation;
+- execution attempt validation;
+- execution lifecycle transitions;
+- start/pause/resume/cancel/complete/reject controls;
+- failure outcomes;
+- execution retry creation;
+- execution-run policy authorization;
+- approval request creation for executions;
+- applying approved execution authorization;
+- queue boundary;
+- execution coordinator boundary;
+- runner result handling;
+- fail-closed coordinator behavior;
+- persistence synchronization through application/storage layers.
+
+### Agent/model/provider system
+
+Implemented boundaries include:
+
+- agent registry;
+- model registry;
+- provider registry;
+- model routing;
+- preferred model plus compatible fallback routing;
+- provider-enabled checks;
+- active-agent checks;
+- provider adapter interface;
+- provider adapter registry.
+
+The actual real provider implementations are intentionally not coupled into the core.
+
+### Tools/integrations
+
+Implemented boundaries include:
+
+- tool contracts;
+- tool registry;
+- tool adapter interface/registry;
+- integration adapter interface/registry;
+- planned integration kinds for Google Drive, Telegram, and Email.
+
+Actual provider/tool/integration implementations still need to be built.
+
+### Conversations and application ingress
+
+Implemented application-level foundations include:
+
+- Direct/Broadcast/Debate/Mission command ingress;
+- conversation creation/validation;
+- participant validation;
+- message persistence;
+- domain event emission;
+- conversation snapshot querying;
+- conversation event trace retrieval.
+
+### Debate domain
+
+A bounded debate domain has been started, including:
+
+- debate creation;
+- phase transitions;
+- final-round validation;
+- adjudication-state validation;
+- cancellation;
+- decision handling.
+
+This is a domain foundation, not yet the complete multi-agent debate runtime.
+
+### Quality infrastructure
+
+The repository contains:
+
+- pnpm workspace;
+- Turborepo;
+- TypeScript;
+- Vitest;
+- ESLint;
+- Prettier;
+- CI workflow/quality gates;
+- architecture documentation;
+- agent instructions.
+
+Do not claim the complete production system is already finished. The work so far is the foundation.
+
+## 6. What is NOT finished yet
+
+The remaining work is substantial.
+
+The most important missing layers include:
+
+### Real application/runtime execution
+
+The current execution system has boundaries and in-memory implementations. It still needs production-grade orchestration connecting:
+
+- accepted commands;
+- mission planning;
+- agent selection;
+- model routing;
+- tool calls;
+- provider calls;
+- approvals;
+- queueing;
+- execution;
+- output collection;
+- retries;
+- cancellation;
+- durable persistence.
+
+### Real model/provider adapters
+
+The provider adapter boundary exists. Concrete adapters still need to be added and tested.
+
+The architecture should permit hosted models, local models, CLI agents, and remote agents without embedding their assumptions into core.
+
+### Real tool execution
+
+The tool registry and adapter boundary exist. Actual tools and policy-controlled invocation still need to be implemented.
+
+Important future tool categories include:
+
+- filesystem;
+- terminal;
+- network;
+- Git;
+- artifact handling;
+- communication.
+
+Every consequential tool action must pass policy/approval controls.
+
+### Real external integrations
+
+Google Drive, Telegram, and Email need concrete adapters and authentication/token handling.
+
+Secrets must never be exposed to the web client or committed to Git.
+
+### Durable storage
+
+The current storage package provides interfaces plus in-memory implementations. A production persistence implementation still needs to be selected and added behind the storage interfaces.
+
+Persistence must support recovery and traceability without coupling the application to one database forever.
+
+### Memory and knowledge
+
+A complete memory/knowledge system is still needed for:
+
+- short-term execution context;
+- long-term user/project memory;
+- retrieval;
+- evidence;
+- source attribution;
+- privacy boundaries;
+- context assembly.
+
+### Research system
+
+The research department still needs:
+
+- web/source retrieval;
+- evidence records;
+- source normalization;
+- citation/attribution;
+- claim/evidence relationships;
+- research task orchestration;
+- final synthesis.
+
+### Creative system
+
+The creative department still needs adapters/workflows for image, video, audio, voice, editing, and artifact handling.
+
+### Coding-agent system
+
+The architecture is intended to support coding agents such as CLI/agent runtimes later. The concrete integrations and sandboxed execution model are still to be built.
+
+### MCP / A2A / ACP connectivity
+
+The architectural direction is:
+
+- MCP for agent -> tool/data access;
+- A2A-style boundaries for agent -> agent collaboration;
+- ACP-style boundaries for coding-agent interoperability.
+
+These should be introduced behind replaceable interfaces, not hard-coded into the core domain.
+
+### Web UI / AI HQ
+
+The current Next.js application is not yet the finished POLYON interface.
+
+The final UI should expose:
+
+- command center;
+- agent selection;
+- broadcast;
+- debate;
+- mission creation;
+- task graph;
+- approval inbox;
+- execution queue;
+- live execution status;
+- evidence;
+- artifacts;
+- conversation history;
+- policy/permission settings;
+- private/cloud execution lane visibility;
+- observability and traces.
+
+## 7. Target end-to-end behavior
+
+A typical future Mission should behave approximately like this:
+
+```
+1. User enters a goal
+        |
+2. Command ingress records the request
+        |
+3. Application creates/loads the conversation or mission
+        |
+4. Planning agents propose a structured plan
+        |
+5. Plan is validated by deterministic domain rules
+        |
+6. User reviews/approves the plan when required
+        |
+7. Each ready task receives an execution attempt
+        |
+8. Policy evaluates the requested action/risk
+        |
+9. ALLOW      -> queue
+   APPROVAL   -> approval inbox -> queue after approval
+   DENY       -> stop
+        |
+10. Agent/model router selects a compatible model/provider
+        |
+11. Runtime starts execution
+        |
+12. Agent may call approved tools
+        |
+13. Tool calls go through adapters and policy controls
+        |
+14. Outputs become messages/artifacts/evidence
+        |
+15. State/events are persisted
+        |
+16. Failed work can be retried using a new attempt
+        |
+17. User sees the complete trace/result
+```
+
+## 8. Development roadmap
+
+This is the intended order. Do not randomly jump to UI polish while the execution foundation is incomplete.
+
+### Phase 1 — Domain foundation
+
+Status: substantially built.
+
+Finish hardening:
+
+- contracts;
+- state machines;
+- policy;
+- approval;
+- mission/task graph;
+- execution lifecycle;
+- debate lifecycle;
+- invariants;
+- exhaustive tests.
+
+### Phase 2 — Application orchestration
+
+Status: in progress.
+
+Build complete use cases around the current domain:
+
+- command intake;
+- mission creation;
+- plan handling;
+- approval handling;
+- task dispatch;
+- execution coordination;
+- result persistence;
+- conversation updates;
+- domain event generation.
+
+The application layer should orchestrate packages rather than duplicate domain rules.
+
+### Phase 3 — Durable persistence
+
+Introduce concrete durable storage behind the existing storage interfaces.
+
+Requirements:
+
+- crash recovery;
+- idempotency;
+- atomic updates where required;
+- trace/event persistence;
+- migration strategy;
+- testable repository boundaries.
+
+### Phase 4 — Real agent/model/provider execution
+
+Implement concrete provider adapters and agent runtime adapters.
+
+Requirements:
+
+- provider-independent application API;
+- preferred/fallback model routing;
+- timeouts;
+- cancellation;
+- explicit failure classification;
+- retry policy;
+- rate/error handling;
+- private/local lane controls.
+
+### Phase 5 — Governed tool execution
+
+Build the actual tool invocation path:
+
+```
+Agent request
+ -> Tool lookup
+ -> Policy evaluation
+ -> Approval when required
+ -> Tool adapter
+ -> Tool result
+ -> Event/evidence/artifact persistence
+```
+
+No consequential tool may bypass this path.
+
+### Phase 6 — Research + evidence
+
+Build the research department with evidence-first output and traceability.
+
+### Phase 7 — Debate runtime
+
+Connect the bounded debate domain to actual multi-agent execution:
+
+- participant selection;
+- proposal;
+- criticism;
+- evidence requests;
+- rebuttal;
+- adjudication;
+- finite termination;
+- decision artifact;
+- user approval for consequential decisions.
+
+### Phase 8 — Coding agents and sandboxed execution
+
+Add coding-agent adapters, isolated execution, Git operations, artifacts, and recovery.
+
+### Phase 9 — External integrations
+
+Implement only:
+
+- Google Drive;
+- Telegram;
+- Email.
+
+Build authentication and secret storage without exposing credentials to the browser.
+
+### Phase 10 — Memory / knowledge
+
+Add context assembly, long-term memory, evidence retrieval, and privacy-aware knowledge handling.
+
+### Phase 11 — AI HQ web interface
+
+Build the finished Next.js product around the stable application APIs.
+
+### Phase 12 — Observability, security, evals, hardening
+
+Before calling POLYON production-ready:
+
+- structured logs;
+- trace IDs;
+- execution history;
+- audit trail;
+- security review;
+- permission tests;
+- failure recovery;
+- end-to-end tests;
+- adversarial tests;
+- cost controls;
+- privacy tests;
+- provider replacement tests;
+- performance testing.
+
+## 9. How another AI should continue this project
+
+A new chat does not need the old conversation transcript if it has the repository.
+
+It should treat these sources as authoritative, in this order:
+
+1. Repository code.
+2. `AGENTS.md`.
+3. This `docs/PROJECT-CONTEXT.md`.
+4. `docs/architecture/001-system-architecture.md`.
+5. Tests and existing package contracts.
+6. Git history when useful for intent.
+
+The next AI must inspect the current repository state before choosing work. Do not assume that an older conversation's "next step" is still correct.
+
+### Required continuation behavior
+
+1. Read `AGENTS.md`.
+2. Read `docs/PROJECT-CONTEXT.md`.
+3. Read the relevant architecture section.
+4. Inspect the current package/code state.
+5. Identify the highest-value missing vertical slice in the roadmap.
+6. Preserve existing boundaries and invariants.
+7. Make small, coherent changes.
+8. Add or update tests for every behavior change.
+9. Format/lint/typecheck/test the changed work when the environment permits.
+10. Inspect the resulting diff.
+11. Commit coherent changes with descriptive commit messages.
+12. Report exactly what changed and what is still unverified.
+
+Do not rewrite the architecture from scratch merely because another approach is familiar.
+
+Do not introduce a dependency just because it is convenient.
+
+Do not replace working abstractions with provider-specific code.
+
+Do not silently weaken approval, policy, privacy, or audit requirements.
+
+## 10. The one prompt to give a new AI
+
+Use this when opening a new chat:
+
+> We are continuing development of POLYON, a serious personal AI Operations Network.
+>
+> First read `AGENTS.md`, `docs/PROJECT-CONTEXT.md`, and `docs/architecture/001-system-architecture.md`.
+>
+> The GitHub repository is `mohammed-ajmal7/polyon`, branch `feature/core-architecture`.
+>
+> Treat the repository and these documents as the source of truth, not the previous chat transcript.
+>
+> Inspect the current code and git history before making decisions.
+>
+> Understand the existing contracts, core domain, application layer, runtime, storage, agents, providers, tools, integrations, conversation ingress, and debate foundations.
+>
+> Continue the project from its actual current state. Do not start over, do not invent missing architecture, and do not ask me to paste repository files when the repository can be inspected directly.
+>
+> Follow the roadmap in `docs/PROJECT-CONTEXT.md` and choose the next coherent implementation slice. Preserve human authority, policy/approval enforcement, privacy, provider independence, replaceability, traceability, and zero-cost-by-default constraints.
+>
+> Make the code changes, add tests, validate them, commit them, and then tell me exactly what was completed and what remains.
+
+## 11. Definition of "done"
+
+POLYON is not done when the UI can send a prompt to an LLM.
+
+POLYON is done when the complete controlled operating loop works reliably:
+
+```
+Human intent
+ -> governed planning
+ -> multi-agent collaboration
+ -> evidence
+ -> explicit authorization
+ -> tool/model execution
+ -> durable state
+ -> artifacts/results
+ -> traceability
+ -> recovery
+```
+
+The system must remain understandable, testable, replaceable, private by default, and under human control.
+
+---
+
+## Current project status note
+
+The repository is actively under development on `feature/core-architecture`. The exact implementation state should always be re-read from the repository before continuing. This document describes the intended direction and the major completed foundations; it is not a substitute for reading the code.
