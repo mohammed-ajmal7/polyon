@@ -150,6 +150,7 @@ export class BoundedHttpClient {
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     const externalSignal = input.signal;
 
+    let externalAborted = false;
     let removeExternalAbortListener: (() => void) | undefined;
 
     if (externalSignal !== undefined) {
