@@ -246,7 +246,6 @@ describe("AgentToolOrchestrationService", () => {
           content: "Recovered final answer.",
         },
       });
-    },
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
