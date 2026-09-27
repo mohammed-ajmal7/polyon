@@ -31,6 +31,7 @@ import {
   MissionLifecycleService,
   MissionPlanService,
   MissionPlanOrchestrationService,
+  MissionWorkflowService,
   ResearchService,
   ResearchSynthesisService,
   CreativeJobService,
@@ -39,6 +40,7 @@ import {
   DebateOrchestrationService,
   ExecutionRetryService,
   MissionExecutionService,
+  MissionGraphExecutionService,
   MissionExecutionOrchestrationService,
   MissionTaskOrchestrationService,
   ToolInvocationService,
@@ -160,6 +162,7 @@ export interface PolyonComposition {
   readonly conversationOrchestration: ConversationAgentOrchestrationService;
   readonly missionExecutionOrchestration: MissionExecutionOrchestrationService;
   readonly missionPlanOrchestration: MissionPlanOrchestrationService;
+  readonly missionWorkflow: MissionWorkflowService;
   readonly stores: FileDomainStores;
   readonly agents: InMemoryAgentRegistry;
   readonly models: InMemoryModelRegistry;
@@ -631,6 +634,14 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     stores,
   );
 
+  const missionGraphExecution = new MissionGraphExecutionService(stores.missions, stores.tasks, missionExecution, stores);
+  const missionWorkflow = new MissionWorkflowService(
+    new MissionCreationService({ conversations: stores.conversations, missions: stores.missions, events: stores.events, unitOfWork: stores }),
+    new MissionLifecycleService({ missions: stores.missions, tasks: stores.tasks, events: stores.events, unitOfWork: stores }),
+    missionPlanOrchestration,
+    missionGraphExecution,
+  );
+
   const executionRetry = new ExecutionRetryService(stores.tasks, stores.events, missionExecution);
   const conversationOrchestration = new ConversationAgentOrchestrationService(
     agentToolOrchestration,
@@ -673,6 +684,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     conversationOrchestration,
     missionExecutionOrchestration,
     missionPlanOrchestration,
+    missionWorkflow,
     stores,
     agents,
     models,

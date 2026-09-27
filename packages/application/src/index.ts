@@ -188,3 +188,5 @@ export { MissionPlanningService, MissionPlanningValidationError, type GenerateMi
 export { MissionPlanOrchestrationService, type PlanMissionInput, type PlanMissionResult } from "./mission-plan-orchestration-service";
 
 export { MissionGraphExecutionService, type ExecuteMissionGraphInput, type ExecuteMissionGraphResult } from "./mission-graph-execution-service";
+
+export { MissionWorkflowService, type ExecuteMissionWorkflowInput, type ExecuteMissionWorkflowResult, type MissionWorkflowStatus } from "./mission-workflow-service";
