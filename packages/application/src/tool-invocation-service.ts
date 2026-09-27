@@ -239,6 +239,43 @@ export interface ToolInvocationServiceDependencies {
   readonly unitOfWork?: DomainUnitOfWork;
 }
 
+function appendToolResult(
+  request: import("@polyon/contracts").TextModelRequest,
+  response: import("@polyon/contracts").TextModelResponse,
+  toolCall: import("@polyon/contracts").ModelToolCall,
+  output: unknown,
+): import("@polyon/contracts").TextModelRequest {
+  return {
+    ...request,
+    messages: [
+      ...request.messages,
+      {
+        role: "ASSISTANT",
+        content: response.content,
+        toolCalls: response.toolCalls,
+      },
+      {
+        role: "TOOL",
+        name: toolCall.toolId,
+        toolCallId: toolCall.id,
+        content: stringifyToolOutput(output),
+      },
+    ],
+  };
+}
+
+function stringifyToolOutput(output: unknown): string {
+  if (typeof output === "string") {
+    return output;
+  }
+
+  try {
+    return JSON.stringify(output);
+  } catch {
+    return String(output);
+  }
+}
+
 export class ToolInvocationService {
   constructor(private readonly dependencies: ToolInvocationServiceDependencies) {}
 
@@ -410,11 +447,19 @@ export class ToolInvocationService {
 
     assertInvocationNotRecorded(this.dependencies.events, input.invocationId);
 
-    return this.executeAuthorized(input, tool, decision, approval.action, approval.riskLevel, {
-      missionId: approval.missionId,
-      taskId: approval.taskId,
-      executionId: approval.executionId,
-    });
+    return this.executeAuthorized(
+      input,
+      tool,
+      decision,
+      approval.action,
+      approval.riskLevel,
+      {
+        missionId: approval.missionId,
+        taskId: approval.taskId,
+        executionId: approval.executionId,
+      },
+      approval,
+    );
   }
 
   private async executeAuthorized(
@@ -428,6 +473,7 @@ export class ToolInvocationService {
       readonly taskId?: string;
       readonly executionId?: string;
     },
+    approval?: ApprovalRequest,
   ): Promise<ToolInvocationOutcome> {
     const action = approvedAction ?? (input as InvokeToolInput).action;
     const riskLevel = approvedRiskLevel ?? (input as InvokeToolInput).riskLevel;
@@ -468,6 +514,24 @@ export class ToolInvocationService {
       const result = await adapter.invoke({ input: input.input });
 
       this.withStores((stores) => {
+        if (approval?.toolContinuation !== undefined) {
+          const continuation = approval.toolContinuation;
+          stores.approvals.save({
+            ...approval,
+            toolContinuation: {
+              ...continuation,
+              state: "AWAITING_MODEL",
+              toolOutput: result.output,
+              nextRequest: appendToolResult(
+                continuation.request,
+                continuation.response,
+                continuation.toolCall,
+                result.output,
+              ),
+            },
+          });
+        }
+
         appendToolInvocationEvent(stores.events, {
           invocationId: input.invocationId,
           tool,
