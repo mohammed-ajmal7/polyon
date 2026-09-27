@@ -78,7 +78,12 @@ describe("GoogleDriveIntegrationAdapter", () => {
       nextPageToken: "next-1",
     });
 
-    const input = request.mock.calls[0]?.[0] as {
+    const called = request.mock.calls[0];
+    expect(called).toBeDefined();
+    if (called === undefined) {
+      throw new Error("Expected Google Drive list request.");
+    }
+    const input = called[0] as {
       readonly url: string;
       readonly headers?: Readonly<Record<string, string>>;
     };
@@ -128,7 +133,12 @@ describe("GoogleDriveIntegrationAdapter", () => {
       },
     });
 
-    const input = request.mock.calls[0]?.[0] as {
+    const called = request.mock.calls[0];
+    expect(called).toBeDefined();
+    if (called === undefined) {
+      throw new Error("Expected Google Drive metadata request.");
+    }
+    const input = called[0] as {
       readonly url: string;
     };
     expect(input.url).toContain("/files/file%2F2?");
