@@ -14,7 +14,7 @@ import type {
 import { BUILTIN_TOOL_IDS } from "@polyon/tools";
 import { describe, expect, it, vi } from "vitest";
 
-import { createPolyonComposition, type PolyonProviderRegistration } from "./polyon-composition";
+import { createPolyonComposition, type PolyonEmbeddingProviderRegistration, type PolyonProviderRegistration } from "./polyon-composition";
 
 const now = "2026-09-27T12:00:00.000Z";
 
@@ -32,6 +32,33 @@ function registration(): PolyonProviderRegistration {
     },
   };
   return { provider, adapter };
+}
+
+
+function embeddingRegistration(): PolyonEmbeddingProviderRegistration {
+  const provider: Provider = {
+    id: "embedding-provider.test",
+    name: "Embedding test provider",
+    kind: "HOSTED_MODEL",
+    enabled: true,
+  };
+  return {
+    provider,
+    model: {
+      id: "embedding-model.test",
+      name: "Embedding test model",
+      kind: "EMBEDDING",
+      providerId: provider.id,
+      capabilityIds: [],
+      enabled: true,
+    },
+    adapter: {
+      providerId: provider.id,
+      async embed() {
+        return { output: { vectors: [[1, 0]] } };
+      },
+    },
+  };
 }
 
 const model: Model = {
@@ -232,6 +259,44 @@ describe("createPolyonComposition", () => {
       expect(reopened.stores.conversations.get(conversation.id)?.messageIds).toEqual([
         "execution-result:execution:task.test:1",
       ]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("wires an optional embedding provider to durable semantic memory", async () => {
+    const root = mkdtempSync(join(tmpdir(), "polyon-composition-embedding-"));
+
+    try {
+      const composition = createPolyonComposition({
+        storageRoot: root,
+        embeddingProvider: embeddingRegistration(),
+      });
+
+      expect(composition.embeddingGateway).toBeDefined();
+      expect(composition.semanticMemory).toBeDefined();
+
+      const memory: import("@polyon/contracts").MemoryEntry = {
+        id: "memory.embedding",
+        kind: "FACT",
+        scope: "PROJECT",
+        text: "Semantic memory test",
+        tags: [],
+        createdAt: now,
+        updatedAt: now,
+      };
+      composition.stores.memory.save(memory);
+
+      const result = await composition.semanticMemory!.index(
+        memory,
+        "embedding-model.test",
+        now,
+      );
+
+      expect(result.memoryId).toBe(memory.id);
+      expect(composition.stores.memoryEmbeddings.get(result.id)?.modelId).toBe(
+        "embedding-model.test",
+      );
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
