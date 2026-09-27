@@ -24,6 +24,7 @@ export interface PolyonCompositionOptions {
   readonly terminalDefaultTimeoutMs?: number;
   readonly terminalMaxTimeoutMs?: number;
   readonly terminalMaxOutputBytes?: number;
+  readonly terminalEnvironmentKeys?: readonly string[];
   readonly terminalEnabled?: boolean;
   readonly toolPolicy?: Policy;
   readonly toolRequiredCapabilityIds?: readonly string[];
@@ -99,6 +100,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
       terminalDefaultTimeoutMs: options.terminalDefaultTimeoutMs,
       terminalMaxTimeoutMs: options.terminalMaxTimeoutMs,
       terminalMaxOutputBytes: options.terminalMaxOutputBytes,
+      terminalEnvironmentKeys: options.terminalEnvironmentKeys,
       terminalEnabled: options.terminalEnabled,
     });
   }
