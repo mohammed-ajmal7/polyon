@@ -30,3 +30,12 @@ export {
   type FilesystemReadToolInput,
   type FilesystemReadToolOutput,
 } from "./scoped-filesystem-read-adapter";
+
+export {
+  BUILTIN_TOOL_IDS,
+  createInMemoryBuiltinToolRegistries,
+  registerBuiltinTools,
+  type BuiltinFilesystemReadToolRegistration,
+  type BuiltinToolOptions,
+  type BuiltinToolRegistries,
+} from "./builtin-tools";
