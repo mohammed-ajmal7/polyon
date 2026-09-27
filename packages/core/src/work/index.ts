@@ -19,6 +19,12 @@ export {
 export { authorizeMissionPlanApplication } from "./mission-plan-authorization";
 export { authorizeExecutionRun, ExecutionRunAuthorizationError } from "./execution-authorization";
 export { createExecutionForTask, ExecutionCreationError } from "./execution-creation";
+export {
+  createMission,
+  MissionCreationError,
+  type CreateMissionInput,
+  type MissionCreationErrorKind,
+} from "./mission-creation";
 export { canTransitionExecution } from "./execution-lifecycle";
 export { canTransitionMission } from "./mission-lifecycle";
 export { canTransitionTask } from "./task-lifecycle";
