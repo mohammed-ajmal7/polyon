@@ -328,9 +328,21 @@ describe("SmtpTransport", () => {
 
     const dataWrites = connection.write.mock.calls
       .map(([value]) => value)
-      .filter((value): value is string => value !== "DATA" && value !== ".\r\n" && !value.startsWith("EHLO") && !value.startsWith("AUTH") && !value.startsWith("MAIL FROM") && !value.startsWith("RCPT TO") && value !== "bWFpbGVyQGV4YW1wbGUuY29t" && value !== "c2VjcmV0");
+      .filter(
+        (value): value is string =>
+          value !== "DATA" &&
+          value !== ".\r\n" &&
+          !value.startsWith("EHLO") &&
+          !value.startsWith("AUTH") &&
+          !value.startsWith("MAIL FROM") &&
+          !value.startsWith("RCPT TO") &&
+          value !== "bWFpbGVyQGV4YW1wbGUuY29t" &&
+          value !== "c2VjcmV0",
+      );
     expect(dataWrites.length).toBeGreaterThan(1);
-    expect(dataWrites.every((value) => new TextEncoder().encode(value).byteLength <= 64 * 1024)).toBe(true);
+    expect(
+      dataWrites.every((value) => new TextEncoder().encode(value).byteLength <= 64 * 1024),
+    ).toBe(true);
   });
 
   it("folds long subject and recipient headers below the SMTP line limit", async () => {
@@ -367,9 +379,16 @@ describe("SmtpTransport", () => {
 
     const messageWrites = connection.write.mock.calls
       .map(([value]) => value)
-      .filter((value) => value.includes("Message-ID:") || value.includes("Subject:") || value.includes("To:"));
+      .filter(
+        (value) =>
+          value.includes("Message-ID:") ||
+          value.includes("Subject:") ||
+          value.includes("To:"),
+      );
     const message = messageWrites.join("");
-    expect(message.split("\r\n").every((line) => new TextEncoder().encode(line).byteLength <= 998)).toBe(true);
+    expect(
+      message.split("\r\n").every((line) => new TextEncoder().encode(line).byteLength <= 998),
+    ).toBe(true);
   });
 
   it("uses UTF-8 bytes for AUTH LOGIN credentials", async () => {
