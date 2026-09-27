@@ -181,6 +181,36 @@ describe("BoundedHttpClient", () => {
     ).rejects.toMatchObject({ kind: "RESPONSE_TOO_LARGE" });
   });
 
+  it("keeps the transport timeout active when a caller signal is supplied", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_input: unknown, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => {
+              reject(new DOMException("Aborted", "AbortError"));
+            });
+          }),
+      ),
+    );
+
+    const caller = new AbortController();
+    const client = new BoundedHttpClient({
+      allowedHosts: ["api.example.com"],
+      defaultTimeoutMs: 10,
+      maxTimeoutMs: 20,
+    });
+
+    const error = await client
+      .request({
+        url: "https://api.example.com/data",
+        signal: caller.signal,
+      })
+      .catch((value: unknown) => value);
+
+    expect(error).toMatchObject({ kind: "TIMEOUT" });
+  });
+
   it("maps aborts to a timeout error", async () => {
     vi.stubGlobal(
       "fetch",
