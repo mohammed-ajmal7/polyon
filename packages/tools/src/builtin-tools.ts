@@ -36,6 +36,21 @@ export function registerBuiltinTools(
     description: "Reads a bounded file from the configured POLYON filesystem root.",
     kind: "FILESYSTEM",
     actionKinds: ["READ"],
+    inputSchema: {
+      type: "object",
+      required: ["path"],
+      additionalProperties: false,
+      properties: {
+        path: {
+          type: "string",
+          minLength: 1,
+        },
+        maxBytes: {
+          type: "integer",
+          minimum: 1,
+        },
+      },
+    },
     enabled: options.filesystemReadEnabled ?? true,
   };
 
