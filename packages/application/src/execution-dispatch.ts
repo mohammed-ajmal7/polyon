@@ -16,6 +16,8 @@ import {
   applyExecutionRunAuthorization,
   authorizeExecutionRun,
   createExecutionForTask,
+  ExecutionRunAuthorizationError,
+  transitionExecutionStatus,
 } from "@polyon/core";
 
 export interface PrepareExecutionDispatchInput {
@@ -40,7 +42,7 @@ export interface ExecutionDispatchPlan {
   readonly execution: Execution;
   readonly policyDecision: PolicyDecision;
   readonly approvalRequest?: ApprovalRequest;
-  readonly nextStep: "ENQUEUE" | "AWAIT_APPROVAL";
+  readonly nextStep: "ENQUEUE" | "AWAIT_APPROVAL" | "REJECTED";
 }
 
 export function prepareExecutionDispatch(
@@ -53,29 +55,45 @@ export function prepareExecutionDispatch(
     createdAt: input.requestedAt,
   });
 
-  const authorization = authorizeExecutionRun({
-    execution,
-    policy: input.policy,
-    decisionId: input.decisionId,
-    approvalRequestId: input.approvalRequestId,
-    requestedBy: input.requestedBy,
-    requestedAt: input.requestedAt,
-    evaluatedAt: input.evaluatedAt,
-    riskLevel: input.riskLevel,
-    expiresAt: input.expiresAt,
-  });
+  try {
+    const authorization = authorizeExecutionRun({
+      execution,
+      policy: input.policy,
+      decisionId: input.decisionId,
+      approvalRequestId: input.approvalRequestId,
+      requestedBy: input.requestedBy,
+      requestedAt: input.requestedAt,
+      evaluatedAt: input.evaluatedAt,
+      riskLevel: input.riskLevel,
+      expiresAt: input.expiresAt,
+    });
 
-  const updatedExecution = applyExecutionRunAuthorization(
-    authorization,
-    execution,
-    input.evaluatedAt,
-  );
+    const updatedExecution = applyExecutionRunAuthorization(
+      authorization,
+      execution,
+      input.evaluatedAt,
+    );
 
-  return {
-    execution: updatedExecution,
-    policyDecision: authorization.policyDecision,
-    approvalRequest: authorization.approvalRequest,
-    nextStep:
-      authorization.status === "AUTHORIZED" ? "ENQUEUE" : "AWAIT_APPROVAL",
-  };
+    return {
+      execution: updatedExecution,
+      policyDecision: authorization.policyDecision,
+      approvalRequest: authorization.approvalRequest,
+      nextStep:
+        authorization.status === "AUTHORIZED" ? "ENQUEUE" : "AWAIT_APPROVAL",
+    };
+  } catch (error) {
+    if (
+      error instanceof ExecutionRunAuthorizationError &&
+      error.kind === "EXECUTION_RUN_DENIED" &&
+      error.decision !== undefined
+    ) {
+      return {
+        execution: transitionExecutionStatus(execution, "REJECTED", input.evaluatedAt),
+        policyDecision: error.decision,
+        nextStep: "REJECTED",
+      };
+    }
+
+    throw error;
+  }
 }
