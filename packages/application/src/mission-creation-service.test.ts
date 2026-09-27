@@ -1,4 +1,4 @@
-import { InMemoryDomainStores, InMemoryEventStore } from "@polyon/storage";
+import { InMemoryDomainStores } from "@polyon/storage";
 import { describe, expect, it } from "vitest";
 
 import { MissionCreationService, MissionCreationServiceError } from "./mission-creation-service";
@@ -15,7 +15,7 @@ const missionConversation = {
 
 const serviceDependencies = () => {
   const stores = new InMemoryDomainStores();
-  const events = new InMemoryEventStore();
+  const events = stores.events;
 
   stores.conversations.save(missionConversation);
 
@@ -76,6 +76,40 @@ describe("MissionCreationService", () => {
       },
     });
     expect(events.listByMission("mission-1")).toEqual([result.event]);
+  });
+
+  it("uses the supplied unit of work for the cross-store write", () => {
+    const stores = new InMemoryDomainStores();
+    const events = stores.events;
+    stores.conversations.save(missionConversation);
+
+    let transactionCalls = 0;
+    const unitOfWork = {
+      transaction<T>(work: Parameters<InMemoryDomainStores["transaction"]>[0]): T {
+        transactionCalls += 1;
+        return stores.transaction(work) as T;
+      },
+    };
+
+    const service = new MissionCreationService({
+      conversations: stores.conversations,
+      missions: stores.missions,
+      events,
+      unitOfWork,
+    });
+
+    service.create({
+      id: "mission-transaction-1",
+      objective: "Create through a unit of work.",
+      actorId: "user-1",
+      eventId: "event-transaction-1",
+      conversationId: "conversation-1",
+      createdAt: "2026-09-27T02:12:00.000Z",
+    });
+
+    expect(transactionCalls).toBe(1);
+    expect(stores.missions.get("mission-transaction-1")).toBeDefined();
+    expect(events.get("event-transaction-1")).toBeDefined();
   });
 
   it("rejects creation when the conversation does not exist", () => {
