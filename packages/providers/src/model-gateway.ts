@@ -1,4 +1,10 @@
-import type { Model, ModelId, Provider } from "@polyon/contracts";
+import type {
+  Model,
+  ModelId,
+  Provider,
+  TextModelRequest,
+  TextModelResponse,
+} from "@polyon/contracts";
 
 import type {
   ModelProviderAdapter,
@@ -13,7 +19,8 @@ export type ModelGatewayErrorKind =
   | "MODEL_DISABLED"
   | "PROVIDER_NOT_FOUND"
   | "PROVIDER_DISABLED"
-  | "PROVIDER_ADAPTER_NOT_FOUND";
+  | "PROVIDER_ADAPTER_NOT_FOUND"
+  | "MODEL_KIND_UNSUPPORTED";
 
 export interface ModelInvocationOptions {
   readonly timeoutMs?: number;
@@ -49,6 +56,28 @@ export interface ModelGatewayDependencies {
 
 export class ModelGateway {
   constructor(private readonly dependencies: ModelGatewayDependencies) {}
+
+  invokeText(
+    modelId: ModelId,
+    request: TextModelRequest,
+    options: ModelInvocationOptions = {},
+  ): Promise<ProviderInvocationResult<TextModelResponse>> {
+    const model = this.dependencies.models.get(modelId);
+
+    if (model === undefined) {
+      throw new ModelGatewayError("MODEL_NOT_FOUND", modelId, `Model not found: ${modelId}.`);
+    }
+
+    if (model.kind !== "TEXT") {
+      throw new ModelGatewayError(
+        "MODEL_KIND_UNSUPPORTED",
+        modelId,
+        `Text invocation requires a TEXT model: ${modelId}.`,
+      );
+    }
+
+    return this.invoke<TextModelRequest, TextModelResponse>(modelId, request, options);
+  }
 
   invoke<TInput = unknown, TOutput = unknown>(
     modelId: ModelId,
