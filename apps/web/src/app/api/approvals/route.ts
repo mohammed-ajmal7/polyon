@@ -1,3 +1,4 @@
+import { isAuthenticated } from "@/server/auth";
 import { getPolyonActorId, getPolyonComposition, isSameOrigin } from "@/server/polyon-server";
 
 export const runtime = "nodejs";

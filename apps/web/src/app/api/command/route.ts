@@ -1,3 +1,4 @@
+import { isAuthenticated } from "@/server/auth";
 import { randomUUID } from "node:crypto";
 import type { CommandMode } from "@polyon/application";
 import { getPolyonActorId, getPolyonComposition, isSameOrigin } from "@/server/polyon-server";
