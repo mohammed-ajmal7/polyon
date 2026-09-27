@@ -7,7 +7,14 @@ import {
   SmtpTransportError,
 } from "./smtp-email-transport";
 
-function createConnection(responses: string[]) {
+type TestConnection = {
+  read: ReturnType<typeof vi.fn<() => Promise<string>>>;
+  write: ReturnType<typeof vi.fn<(command: string) => Promise<void>>>;
+  close: ReturnType<typeof vi.fn<() => Promise<void>>>;
+  startTls: ReturnType<typeof vi.fn<(serverName: string, timeoutMs: number) => Promise<void>>>;
+};
+
+function createConnection(responses: string[]): TestConnection {
   return {
     read: vi.fn(async () => {
       const response = responses.shift();
@@ -16,12 +23,11 @@ function createConnection(responses: string[]) {
       }
       return response;
     }),
-    write: vi.fn(async () => undefined),
+    write: vi.fn(async (_command: string) => undefined),
     close: vi.fn(async () => undefined),
-    startTls: vi.fn(async () => undefined),
+    startTls: vi.fn(async (_serverName: string, _timeoutMs: number) => undefined),
   };
 }
-
 describe("SmtpTransport", () => {
   it("requires and negotiates STARTTLS before authentication", async () => {
     const connection = createConnection([
