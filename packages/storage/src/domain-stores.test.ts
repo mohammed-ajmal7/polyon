@@ -1,4 +1,4 @@
-import type { Execution, Mission } from "@polyon/contracts";
+import type { ApprovalRequest, Execution, Mission, PolicyDecision } from "@polyon/contracts";
 import { describe, expect, it } from "vitest";
 
 import { InMemoryDomainStores } from "./domain-stores";
@@ -35,5 +35,7 @@ describe("InMemoryDomainStores", () => {
     expect(stores.executions.get("execution-1")).toEqual(execution);
     expect(stores.tasks.get("mission-1")).toBeUndefined();
     expect(stores.artifacts.get("execution-1")).toBeUndefined();
+    expect(stores.approvals.get("approval-1")).toBeUndefined();
+    expect(stores.policyDecisions.get("decision-1")).toBeUndefined();
   });
 });

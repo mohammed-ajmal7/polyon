@@ -1,7 +1,9 @@
 import type {
+  ApprovalRequest,
   Artifact,
   Execution,
   Mission,
+  PolicyDecision,
   Task,
 } from "@polyon/contracts";
 
@@ -10,21 +12,27 @@ import {
   type EntityStore,
 } from "./entity-store";
 
-export type MissionStore = EntityStore<Mission>;
-export type TaskStore = EntityStore<Task>;
-export type ExecutionStore = EntityStore<Execution>;
+export type ApprovalRequestStore = EntityStore<ApprovalRequest>;
 export type ArtifactStore = EntityStore<Artifact>;
+export type ExecutionStore = EntityStore<Execution>;
+export type MissionStore = EntityStore<Mission>;
+export type PolicyDecisionStore = EntityStore<PolicyDecision>;
+export type TaskStore = EntityStore<Task>;
 
 export interface DomainStores {
-  readonly missions: MissionStore;
-  readonly tasks: TaskStore;
-  readonly executions: ExecutionStore;
+  readonly approvals: ApprovalRequestStore;
   readonly artifacts: ArtifactStore;
+  readonly executions: ExecutionStore;
+  readonly missions: MissionStore;
+  readonly policyDecisions: PolicyDecisionStore;
+  readonly tasks: TaskStore;
 }
 
 export class InMemoryDomainStores implements DomainStores {
-  readonly missions: MissionStore = new InMemoryEntityStore<Mission>();
-  readonly tasks: TaskStore = new InMemoryEntityStore<Task>();
-  readonly executions: ExecutionStore = new InMemoryEntityStore<Execution>();
+  readonly approvals: ApprovalRequestStore = new InMemoryEntityStore<ApprovalRequest>();
   readonly artifacts: ArtifactStore = new InMemoryEntityStore<Artifact>();
+  readonly executions: ExecutionStore = new InMemoryEntityStore<Execution>();
+  readonly missions: MissionStore = new InMemoryEntityStore<Mission>();
+  readonly policyDecisions: PolicyDecisionStore = new InMemoryEntityStore<PolicyDecision>();
+  readonly tasks: TaskStore = new InMemoryEntityStore<Task>();
 }
