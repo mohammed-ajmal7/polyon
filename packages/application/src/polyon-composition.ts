@@ -24,6 +24,10 @@ import {
   ExecutionDispatchService,
   ExecutionResultService,
   AgentToolOrchestrationService,
+  MemoryService,
+  ResearchService,
+  type ResearchRetriever,
+  DebateOrchestrationService,
   ExecutionRetryService,
   MissionExecutionService,
   MissionTaskOrchestrationService,
@@ -48,6 +52,7 @@ import {
 import {
   createInMemoryBuiltinToolRegistries,
   registerBuiltinTools,
+  registerKnowledgeTools,
   type ToolAdapterRegistry,
   type ToolRegistry,
 } from "@polyon/tools";
