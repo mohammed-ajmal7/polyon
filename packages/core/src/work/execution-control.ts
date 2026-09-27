@@ -10,7 +10,9 @@ export interface CompleteExecutionInput {
   readonly error?: string;
 }
 
-export type ExecutionControlErrorKind = "FAILED_EXECUTION_REQUIRES_ERROR";
+export type ExecutionControlErrorKind =
+  | "FAILED_EXECUTION_REQUIRES_ERROR"
+  | "EXECUTION_NOT_RUNNING";
 
 export class ExecutionControlError extends Error {
   readonly kind: ExecutionControlErrorKind;
@@ -52,6 +54,24 @@ export function pauseExecution(execution: Execution, pausedAt: string): Executio
 
 export function resumeExecution(execution: Execution, resumedAt: string): Execution {
   return transitionExecutionStatus(execution, "QUEUED", resumedAt);
+}
+
+export function recoverRunningExecution(
+  execution: Execution,
+  recoveredAt: string,
+): Execution {
+  if (execution.status !== "RUNNING") {
+    throw new ExecutionControlError(
+      "EXECUTION_NOT_RUNNING",
+      `Only a running execution can be recovered: ${execution.id}.`,
+    );
+  }
+
+  return {
+    ...execution,
+    status: "QUEUED",
+    updatedAt: recoveredAt,
+  };
 }
 
 export function completeExecution(execution: Execution, input: CompleteExecutionInput): Execution {
