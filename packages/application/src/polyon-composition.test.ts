@@ -169,6 +169,20 @@ describe("createPolyonComposition", () => {
       );
       expect(composition.runtime.queue.size()).toBe(0);
       composition.runtime.stop();
+
+      const reopened = createPolyonComposition({
+        storageRoot: root,
+      });
+
+      expect(reopened.stores.executions.get("execution:task.test:1")?.status).toBe(
+        "SUCCEEDED",
+      );
+      expect(
+        reopened.stores.messages.get("execution-result:execution:task.test:1")?.content,
+      ).toBe("composition works");
+      expect(
+        reopened.stores.conversations.get(conversation.id)?.messageIds,
+      ).toEqual(["execution-result:execution:task.test:1"]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
