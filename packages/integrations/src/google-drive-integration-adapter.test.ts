@@ -78,6 +78,10 @@ describe("GoogleDriveIntegrationAdapter", () => {
       },
     });
 
+    expect(adapter.supportedOperations).toEqual([
+      "LIST_FILES",
+      "GET_METADATA",
+    ]);
     expect(result.output).toMatchObject({
       files: [
         {
