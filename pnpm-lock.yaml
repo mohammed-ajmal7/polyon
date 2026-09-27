@@ -346,6 +346,9 @@ importers:
       '@polyon/core':
         specifier: workspace:*
         version: link:../core
+      '@polyon/providers':
+        specifier: workspace:*
+        version: link:../providers
       '@polyon/storage':
         specifier: workspace:*
         version: link:../storage
