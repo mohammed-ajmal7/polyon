@@ -1,6 +1,6 @@
 import type { Agent, Model, Policy, Provider } from "@polyon/contracts";
 import { AgentGateway, InMemoryAgentRegistry, InMemoryModelRegistry, InMemoryProviderRegistry } from "@polyon/agents";
-import { ArtifactCatalogService, ExecutionApprovalService, ExecutionDispatchService, ExecutionResultService, AgentToolOrchestrationService, ExecutionRetryService, MissionExecutionService, MissionTaskOrchestrationService, ToolInvocationService, type ReadyTaskHandler } from "@polyon/application";
+import { ArtifactCatalogService, LocalArtifactContentService, ExecutionApprovalService, ExecutionDispatchService, ExecutionResultService, AgentToolOrchestrationService, ExecutionRetryService, MissionExecutionService, MissionTaskOrchestrationService, ToolInvocationService, type ReadyTaskHandler } from "@polyon/application";
 import { InMemoryProviderAdapterRegistry, ModelGateway, type ModelProviderAdapter } from "@polyon/providers";
 import { FileDomainStores } from "@polyon/storage";
 import { createExecutionRuntime, ModelExecutionRunner, type ExecutionRunOutcome, type ExecutionRuntime, type ExecutionRuntimeCompletionHandler, type ExecutionRuntimeWait, type ExecutionWorkerClock } from "@polyon/runtime";
@@ -99,6 +99,7 @@ export interface PolyonComposition {
   readonly executionRetry: ExecutionRetryService;
   readonly toolInvocation: ToolInvocationService;
   readonly artifactCatalog: ArtifactCatalogService;
+  readonly localArtifactContent: LocalArtifactContentService;
   readonly agentToolOrchestration: AgentToolOrchestrationService;
   readonly runtime: ExecutionRuntime;
 }
@@ -226,6 +227,16 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   const artifactCatalog = new ArtifactCatalogService({
     artifacts: stores.artifacts,
   });
+
+  const localArtifactContent =
+    options.artifactRoot === undefined
+      ? undefined
+      : new LocalArtifactContentService({
+          artifacts: stores.artifacts,
+          options: {
+            rootDir: options.artifactRoot,
+          },
+        });
 
   const toolInvocation = new ToolInvocationService({
     tools: builtinTools.tools,
@@ -413,6 +424,14 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     executionRetry,
     toolInvocation,
     artifactCatalog,
+    localArtifactContent:
+      localArtifactContent ??
+      new LocalArtifactContentService({
+        artifacts: stores.artifacts,
+        options: {
+          rootDir: options.storageRoot,
+        },
+      }),
     agentToolOrchestration,
     runtime,
   };
