@@ -5,6 +5,7 @@ import type {
   ProviderInvocationRequest,
   ProviderInvocationResult,
 } from "./provider-adapter";
+import { normalizeProviderInvocationError, ProviderInvocationError } from "./provider-errors";
 import type { ProviderAdapterRegistry } from "./provider-adapter-registry";
 
 export type ModelGatewayErrorKind =
@@ -13,6 +14,12 @@ export type ModelGatewayErrorKind =
   | "PROVIDER_NOT_FOUND"
   | "PROVIDER_DISABLED"
   | "PROVIDER_ADAPTER_NOT_FOUND";
+
+export interface ModelInvocationOptions {
+  readonly timeoutMs?: number;
+  readonly signal?: AbortSignal;
+  readonly retries?: number;
+}
 
 export class ModelGatewayError extends Error {
   readonly kind: ModelGatewayErrorKind;
@@ -43,9 +50,10 @@ export interface ModelGatewayDependencies {
 export class ModelGateway {
   constructor(private readonly dependencies: ModelGatewayDependencies) {}
 
-  invoke<TInput = unknown, TOutput = unknown>(
+  async invoke<TInput = unknown, TOutput = unknown>(
     modelId: ModelId,
     input: TInput,
+    options: ModelInvocationOptions = {},
   ): Promise<ProviderInvocationResult<TOutput>> {
     const model = this.dependencies.models.get(modelId);
 
@@ -85,11 +93,86 @@ export class ModelGateway {
       );
     }
 
-    const request: ProviderInvocationRequest<TInput> = {
-      modelId,
-      input,
-    };
+    if (options.timeoutMs !== undefined && (!Number.isFinite(options.timeoutMs) || options.timeoutMs <= 0)) {
+      throw new RangeError("Model invocation timeout must be a positive finite number.");
+    }
 
-    return adapter.invoke(request) as Promise<ProviderInvocationResult<TOutput>>;
+    if (options.retries !== undefined && (!Number.isInteger(options.retries) || options.retries < 0)) {
+      throw new RangeError("Model invocation retries must be a non-negative integer.");
+    }
+
+    let attempt = 0;
+    const maxRetries = options.retries ?? 0;
+
+    while (true) {
+      try {
+        return await this.invokeOnce<TInput, TOutput>(adapter, modelId, input, options);
+      } catch (error) {
+        const normalized = normalizeProviderInvocationError(error, provider.id, modelId);
+
+        if (!normalized.retryable || attempt >= maxRetries) {
+          throw normalized;
+        }
+
+        attempt += 1;
+      }
+    }
+  }
+
+  private async invokeOnce<TInput, TOutput>(
+    adapter: ModelProviderAdapter,
+    modelId: ModelId,
+    input: TInput,
+    options: ModelInvocationOptions,
+  ): Promise<ProviderInvocationResult<TOutput>> {
+    const timeoutMs = options.timeoutMs;
+    const controller = new AbortController();
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    let removeAbortListener: (() => void) | undefined;
+
+    if (options.signal !== undefined) {
+      if (options.signal.aborted) {
+        throw new ProviderInvocationError(
+          "CANCELLED",
+          adapter.providerId,
+          modelId,
+          `Provider invocation was cancelled for model: ${modelId}.`,
+          false,
+        );
+      }
+
+      const onAbort = () => controller.abort();
+      options.signal.addEventListener("abort", onAbort, { once: true });
+      removeAbortListener = () => options.signal?.removeEventListener("abort", onAbort);
+    }
+
+    if (timeoutMs !== undefined) {
+      timeout = setTimeout(() => controller.abort(), timeoutMs);
+    }
+
+    try {
+      return (await adapter.invoke({
+        modelId,
+        input,
+        signal: controller.signal,
+      })) as ProviderInvocationResult<TOutput>;
+    } catch (error) {
+      if (timeout !== undefined && controller.signal.aborted && options.signal?.aborted !== true) {
+        throw new ProviderInvocationError(
+          "TIMEOUT",
+          adapter.providerId,
+          modelId,
+          `Provider invocation timed out after ${timeoutMs}ms for model: ${modelId}.`,
+          true,
+        );
+      }
+
+      throw error;
+    } finally {
+      if (timeout !== undefined) {
+        clearTimeout(timeout);
+      }
+      removeAbortListener?.();
+    }
   }
 }
