@@ -361,9 +361,11 @@ The implementation provides:
 
 The current durable backend is intentionally a replaceable adapter rather than a commitment to one database technology.
 
+A storage-level unit-of-work boundary is now available. File-backed domain stores stage changes against a complete domain snapshot and commit them with one atomic filesystem replacement; in-memory stores provide rollback semantics for tests. Mission creation has been made transaction-aware.
+
 Still required for the full Phase 3 target:
 
-- atomic multi-store transactions for application operations that update several aggregates/events;
+- transaction integration across the remaining cross-store application services;
 - concurrency/locking semantics for multiple writers;
 - formal migration execution beyond the current snapshot version marker;
 - crash-recovery tests around multi-store operations.
