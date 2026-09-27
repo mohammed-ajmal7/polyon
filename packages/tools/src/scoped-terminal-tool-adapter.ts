@@ -60,11 +60,23 @@ export interface ScopedTerminalToolAdapterOptions {
   readonly defaultTimeoutMs?: number;
   readonly maxTimeoutMs?: number;
   readonly defaultMaxOutputBytes?: number;
+  readonly environmentKeys?: readonly string[];
 }
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const DEFAULT_MAX_TIMEOUT_MS = 120_000;
 const DEFAULT_MAX_OUTPUT_BYTES = 65_536;
+const DEFAULT_ENVIRONMENT_KEYS = [
+  "PATH",
+  "HOME",
+  "USER",
+  "USERNAME",
+  "SystemRoot",
+  "ComSpec",
+  "PATHEXT",
+  "TEMP",
+  "TMP",
+] as const;
 
 function assertPositiveInteger(value: number, field: string): void {
   if (!Number.isInteger(value) || value <= 0) {
@@ -99,6 +111,20 @@ function normalizeAllowedCommands(commands: readonly string[]): ReadonlySet<stri
   return normalized;
 }
 
+function pickEnvironment(
+  keys: readonly string[],
+): Record<string, string | undefined> {
+  const environment: Record<string, string | undefined> = {};
+
+  for (const key of keys) {
+    if (process.env[key] !== undefined) {
+      environment[key] = process.env[key];
+    }
+  }
+
+  return environment;
+}
+
 export class ScopedTerminalToolAdapter
   implements ToolAdapter<ScopedTerminalToolInput, ScopedTerminalToolOutput>
 {
@@ -109,6 +135,7 @@ export class ScopedTerminalToolAdapter
   private readonly defaultTimeoutMs: number;
   private readonly maxTimeoutMs: number;
   private readonly defaultMaxOutputBytes: number;
+  private readonly environmentKeys: readonly string[];
 
   constructor(options: ScopedTerminalToolAdapterOptions) {
     if (options.toolId.trim() === "") {
@@ -154,6 +181,7 @@ export class ScopedTerminalToolAdapter
     this.defaultTimeoutMs = defaultTimeoutMs;
     this.maxTimeoutMs = maxTimeoutMs;
     this.defaultMaxOutputBytes = defaultMaxOutputBytes;
+    this.environmentKeys = options.environmentKeys ?? DEFAULT_ENVIRONMENT_KEYS;
   }
 
   async invoke(
@@ -274,6 +302,7 @@ export class ScopedTerminalToolAdapter
         cwd,
         shell: false,
         windowsHide: true,
+        env: pickEnvironment(this.environmentKeys),
         stdio: ["ignore", "pipe", "pipe"],
       });
 
