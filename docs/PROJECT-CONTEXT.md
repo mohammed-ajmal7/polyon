@@ -324,6 +324,8 @@ The provider adapter boundary exists. Concrete adapters still need to be added a
 
 The provider layer now also has a reliability and invocation boundary: text-model requests use a structured message/request/response contract; model invocations accept cancellation signals, support explicit timeouts, normalize adapter failures into typed provider invocation errors, and can retry only failures explicitly classified as retryable. These controls are exposed through AgentGateway without coupling agents to a concrete provider.
 
+A concrete OpenAI-compatible HTTP text-model adapter now implements that boundary without adding a provider SDK dependency. It accepts an explicit endpoint and optional API key, maps common HTTP failures into the provider error taxonomy, and normalizes text responses and token usage. The runtime also has a model-backed execution runner that loads the persisted task, builds the structured text request, invokes the execution's bound model, and returns the normalized model output or a failed runtime result.
+
 
 The architecture should permit hosted models, local models, CLI agents, and remote agents without embedding their assumptions into core.
 
