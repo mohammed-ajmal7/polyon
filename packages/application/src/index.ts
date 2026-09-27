@@ -38,6 +38,17 @@ export {
 } from "./execution-result-service";
 
 export {
+  MissionLifecycleService,
+  MissionLifecycleServiceError,
+  type MissionLifecycleServiceDependencies,
+  type MissionLifecycleServiceErrorKind,
+  type MissionProgressSyncResult,
+  type MissionStatusTransitionResult,
+  type SyncMissionProgressInput,
+  type TransitionMissionStatusInput,
+} from "./mission-lifecycle-service";
+
+export {
   MissionPlanService,
   MissionPlanServiceError,
   type MissionPlanApprovalResolution,
