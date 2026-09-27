@@ -6,6 +6,7 @@ import type {
 } from "./email-integration-adapter";
 import {
   validateSmtpTransportOptions,
+  type SmtpAuthMechanism,
   type SmtpTransportOptions,
   type ValidatedSmtpTransportOptions,
 } from "./smtp-transport";
@@ -24,6 +25,24 @@ export interface SmtpConnectionFactory {
 export interface SmtpEmailTransportOptions extends SmtpTransportOptions {
   readonly heloName: string;
   readonly messageIdDomain: string;
+}
+
+export class SmtpTransportError extends Error {
+  constructor(
+    readonly kind: "TRANSIENT" | "PERMANENT" | "PROTOCOL",
+    message: string,
+    readonly smtpCode?: number,
+  ) {
+    super(message);
+    this.name = "SmtpTransportError";
+  }
+}
+
+export class SmtpAuthenticationError extends SmtpTransportError {
+  constructor(kind: "TRANSIENT" | "PERMANENT" | "PROTOCOL", smtpCode?: number) {
+    super(kind, "SMTP authentication failed.", smtpCode);
+    this.name = "SmtpAuthenticationError";
+  }
 }
 
 export class SmtpTransport implements EmailTransport {
@@ -65,20 +84,29 @@ export class SmtpTransport implements EmailTransport {
 
     try {
       await expectCode(connection, 220);
-      const ehloResponse = await this.command(connection, `EHLO ${this.options.heloName}`, 250);
+      let ehloResponse = await this.command(connection, `EHLO ${this.options.heloName}`, 250);
 
       if (this.options.startTls) {
         if (!hasSmtpCapability(ehloResponse, "STARTTLS")) {
-          throw new Error("SMTP server does not support STARTTLS.");
+          throw new SmtpTransportError("PROTOCOL", "SMTP server does not support STARTTLS.");
         }
         await this.command(connection, "STARTTLS", 220);
         await connection.startTls(this.options.host, this.options.connectionTimeoutMs);
-        await this.command(connection, `EHLO ${this.options.heloName}`, 250);
+        ehloResponse = await this.command(connection, `EHLO ${this.options.heloName}`, 250);
       }
 
-      await this.command(connection, `AUTH LOGIN`, 334);
-      await this.command(connection, encodeBase64(credential.username), 334);
-      await this.command(connection, encodeBase64(credential.password), 235);
+      if (!hasSmtpAuthMechanism(ehloResponse, this.options.authMechanism)) {
+        throw new SmtpTransportError(
+          "PROTOCOL",
+          `SMTP server does not advertise AUTH ${this.options.authMechanism}.`,
+        );
+      }
+
+      await authenticate(
+        connection,
+        this.options.authMechanism,
+        credential,
+      );
       await this.command(connection, `MAIL FROM:<${credential.username}>`, 250);
 
       for (const recipient of [...input.to, ...(input.cc ?? []), ...(input.bcc ?? [])]) {
@@ -108,6 +136,46 @@ export class SmtpTransport implements EmailTransport {
   }
 }
 
+async function authenticate(
+  connection: SmtpConnection,
+  mechanism: SmtpAuthMechanism,
+  credential: EmailSmtpCredential,
+): Promise<void> {
+  try {
+    if (mechanism === "LOGIN") {
+      await login(connection, credential);
+      return;
+    }
+
+    throw new SmtpAuthenticationError("PROTOCOL");
+  } catch (error) {
+    if (error instanceof SmtpAuthenticationError) {
+      throw error;
+    }
+
+    if (error instanceof SmtpTransportError) {
+      throw new SmtpAuthenticationError(error.kind, error.smtpCode);
+    }
+
+    throw error;
+  }
+}
+
+async function login(connection: SmtpConnection, credential: EmailSmtpCredential): Promise<void> {
+  await writeAndExpect(connection, "AUTH LOGIN", 334);
+  await writeAndExpect(connection, encodeBase64(credential.username), 334);
+  await writeAndExpect(connection, encodeBase64(credential.password), 235);
+}
+
+async function writeAndExpect(
+  connection: SmtpConnection,
+  command: string,
+  ...codes: number[]
+): Promise<string> {
+  await connection.write(command);
+  return expectCode(connection, ...codes);
+}
+
 async function expectCode(connection: SmtpConnection, ...expectedCodes: number[]): Promise<string> {
   const lines: string[] = [];
 
@@ -117,8 +185,14 @@ async function expectCode(connection: SmtpConnection, ...expectedCodes: number[]
 
     const match = /^(\d{3})([ -])(.*?)(?:\r?\n)?$/.exec(response);
 
-    if (match === null || !expectedCodes.includes(Number(match[1]))) {
-      throw new Error("SMTP server returned an unexpected response.");
+    if (match === null) {
+      throw new SmtpTransportError("PROTOCOL", "SMTP server returned an invalid response.");
+    }
+
+    const code = Number(match[1]);
+
+    if (!expectedCodes.includes(code)) {
+      throw classifySmtpResponse(code);
     }
 
     if (match[2] === " ") {
@@ -127,9 +201,43 @@ async function expectCode(connection: SmtpConnection, ...expectedCodes: number[]
   }
 }
 
+function classifySmtpResponse(code: number): SmtpTransportError {
+  if (code >= 400 && code <= 499) {
+    return new SmtpTransportError(
+      "TRANSIENT",
+      "SMTP server temporarily rejected the operation.",
+      code,
+    );
+  }
+
+  if (code >= 500 && code <= 599) {
+    return new SmtpTransportError("PERMANENT", "SMTP server rejected the operation.", code);
+  }
+
+  return new SmtpTransportError("PROTOCOL", "SMTP server returned an unexpected response.", code);
+}
+
 function hasSmtpCapability(response: string, capability: string): boolean {
   const normalizedCapability = capability.toUpperCase();
-  return new RegExp(`^\\d{3}-${normalizedCapability}(?:\\r?\\n|$)`, "mi").test(response);
+  return response.split("\r\n").some((line) => {
+    const match = /^\d{3}-?\s*(.*?)\s*$/.exec(line);
+    if (match === null) {
+      return false;
+    }
+
+    return match[1].toUpperCase().split(/\s+/u)[0] === normalizedCapability;
+  });
+}
+
+function hasSmtpAuthMechanism(response: string, mechanism: SmtpAuthMechanism): boolean {
+  return response.split("\r\n").some((line) => {
+    const match = /^\d{3}-?\s*AUTH\s+(.+?)\s*$/i.exec(line);
+    if (match === null) {
+      return false;
+    }
+
+    return match[1].toUpperCase().split(/\s+/u).includes(mechanism);
+  });
 }
 
 function buildMessage(input: EmailSendInput, messageIdDomain: string): string {
