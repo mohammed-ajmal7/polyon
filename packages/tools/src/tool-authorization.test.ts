@@ -115,8 +115,13 @@ describe("authorizeToolInvocation", () => {
     } catch (error) {
       expect(error).toBeInstanceOf(ToolAuthorizationError);
       expect(error).toMatchObject({
+        kind: "TOOL_INVOCATION_DENIED",
         decision: {
-          toolId: undefined,
+          id: "decision-1",
+          policyId: "policy-1",
+          action: "TERMINAL",
+          riskLevel: "MEDIUM",
+          effect: "DENY",
         },
       });
     }
