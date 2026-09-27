@@ -38,8 +38,9 @@ export interface ApprovalRequest {
   readonly resolvedBy?: ActorId;
 
   /**
-   * Durable continuation state for a model-driven tool approval.
-   * Present only for approvals created from a governed agent tool call.
+   * Durable continuation checkpoint for a model-driven tool approval.
+   * The checkpoint is advanced after each externally visible step so a
+   * process restart can resume without re-running a completed tool call.
    */
   readonly toolContinuation?: {
     readonly agentId: string;
@@ -48,5 +49,8 @@ export interface ApprovalRequest {
     readonly response: TextModelResponse;
     readonly toolCall: ModelToolCall;
     readonly rounds: number;
+    readonly state: "AWAITING_TOOL" | "AWAITING_MODEL" | "RESPONSE_READY" | "COMPLETED";
+    readonly toolOutput?: unknown;
+    readonly nextRequest?: TextModelRequest;
   };
 }
