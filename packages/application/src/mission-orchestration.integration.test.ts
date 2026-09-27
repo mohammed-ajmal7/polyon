@@ -266,6 +266,8 @@ describe("mission orchestration", () => {
       "POLICY_DECIDED",
       "EXECUTION_STATUS_CHANGED",
       "TASK_STATUS_CHANGED",
+      "TASK_STATUS_CHANGED",
+      "EXECUTION_STATUS_CHANGED",
       "EXECUTION_STATUS_CHANGED",
       "TASK_STATUS_CHANGED",
       "MESSAGE_CREATED",
