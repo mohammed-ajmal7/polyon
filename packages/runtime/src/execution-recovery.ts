@@ -172,25 +172,31 @@ export function recoverExecutions(
         integrationContinuation.state === "AWAITING_INTEGRATION" &&
         integrationContinuation.sideEffectClass === "NON_IDEMPOTENT"
       ) {
-          if (tasks === undefined) {
-            continue;
-          }
-          const task = tasks.get(execution.taskId);
-          if (task === undefined || task.status !== "RUNNING") {
-            continue;
-          }
-
-          const pausedExecution = pauseExecution(execution, recoveredAt);
-          const pausedTask = transitionTaskStatus(task, "PAUSED", recoveredAt);
-          executions.save(pausedExecution);
-          tasks.save(pausedTask);
-          recovered.push({
-            executionId: pausedExecution.id,
-            kind: "NON_IDEMPOTENT_INTEGRATION_RECONCILIATION",
-          });
+        if (tasks === undefined) {
           continue;
         }
 
+        const task = tasks.get(execution.taskId);
+
+        if (task === undefined || task.status !== "RUNNING") {
+          continue;
+        }
+
+        const pausedExecution = pauseExecution(execution, recoveredAt);
+        const pausedTask = transitionTaskStatus(task, "PAUSED", recoveredAt);
+        executions.save(pausedExecution);
+        tasks.save(pausedTask);
+        recovered.push({
+          executionId: pausedExecution.id,
+          kind: "NON_IDEMPOTENT_INTEGRATION_RECONCILIATION",
+        });
+        continue;
+      }
+
+      if (
+        integrationContinuation !== undefined &&
+        integrationContinuation.state !== "RECONCILIATION_REQUIRED"
+      ) {
         const recoveredExecution = recoverRunningExecution(execution, recoveredAt);
         executions.save(recoveredExecution);
         queue.enqueue(recoveredExecution);
