@@ -1,8 +1,11 @@
+export type SmtpAuthMechanism = "LOGIN";
+
 export interface SmtpTransportOptions {
   readonly host: string;
   readonly port: number;
   readonly secure: boolean;
   readonly startTls?: boolean;
+  readonly authMechanism?: SmtpAuthMechanism;
   readonly connectionTimeoutMs?: number;
   readonly maxMessageBytes?: number;
 }
@@ -17,6 +20,7 @@ export interface ValidatedSmtpTransportOptions {
   readonly port: number;
   readonly secure: boolean;
   readonly startTls: boolean;
+  readonly authMechanism: SmtpAuthMechanism;
   readonly connectionTimeoutMs: number;
   readonly maxMessageBytes: number;
 }
@@ -26,6 +30,7 @@ export function validateSmtpTransportOptions(
 ): ValidatedSmtpTransportOptions {
   const host = options.host.trim();
   const startTls = options.startTls ?? false;
+  const authMechanism = options.authMechanism ?? "LOGIN";
 
   if (host === "") {
     throw new RangeError("SMTP host must not be empty.");
@@ -37,6 +42,10 @@ export function validateSmtpTransportOptions(
 
   if (options.secure && startTls) {
     throw new RangeError("SMTP secure and STARTTLS modes are mutually exclusive.");
+  }
+
+  if (!options.secure && !startTls) {
+    throw new RangeError("Authenticated SMTP transport requires TLS via secure or STARTTLS.");
   }
 
   const connectionTimeoutMs = options.connectionTimeoutMs ?? DEFAULT_CONNECTION_TIMEOUT_MS;
@@ -68,6 +77,7 @@ export function validateSmtpTransportOptions(
     port: options.port,
     secure: options.secure,
     startTls,
+    authMechanism,
     connectionTimeoutMs,
     maxMessageBytes,
   };
