@@ -1,5 +1,9 @@
 import type { Agent, Model, Policy, Provider } from "@polyon/contracts";
 import {
+  InMemoryIntegrationAdapterRegistry,
+  type IntegrationAdapter,
+} from "@polyon/integrations";
+import {
   AgentGateway,
   InMemoryAgentRegistry,
   InMemoryModelRegistry,
@@ -7,6 +11,7 @@ import {
 } from "@polyon/agents";
 import {
   ArtifactCatalogService,
+  IntegrationInvocationService,
   LocalArtifactContentService,
   ExecutionApprovalService,
   ExecutionDispatchService,
@@ -50,6 +55,7 @@ export interface PolyonCompositionOptions {
   readonly agents?: readonly Agent[];
   readonly models?: readonly Model[];
   readonly providers?: readonly PolyonProviderRegistration[];
+  readonly integrations?: readonly IntegrationAdapter[];
   readonly filesystemRoot?: string;
   readonly filesystemReadMaxBytes?: number;
   readonly filesystemReadEnabled?: boolean;
@@ -115,6 +121,7 @@ export interface PolyonComposition {
   readonly models: InMemoryModelRegistry;
   readonly providers: InMemoryProviderRegistry;
   readonly providerAdapters: InMemoryProviderAdapterRegistry;
+  readonly integrations: InMemoryIntegrationAdapterRegistry;
   readonly modelGateway: ModelGateway;
   readonly agentGateway: AgentGateway;
   readonly tools: ToolRegistry;
@@ -126,6 +133,7 @@ export interface PolyonComposition {
   readonly executionApproval: ExecutionApprovalService;
   readonly executionRetry: ExecutionRetryService;
   readonly toolInvocation: ToolInvocationService;
+  readonly integrationInvocation: IntegrationInvocationService;
   readonly artifactCatalog: ArtifactCatalogService;
   readonly localArtifactContent?: LocalArtifactContentService;
   readonly agentToolOrchestration: AgentToolOrchestrationService;
@@ -150,6 +158,10 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   for (const registration of options.providers ?? []) {
     providers.register(registration.provider);
     providerAdapters.register(registration.adapter);
+  }
+
+  for (const integration of options.integrations ?? []) {
+    integrations.register(integration);
   }
 
   const modelGateway = new ModelGateway({ models, providers, adapters: providerAdapters });
@@ -267,6 +279,14 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
       : {
           artifactRead: (artifactId, maxBytes) => localArtifactContent.read(artifactId, maxBytes),
         }),
+  });
+
+  const integrationInvocation = new IntegrationInvocationService({
+    integrations,
+    approvals: stores.approvals,
+    policyDecisions: stores.policyDecisions,
+    events: stores.events,
+    unitOfWork: stores,
   });
 
   const toolInvocation = new ToolInvocationService({
@@ -448,6 +468,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     models,
     providers,
     providerAdapters,
+    integrations,
     modelGateway,
     agentGateway,
     tools: builtinTools.tools,
@@ -459,6 +480,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     executionApproval,
     executionRetry,
     toolInvocation,
+    integrationInvocation,
     artifactCatalog,
     ...(localArtifactContent === undefined ? {} : { localArtifactContent }),
     agentToolOrchestration,
