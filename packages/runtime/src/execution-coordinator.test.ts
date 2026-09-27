@@ -133,7 +133,7 @@ describe("InMemoryExecutionCoordinator", () => {
       kind: "EXECUTION_NOT_PERSISTED",
     });
     expect(invoked).toBe(false);
-    expect(queue.peek()?.id).toBe("execution-1");
+    expect(queue.size()).toBe(0);
   });
 
   it("fails closed when persisted state is no longer queued", async () => {
@@ -166,7 +166,7 @@ describe("InMemoryExecutionCoordinator", () => {
       kind: "PERSISTED_EXECUTION_NOT_QUEUED",
     });
     expect(invoked).toBe(false);
-    expect(queue.peek()?.id).toBe("execution-1");
+    expect(queue.size()).toBe(0);
   });
 
   it("returns undefined when no execution is queued", async () => {

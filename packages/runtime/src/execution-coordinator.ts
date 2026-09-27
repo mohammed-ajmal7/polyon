@@ -22,8 +22,7 @@ export interface ExecutionCoordinatorDependencies {
 
 export type ExecutionCoordinatorErrorKind =
   | "EXECUTION_NOT_PERSISTED"
-  | "PERSISTED_EXECUTION_NOT_QUEUED"
-  | "EXECUTION_DEQUEUE_FAILED";
+  | "PERSISTED_EXECUTION_NOT_QUEUED";
 
 export class ExecutionCoordinatorError extends Error {
   readonly kind: ExecutionCoordinatorErrorKind;
@@ -41,7 +40,7 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
   ) {}
 
   async runNext(now: string, completionAt: string): Promise<Execution | undefined> {
-    const queued = this.dependencies.queue.peek();
+    const queued = this.dependencies.queue.dequeue();
 
     if (queued === undefined) {
       return undefined;
@@ -60,15 +59,6 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
       throw new ExecutionCoordinatorError(
         "PERSISTED_EXECUTION_NOT_QUEUED",
         `Cannot run persisted execution ${queued.id} with status: ${persisted.status}.`,
-      );
-    }
-
-    const dequeued = this.dependencies.queue.dequeue();
-
-    if (dequeued === undefined || dequeued.id !== queued.id) {
-      throw new ExecutionCoordinatorError(
-        "EXECUTION_DEQUEUE_FAILED",
-        `Queued execution could not be removed for execution: ${queued.id}.`,
       );
     }
 
