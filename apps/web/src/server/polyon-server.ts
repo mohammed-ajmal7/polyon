@@ -1,6 +1,6 @@
 import { join } from "node:path";
 
-import type { Agent, Model, Provider, SecretReference } from "@polyon/contracts";
+import type { Agent, Model, Policy, Provider, SecretReference } from "@polyon/contracts";
 import { EnvironmentSecretResolver, SmtpTransport, type EmailTransport } from "@polyon/integrations";
 import { OpenAICompatibleTextModelAdapter } from "@polyon/providers";
 import { EncryptedFileSecretResolver, NodeSmtpConnectionFactory } from "@polyon/runtime";
@@ -117,4 +117,30 @@ export function sanitizeEventData(data: Readonly<Record<string, unknown>>): Read
     safe[key] = value;
   }
   return safe;
+}
+
+export function getPolyonPolicy(): Policy {
+  const now = new Date().toISOString();
+  const approvalMode =
+    process.env.POLYON_APPROVAL_MODE === "AUTO" ||
+    process.env.POLYON_APPROVAL_MODE === "BALANCED" ||
+    process.env.POLYON_APPROVAL_MODE === "ASK_EVERYTHING"
+      ? process.env.POLYON_APPROVAL_MODE
+      : "ASK_EVERYTHING";
+
+  return {
+    id: process.env.POLYON_POLICY_ID?.trim() || "web-default",
+    name: "POLYON Web Policy",
+    description: "Server policy for the personal POLYON command center.",
+    approvalMode,
+    rules: [],
+    defaultEffect: "REQUIRE_APPROVAL",
+    enabled: true,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+export function executionEnabled(): boolean {
+  return process.env.POLYON_EXECUTION_ENABLED === "true";
 }
