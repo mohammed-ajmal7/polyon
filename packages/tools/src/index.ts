@@ -23,6 +23,15 @@ export {
 } from "./tool-authorization";
 
 export {
+  ScopedArtifactWriteToolAdapter,
+  ScopedArtifactWriteToolError,
+  type ScopedArtifactWriteToolAdapterOptions,
+  type ScopedArtifactWriteToolErrorKind,
+  type ScopedArtifactWriteToolInput,
+  type ScopedArtifactWriteToolOutput,
+} from "./scoped-artifact-write-tool-adapter";
+
+export {
   ScopedGitWriteToolAdapter,
   ScopedGitWriteToolError,
   type ScopedGitWriteOperation,
