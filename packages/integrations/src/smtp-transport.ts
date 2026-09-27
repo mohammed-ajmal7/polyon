@@ -2,6 +2,7 @@ export interface SmtpTransportOptions {
   readonly host: string;
   readonly port: number;
   readonly secure: boolean;
+  readonly startTls?: boolean;
   readonly connectionTimeoutMs?: number;
   readonly maxMessageBytes?: number;
 }
@@ -60,6 +61,7 @@ export function validateSmtpTransportOptions(
     host,
     port: options.port,
     secure: options.secure,
+    startTls: options.startTls ?? false,
     connectionTimeoutMs,
     maxMessageBytes,
   };
