@@ -82,17 +82,15 @@ The repository also contains focused integration/recovery/security tests across 
 
 ## Deliberately pending
 
-These are not fake placeholders and are intentionally still open:
+The core POLYON operating loop is implemented. The remaining work is now mostly depth, scale, and deployment-specific rather than missing foundations:
 
-- native MCP/A2A/ACP protocol transports and negotiation;
-- concrete creative-provider adapters for image/video/audio/voice generation;
-- richer semantic retrieval/context assembly;
-- multi-user/enterprise authentication beyond the personal-server token mode;
-- high-volume load/performance testing and broad adversarial end-to-end testing;
-- Docker image build verification inside CI and production deployment automation beyond the provided self-hosted compose path.
+- richer semantic/embedding-backed retrieval beyond the deterministic local lexical retriever;
+- advanced MCP/A2A features such as streaming, push notifications, subscriptions, and broader spec coverage;
+- multi-user/enterprise identity, roles, and tenancy controls (the current product remains intentionally personal);
+- production-scale load/performance testing and a larger adversarial end-to-end matrix;
+- deployment automation for a specific target environment beyond the self-hosted Docker/Compose path.
 
 Do not add provider-specific coupling to core just to make these boxes appear complete.
-
 ## Quality bar
 
 Before a feature is considered complete:

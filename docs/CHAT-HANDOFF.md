@@ -7,7 +7,7 @@
 
 - Repository: `mohammed-ajmal7/polyon`
 - Branch: `feature/core-architecture`
-- Current implementation head at handoff update: **8b3ef35d2415db6953c767d417bbf8cf4cf62f1b**
+- Current implementation head at handoff update: **9bcc586ce6c5df97e00567c601c93dcbb5c54901**
 - CI is the source of truth for verification. Do not call the current branch green until the latest run for the exact head succeeds.
 
 ## Implemented operating loop
@@ -55,15 +55,13 @@
 
 ## Intentional remaining work
 
-1. Native MCP/A2A/ACP transports and negotiation.
-2. Concrete creative provider adapters.
-3. Richer semantic retrieval/context assembly.
-4. Multi-user/enterprise auth and authorization.
-5. High-volume performance/load tests and broad adversarial E2E coverage.
-6. Docker image build in CI and fuller deployment automation.
+1. Richer semantic retrieval/embedding adapters beyond the deterministic local lexical path.
+2. Advanced MCP/A2A protocol coverage such as streaming, push, subscriptions, and broader interoperability features.
+3. Multi-user/enterprise identity and tenancy; the current product remains a personal deployment.
+4. Production-scale load/performance testing and a wider adversarial E2E matrix.
+5. Deployment automation for a deployment target beyond the provided self-hosted Docker/Compose path.
 
-These are real remaining areas. Do not simulate protocol or provider support with placeholders.
-
+ACP is not being implemented as a separate modern transport; A2A is the current agent-to-agent interoperability path.
 ## Continuation rules
 
 Always:

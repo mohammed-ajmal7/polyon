@@ -294,165 +294,58 @@ The repository contains:
 
 Do not claim the complete production system is already finished. The work so far is the foundation.
 
-## 6. What is NOT finished yet
+## 6. Current production-readiness status
 
-The remaining work is now concentrated in production hardening, richer product workflows, and selected concrete adapters.
+POLYON now has the complete foundational controlled operating loop implemented.
 
-The most important remaining layers include:
+### Application/runtime
+- Direct and Broadcast execution through the governed AgentToolOrchestrationService;
+- bounded Debate execution with persisted contributions/decisions and restart recovery;
+- Mission command -> plan -> task -> policy/approval -> queue -> execution dispatch;
+- durable execution results, messages, artifacts, retries, cancellation, deadlines, recovery, and traceability.
 
-### Real application/runtime execution
+### Intelligence/providers
+- provider-independent model gateway and routing;
+- OpenAI-compatible text-model adapter;
+- bounded coding-agent process adapter;
+- encrypted local secret lifecycle;
+- configurable bounded research and creative HTTP adapters.
 
-Status: implemented first end-to-end slice.
+### Tools/integrations
+- governed filesystem, terminal, Git, artifact, and model-facing tool execution;
+- strict model tool exposure enforcement;
+- Google Drive READ, Telegram SEND_MESSAGE, and Email SEND_EMAIL;
+- consequential work remains behind policy/approval/audit.
 
-Implemented:
-- command ingress;
-- governed Direct/Broadcast execution;
-- bounded Debate execution;
-- Mission command -> task -> governed execution dispatch;
-- queueing and model-backed runtime execution;
-- approval resolution and durable result publication;
-- restart-safe execution recovery.
+### Knowledge/research
+- durable Memory, Source, and Evidence records;
+- scoped deterministic memory search;
+- bounded web retrieval and evidence-grounded synthesis;
+- privacy-aware context assembly and redacted trace querying.
 
-Remaining work is richer planning, broader task graph execution, and operational hardening.
+### Interoperability
+- authenticated MCP HTTP transport with stateless 2026-07-28 routing-header validation;
+- MCP server/discover, tools/list, and tools/call;
+- authenticated A2A HTTP transport and A2A 1.0 agent card;
+- A2A message execution plus persisted task GetTask/ListTasks;
+- replaceable interoperability envelopes/adapters.
 
-### Real model/provider adapters
+### Web/operations
+- live AI HQ dashboard and approval inbox;
+- authenticated browser/protocol access;
+- same-origin write protection and security headers;
+- execution disabled by default and ASK_EVERYTHING by default;
+- self-hosted Docker/Compose with liveness healthcheck;
+- CI typecheck, tests, lint, formatting, production build, Docker image build, and Compose validation.
 
-The provider adapter boundary exists. Concrete adapters still need to be added and tested.
+### Remaining depth
+- richer semantic/embedding retrieval;
+- advanced MCP/A2A features;
+- optional enterprise/multi-user auth outside the personal scope;
+- production-scale performance and broader adversarial E2E testing;
+- target-specific deployment automation.
 
-The provider layer now also has a reliability and invocation boundary: text-model requests use a structured message/request/response contract; model invocations accept cancellation signals, support explicit timeouts, normalize adapter failures into typed provider invocation errors, and can retry only failures explicitly classified as retryable. These controls are exposed through AgentGateway without coupling agents to a concrete provider.
-
-A concrete OpenAI-compatible HTTP text-model adapter now implements that boundary without adding a provider SDK dependency. It accepts an explicit endpoint and optional API key, maps common HTTP failures into the provider error taxonomy, and normalizes text responses and token usage. The runtime also has a model-backed execution runner that loads the persisted task, builds the structured text request, invokes the execution's bound model, and returns the normalized model output or a failed runtime result.
-
-The architecture should permit hosted models, local models, CLI agents, and remote agents without embedding their assumptions into core.
-
-### Real tool execution
-
-The governed tool invocation path is implemented for the current filesystem, terminal, Git, artifact, and bounded model-tool orchestration surfaces. The application validates tools, evaluates policy, persists approval/decision state when required, executes registered adapters, checkpoints resumable tool continuations, and records invocation events.
-
-Broader consequential tool categories and direct agent access to external integrations still need end-to-end integration.
-
-Important future tool categories include:
-
-- filesystem;
-- terminal;
-- network;
-- Git;
-- artifact handling;
-- communication.
-
-Every consequential tool action must pass policy/approval controls.
-
-### Real external integrations
-
-Google Drive now has a concrete bounded READ adapter with OAuth access-token resolution, HTTPS/host/port allowlisting, response-size and pagination limits, and deterministic metadata parsing. It is exposed through the application-level integration invocation boundary with policy/approval and durable invocation tracing. Telegram now has a bounded outbound `SEND_MESSAGE` adapter using the HTTPS Bot API, an explicit API-key secret reference, request/response limits, and policy/approval enforcement. Integration adapters also declare their supported operations, and unsupported operations are rejected before policy approval or external execution.
-
-Email and encrypted local secret lifecycle are implemented. Secrets remain server-side and are never returned by web APIs.
-
-### Durable storage
-
-A zero-dependency local file-backed persistence implementation now exists behind the existing storage interfaces.
-
-The implementation provides:
-
-- versioned JSON snapshots;
-- atomic temp-file replacement;
-- filesystem synchronization before commit;
-- restart/reopen persistence;
-- persisted event traces;
-- fail-closed handling for malformed or unsupported snapshots;
-- duplicate-identity protection after recovery.
-
-The current durable backend is intentionally a replaceable adapter rather than a commitment to one database technology. Durable snapshots now have a formal versioned migration pipeline: supported migrations are applied sequentially on open, validated against the current schema version, and persisted through the same atomic commit boundary. Future-version snapshots and missing/ambiguous migration paths fail closed.
-
-A storage-level unit-of-work boundary is now available. File-backed domain stores stage changes against a complete domain snapshot and commit them with one atomic filesystem replacement; in-memory stores provide rollback semantics for tests.
-
-The main cross-store application write paths are now transaction-aware:
-
-- command ingress;
-- mission creation;
-- mission plan submission and approval resolution;
-- mission lifecycle transitions/progress sync;
-- execution dispatch and execution approval resolution;
-- execution result/message/artifact publication.
-
-Runtime queueing remains outside the storage transaction because it is an external runtime side effect. The runtime now provides idempotent queue insertion, recovery of persisted QUEUED executions into a fresh in-memory queue, and a continuous execution loop with configurable polling and bounded concurrency. Automatic scheduling remains deterministic FIFO through the queue; the default concurrency is one, while higher limits can be supplied explicitly. The runtime also supports cooperative cancellation and execution deadlines; cancellation persists execution/task state and propagates through AbortSignal, while a deadline is recorded as a failed execution. Runtime health is exposed directly, and transient coordination failures use bounded exponential backoff before retrying the persisted QUEUED execution. Runtime-level backoff retries do not create new execution attempts; governed attempt retries remain an application/core responsibility.
-
-Durable storage now has optimistic concurrency protection. File-backed writes carry a SHA-256 snapshot revision; stale direct writes and stale transactions are rejected instead of overwriting newer state. The final filesystem replacement is guarded by an atomic lock, with stale-lock recovery for crashes during the short commit window. Concurrency tests cover stale writers, transactions becoming stale during work, nested transaction rejection, and stale lock recovery.
-
-The Phase 3 recovery target is now covered by the current runtime/storage implementation and integration tests:
-
-- durable queued execution recovery across process restart;
-- multi-execution recovery in persisted FIFO order;
-- idempotent recovery trace events;
-- runtime recovery/queue health signals including recovered counts, queue depth, active work, last recovery, errors, and retry backoff.
-
-Persistence must support recovery and traceability without coupling the application to one database forever.
-
-### Memory and knowledge
-
-Status: implemented foundation.
-
-Implemented:
-- durable memory entries;
-- deterministic scoped retrieval;
-- source/evidence persistence;
-- bounded research retrieval;
-- governed memory/research tools.
-
-Remaining work is richer context assembly, semantic retrieval, summarization, and privacy-policy refinement.
-
-### Research system
-
-The research department still needs:
-
-- web/source retrieval;
-- evidence records;
-- source normalization;
-- citation/attribution;
-- claim/evidence relationships;
-- research task orchestration;
-- final synthesis.
-
-### Creative system
-
-The creative department still needs adapters/workflows for image, video, audio, voice, editing, and artifact handling.
-
-### Coding-agent system
-
-The architecture is intended to support coding agents such as CLI/agent runtimes later. The concrete integrations and sandboxed execution model are still to be built.
-
-### MCP / A2A / ACP connectivity
-
-The architectural direction is:
-
-- MCP for agent -> tool/data access;
-- A2A-style boundaries for agent -> agent collaboration;
-- ACP-style boundaries for coding-agent interoperability.
-
-These should be introduced behind replaceable interfaces, not hard-coded into the core domain.
-
-### Web UI / AI HQ
-
-The current Next.js application is not yet the finished POLYON interface.
-
-The final UI should expose:
-
-- command center;
-- agent selection;
-- broadcast;
-- debate;
-- mission creation;
-- task graph;
-- approval inbox;
-- execution queue;
-- live execution status;
-- evidence;
-- artifacts;
-- conversation history;
-- policy/permission settings;
-- private/cloud execution lane visibility;
-- observability and traces.
-
+The code and tests remain authoritative over this summary.
 ## 7. Target end-to-end behavior
 
 A typical future Mission should behave approximately like this:
