@@ -16,3 +16,9 @@ export {
 
 export type { ExecutionRunResult, ExecutionRunner } from "./execution-runner";
 export { recoverQueuedExecutions } from "./execution-recovery";
+
+
+export {
+  ModelExecutionRunner,
+  type ModelExecutionRunnerDependencies,
+} from "./model-execution-runner";
