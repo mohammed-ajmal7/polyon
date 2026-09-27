@@ -1,4 +1,7 @@
-import type { SecretReference } from "@polyon/contracts";
+import type {
+  SecretReference,
+  SecretReferenceKind,
+} from "@polyon/contracts";
 
 export interface SecretResolver {
   resolve(reference: SecretReference): Promise<string>;
@@ -21,27 +24,47 @@ export class SecretResolverError extends Error {
 
 export interface EnvironmentSecretResolverOptions {
   readonly environment: Readonly<Record<string, string | undefined>>;
-  readonly references: Readonly<Record<string, string>>;
+  readonly references: Readonly<
+    Record<
+      string,
+      {
+        readonly provider: string;
+        readonly kind: SecretReferenceKind;
+        readonly environmentVariable: string;
+      }
+    >
+  >;
 }
 
 export class EnvironmentSecretResolver implements SecretResolver {
   private readonly environment: Readonly<Record<string, string | undefined>>;
-  private readonly references: ReadonlyMap<string, string>;
+  private readonly references: ReadonlyMap<
+    string,
+    {
+      readonly provider: string;
+      readonly kind: SecretReferenceKind;
+      readonly environmentVariable: string;
+    }
+  >;
 
   constructor(options: EnvironmentSecretResolverOptions) {
     this.environment = options.environment;
     this.references = new Map(Object.entries(options.references));
 
-    for (const [referenceId, environmentName] of this.references) {
+    for (const [referenceId, mapping] of this.references) {
       if (!isSafeReferenceId(referenceId)) {
         throw new RangeError(
           `Invalid secret reference id: ${referenceId}.`,
         );
       }
 
-      if (!isSafeEnvironmentName(environmentName)) {
+      if (
+        mapping === undefined ||
+        mapping.provider.trim() === "" ||
+        !isSafeEnvironmentName(mapping.environmentVariable)
+      ) {
         throw new RangeError(
-          `Invalid secret environment variable name: ${environmentName}.`,
+          `Invalid secret mapping for reference: ${referenceId}.`,
         );
       }
     }
@@ -61,16 +84,26 @@ export class EnvironmentSecretResolver implements SecretResolver {
       );
     }
 
-    const environmentName = this.references.get(reference.id);
+    const mapping = this.references.get(reference.id);
 
-    if (environmentName === undefined) {
+    if (mapping === undefined) {
       throw new SecretResolverError(
         "REFERENCE_NOT_CONFIGURED",
         `Secret reference is not configured: ${reference.id}.`,
       );
     }
 
-    const value = this.environment[environmentName];
+    if (
+      mapping.provider !== reference.provider ||
+      mapping.kind !== reference.kind
+    ) {
+      throw new SecretResolverError(
+        "INVALID_REFERENCE",
+        `Secret reference metadata does not match configured reference: ${reference.id}.`,
+      );
+    }
+
+    const value = this.environment[mapping.environmentVariable];
 
     if (value === undefined || value === "") {
       throw new SecretResolverError(
