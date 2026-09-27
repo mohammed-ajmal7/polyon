@@ -1,4 +1,4 @@
-import type { AgentId } from "@polyon/contracts";
+import type { AgentId, Task } from "@polyon/contracts";
 
 import type { ConversationAgentOrchestrationService } from "./conversation-agent-orchestration-service";
 import type { CommandIngressService } from "./command-ingress";
@@ -23,6 +23,10 @@ export interface A2AServerDependencies {
   };
   readonly commandIngress: CommandIngressService;
   readonly conversationOrchestration: ConversationAgentOrchestrationService;
+  readonly tasks: {
+    list(): readonly Task[];
+    get(taskId: string): Task | undefined;
+  };
   readonly policy: import("@polyon/contracts").Policy;
   readonly actorId: string;
 }
@@ -41,10 +45,10 @@ export class A2AServerService {
         return this.sendMessage(request);
       case "GetTask":
       case "tasks/get":
-        return error(request.id, -32601, "Task RPC is not exposed for direct conversations.");
+        return this.getTask(request);
       case "ListTasks":
       case "tasks/list":
-        return { jsonrpc: "2.0", id: request.id, result: { tasks: [] } };
+        return this.listTasks(request);
       default:
         return error(request.id, -32601, "A2A method is not supported.");
     }
@@ -71,6 +75,42 @@ export class A2AServerService {
         description: agent.description ?? agent.role,
         tags: [agent.role],
       })),
+    };
+  }
+
+  private getTask(request: A2AJsonRpcRequest): A2AJsonRpcResponse {
+    const params = request.params ?? {};
+    const taskId =
+      typeof params.id === "string"
+        ? params.id.trim()
+        : typeof params.taskId === "string"
+          ? params.taskId.trim()
+          : "";
+    if (taskId === "") return error(request.id, -32602, "Task id is required.");
+
+    const task = this.dependencies.tasks.get(taskId);
+    if (task === undefined) return error(request.id, -32004, "Task not found.");
+
+    return {
+      jsonrpc: "2.0",
+      id: request.id,
+      result: mapTask(task),
+    };
+  }
+
+  private listTasks(request: A2AJsonRpcRequest): A2AJsonRpcResponse {
+    const rawLimit = request.params?.limit;
+    const limit = rawLimit === undefined ? 50 : Number(rawLimit);
+    if (!Number.isInteger(limit) || limit <= 0 || limit > 100) {
+      return error(request.id, -32602, "limit must be between 1 and 100.");
+    }
+
+    return {
+      jsonrpc: "2.0",
+      id: request.id,
+      result: {
+        tasks: this.dependencies.tasks.list().slice(-limit).map(mapTask),
+      },
     };
   }
 
@@ -134,6 +174,41 @@ export class A2AServerService {
         parts: [{ kind: "text", text: result.persistedMessages[0]?.content ?? "" }],
       },
     };
+  }
+}
+
+function mapTask(task: Task): Record<string, unknown> {
+  return {
+    id: task.id,
+    contextId: task.missionId,
+    status: {
+      state: mapTaskState(task.status),
+      timestamp: task.updatedAt,
+    },
+    metadata: {
+      polyonTaskKind: task.kind,
+    },
+  };
+}
+
+function mapTaskState(status: Task["status"]): string {
+  switch (status) {
+    case "PENDING":
+    case "BLOCKED":
+    case "READY":
+    case "APPROVAL_REQUIRED":
+    case "APPROVED":
+      return "submitted";
+    case "RUNNING":
+    case "PAUSED":
+      return "working";
+    case "SUCCEEDED":
+      return "completed";
+    case "CANCELLED":
+      return "canceled";
+    case "FAILED":
+    case "REJECTED":
+      return "failed";
   }
 }
 
