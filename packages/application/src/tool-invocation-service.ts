@@ -636,19 +636,26 @@ export class ToolInvocationService {
 
           const existing = stores.artifacts.get(artifact.id);
 
-          if (
-            existing !== undefined &&
-            JSON.stringify(existing) !== JSON.stringify(artifact)
-          ) {
-            throw new Error(
-              `Artifact already exists with conflicting metadata: ${artifact.id}.`,
-            );
+          if (existing !== undefined) {
+            const { createdAt: existingCreatedAt, updatedAt: existingUpdatedAt, ...existingMetadata } =
+              existing;
+            const { createdAt, updatedAt, ...artifactMetadata } = artifact;
+
+            if (JSON.stringify(existingMetadata) !== JSON.stringify(artifactMetadata)) {
+              throw new Error(
+                `Artifact already exists with conflicting metadata: ${artifact.id}.`,
+              );
+            }
+
+            continue;
           }
 
-          if (existing === undefined) {
-            stores.artifacts.save(artifact);
-            appendArtifactCreatedEvent(stores.events, artifact, input as InvokeToolInput);
-          }
+          stores.artifacts.save(artifact);
+          appendArtifactCreatedEvent(
+            stores.events,
+            artifact,
+            input as InvokeToolInput,
+          );
         }
 
         if (approval?.toolContinuation !== undefined) {
