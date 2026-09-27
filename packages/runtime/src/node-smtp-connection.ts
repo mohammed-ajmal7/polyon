@@ -1,3 +1,5 @@
+/// <reference types="node" />
+
 import { connect as connectNet, type Socket } from "node:net";
 import { connect as connectTls, type TLSSocket } from "node:tls";
 
