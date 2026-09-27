@@ -206,6 +206,70 @@ describe("ToolInvocationService", () => {
     });
   });
 
+  it("checkpoints the approved tool result before returning", async () => {
+    const invoke = vi.fn(async () => ({ output: "checkpointed" }));
+    const { stores, service } = createService({ toolId: "tool-1", invoke });
+
+    await service.invoke({
+      ...baseInput,
+      policy: { ...policy, defaultEffect: "REQUIRE_APPROVAL" },
+      toolContinuation: {
+        agentId: "agent-1",
+        requiredCapabilityIds: ["capability-1"],
+        request: {
+          messages: [{ role: "USER", content: "Use the tool." }],
+        },
+        response: {
+          content: "",
+          finishReason: "TOOL_CALL",
+          toolCalls: [
+            {
+              id: "call-2",
+              toolId: "tool-1",
+              input: { value: "hello" },
+            },
+          ],
+        },
+        toolCall: {
+          id: "call-2",
+          toolId: "tool-1",
+          input: { value: "hello" },
+        },
+        rounds: 1,
+        state: "AWAITING_TOOL",
+      },
+    });
+
+    service.resolveApproval({
+      approvalId: "approval-1",
+      status: "APPROVED",
+      resolvedAt: "2026-09-27T01:02:00.000Z",
+      resolvedBy: "user-1",
+    });
+
+    const result = await service.invokeApproved({
+      invocationId: "invocation-1",
+      approvalId: "approval-1",
+      toolId: "tool-1",
+      input: { value: "hello" },
+    });
+
+    expect(result.status).toBe("SUCCEEDED");
+    expect(stores.approvals.get("approval-1")?.toolContinuation).toMatchObject({
+      state: "AWAITING_MODEL",
+      toolOutput: "checkpointed",
+      nextRequest: {
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: "TOOL",
+            toolCallId: "call-2",
+            content: "checkpointed",
+          }),
+        ]),
+      },
+    });
+  });
+
   it("cannot use an approval for another tool", async () => {
     const invoke = vi.fn(async () => ({ output: "should not run" }));
     const { service } = createService({
