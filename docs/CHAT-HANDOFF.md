@@ -7,134 +7,73 @@
 
 - Repository: `mohammed-ajmal7/polyon`
 - Branch: `feature/core-architecture`
-- Current implementation head: `4ae6c412429f7a01401fe4c469efe4b24f4b78f1`
-- CI run: **987** is the current verification run for this head; do not call the branch green until the run is successful.
-- Always inspect the live branch and newest CI run before editing.
+- Current implementation head at handoff update: **8b3ef35d2415db6953c767d417bbf8cf4cf62f1b**
+- CI is the source of truth for verification. Do not call the current branch green until the latest run for the exact head succeeds.
 
-## Product
+## Implemented operating loop
 
-POLYON = **Personal AI Operations Network**.
+### Interaction and execution
+- Direct, Broadcast, Debate, Mission ingress;
+- governed Direct/Broadcast agent orchestration;
+- bounded debate runtime;
+- Mission planning -> validated task graph -> ready task execution;
+- persisted execution lifecycle, retry, cancellation, deadline, recovery;
+- result/message/artifact publication and audit trace.
 
-The human remains the final authority.
-
-Core rules:
-- policy before consequential action;
-- approval where required;
-- provider independence;
-- adapter boundaries;
-- privacy first;
-- deterministic controls;
-- traceability and evidence;
-- bounded autonomy;
-- replaceability;
-- zero additional operating cost by default.
-
-Planned external integrations are only Google Drive, Telegram, and Email.
-
-## Implemented foundations
-
-### Core execution
-- mission/task/execution lifecycle;
-- dependency graphs and ready-task advancement;
-- queueing, retries, cancellation, deadlines and recovery;
-- durable execution state and restart-safe continuations;
-- policy decisions, approval requests and execution gating;
-- idempotent result publication and audit events.
-
-### Model and agent layer
-- provider/model/agent registries;
+### Agents, models, providers
+- agent/model/provider registries and capability-aware routing;
 - provider-independent model gateway;
-- agent routing with capability requirements;
-- governed model tool calls;
-- bounded tool rounds and bounded tool outputs.
+- OpenAI-compatible HTTP text model adapter;
+- bounded model invocation timeout/cancellation/retry classification;
+- bounded local coding-agent process adapter.
 
-### Tools and coding
-- scoped filesystem, terminal, Git, commit and publish tools;
-- artifact creation and bounded artifact access;
-- explicit coding-agent tool profile;
-- strict rejection of model-requested tools that are outside the exposed tool contract;
-- bounded local process agent runtime with executable allowlist, workspace confinement,
-  no shell interpretation, input/output limits and timeouts.
+### Tools and integrations
+- governed filesystem/terminal/Git/artifact tools;
+- dynamic model-facing tool catalog with strict exposure enforcement;
+- Google Drive READ integration;
+- Telegram SEND_MESSAGE integration;
+- Email SEND_EMAIL through provider-neutral SMTP with TLS/STARTTLS, AUTH LOGIN, MIME and protocol bounds;
+- all consequential integration/tool execution remains behind policy/approval/audit.
 
-### Knowledge and research
-- durable memory model with PRIVATE/PROJECT/MISSION/TASK scopes;
-- deterministic bounded memory search;
-- durable Source + Evidence records;
-- mission/task-scoped evidence lineage;
-- bounded web research retriever;
-- configurable HTTP search-provider boundary;
-- evidence-grounded research synthesis persisted as SUMMARY memory;
-- redacted trace query API.
+### Memory, research, evidence
+- durable memory and scoped search;
+- Source + Evidence records with mission/task lineage;
+- bounded configurable web research retriever;
+- evidence-grounded research synthesis into SUMMARY memory;
+- redacted trace query API;
+- memory/evidence/source/artifact APIs.
 
-### Debate
-- finite PROPOSAL → CRITICISM → EVIDENCE → REBUTTAL → ADJUDICATION flow;
-- persisted contributions and decisions;
-- restart-safe contribution recovery;
-- no external action from debate participants directly.
+### Security and operations
+- optional HMAC-signed HTTP-only server session;
+- same-origin write protection;
+- response security headers;
+- execution disabled by default;
+- explicit model/SMTP/research environment configuration;
+- file-backed durable state with migrations, atomic replacement, optimistic concurrency and backup/restore;
+- self-hosted Dockerfile + compose configuration;
+- CI typecheck/test/lint/format/build gates.
 
-### Integrations and secrets
-- Google Drive, Telegram, Email adapter boundaries;
-- bounded outbound HTTP;
-- opaque secret references;
-- environment secret resolver;
-- encrypted-at-rest file secret resolver with AES-256-GCM, atomic replacement and metadata matching;
-- provider-neutral SMTP transport with TLS/STARTTLS, AUTH LOGIN, bounded responses/writes,
-  MIME encoding, envelope validation, line/size bounds and sanitized errors.
+## Intentional remaining work
 
-### Web / AI HQ
-- live Next.js dashboard;
-- command center;
-- Direct/Broadcast/Debate/Mission execution entrypoints;
-- approval inbox;
-- live counts and activity;
-- memory/evidence/source/artifact/trace APIs;
-- optional token authentication with HTTP-only SameSite cookie;
-- same-origin checks on write routes;
-- security headers;
-- execution disabled by default unless explicitly enabled.
+1. Native MCP/A2A/ACP transports and negotiation.
+2. Concrete creative provider adapters.
+3. Richer semantic retrieval/context assembly.
+4. Multi-user/enterprise auth and authorization.
+5. High-volume performance/load tests and broad adversarial E2E coverage.
+6. Docker image build in CI and fuller deployment automation.
 
-### Interoperability / creative foundations
-- protocol-neutral MCP/A2A/ACP envelope contract and JSON adapter;
-- configurable research provider adapter;
-- provider-neutral CreativeJobService for IMAGE/VIDEO/AUDIO/VOICE/EDIT workflows.
+These are real remaining areas. Do not simulate protocol or provider support with placeholders.
 
-These are **foundations**, not claims of complete native MCP/A2A/ACP protocol implementations or concrete creative provider integrations.
+## Continuation rules
 
-## Current operational configuration
+Always:
+1. inspect the live branch;
+2. inspect the newest CI run for the exact head;
+3. select one coherent slice;
+4. preserve domain/provider/adapter boundaries;
+5. add tests for behavior changes;
+6. update docs when architecture/operations change;
+7. verify typecheck/test/lint/format/build;
+8. report exact verification status.
 
-Copy `apps/web/.env.example` to a local environment and configure only the capabilities you intend to enable.
-
-Important controls:
-- `POLYON_EXECUTION_ENABLED=false` keeps execution disabled by default.
-- `POLYON_APPROVAL_MODE=ASK_EVERYTHING` is the safe default.
-- `POLYON_API_TOKEN` enables web authentication.
-- model execution requires an explicit model endpoint + model id;
-- SMTP requires explicit SMTP host + username and a secret resolver;
-- research requires an explicit HTTPS search endpoint + allowlisted hosts.
-
-Never commit credentials or private user data.
-
-## Remaining production work
-
-The core architecture is implemented, but these areas still require real provider/protocol work before calling the whole product production-complete:
-
-1. native MCP/A2A/ACP transports and interoperability negotiation;
-2. concrete creative provider adapters and artifact upload/storage workflows;
-3. richer multi-step mission planning beyond the initial bounded task bridge;
-4. production authentication/session management beyond the local personal-server token mode;
-5. richer semantic memory/retrieval if needed;
-6. performance/load testing, adversarial E2E testing, backup/restore drills and operational deployment automation.
-
-Do not fake these with placeholder integrations.
-
-## Preferred work loop
-
-1. inspect live branch + CI;
-2. choose one coherent production slice;
-3. change only needed files;
-4. add focused tests;
-5. update docs when architecture changes;
-6. verify CI;
-7. stop at a coherent boundary.
-
-Normal-sized batches only. Never claim CI green without a successful current run.
+The repository code and tests outrank this handoff if they differ.

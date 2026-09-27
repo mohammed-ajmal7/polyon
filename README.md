@@ -8,73 +8,99 @@ POLYON is a personal, privacy-first AI workspace for coordinating multiple AI ag
 
 ## Architecture
 
-POLYON keeps domain logic, application orchestration, runtime execution, provider adapters, external integrations, durable storage, and the web interface separated by explicit boundaries.
+POLYON separates domain rules, application orchestration, runtime execution, provider adapters, external integrations, durable storage, and the web interface behind explicit boundaries.
 
-Consequential actions flow through policy → approval (when required) → execution → audit.
+Consequential work follows:
 
-External integrations are intentionally limited to Google Drive, Telegram, and Email.
+```
+intent -> policy -> approval (when required) -> execution -> result/audit
+```
 
-## Development
+External integrations in scope are only Google Drive, Telegram, and Email.
+
+## What works today
+
+The current branch contains the core operating loop for:
+
+- Direct and Broadcast agent execution;
+- bounded Debate execution;
+- Mission planning with validated task graphs and ready-task dispatch;
+- durable queued execution, retries, cancellation, deadlines, and restart recovery;
+- model/provider routing with a concrete OpenAI-compatible adapter;
+- governed filesystem, terminal, Git, artifact, and integration tools;
+- Google Drive, Telegram, and SMTP Email adapters;
+- durable memory, Source/Evidence records, bounded web research, and evidence-grounded synthesis;
+- explicit bounded coding-agent tool/process execution;
+- authenticated private web APIs, approval inbox, live trace/state APIs;
+- local file-backed persistence, migrations, optimistic concurrency, backup/restore, and self-hosted Docker deployment.
+
+## Safety defaults
+
+The web server starts with execution disabled:
+
+`POLYON_EXECUTION_ENABLED=false`
+
+The default policy is:
+
+`POLYON_APPROVAL_MODE=ASK_EVERYTHING`
+
+Optional private-server authentication is enabled by setting:
+
+`POLYON_API_TOKEN`
+
+Secrets stay server-side. Write APIs enforce same-origin checks. Model-requested tools are rejected when they are not exposed by the active tool contract.
+
+## Local development
 
 ```bash
 pnpm install
+cp apps/web/.env.example apps/web/.env
 pnpm dev
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm format
-pnpm format:check
-pnpm build
 ```
 
-## Local server configuration
+For self-hosted deployment:
 
-Start from `apps/web/.env.example`.
+```docker compose up --build
+```
 
-Core variables:
+Persistent application state is stored in the configured `POLYON_DATA_DIR`.
 
-- `POLYON_DATA_DIR` — durable local application state.
-- `POLYON_RUNTIME_AUTOSTART` — start the execution worker automatically.
-- `POLYON_EXECUTION_ENABLED` — must be `true` to enable the web execution endpoint; default is `false`.
-- `POLYON_APPROVAL_MODE` — `ASK_EVERYTHING`, `BALANCED`, or `AUTO`; safe default is `ASK_EVERYTHING`.
-- `POLYON_API_TOKEN` — optional server access token for the private web/API surface.
-
-### Model execution
-
-Set `POLYON_MODEL_ENDPOINT` and `POLYON_MODEL_ID` to configure an explicit model provider. The provider is accessed through POLYON's provider-independent model adapter.
-
-### Email
-
-Set `POLYON_SMTP_HOST`, `POLYON_SMTP_USERNAME`, and either the environment secret or encrypted secret-store configuration. Email remains governed as a non-idempotent external communication action.
-
-### Research
-
-Set `POLYON_RESEARCH_SEARCH_ENDPOINT` and `POLYON_RESEARCH_ALLOWED_HOSTS` to enable the bounded search-provider adapter. POLYON does not grant arbitrary outbound web access.
+See `docs/OPERATIONS.md` for configuration and operational guidance.
 
 ## Verification
 
-CI runs:
+CI runs all of:
 
-1. dependency installation with a frozen lockfile;
-2. typecheck;
-3. tests;
-4. lint;
-5. format check;
+1. frozen-lockfile dependency installation;
+2. TypeScript typecheck;
+3. full Vitest test suite;
+4. ESLint;
+5. Prettier format check;
 6. production build.
 
-## Security posture
+The repository also contains focused integration/recovery/security tests across the core, runtime, storage, tools, providers, integrations, and web layers.
 
-- secrets never belong in client-side code;
-- web writes are same-origin checked;
-- private APIs can require an HTTP-only authenticated session;
-- security headers are enabled by the Next.js server config;
-- execution is disabled by default;
-- model-requested tools are denied when they are not exposed in the active tool contract;
-- local coding-agent processes use explicit executable and workspace bounds.
+## Deliberately pending
 
-Do not commit API keys, access tokens, OAuth secrets, private keys, credentials, or private user data.
+These are not fake placeholders and are intentionally still open:
 
-## Remaining work
+- native MCP/A2A/ACP protocol transports and negotiation;
+- concrete creative-provider adapters for image/video/audio/voice generation;
+- richer semantic retrieval/context assembly;
+- multi-user/enterprise authentication beyond the personal-server token mode;
+- high-volume load/performance testing and broad adversarial end-to-end testing;
+- Docker image build verification inside CI and production deployment automation beyond the provided self-hosted compose path.
 
-The remaining roadmap is intentionally explicit: native MCP/A2A/ACP transports, concrete creative providers, richer multi-step mission planning, stronger production authentication/session management, richer semantic retrieval, and deployment/backup/load/adversarial E2E hardening.
+Do not add provider-specific coupling to core just to make these boxes appear complete.
 
+## Quality bar
+
+Before a feature is considered complete:
+
+- preserve human authority;
+- preserve policy/approval/audit boundaries;
+- add focused tests;
+- run typecheck/test/lint/format/build;
+- inspect the resulting diff;
+- document any new operational controls;
+- report CI failures honestly.
