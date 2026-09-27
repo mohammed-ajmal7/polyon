@@ -1,5 +1,3 @@
-export { NodeSmtpConnectionFactory } from "./node-smtp-connection";
-
 export {
   SmtpTransport,
   type SmtpConnection,
