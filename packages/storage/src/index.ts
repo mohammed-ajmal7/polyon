@@ -1,4 +1,10 @@
-export { InMemoryEntityStore, type EntityStore, type EntityWithId } from "./entity-store";
+export {
+  FileEntityStore,
+  InMemoryEntityStore,
+  StorageFileFormatError,
+  type EntityStore,
+  type EntityWithId,
+} from "./entity-store";
 
 export {
   InMemoryDomainStores,
@@ -14,7 +20,13 @@ export {
   type TaskStore,
 } from "./domain-stores";
 
-export { InMemoryEventStore, type EventStore } from "./event-store";
+export {
+  FileDomainStores,
+  type DurableDomainStores,
+} from "./file-domain-stores";
 
-export { FileDomainStores, type DurableDomainStores } from "./file-domain-stores";
-
+export {
+  FileEventStore,
+  InMemoryEventStore,
+  type EventStore,
+} from "./event-store";
