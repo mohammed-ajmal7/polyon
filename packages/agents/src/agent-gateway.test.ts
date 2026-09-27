@@ -62,6 +62,49 @@ function createGateway(adapter: ModelProviderAdapter) {
 }
 
 describe("AgentGateway", () => {
+
+  it("supports typed text model invocations through the agent boundary", async () => {
+    const gateway = createGateway({
+      providerId: "provider-1",
+      async invoke({ input }) {
+        const request = input as {
+          messages: readonly { content: string }[];
+        };
+
+        return {
+          output: {
+            content: request.messages[request.messages.length - 1]?.content ?? "",
+            finishReason: "STOP",
+          },
+        };
+      },
+    });
+
+    await expect(
+      gateway.invokeText({
+        agentId: "agent-1",
+        requiredCapabilityIds: ["research"],
+        request: {
+          messages: [
+            { role: "SYSTEM", content: "You are POLYON." },
+            { role: "USER", content: "Run the task." },
+          ],
+          temperature: 0.2,
+          maxOutputTokens: 200,
+        },
+      }),
+    ).resolves.toEqual({
+      agentId: "agent-1",
+      modelId: "model-1",
+      providerId: "provider-1",
+      source: "PREFERRED",
+      output: {
+        content: "Run the task.",
+        finishReason: "STOP",
+      },
+    });
+  });
+
   it("passes model invocation reliability options through the agent boundary", async () => {
     let timeoutMs: number | undefined;
     let retries: number | undefined;
