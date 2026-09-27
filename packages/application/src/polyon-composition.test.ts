@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -111,7 +111,7 @@ describe("createPolyonComposition", () => {
     try {
       const workspace = join(root, "workspace");
       const fileRoot = workspace;
-      writeFileSync(join(root, "placeholder"), "unused", "utf8");
+      mkdirSync(fileRoot, { recursive: true });
       const composition = createPolyonComposition({
         storageRoot: root,
         filesystemRoot: fileRoot,
