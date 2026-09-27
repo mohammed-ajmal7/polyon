@@ -174,3 +174,6 @@ export {
   type MissionExecutionOrchestrationResult,
   type MissionExecutionOrchestrationStatus,
 } from "./mission-execution-orchestration-service";
+
+export { CodingAgentService, DEFAULT_CODING_TOOL_IDS, type CodingAgentInput } from "./coding-agent-service";
+export { TraceQueryService, type TraceQuery, type TraceEvent } from "./trace-query-service";

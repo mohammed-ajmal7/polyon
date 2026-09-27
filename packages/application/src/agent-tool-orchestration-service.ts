@@ -790,6 +790,27 @@ export class AgentToolOrchestrationService {
       readonly rounds: number;
     },
   ): Promise<ToolInvocationOutcome> {
+    if (input.request.tools !== undefined) {
+      const exposed = input.request.tools.some((tool) => tool.toolId === toolCall.toolId);
+      if (!exposed) {
+        return {
+          status: "REJECTED",
+          invocationId: `tool-call:${toolCall.id}`,
+          toolId: toolCall.toolId,
+          policyDecision: {
+            id: `policy-decision:tool-call:${toolCall.id}`,
+            policyId: input.policy.id,
+            action: "READ",
+            riskLevel: input.defaultRiskLevel ?? "LOW",
+            effect: "DENY",
+            reason: `Tool is not exposed by the current model tool contract: ${toolCall.toolId}.`,
+            evaluatedAt: this.now(input),
+          },
+          error: `Tool is not exposed: ${toolCall.toolId}.`,
+        };
+      }
+    }
+
     const integrationSpec = parseIntegrationToolId(toolCall.toolId);
 
     if (integrationSpec !== undefined) {

@@ -88,3 +88,6 @@ export type { MissionPlanProposalId } from "./work/ids";
 
 export type { SecretReference, SecretReferenceId, SecretReferenceKind } from "./security/index";
 export type { MemoryEntry, MemoryId, MemoryKind, MemoryScope } from "./memory/index";
+
+export type { InteroperabilityAdapter, InteroperabilityEnvelope, InteroperabilityProtocol } from "./interoperability/index";
+export { validateInteroperabilityEnvelope } from "./interoperability/index";
