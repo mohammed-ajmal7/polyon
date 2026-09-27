@@ -12,7 +12,6 @@ export type ScopedGitReadOperation =
 
 export interface ScopedGitReadToolInput {
   readonly operation: ScopedGitReadOperation;
-  readonly path?: string;
   readonly maxOutputBytes?: number;
   readonly timeoutMs?: number;
 }
@@ -63,6 +62,7 @@ export class ScopedGitReadToolAdapter
   readonly toolId: string;
 
   private readonly terminal: ScopedTerminalToolAdapter;
+  private readonly gitExecutablePath: string;
 
   constructor(options: ScopedGitReadToolAdapterOptions) {
     if (options.toolId.trim() === "") {
@@ -70,10 +70,11 @@ export class ScopedGitReadToolAdapter
     }
 
     this.toolId = options.toolId;
+    this.gitExecutablePath = options.gitExecutable ?? "git";
     this.terminal = new ScopedTerminalToolAdapter({
       toolId: options.toolId,
       rootDir: options.rootDir,
-      allowedCommands: [options.gitExecutable ?? "git"],
+      allowedCommands: [this.gitExecutablePath],
       defaultTimeoutMs: options.defaultTimeoutMs,
       maxTimeoutMs: options.maxTimeoutMs,
       defaultMaxOutputBytes: options.defaultMaxOutputBytes,
@@ -135,10 +136,8 @@ export class ScopedGitReadToolAdapter
     }
   }
 
-  private readonly gitPath: string | undefined;
-
   private gitExecutable(): string {
-    return this.gitPath ?? "git";
+    return this.gitExecutablePath;
   }
 }
 
