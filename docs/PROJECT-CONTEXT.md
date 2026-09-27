@@ -2,7 +2,7 @@
 
 > Canonical project handoff document.
 >
-> Read this file together with `AGENTS.md` and the repository code before continuing development.
+> Read this file together with `AGENTS.md`, `docs/CHAT-HANDOFF.md`, and the repository code before continuing development.
 
 ## 1. What we are building
 
