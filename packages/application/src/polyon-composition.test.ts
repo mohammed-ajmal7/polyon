@@ -305,6 +305,36 @@ describe("createPolyonComposition", () => {
     }
   });
 
+  it("opts into the Google Drive integration only with an explicit secret reference", () => {
+    const root = mkdtempSync(join(tmpdir(), "polyon-composition-google-drive-"));
+
+    try {
+      const secretResolver: import("@polyon/integrations").SecretResolver = {
+        resolve: vi.fn(async () => "google-token"),
+      };
+      const composition = createPolyonComposition({
+        storageRoot: root,
+        secretResolver,
+        googleDriveIntegrationId: "google-drive-primary",
+        googleDriveSecretReference: {
+          id: "google.primary",
+          kind: "OAUTH_ACCESS_TOKEN",
+          provider: "google",
+        },
+      });
+
+      expect(composition.integrations.get("google-drive-primary")).toBeDefined();
+      expect(
+        composition.integrations.get("google-drive-primary")?.kind,
+      ).toBe("GOOGLE_DRIVE");
+      expect(composition.integrations.get("google-drive-primary")?.actionKinds).toEqual([
+        "READ",
+      ]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("runs a model tool call through policy, the filesystem adapter, and back to the model", async () => {
     const root = mkdtempSync(join(tmpdir(), "polyon-tool-loop-"));
 
