@@ -7,7 +7,7 @@ const transitions: Readonly<Record<TaskStatus, readonly TaskStatus[]>> = {
   APPROVAL_REQUIRED: ["APPROVED", "REJECTED", "CANCELLED"],
   APPROVED: ["RUNNING", "CANCELLED"],
   RUNNING: ["PAUSED", "SUCCEEDED", "FAILED", "CANCELLED"],
-  PAUSED: ["RUNNING", "CANCELLED"],
+  PAUSED: ["RUNNING", "REJECTED", "CANCELLED"],
   SUCCEEDED: [],
   FAILED: ["READY"],
   CANCELLED: [],
