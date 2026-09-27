@@ -57,7 +57,7 @@ export class McpServerService {
       readonly method?: string;
       readonly name?: string;
     },
-  ): McpJsonRpcResponse {
+  ): Promise<McpJsonRpcResponse> {
     if (request.jsonrpc !== "2.0") {
       return rpcError(request.id, -32600, "Invalid JSON-RPC request.");
     }

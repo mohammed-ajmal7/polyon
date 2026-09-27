@@ -72,7 +72,7 @@ function parseResponse(
   }
 
   const kind = value.artifact.kind;
-  if (kind !== expectedKind) {
+  if (!isCreativeArtifactKind(kind) || kind !== expectedKind) {
     throw new Error("Creative provider returned an unexpected artifact kind.");
   }
 
@@ -97,6 +97,10 @@ function parseResponse(
       ...(mimeType === undefined ? {} : { mimeType }),
     },
   };
+}
+
+function isCreativeArtifactKind(value: unknown): value is CreativeJobRequest["outputKind"] {
+  return value === "IMAGE" || value === "VIDEO" || value === "AUDIO" || value === "CODE" || value === "DOCUMENT";
 }
 
 function stringField(value: unknown, field: string, maxLength: number): string {
