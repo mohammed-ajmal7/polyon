@@ -30,6 +30,7 @@ export type BoundedHttpClientErrorKind =
   | "METHOD_NOT_ALLOWED"
   | "INVALID_TIMEOUT"
   | "TIMEOUT"
+  | "CANCELLED"
   | "RESPONSE_TOO_LARGE"
   | "NETWORK_ERROR";
 
@@ -155,7 +156,10 @@ export class BoundedHttpClient {
       if (externalSignal.aborted) {
         controller.abort();
       } else {
-        const onExternalAbort = () => controller.abort();
+        const onExternalAbort = () => {
+          externalAborted = true;
+          controller.abort();
+        };
         externalSignal.addEventListener("abort", onExternalAbort, { once: true });
         removeExternalAbortListener = () =>
           externalSignal.removeEventListener("abort", onExternalAbort);
@@ -197,8 +201,10 @@ export class BoundedHttpClient {
 
       if (error instanceof Error && error.name === "AbortError") {
         throw new BoundedHttpClientError(
-          "TIMEOUT",
-          `HTTP request exceeded the ${timeoutMs}ms timeout.`,
+          externalAborted ? "CANCELLED" : "TIMEOUT",
+          externalAborted
+            ? "HTTP request was cancelled by the caller."
+            : `HTTP request exceeded the ${timeoutMs}ms timeout.`,
         );
       }
 
