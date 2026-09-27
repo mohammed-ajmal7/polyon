@@ -70,6 +70,7 @@ function validateState(filePath: string, value: unknown): DurableDomainState {
     throw new Error(`Unsupported durable domain snapshot version: ${filePath}.`);
   }
 
+  const record = value as Record<string, unknown>;
   const collectionNames: readonly (keyof Omit<DurableDomainState, "version">)[] = [
     "approvals",
     "artifacts",
@@ -84,7 +85,7 @@ function validateState(filePath: string, value: unknown): DurableDomainState {
   ];
 
   for (const collection of collectionNames) {
-    if (!(collection in value) || !Array.isArray(value[collection])) {
+    if (!Array.isArray(record[collection])) {
       throw new Error(
         `Invalid durable domain collection "${collection}" in ${filePath}.`,
       );
