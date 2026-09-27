@@ -303,7 +303,9 @@ export class AgentToolOrchestrationService {
   async resumeApprovedExecution(
     executionId: string,
     policy: Policy,
+    maxToolOutputBytes = DEFAULT_MAX_TOOL_OUTPUT_BYTES,
   ): Promise<AgentToolOrchestrationResult> {
+    assertPositiveLimit(maxToolOutputBytes, "maxToolOutputBytes");
     const candidates = this.dependencies.approvals
       .list()
       .filter(
@@ -362,6 +364,7 @@ export class AgentToolOrchestrationService {
         continuation.response,
         continuation.toolCall,
         outcome.output,
+        maxToolOutputBytes,
       );
 
       continuation = {
@@ -411,6 +414,7 @@ export class AgentToolOrchestrationService {
           taskId: approval.taskId,
           executionId,
           maxToolRounds: 8,
+          maxToolOutputBytes,
           checkpointApprovalId: approval.id,
         },
         request,
@@ -552,6 +556,7 @@ function appendToolResult(
   response: TextModelResponse,
   toolCall: ModelToolCall,
   output: unknown,
+  maxToolOutputBytes = DEFAULT_MAX_TOOL_OUTPUT_BYTES,
 ): TextModelRequest {
   return {
     ...request,
@@ -566,7 +571,7 @@ function appendToolResult(
         role: "TOOL",
         name: toolCall.toolId,
         toolCallId: toolCall.id,
-        content: stringifyToolOutput(output),
+        content: stringifyToolOutput(output, maxToolOutputBytes),
       },
     ],
   };
