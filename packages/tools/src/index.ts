@@ -23,6 +23,23 @@ export {
 } from "./tool-authorization";
 
 export {
+  ScopedArtifactListToolAdapter,
+  type ArtifactListToolAdapterOptions,
+  type ArtifactListToolInput,
+  type ArtifactListToolOutput,
+} from "./scoped-artifact-list-tool-adapter";
+
+export {
+  ScopedArtifactReadToolAdapter,
+  ArtifactReadToolError,
+  type ArtifactReadToolAdapterOptions,
+  type ArtifactReadToolErrorKind,
+  type ArtifactReadToolInput,
+  type ArtifactReadToolOutput,
+  type ArtifactReadToolResolution,
+} from "./scoped-artifact-read-tool-adapter";
+
+export {
   ScopedArtifactWriteToolAdapter,
   ScopedArtifactWriteToolError,
   type ScopedArtifactWriteToolAdapterOptions,
