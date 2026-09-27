@@ -33,6 +33,10 @@ export interface AgentToolOrchestrationInput {
 
 export type AgentToolOrchestrationResult =
   | {
+      readonly status: "NO_CONTINUATION";
+      readonly rounds: 0;
+    }
+  | {
       readonly status: "SUCCEEDED";
       readonly response: TextModelResponse;
       readonly rounds: number;
@@ -361,7 +365,7 @@ export class AgentToolOrchestrationService {
       .find((candidate) => candidate.executionId === executionId && candidate.status === "APPROVED" && candidate.toolContinuation !== undefined);
 
     if (approval === undefined || approval.toolContinuation === undefined) {
-      throw new Error(`No approved tool continuation exists for execution ${executionId}.`);
+      return { status: "NO_CONTINUATION", rounds: 0 };
     }
 
     const continuation = approval.toolContinuation;
