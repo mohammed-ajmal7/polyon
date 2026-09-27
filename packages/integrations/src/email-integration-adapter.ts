@@ -167,7 +167,9 @@ function parseSendEmailInput(input: unknown): EmailSendInput {
   }
 
   const replyTo =
-    value.replyTo === undefined ? undefined : parseAddress(value.replyTo, "replyTo");
+    value.replyTo === undefined
+      ? undefined
+      : parseAddress(value.replyTo, "replyTo");
 
   return {
     to: to as readonly string[],
@@ -189,14 +191,20 @@ function parseRecipients(
     return undefined;
   }
 
-  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_RECIPIENTS) {
+  if (
+    !Array.isArray(value) ||
+    value.length === 0 ||
+    value.length > MAX_RECIPIENTS
+  ) {
     throw new EmailIntegrationAdapterError(
       "INVALID_INPUT",
       `Email ${field} must contain 1-${MAX_RECIPIENTS} recipients.`,
     );
   }
 
-  return value.map((candidate, index) => parseAddress(candidate, `${field}[${index}]`));
+  return value.map((candidate, index) =>
+    parseAddress(candidate, `${field}[${index}]`),
+  );
 }
 
 function parseAddress(value: unknown, field: string): string {
