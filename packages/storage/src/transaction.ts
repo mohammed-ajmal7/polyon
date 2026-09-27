@@ -21,6 +21,17 @@ export class DomainTransactionError extends Error {
   }
 }
 
+export class StorageConcurrencyError extends Error {
+  readonly code = "CONCURRENT_MODIFICATION";
+
+  constructor(path: string) {
+    super(
+      `Durable storage changed while the write was in progress: ${path}.`,
+    );
+    this.name = "StorageConcurrencyError";
+  }
+}
+
 export type DurableCollectionKey = keyof Omit<DurableDomainState, "version">;
 
 export type DurableCollection<TEntity extends { readonly id: string }> = readonly TEntity[];
