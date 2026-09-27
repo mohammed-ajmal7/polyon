@@ -2,8 +2,10 @@ import { isAuthenticated } from "@/server/auth";
 import { getPolyonActorId, getPolyonComposition, isSameOrigin } from "@/server/polyon-server";
 
 export const runtime = "nodejs";
+const MAX_REQUEST_BYTES = 16_384;
 
 export async function GET(): Promise<Response> {
+  if (!(await isAuthenticated())) return Response.json({ error: "Authentication required." }, { status: 401 });
   const approvals = getPolyonComposition().stores.approvals
     .list()
     .filter((item) => item.status === "PENDING")
@@ -23,11 +25,16 @@ export async function GET(): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  if (!(await isAuthenticated())) return Response.json({ error: "Authentication required." }, { status: 401 });
   if (!isSameOrigin(request)) {
     return Response.json({ error: "Cross-origin POST requests are not allowed." }, { status: 403 });
   }
   try {
-    const input = (await request.json()) as Record<string, unknown>;
+    const raw = await request.text();
+    if (new TextEncoder().encode(raw).byteLength > MAX_REQUEST_BYTES) {
+      return Response.json({ error: "Approval request exceeds the 16384-byte limit." }, { status: 413 });
+    }
+    const input = JSON.parse(raw) as Record<string, unknown>;
     const approvalId = typeof input.approvalId === "string" ? input.approvalId.trim() : "";
     const status = input.status;
     if (approvalId === "") throw new Error("approvalId is required.");

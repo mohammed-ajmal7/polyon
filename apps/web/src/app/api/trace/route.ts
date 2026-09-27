@@ -2,6 +2,7 @@ import { isAuthenticated } from "@/server/auth";
 export const runtime = "nodejs";
 
 export async function GET(request: Request): Promise<Response> {
+  if (!(await isAuthenticated())) return Response.json({ error: "Authentication required." }, { status: 401 });
   const url = new URL(request.url);
   const result = new TraceQueryService(getPolyonComposition().stores.events).list({
     missionId: optional(url.searchParams.get("missionId")),

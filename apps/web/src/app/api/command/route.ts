@@ -7,6 +7,7 @@ export const runtime = "nodejs";
 const MAX_REQUEST_BYTES = 65_536;
 
 export async function POST(request: Request): Promise<Response> {
+  if (!(await isAuthenticated())) return Response.json({ error: "Authentication required." }, { status: 401 });
   if (!isSameOrigin(request)) {
     return Response.json({ error: "Cross-origin POST requests are not allowed." }, { status: 403 });
   }
