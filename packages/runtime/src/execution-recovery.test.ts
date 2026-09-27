@@ -7,7 +7,10 @@ import { tmpdir } from "node:os";
 import type { Execution, Task } from "@polyon/contracts";
 import { InMemoryExecutionCoordinator } from "./execution-coordinator";
 import { InMemoryExecutionQueue } from "./execution-queue";
-import { recoverQueuedExecutions } from "./execution-recovery";
+import {
+  recoverExecutions,
+  recoverQueuedExecutions,
+} from "./execution-recovery";
 import { describe, expect, it } from "vitest";
 
 import { FileDomainStores, InMemoryDomainStores } from "@polyon/storage";
@@ -48,6 +51,84 @@ describe("recoverQueuedExecutions", () => {
 
     expect(recoverQueuedExecutions(stores.executions, queue)).toEqual(["execution-1"]);
     expect(queue.peek()?.id).toBe("execution-1");
+  });
+
+  it("requeues an interrupted running execution with an approved resumable tool continuation", () => {
+    const stores = new InMemoryDomainStores();
+    const queue = new InMemoryExecutionQueue();
+
+    stores.executions.save({
+      ...queued("execution-2"),
+      status: "RUNNING",
+      taskId: "task-2",
+    });
+    stores.approvals.save({
+      id: "approval-2",
+      policyId: "policy-1",
+      policyDecisionId: "decision-2",
+      executionId: "execution-2",
+      toolId: "tool-1",
+      invocationId: "tool-call:2",
+      action: "TERMINAL",
+      riskLevel: "MEDIUM",
+      requestedBy: "agent-1",
+      reason: "Human approval required.",
+      status: "APPROVED",
+      requestedAt: "2026-09-27T01:00:00.000Z",
+      resolvedAt: "2026-09-27T01:01:00.000Z",
+      toolContinuation: {
+        agentId: "agent-1",
+        requiredCapabilityIds: ["text.generate"],
+        request: {
+          messages: [{ role: "USER", content: "Run the tool." }],
+        },
+        response: {
+          content: "",
+          finishReason: "TOOL_CALL",
+          toolCalls: [
+            {
+              id: "2",
+              toolId: "tool-1",
+              input: {},
+            },
+          ],
+        },
+        toolCall: {
+          id: "2",
+          toolId: "tool-1",
+          input: {},
+        },
+        rounds: 1,
+        state: "AWAITING_MODEL",
+        toolOutput: "already completed",
+        nextRequest: {
+          messages: [
+            { role: "USER", content: "Run the tool." },
+            { role: "ASSISTANT", content: "", toolCalls: [{ id: "2", toolId: "tool-1", input: {} }] },
+            { role: "TOOL", name: "tool-1", toolCallId: "2", content: "already completed" },
+          ],
+        },
+      },
+    });
+
+    expect(
+      recoverExecutions(
+        stores.executions,
+        queue,
+        stores.approvals,
+        "2026-09-27T01:05:00.000Z",
+      ),
+    ).toEqual([
+      {
+        executionId: "execution-2",
+        kind: "INTERRUPTED_TOOL_CONTINUATION",
+      },
+    ]);
+    expect(stores.executions.get("execution-2")?.status).toBe("QUEUED");
+    expect(queue.peek()?.id).toBe("execution-2");
+    expect(stores.executions.get("execution-2")?.updatedAt).toBe(
+      "2026-09-27T01:05:00.000Z",
+    );
   });
 
   it("does not duplicate executions already present in the queue", () => {
