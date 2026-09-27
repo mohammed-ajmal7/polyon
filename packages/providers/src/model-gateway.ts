@@ -149,13 +149,19 @@ export class ModelGateway {
   ): Promise<ProviderInvocationResult<TOutput>> {
     const timeoutMs = options.timeoutMs;
     const controller = new AbortController();
-    const providerPromise = Promise.resolve().then(() =>
-      adapter.invoke({
-        modelId,
-        input,
-        signal: controller.signal,
-      }),
-    );
+    let providerPromise: Promise<ProviderInvocationResult<TInput extends TInput ? TOutput : never>>;
+
+    try {
+      providerPromise = Promise.resolve(
+        adapter.invoke({
+          modelId,
+          input,
+          signal: controller.signal,
+        }),
+      ) as Promise<ProviderInvocationResult<TOutput>>;
+    } catch (error) {
+      providerPromise = Promise.reject(error);
+    }
 
     let timeout: ReturnType<typeof setTimeout> | undefined;
     let removeAbortListener: (() => void) | undefined;
