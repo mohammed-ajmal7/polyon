@@ -12,7 +12,11 @@ import type {
 
 import { InMemoryEntityStore, type EntityStore } from "./entity-store";
 import { InMemoryEventStore } from "./event-store";
-import type { DomainStoreTransactionContext, DomainUnitOfWork } from "./transaction";
+import {
+  DomainTransactionError,
+  type DomainStoreTransactionContext,
+  type DomainUnitOfWork,
+} from "./transaction";
 
 export type ApprovalRequestStore = EntityStore<ApprovalRequest>;
 export type ArtifactStore = EntityStore<Artifact>;
@@ -50,6 +54,8 @@ function restoreStore<TEntity extends { readonly id: string }>(
 }
 
 export class InMemoryDomainStores implements DomainStores, DomainUnitOfWork {
+  private transactionActive = false;
+
   readonly approvals: ApprovalRequestStore = new InMemoryEntityStore<ApprovalRequest>();
   readonly artifacts: ArtifactStore = new InMemoryEntityStore<Artifact>();
   readonly conversations: ConversationStore = new InMemoryEntityStore<Conversation>();
@@ -63,6 +69,12 @@ export class InMemoryDomainStores implements DomainStores, DomainUnitOfWork {
   readonly events = new InMemoryEventStore();
 
   transaction<T>(work: (context: DomainStoreTransactionContext) => T): T {
+    if (this.transactionActive) {
+      throw new DomainTransactionError();
+    }
+
+    this.transactionActive = true;
+
     const snapshots = {
       approvals: this.approvals.list(),
       artifacts: this.artifacts.list(),
@@ -90,6 +102,8 @@ export class InMemoryDomainStores implements DomainStores, DomainUnitOfWork {
       restoreStore(this.tasks, snapshots.tasks);
       this.events.restore(snapshots.events);
       throw error;
+    } finally {
+      this.transactionActive = false;
     }
   }
 }
