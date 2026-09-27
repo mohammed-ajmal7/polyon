@@ -9,7 +9,7 @@ declare module "node:fs" {
   export function writeFileSync(
     path: string,
     data: string,
-    encoding: "utf8",
+    encoding?: "utf8",
   ): void;
   export function readSync(
     fileDescriptor: number,
@@ -63,6 +63,14 @@ declare module "node:child_process" {
       readonly stdio: readonly ["ignore", "pipe", "pipe"];
     },
   ): SpawnedChildProcess;
+
+  export function execFileSync(
+    command: string,
+    args: readonly string[],
+    options?: {
+      readonly encoding?: "utf8";
+    },
+  ): string;
 }
 
 
