@@ -24,6 +24,16 @@ describe("migrateDurableSnapshot", () => {
         };
       },
     },
+    {
+      fromVersion: 2,
+      toVersion: 3,
+      migrate(state) {
+        return {
+          ...state,
+          memoryEmbeddings: [],
+        };
+      },
+    },
   ];
 
   it("applies migrations sequentially to the requested version", () => {
@@ -32,16 +42,17 @@ describe("migrateDurableSnapshot", () => {
       events: [],
     };
 
-    expect(migrateDurableSnapshot(legacy, 2, migrations)).toEqual({
+    expect(migrateDurableSnapshot(legacy, 3, migrations)).toEqual({
       value: {
-        version: 2,
+        version: 3,
         events: [],
         missions: [],
         migrationMarker: "v2",
+        memoryEmbeddings: [],
       },
       migrated: true,
       fromVersion: 0,
-      toVersion: 2,
+      toVersion: 3,
     });
 
     expect(legacy).toEqual({
@@ -56,19 +67,19 @@ describe("migrateDurableSnapshot", () => {
       events: [],
     };
 
-    expect(migrateDurableSnapshot(current, 2, migrations)).toEqual({
-      value: current,
+    expect(migrateDurableSnapshot({ version: 3, events: [], memoryEmbeddings: [] }, 3, migrations)).toEqual({
+      value: { version: 3, events: [], memoryEmbeddings: [] },
       migrated: false,
-      fromVersion: 2,
-      toVersion: 2,
+      fromVersion: 3,
+      toVersion: 3,
     });
   });
 
   it("rejects snapshots newer than the supported version", () => {
-    expect(() => migrateDurableSnapshot({ version: 3 }, 2, migrations)).toThrowError(
+    expect(() => migrateDurableSnapshot({ version: 4 }, 3, migrations)).toThrowError(
       new DurableMigrationError(
         "FUTURE_VERSION",
-        "Durable snapshot version 3 is newer than the supported version 2.",
+        "Durable snapshot version 4 is newer than the supported version 3.",
       ),
     );
   });
@@ -79,7 +90,7 @@ describe("migrateDurableSnapshot", () => {
         {
           version: 0,
         },
-        2,
+        3,
         [
           {
             fromVersion: 1,
