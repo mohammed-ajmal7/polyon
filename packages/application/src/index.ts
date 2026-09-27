@@ -190,3 +190,5 @@ export { MissionPlanOrchestrationService, type PlanMissionInput, type PlanMissio
 export { MissionGraphExecutionService, type ExecuteMissionGraphInput, type ExecuteMissionGraphResult } from "./mission-graph-execution-service";
 
 export { MissionWorkflowService, type ExecuteMissionWorkflowInput, type ExecuteMissionWorkflowResult, type MissionWorkflowStatus } from "./mission-workflow-service";
+
+export { KnowledgeContextService, type KnowledgeContextInput, type KnowledgeContextItem, type KnowledgeContextResult } from "./knowledge-context-service";
