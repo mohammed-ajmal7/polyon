@@ -223,10 +223,9 @@ function isSafeBranchName(value: string): boolean {
   return (
     value.length > 0 &&
     value.length <= 200 &&
+    /^[A-Za-z0-9._/@-]+$/.test(value) &&
     !value.includes("..") &&
     !value.includes("@{") &&
-    !value.includes("\\") &&
-    !/[\s~^:?*\[]/.test(value) &&
     !value.startsWith("/") &&
     !value.endsWith("/") &&
     !value.endsWith(".") &&
