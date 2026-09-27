@@ -108,7 +108,18 @@ describe("GoogleDriveIntegrationAdapter", () => {
   });
 
   it("retrieves file metadata with a fixed field set and shared-drive support", async () => {
-    const request = vi.fn(async () => ({
+    const request = vi.fn(async (
+      _input: {
+        readonly url: string;
+        readonly method?: "GET" | "HEAD";
+        readonly headers?: Readonly<Record<string, string>>;
+        readonly signal?: AbortSignal;
+      },
+      _options?: {
+        readonly timeoutMs?: number;
+        readonly maxResponseBytes?: number;
+      },
+    ) => ({
       url: "",
       status: 200,
       statusText: "OK",
@@ -195,7 +206,18 @@ describe("GoogleDriveIntegrationAdapter", () => {
   });
 
   it("rejects non-success responses and malformed metadata", async () => {
-    const request = vi.fn(async () => ({
+    const request = vi.fn(async (
+      _input: {
+        readonly url: string;
+        readonly method?: "GET" | "HEAD";
+        readonly headers?: Readonly<Record<string, string>>;
+        readonly signal?: AbortSignal;
+      },
+      _options?: {
+        readonly timeoutMs?: number;
+        readonly maxResponseBytes?: number;
+      },
+    ) => ({
       url: "",
       status: 403,
       statusText: "Forbidden",
