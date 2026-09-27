@@ -161,6 +161,50 @@ describe("ToolInvocationService", () => {
     ]);
   });
 
+
+  it("durably records model continuation state with a pending approval", async () => {
+    const { stores, service } = createService({
+      toolId: "tool-1",
+      invoke: vi.fn(async () => ({ output: "executed" })),
+    });
+
+    const result = await service.invoke({
+      ...baseInput,
+      policy: { ...policy, defaultEffect: "REQUIRE_APPROVAL" },
+      toolContinuation: {
+        agentId: "agent-1",
+        requiredCapabilityIds: ["capability-1"],
+        request: {
+          messages: [{ role: "USER", content: "Read the file." }],
+        },
+        response: {
+          content: "",
+          finishReason: "TOOL_CALL",
+          toolCalls: [
+            {
+              id: "call-1",
+              toolId: "tool-1",
+              input: { value: "hello" },
+            },
+          ],
+        },
+        toolCall: {
+          id: "call-1",
+          toolId: "tool-1",
+          input: { value: "hello" },
+        },
+        rounds: 1,
+      },
+    });
+
+    expect(result.status).toBe("APPROVAL_REQUIRED");
+    expect(stores.approvals.get("approval-1")?.toolContinuation).toMatchObject({
+      agentId: "agent-1",
+      toolCall: { id: "call-1", toolId: "tool-1" },
+      rounds: 1,
+    });
+  });
+
   it("cannot use an approval for another tool", async () => {
     const invoke = vi.fn(async () => ({ output: "should not run" }));
     const { service } = createService({
