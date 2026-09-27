@@ -67,6 +67,8 @@ function parseSnapshot<TEntity extends EntityWithId>(
     );
   }
 
+  const ids = new Set<string>();
+
   for (const entity of parsed.entities) {
     if (
       entity === null ||
@@ -78,6 +80,14 @@ function parseSnapshot<TEntity extends EntityWithId>(
         `Invalid entity record in storage snapshot: ${filePath}.`,
       );
     }
+
+    if (ids.has(entity.id)) {
+      throw new StorageFileFormatError(
+        `Duplicate entity ID in storage snapshot: ${entity.id}.`,
+      );
+    }
+
+    ids.add(entity.id);
   }
 
   return parsed.entities as TEntity[];
@@ -112,20 +122,20 @@ function writeSnapshot<TEntity extends EntityWithId>(
 
   writeFileSync(tempPath, JSON.stringify(snapshot) + "\n", "utf8");
 
-  const fileDescriptor = openSync(tempPath, "r");
   try {
-    fsyncSync(fileDescriptor);
-  } finally {
-    closeSync(fileDescriptor);
-  }
+    const fileDescriptor = openSync(tempPath, "r");
+    try {
+      fsyncSync(fileDescriptor);
+    } finally {
+      closeSync(fileDescriptor);
+    }
 
-  try {
     renameSync(tempPath, filePath);
   } catch (error) {
     try {
       unlinkSync(tempPath);
     } catch {
-      // Preserve the original rename error.
+      // Preserve the original persistence error.
     }
     throw error;
   }
