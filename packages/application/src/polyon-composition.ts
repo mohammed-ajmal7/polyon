@@ -40,6 +40,13 @@ export interface PolyonCompositionOptions {
   readonly gitWriteMaxOutputBytes?: number;
   readonly gitWriteEnvironmentKeys?: readonly string[];
   readonly gitWriteEnabled?: boolean;
+  readonly gitCommitRoot?: string;
+  readonly gitCommitExecutable?: string;
+  readonly gitCommitDefaultTimeoutMs?: number;
+  readonly gitCommitMaxTimeoutMs?: number;
+  readonly gitCommitMaxOutputBytes?: number;
+  readonly gitCommitEnvironmentKeys?: readonly string[];
+  readonly gitCommitEnabled?: boolean;
   readonly artifactRoot?: string;
   readonly artifactDefaultKind?:
     | "DOCUMENT"
@@ -117,6 +124,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
       options.terminalAllowedCommands !== undefined) ||
     options.gitRoot !== undefined ||
     options.gitWriteRoot !== undefined ||
+    options.gitCommitRoot !== undefined ||
     options.artifactRoot !== undefined
   ) {
     registerBuiltinTools(builtinTools, {
@@ -144,6 +152,13 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
       gitWriteMaxOutputBytes: options.gitWriteMaxOutputBytes,
       gitWriteEnvironmentKeys: options.gitWriteEnvironmentKeys,
       gitWriteEnabled: options.gitWriteEnabled,
+      gitCommitRoot: options.gitCommitRoot,
+      gitCommitExecutable: options.gitCommitExecutable,
+      gitCommitDefaultTimeoutMs: options.gitCommitDefaultTimeoutMs,
+      gitCommitMaxTimeoutMs: options.gitCommitMaxTimeoutMs,
+      gitCommitMaxOutputBytes: options.gitCommitMaxOutputBytes,
+      gitCommitEnvironmentKeys: options.gitCommitEnvironmentKeys,
+      gitCommitEnabled: options.gitCommitEnabled,
       artifactRoot: options.artifactRoot,
       artifactDefaultKind: options.artifactDefaultKind,
       artifactWriteEnabled: options.artifactWriteEnabled,
