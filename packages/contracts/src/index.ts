@@ -31,6 +31,12 @@ export type {
 } from "./policy/index";
 
 export type {
+  Tool,
+  ToolId,
+  ToolKind,
+} from "./tool/index";
+
+export type {
   Artifact,
   ArtifactId,
   ArtifactKind,
