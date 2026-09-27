@@ -258,6 +258,35 @@ describe("ExecutionResultService", () => {
     ).toThrowError(MissionResultErrorMatcher("ACTOR_NOT_PARTICIPANT"));
   });
 
+  it("treats an exact result replay as idempotent", () => {
+    const { stores, events, service } = createService();
+
+    const input = {
+      ...baseInput,
+      artifacts: [
+        {
+          id: "artifact-idempotent-1",
+          kind: "REPORT" as const,
+          name: "report.md",
+          location: "local://report.md",
+          createdAt: "2026-09-27T03:06:00.000Z",
+        },
+      ],
+    };
+
+    const first = service.persist(input);
+    const second = service.persist(input);
+
+    expect(second).toEqual(first);
+    expect(stores.messages.get("message-2")).toEqual(first.message);
+    expect(stores.artifacts.get("artifact-idempotent-1")).toEqual(first.artifacts[0]);
+    expect(stores.conversations.get("conversation-1")?.messageIds).toEqual([
+      "message-1",
+      "message-2",
+    ]);
+    expect(events.list()).toHaveLength(2);
+  });
+
   it("rejects duplicate message IDs before writing artifacts", () => {
     const { stores, events, service } = createService();
     stores.messages.save({
