@@ -40,6 +40,17 @@ export interface PolyonCompositionOptions {
   readonly gitWriteMaxOutputBytes?: number;
   readonly gitWriteEnvironmentKeys?: readonly string[];
   readonly gitWriteEnabled?: boolean;
+  readonly artifactRoot?: string;
+  readonly artifactDefaultKind?:
+    | "DOCUMENT"
+    | "IMAGE"
+    | "VIDEO"
+    | "AUDIO"
+    | "CODE"
+    | "DATASET"
+    | "REPORT"
+    | "OTHER";
+  readonly artifactWriteEnabled?: boolean;
   readonly toolPolicy?: Policy;
   readonly toolRequiredCapabilityIds?: readonly string[];
   readonly maxToolRounds?: number;
@@ -105,7 +116,8 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     (options.terminalRoot !== undefined &&
       options.terminalAllowedCommands !== undefined) ||
     options.gitRoot !== undefined ||
-    options.gitWriteRoot !== undefined
+    options.gitWriteRoot !== undefined ||
+    options.artifactRoot !== undefined
   ) {
     registerBuiltinTools(builtinTools, {
       filesystemRoot: options.filesystemRoot,
@@ -132,6 +144,9 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
       gitWriteMaxOutputBytes: options.gitWriteMaxOutputBytes,
       gitWriteEnvironmentKeys: options.gitWriteEnvironmentKeys,
       gitWriteEnabled: options.gitWriteEnabled,
+      artifactRoot: options.artifactRoot,
+      artifactDefaultKind: options.artifactDefaultKind,
+      artifactWriteEnabled: options.artifactWriteEnabled,
     });
   }
 
