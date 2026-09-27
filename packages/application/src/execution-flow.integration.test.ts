@@ -137,19 +137,21 @@ describe("governed execution flow", () => {
     expect(stores.tasks.get("task-1")?.status).toBe("SUCCEEDED");
     expect(queue.size()).toBe(0);
 
-    expect(events.list().map((event) => event.kind)).toEqual([
+    expect(events.list()).toHaveLength(13);
+    expect(events.listByExecution("execution-task-1-1").map((event) => event.kind)).toEqual([
       "EXECUTION_CREATED",
       "POLICY_DECIDED",
       "APPROVAL_REQUESTED",
       "EXECUTION_STATUS_CHANGED",
-      "TASK_STATUS_CHANGED",
       "APPROVAL_RESOLVED",
       "EXECUTION_STATUS_CHANGED",
+      "EXECUTION_STATUS_CHANGED",
+      "EXECUTION_STATUS_CHANGED",
+    ]);
+    expect(events.listByTask("task-1").map((event) => event.kind)).toEqual([
       "TASK_STATUS_CHANGED",
-      "EXECUTION_STATUS_CHANGED",
-      "EXECUTION_STATUS_CHANGED",
       "TASK_STATUS_CHANGED",
-      "EXECUTION_STATUS_CHANGED",
+      "TASK_STATUS_CHANGED",
       "TASK_STATUS_CHANGED",
     ]);
   });
