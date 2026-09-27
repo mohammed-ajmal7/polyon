@@ -5,6 +5,7 @@ export {
   completeExecution,
   ExecutionControlError,
   pauseExecution,
+  recoverRunningExecution,
   rejectExecution,
   resumeExecution,
   startExecution,
