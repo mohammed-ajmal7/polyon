@@ -247,16 +247,18 @@ describe("MissionExecutionService", () => {
     expect(result.dispatched[0]?.execution.id).toBe("execution-task-1-2");
   });
 
-  it("rejects an invalid mission task plan", () => {
+  it("rejects a dispatch task that does not belong to the mission", () => {
     const { service } = createService();
 
     expect(() =>
       service.dispatchReadyTasks({
-        mission: {
-          ...mission,
-          taskIds: ["task-1", "missing"],
-        },
-        tasks: [tasks[0]!],
+        mission,
+        tasks: [
+          {
+            ...tasks[0]!,
+            missionId: "mission-2",
+          },
+        ],
         actorId: "agent-1",
         policy,
         requestedBy: "user-1",
@@ -265,5 +267,4 @@ describe("MissionExecutionService", () => {
         identities,
       }),
     ).toThrowError(MissionExecutionValidationError);
-  });
-});
+  });});
