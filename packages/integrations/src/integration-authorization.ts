@@ -28,6 +28,7 @@ export interface AuthorizeIntegrationInvocationInput {
   readonly evaluatedAt: string;
 
   readonly actorId?: ActorId;
+  readonly agentId?: import("@polyon/contracts").AgentId;
   readonly missionId?: MissionId;
   readonly taskId?: TaskId;
   readonly executionId?: ExecutionId;
@@ -71,6 +72,7 @@ export function authorizeIntegrationInvocation(
     action: input.action,
     riskLevel: input.riskLevel,
     actorId: input.actorId,
+    agentId: input.agentId,
     missionId: input.missionId,
     taskId: input.taskId,
     evaluatedAt: input.evaluatedAt,
