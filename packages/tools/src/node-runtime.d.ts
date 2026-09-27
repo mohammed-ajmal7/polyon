@@ -38,9 +38,13 @@ declare module "node:child_process" {
     readonly stderr: {
       on(event: "data", listener: (chunk: Uint8Array) => void): void;
     };
-    on(event: "error", listener: (error: unknown) => void): void;
-    on(event: "close", listener: (exitCode: number | null, signal: string | null) => void): void;
-    kill(): boolean;
+    readonly stdin: {
+      on(event: "error", listener: (error: unknown) => void): void;
+      end(data?: string): void;
+    };
+    once(event: "error", listener: (error: unknown) => void): void;
+    once(event: "close", listener: (exitCode: number | null, signal: string | null) => void): void;
+    kill(signal?: string): boolean;
   }
 
   export function spawn(
@@ -51,7 +55,7 @@ declare module "node:child_process" {
       readonly shell: false;
       readonly windowsHide?: boolean;
       readonly env?: Readonly<Record<string, string | undefined>>;
-      readonly stdio: readonly ["ignore", "pipe", "pipe"];
+      readonly stdio: readonly ["pipe", "pipe", "pipe"];
     },
   ): SpawnedChildProcess;
 
