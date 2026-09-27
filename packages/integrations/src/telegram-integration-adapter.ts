@@ -28,11 +28,7 @@ export interface TelegramSendMessageOutput {
 }
 
 export type TelegramIntegrationAdapterErrorKind =
-  | "INVALID_INPUT"
-  | "INVALID_RESPONSE"
-  | "AUTHENTICATION_ERROR"
-  | "API_ERROR"
-  | "NETWORK_ERROR";
+  "INVALID_INPUT" | "INVALID_RESPONSE" | "AUTHENTICATION_ERROR" | "API_ERROR" | "NETWORK_ERROR";
 
 export class TelegramIntegrationAdapterError extends Error {
   readonly kind: TelegramIntegrationAdapterErrorKind;
@@ -120,12 +116,8 @@ export class TelegramIntegrationAdapter implements IntegrationAdapter {
       ...(input.disableNotification === undefined
         ? {}
         : { disable_notification: input.disableNotification }),
-      ...(input.protectContent === undefined
-        ? {}
-        : { protect_content: input.protectContent }),
-      ...(input.messageThreadId === undefined
-        ? {}
-        : { message_thread_id: input.messageThreadId }),
+      ...(input.protectContent === undefined ? {} : { protect_content: input.protectContent }),
+      ...(input.messageThreadId === undefined ? {} : { message_thread_id: input.messageThreadId }),
     };
 
     try {
@@ -140,7 +132,9 @@ export class TelegramIntegrationAdapter implements IntegrationAdapter {
           body: JSON.stringify(payload),
         },
         {
-          ...(this.maxResponseBytes === undefined ? {} : { maxResponseBytes: this.maxResponseBytes }),
+          ...(this.maxResponseBytes === undefined
+            ? {}
+            : { maxResponseBytes: this.maxResponseBytes }),
           ...(this.maxRequestBytes === undefined ? {} : { maxRequestBytes: this.maxRequestBytes }),
         },
       );
@@ -211,11 +205,7 @@ function parseSendMessageInput(input: unknown): TelegramSendMessageInput {
     );
   }
 
-  if (
-    typeof text !== "string" ||
-    text.length === 0 ||
-    Array.from(text).length > 4096
-  ) {
+  if (typeof text !== "string" || text.length === 0 || Array.from(text).length > 4096) {
     throw new TelegramIntegrationAdapterError(
       "INVALID_INPUT",
       "Telegram message text must contain 1-4096 characters.",

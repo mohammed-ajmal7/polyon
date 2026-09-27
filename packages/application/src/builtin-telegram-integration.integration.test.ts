@@ -1,10 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { Policy, SecretReference } from "@polyon/contracts";
-import {
-  BoundedHttpClient,
-  TelegramIntegrationAdapter,
-} from "@polyon/integrations";
+import { BoundedHttpClient, TelegramIntegrationAdapter } from "@polyon/integrations";
 import { InMemoryDomainStores } from "@polyon/storage";
 
 import { IntegrationInvocationService } from "./integration-invocation-service";

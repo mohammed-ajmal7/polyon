@@ -83,8 +83,7 @@ export class BoundedHttpClient {
     this.maxTimeoutMs = options.maxTimeoutMs ?? this.defaultTimeoutMs;
     this.defaultMaxResponseBytes = options.defaultMaxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES;
     this.maxResponseBytes = options.maxResponseBytes ?? this.defaultMaxResponseBytes;
-    this.defaultMaxRequestBytes =
-      options.defaultMaxRequestBytes ?? DEFAULT_MAX_REQUEST_BYTES;
+    this.defaultMaxRequestBytes = options.defaultMaxRequestBytes ?? DEFAULT_MAX_REQUEST_BYTES;
     this.maxRequestBytes = options.maxRequestBytes ?? this.defaultMaxRequestBytes;
     this.allowInsecureHttp = options.allowInsecureHttp ?? false;
 
