@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 import {
   completeExecution,
   ExecutionControlError,
+  pauseExecution,
+  resumeExecution,
   startExecution,
 } from "./execution-control";
 
@@ -28,16 +30,56 @@ describe("startExecution", () => {
     });
   });
 
-  it("preserves the original startedAt when resuming", () => {
+  it("rejects starting a paused execution directly", () => {
     const pausedExecution: Execution = {
       ...queuedExecution,
       status: "PAUSED",
       startedAt: "2026-09-27T01:02:00.000Z",
     };
 
-    expect(startExecution(pausedExecution, "2026-09-27T01:10:00.000Z").startedAt).toBe(
-      "2026-09-27T01:02:00.000Z",
-    );
+    expect(() =>
+      startExecution(pausedExecution, "2026-09-27T01:10:00.000Z"),
+    ).toThrow();
+  });
+
+  it("does not mutate the original execution", () => {
+    const before = structuredClone(queuedExecution);
+
+    startExecution(queuedExecution, "2026-09-27T01:02:00.000Z");
+
+    expect(queuedExecution).toEqual(before);
+  });
+});
+
+describe("pauseExecution", () => {
+  it("pauses a running execution", () => {
+    const runningExecution: Execution = {
+      ...queuedExecution,
+      status: "RUNNING",
+      startedAt: "2026-09-27T01:02:00.000Z",
+    };
+
+    expect(pauseExecution(runningExecution, "2026-09-27T01:03:00.000Z")).toEqual({
+      ...runningExecution,
+      status: "PAUSED",
+      updatedAt: "2026-09-27T01:03:00.000Z",
+    });
+  });
+});
+
+describe("resumeExecution", () => {
+  it("returns a paused execution to the queue", () => {
+    const pausedExecution: Execution = {
+      ...queuedExecution,
+      status: "PAUSED",
+      startedAt: "2026-09-27T01:02:00.000Z",
+    };
+
+    expect(resumeExecution(pausedExecution, "2026-09-27T01:10:00.000Z")).toEqual({
+      ...pausedExecution,
+      status: "QUEUED",
+      updatedAt: "2026-09-27T01:10:00.000Z",
+    });
   });
 
   it("does not mutate the original execution", () => {
