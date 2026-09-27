@@ -22,9 +22,7 @@ export interface ArtifactListToolOutput {
 
 export interface ArtifactListToolAdapterOptions {
   readonly toolId: string;
-  readonly list: (
-    filter: ArtifactListToolInput,
-  ) => readonly Artifact[];
+  readonly list: (filter: ArtifactListToolInput) => readonly Artifact[];
 }
 
 export class ScopedArtifactListToolAdapter implements ToolAdapter<
@@ -33,9 +31,7 @@ export class ScopedArtifactListToolAdapter implements ToolAdapter<
 > {
   readonly toolId: string;
 
-  constructor(
-    private readonly options: ArtifactListToolAdapterOptions,
-  ) {
+  constructor(private readonly options: ArtifactListToolAdapterOptions) {
     if (options.toolId.trim() === "") {
       throw new RangeError("toolId must not be empty.");
     }

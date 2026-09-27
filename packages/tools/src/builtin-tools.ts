@@ -82,7 +82,9 @@ export interface BuiltinToolOptions {
   readonly artifactDefaultKind?:
     "DOCUMENT" | "IMAGE" | "VIDEO" | "AUDIO" | "CODE" | "DATASET" | "REPORT" | "OTHER";
   readonly artifactWriteEnabled?: boolean;
-  readonly artifactList?: (filter: ArtifactListToolInput) => readonly import("@polyon/contracts").Artifact[];
+  readonly artifactList?: (
+    filter: ArtifactListToolInput,
+  ) => readonly import("@polyon/contracts").Artifact[];
   readonly artifactListEnabled?: boolean;
   readonly artifactRead?: (
     artifactId: import("@polyon/contracts").ArtifactId,
@@ -300,7 +302,8 @@ export function registerBuiltinTools(
     const artifactListTool: Tool = {
       id: BUILTIN_TOOL_IDS.artifactList,
       name: "Artifact catalog list",
-      description: "Lists durable POLYON artifacts using explicit mission, task, execution, status, and kind filters.",
+      description:
+        "Lists durable POLYON artifacts using explicit mission, task, execution, status, and kind filters.",
       kind: "ARTIFACT",
       actionKinds: ["READ"],
       inputSchema: {

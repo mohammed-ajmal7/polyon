@@ -11,10 +11,7 @@ import {
 import { InMemoryDomainStores } from "@polyon/storage";
 import { describe, expect, it } from "vitest";
 
-import {
-  ArtifactCatalogService,
-  LocalArtifactContentService,
-} from "./index";
+import { ArtifactCatalogService, LocalArtifactContentService } from "./index";
 import { ToolInvocationService } from "./tool-invocation-service";
 
 const policy: Policy = {
@@ -64,8 +61,7 @@ describe("governed artifact access integration", () => {
       const registries = createInMemoryBuiltinToolRegistries();
       registerBuiltinTools(registries, {
         artifactList: (filter) => catalog.list(filter),
-        artifactRead: (artifactId, maxBytes) =>
-          content.read(artifactId, maxBytes),
+        artifactRead: (artifactId, maxBytes) => content.read(artifactId, maxBytes),
       });
 
       const service = new ToolInvocationService({
@@ -132,9 +128,7 @@ describe("governed artifact access integration", () => {
         content: "POLYON artifact",
         sizeBytes: 15,
       });
-      expect(
-        stores.events.get("TOOL_INVOKED:artifact-read-1:SUCCEEDED"),
-      ).toBeDefined();
+      expect(stores.events.get("TOOL_INVOKED:artifact-read-1:SUCCEEDED")).toBeDefined();
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

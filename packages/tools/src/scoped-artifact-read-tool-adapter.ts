@@ -21,9 +21,7 @@ export interface ArtifactReadToolResolution {
 }
 
 export type ArtifactReadToolErrorKind =
-  | "INVALID_INPUT"
-  | "ARTIFACT_NOT_FOUND"
-  | "CONTENT_READ_FAILED";
+  "INVALID_INPUT" | "ARTIFACT_NOT_FOUND" | "CONTENT_READ_FAILED";
 
 export class ArtifactReadToolError extends Error {
   readonly kind: ArtifactReadToolErrorKind;
@@ -37,10 +35,7 @@ export class ArtifactReadToolError extends Error {
 
 export interface ArtifactReadToolAdapterOptions {
   readonly toolId: string;
-  readonly read: (
-    artifactId: ArtifactId,
-    maxBytes?: number,
-  ) => ArtifactReadToolResolution;
+  readonly read: (artifactId: ArtifactId, maxBytes?: number) => ArtifactReadToolResolution;
 }
 
 export class ScopedArtifactReadToolAdapter implements ToolAdapter<
@@ -49,9 +44,7 @@ export class ScopedArtifactReadToolAdapter implements ToolAdapter<
 > {
   readonly toolId: string;
 
-  constructor(
-    private readonly options: ArtifactReadToolAdapterOptions,
-  ) {
+  constructor(private readonly options: ArtifactReadToolAdapterOptions) {
     if (options.toolId.trim() === "") {
       throw new RangeError("toolId must not be empty.");
     }
@@ -80,10 +73,7 @@ export class ScopedArtifactReadToolAdapter implements ToolAdapter<
       input.maxBytes !== undefined &&
       (!Number.isInteger(input.maxBytes) || input.maxBytes <= 0)
     ) {
-      throw new ArtifactReadToolError(
-        "INVALID_INPUT",
-        "maxBytes must be a positive integer.",
-      );
+      throw new ArtifactReadToolError("INVALID_INPUT", "maxBytes must be a positive integer.");
     }
 
     try {

@@ -639,9 +639,7 @@ function stringifyToolOutput(output: unknown, maxBytes = DEFAULT_MAX_TOOL_OUTPUT
     return new TextDecoder().decode(markerBytes.slice(0, maxBytes));
   }
 
-  const prefix = new TextDecoder().decode(
-    bytes.slice(0, maxBytes - markerBytes.byteLength),
-  );
+  const prefix = new TextDecoder().decode(bytes.slice(0, maxBytes - markerBytes.byteLength));
 
   return marker + prefix;
 }

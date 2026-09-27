@@ -265,8 +265,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     ...(localArtifactContent === undefined
       ? {}
       : {
-          artifactRead: (artifactId, maxBytes) =>
-            localArtifactContent.read(artifactId, maxBytes),
+          artifactRead: (artifactId, maxBytes) => localArtifactContent.read(artifactId, maxBytes),
         }),
   });
 
