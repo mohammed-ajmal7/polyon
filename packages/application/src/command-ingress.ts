@@ -52,6 +52,32 @@ type CommandIngressStores = Pick<
   "conversations" | "messages" | "events"
 >;
 
+export interface CommandIngressResult {
+  readonly conversation: Conversation;
+  readonly message: Message;
+  readonly event: DomainEvent;
+}
+
+export type CommandIngressErrorKind =
+  | "COMMAND_REQUIRED"
+  | "CONVERSATION_NOT_ACTIVE"
+  | "CONVERSATION_KIND_MISMATCH"
+  | "CONVERSATION_PARTICIPANTS_REQUIRED"
+  | "ACTOR_NOT_PARTICIPANT"
+  | "MISSION_MISMATCH"
+  | "DUPLICATE_MESSAGE"
+  | "DUPLICATE_EVENT";
+
+export class CommandIngressError extends Error {
+  readonly kind: CommandIngressErrorKind;
+
+  constructor(kind: CommandIngressErrorKind, message: string) {
+    super(message);
+    this.name = "CommandIngressError";
+    this.kind = kind;
+  }
+}
+
 export class CommandIngressService {
   constructor(private readonly dependencies: CommandIngressDependencies) {}
 
