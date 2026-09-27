@@ -1,6 +1,7 @@
 import type {
   ApprovalRequest,
   Conversation,
+  MissionPlanProposal,
   Execution,
   Message,
   Mission,
@@ -61,7 +62,18 @@ describe("InMemoryDomainStores", () => {
     stores.messages.save(message);
     stores.executions.save(execution);
 
+    const proposal: MissionPlanProposal = {
+      id: "proposal-1",
+      missionId: "mission-1",
+      taskIds: [],
+      rationale: "Test plan.",
+      createdBy: "agent-1",
+      createdAt: "2026-09-27T01:00:00.000Z",
+    };
+    stores.missionPlanProposals.save(proposal);
+
     expect(stores.missions.get("mission-1")).toEqual(mission);
+    expect(stores.missionPlanProposals.get("proposal-1")).toEqual(proposal);
     expect(stores.conversations.get("conversation-1")).toEqual(conversation);
     expect(stores.messages.get("message-1")).toEqual(message);
     expect(stores.executions.get("execution-1")).toEqual(execution);
@@ -69,5 +81,6 @@ describe("InMemoryDomainStores", () => {
     expect(stores.artifacts.get("execution-1")).toBeUndefined();
     expect(stores.approvals.get("approval-1")).toBeUndefined();
     expect(stores.policyDecisions.get("decision-1")).toBeUndefined();
+    expect(stores.missionPlanProposals.get("mission-2")).toBeUndefined();
   });
 });
