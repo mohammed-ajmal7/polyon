@@ -10,9 +10,15 @@ export type {
   Model,
   ModelId,
   ModelKind,
+  ModelMessage,
+  ModelMessageRole,
   Provider,
   ProviderId,
   ProviderKind,
+  TextModelFinishReason,
+  TextModelRequest,
+  TextModelResponse,
+  TextModelUsage,
 } from "./agent/index";
 
 export type { DomainEvent, EventId, EventKind } from "./observability/index";
