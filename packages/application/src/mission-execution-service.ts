@@ -1,5 +1,6 @@
 import type {
   ActorId,
+  AgentId,
   Mission,
   Policy,
   Task,
@@ -25,7 +26,7 @@ export interface DispatchReadyTasksInput {
   readonly mission: Mission;
   readonly tasks: readonly Task[];
   readonly actorId: ActorId;
-  readonly agentId?: import("@polyon/contracts").AgentId;
+  readonly agentId?: AgentId;
   readonly policy: Policy;
   readonly requestedBy: ActorId;
   readonly now: string;

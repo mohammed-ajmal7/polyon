@@ -1,5 +1,6 @@
 import type {
   ActorId,
+  AgentId,
   ApprovalRequest,
   ApprovalRequestId,
   Execution,
@@ -24,7 +25,7 @@ export interface PrepareExecutionDispatchInput {
   readonly task: Task;
   readonly dependencies: readonly TaskDependency[];
   readonly actorId: ActorId;
-  readonly agentId?: import("@polyon/contracts").AgentId;
+  readonly agentId?: AgentId;
   readonly executionId: string;
   readonly attempt: number;
 

@@ -52,6 +52,7 @@ describe("prepareExecutionDispatch", () => {
       execution: {
         id: "execution-1",
         missionId: "mission-1",
+        agentId: "agent-1",
         taskId: "task-1",
         actorId: "agent-1",
         attempt: 1,
