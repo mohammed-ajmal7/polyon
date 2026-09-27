@@ -96,7 +96,7 @@ export class OpenAICompatibleTextModelAdapter implements TextModelProviderAdapte
     }
 
     return {
-      output: this.parseSuccessResponse(modelId, payload),
+      output: this.parseSuccessResponse(modelId, payload, input),
     };
   }
 
@@ -140,7 +140,11 @@ export class OpenAICompatibleTextModelAdapter implements TextModelProviderAdapte
     });
   }
 
-  private parseSuccessResponse(modelId: string, payload: unknown): TextModelResponse {
+  private parseSuccessResponse(
+    modelId: string,
+    payload: unknown,
+    request: TextModelRequest,
+  ): TextModelResponse {
     if (!isRecord(payload)) {
       throw new ProviderInvocationError(
         "UNKNOWN",
@@ -154,7 +158,10 @@ export class OpenAICompatibleTextModelAdapter implements TextModelProviderAdapte
     const body = payload as OpenAIChatResponse;
     const choice = body.choices?.[0];
     const content = choice?.message?.content;
-    const toolCalls = parseToolCalls(choice?.message?.tool_calls);
+    const toolNames = new Map(
+      (request.tools ?? []).map((tool) => [tool.name, tool.toolId]),
+    );
+    const toolCalls = parseToolCalls(choice?.message?.tool_calls, toolNames);
 
     if (typeof content !== "string" && toolCalls === undefined) {
       throw new ProviderInvocationError(
@@ -296,7 +303,10 @@ function mapUsage(value: OpenAIChatResponse["usage"]): TextModelUsage | undefine
 }
 
 
-function parseToolCalls(value: unknown): TextModelResponse["toolCalls"] | undefined {
+function parseToolCalls(
+  value: unknown,
+  toolNames: ReadonlyMap<string, string>,
+): TextModelResponse["toolCalls"] | undefined {
   if (!Array.isArray(value) || value.length === 0) {
     return undefined;
   }
@@ -326,7 +336,11 @@ function parseToolCalls(value: unknown): TextModelResponse["toolCalls"] | undefi
       input = rawArguments;
     }
 
-    calls.push({ id, toolId: name, input });
+    calls.push({
+      id,
+      toolId: toolNames.get(name) ?? name,
+      input,
+    });
   }
 
   return calls.length === 0 ? undefined : calls;
