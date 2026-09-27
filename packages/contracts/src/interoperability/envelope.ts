@@ -40,7 +40,16 @@ export function validateInteroperabilityEnvelope(
     throw new RangeError("Interoperability envelope createdAt must be a valid timestamp.");
   }
 
-  const payload = new TextEncoder().encode(JSON.stringify(envelope.payload));
+  let serializedPayload: string;
+  try {
+    serializedPayload = JSON.stringify(envelope.payload);
+  } catch {
+    throw new RangeError("Interoperability envelope payload must be JSON-serializable.");
+  }
+  if (serializedPayload === undefined) {
+    throw new RangeError("Interoperability envelope payload must not be undefined.");
+  }
+  const payload = new TextEncoder().encode(serializedPayload);
   if (payload.byteLength > maxPayloadBytes) {
     throw new RangeError("Interoperability envelope payload exceeds the configured byte limit.");
   }
