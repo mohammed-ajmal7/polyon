@@ -139,6 +139,10 @@ describe("protocol servers", () => {
       },
       commandIngress: commandIngress as never,
       conversationOrchestration: conversation as never,
+      tasks: {
+        list: () => [],
+        get: () => undefined,
+      },
       policy: policy(),
       actorId: "a2a-client",
     });
@@ -165,6 +169,68 @@ describe("protocol servers", () => {
     expect(response.result).toEqual({
       role: "agent",
       parts: [{ kind: "text", text: "world" }],
+    });
+  });
+});
+
+
+describe("A2A task status", () => {
+  it("returns bounded persisted task status and maps terminal states", async () => {
+    const task = {
+      id: "task-1",
+      missionId: "mission-1",
+      kind: "CODING" as const,
+      title: "Build",
+      description: "Build it",
+      status: "SUCCEEDED" as const,
+      dependsOn: [],
+      createdAt: "2026-09-28T00:00:00.000Z",
+      updatedAt: "2026-09-28T00:00:01.000Z",
+    };
+
+    const service = new A2AServerService({
+      agents: { list: () => [] },
+      commandIngress: { submit: vi.fn() } as never,
+      conversationOrchestration: { execute: vi.fn() } as never,
+      tasks: {
+        list: () => [task],
+        get: (id) => (id === task.id ? task : undefined),
+      },
+      policy: policy(),
+      actorId: "a2a-client",
+    });
+
+    const getResponse = await service.handle({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "GetTask",
+      params: { id: "task-1" },
+    });
+    expect(getResponse.result).toEqual({
+      id: "task-1",
+      contextId: "mission-1",
+      status: {
+        state: "completed",
+        timestamp: "2026-09-28T00:00:01.000Z",
+      },
+      metadata: {
+        polyonTaskKind: "CODING",
+      },
+    });
+
+    const listResponse = await service.handle({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "ListTasks",
+      params: { limit: 1 },
+    });
+    expect(listResponse.result).toEqual({
+      tasks: [
+        expect.objectContaining({
+          id: "task-1",
+          status: { state: "completed" },
+        }),
+      ],
     });
   });
 });
