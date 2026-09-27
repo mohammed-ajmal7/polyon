@@ -18,7 +18,7 @@ export interface BuiltinToolRegistries {
 }
 
 export interface BuiltinToolOptions {
-  readonly filesystemRoot: string;
+  readonly filesystemRoot?: string;
   readonly filesystemReadMaxBytes?: number;
   readonly filesystemReadEnabled?: boolean;
   readonly terminalRoot?: string;
@@ -38,45 +38,48 @@ export function registerBuiltinTools(
   registries: BuiltinToolRegistries,
   options: BuiltinToolOptions,
 ): readonly BuiltinFilesystemReadToolRegistration[] {
-  const filesystemReadTool: Tool = {
-    id: BUILTIN_TOOL_IDS.filesystemRead,
-    name: "Scoped filesystem read",
-    description: "Reads a bounded file from the configured POLYON filesystem root.",
-    kind: "FILESYSTEM",
-    actionKinds: ["READ"],
-    inputSchema: {
-      type: "object",
-      required: ["path"],
-      additionalProperties: false,
-      properties: {
-        path: {
-          type: "string",
-          minLength: 1,
-        },
-        maxBytes: {
-          type: "integer",
-          minimum: 1,
+  const registrations: BuiltinFilesystemReadToolRegistration[] = [];
+
+  if (options.filesystemRoot !== undefined) {
+    const filesystemReadTool: Tool = {
+      id: BUILTIN_TOOL_IDS.filesystemRead,
+      name: "Scoped filesystem read",
+      description:
+        "Reads a bounded file from the configured POLYON filesystem root.",
+      kind: "FILESYSTEM",
+      actionKinds: ["READ"],
+      inputSchema: {
+        type: "object",
+        required: ["path"],
+        additionalProperties: false,
+        properties: {
+          path: {
+            type: "string",
+            minLength: 1,
+          },
+          maxBytes: {
+            type: "integer",
+            minimum: 1,
+          },
         },
       },
-    },
-    enabled: options.filesystemReadEnabled ?? true,
-  };
+      enabled: options.filesystemReadEnabled ?? true,
+    };
 
-  const filesystemReadAdapter = new ScopedFilesystemReadToolAdapter({
-    toolId: filesystemReadTool.id,
-    rootDir: options.filesystemRoot,
-    defaultMaxBytes: options.filesystemReadMaxBytes,
-  });
+    const filesystemReadAdapter = new ScopedFilesystemReadToolAdapter({
+      toolId: filesystemReadTool.id,
+      rootDir: options.filesystemRoot,
+      defaultMaxBytes: options.filesystemReadMaxBytes,
+    });
 
-  registries.tools.register(filesystemReadTool);
-  registries.adapters.register(filesystemReadAdapter);
+    registries.tools.register(filesystemReadTool);
+    registries.adapters.register(filesystemReadAdapter);
 
-  const registrations: BuiltinFilesystemReadToolRegistration[] = [
-    {
+    registrations.push({
       tool: filesystemReadTool,
       adapter: filesystemReadAdapter,
-    },
-  ];
+    });
+  }
 
   if (
     options.terminalRoot !== undefined &&
