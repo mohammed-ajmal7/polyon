@@ -123,7 +123,17 @@ export class ScopedArtifactWriteToolAdapter
     const target = this.resolveArtifactPath(input.name);
     const artifactId =
       "artifact:" +
-      createHash("sha256").update(target + "\n" + input.content).digest("hex");
+      createHash("sha256")
+        .update(
+          target +
+            "\n" +
+            input.content +
+            "\n" +
+            kind +
+            "\n" +
+            (input.mimeType ?? ""),
+        )
+        .digest("hex");
 
     const existing = readExisting(target);
 
