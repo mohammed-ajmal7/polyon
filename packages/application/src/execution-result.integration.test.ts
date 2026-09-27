@@ -2,7 +2,7 @@ import type { Conversation, Execution, Task } from "@polyon/contracts";
 import {
   ExecutionResultService,
   type PersistExecutionResultInput,
-} from "@polyon/application";
+} from "./execution-result-service";
 import { InMemoryExecutionCoordinator, InMemoryExecutionQueue } from "@polyon/runtime";
 import { InMemoryDomainStores, InMemoryEventStore } from "@polyon/storage";
 import { describe, expect, it } from "vitest";
@@ -73,7 +73,7 @@ describe("execution result integration", () => {
 
     expect(completed?.status).toBe("SUCCEEDED");
 
-    let output = "Build completed.";
+    const output = "Build completed.";
     const resultInput: PersistExecutionResultInput = {
       executionId: completed!.id,
       conversationId: "conversation-1",
