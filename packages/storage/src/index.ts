@@ -15,3 +15,6 @@ export {
 } from "./domain-stores";
 
 export { InMemoryEventStore, type EventStore } from "./event-store";
+
+export { FileDomainStores, type DurableDomainStores } from "./file-domain-stores";
+
