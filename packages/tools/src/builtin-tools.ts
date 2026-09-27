@@ -5,6 +5,7 @@ import { InMemoryToolAdapterRegistry } from "./tool-adapter-registry";
 import { ScopedFilesystemReadToolAdapter } from "./scoped-filesystem-read-adapter";
 import { ScopedTerminalToolAdapter } from "./scoped-terminal-tool-adapter";
 import { ScopedGitReadToolAdapter } from "./scoped-git-read-tool-adapter";
+import { ScopedGitWriteToolAdapter } from "./scoped-git-write-tool-adapter";
 import type { ToolRegistry } from "./tool-registry";
 import { InMemoryToolRegistry } from "./tool-registry";
 
@@ -12,6 +13,7 @@ export const BUILTIN_TOOL_IDS = {
   filesystemRead: "filesystem.read.scoped" as ToolId,
   terminalExecute: "terminal.execute.scoped" as ToolId,
   gitRead: "git.read.scoped" as ToolId,
+  gitWrite: "git.write.scoped" as ToolId,
 } as const;
 
 export interface BuiltinToolRegistries {
@@ -37,6 +39,13 @@ export interface BuiltinToolOptions {
   readonly gitMaxOutputBytes?: number;
   readonly gitEnvironmentKeys?: readonly string[];
   readonly gitEnabled?: boolean;
+  readonly gitWriteRoot?: string;
+  readonly gitWriteExecutable?: string;
+  readonly gitWriteDefaultTimeoutMs?: number;
+  readonly gitWriteMaxTimeoutMs?: number;
+  readonly gitWriteMaxOutputBytes?: number;
+  readonly gitWriteEnvironmentKeys?: readonly string[];
+  readonly gitWriteEnabled?: boolean;
 }
 
 export interface BuiltinFilesystemReadToolRegistration {
@@ -190,6 +199,63 @@ export function registerBuiltinTools(
 
     registries.tools.register(gitTool);
     registries.adapters.register(gitAdapter);
+  }
+
+  if (options.gitWriteRoot !== undefined) {
+    const gitWriteTool: Tool = {
+      id: BUILTIN_TOOL_IDS.gitWrite,
+      name: "Scoped Git write",
+      description:
+        "Performs narrowly defined Git working-tree/index writes through explicit operations.",
+      kind: "GIT",
+      actionKinds: ["WRITE"],
+      inputSchema: {
+        type: "object",
+        required: ["operation"],
+        additionalProperties: false,
+        properties: {
+          operation: {
+            type: "string",
+            enum: ["CREATE_BRANCH", "STAGE_PATHS", "UNSTAGE_PATHS"],
+          },
+          branchName: {
+            type: "string",
+            minLength: 1,
+            maxLength: 200,
+          },
+          paths: {
+            type: "array",
+            minItems: 1,
+            items: {
+              type: "string",
+              minLength: 1,
+            },
+          },
+          timeoutMs: {
+            type: "integer",
+            minimum: 1,
+          },
+          maxOutputBytes: {
+            type: "integer",
+            minimum: 1,
+          },
+        },
+      },
+      enabled: options.gitWriteEnabled ?? true,
+    };
+
+    const gitWriteAdapter = new ScopedGitWriteToolAdapter({
+      toolId: gitWriteTool.id,
+      rootDir: options.gitWriteRoot,
+      gitExecutable: options.gitWriteExecutable,
+      defaultTimeoutMs: options.gitWriteDefaultTimeoutMs,
+      maxTimeoutMs: options.gitWriteMaxTimeoutMs,
+      defaultMaxOutputBytes: options.gitWriteMaxOutputBytes,
+      environmentKeys: options.gitWriteEnvironmentKeys,
+    });
+
+    registries.tools.register(gitWriteTool);
+    registries.adapters.register(gitWriteAdapter);
   }
 
   return registrations;
