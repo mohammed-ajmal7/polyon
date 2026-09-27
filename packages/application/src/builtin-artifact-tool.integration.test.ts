@@ -26,6 +26,72 @@ const policy: Policy = {
 };
 
 describe("built-in artifact tool integration", () => {
+  it("does not duplicate durable metadata when the same artifact is replayed", async () => {
+    const root = mkdtempSync(join(tmpdir(), "polyon-artifact-replay-"));
+
+    try {
+      const registries = createInMemoryBuiltinToolRegistries();
+      const stores = new InMemoryDomainStores();
+
+      registerBuiltinTools(registries, {
+        artifactRoot: root,
+      });
+
+      const service = new ToolInvocationService({
+        tools: registries.tools,
+        adapters: registries.adapters,
+        approvals: stores.approvals,
+        policyDecisions: stores.policyDecisions,
+        events: stores.events,
+        unitOfWork: stores,
+      });
+
+      const base = {
+        toolId: BUILTIN_TOOL_IDS.artifactWrite,
+        input: {
+          name: "replay.txt",
+          content: "same artifact",
+          kind: "REPORT" as const,
+          mimeType: "text/plain",
+        },
+        action: "WRITE" as const,
+        riskLevel: "MEDIUM" as const,
+        policy,
+        actorId: "agent-1",
+        missionId: "mission-1",
+        taskId: "task-1",
+        executionId: "execution-1",
+        agentId: "agent-1",
+        requestedBy: "agent-1",
+        requestedAt: "2026-09-27T01:01:00.000Z",
+        evaluatedAt: "2026-09-27T01:01:00.000Z",
+      };
+
+      const first = await service.invoke({
+        ...base,
+        invocationId: "artifact-replay-1",
+        decisionId: "artifact-replay-decision-1",
+        approvalRequestId: "artifact-replay-approval-1",
+      });
+
+      const second = await service.invoke({
+        ...base,
+        invocationId: "artifact-replay-2",
+        decisionId: "artifact-replay-decision-2",
+        approvalRequestId: "artifact-replay-approval-2",
+      });
+
+      expect(first.status).toBe("SUCCEEDED");
+      expect(second.status).toBe("SUCCEEDED");
+      expect(stores.artifacts.list()).toHaveLength(1);
+      expect(
+        stores.events.list().filter((event) => event.kind === "ARTIFACT_CREATED"),
+      ).toHaveLength(1);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("writes and durably registers an artifact through governed invocation", async () => {
     const root = mkdtempSync(join(tmpdir(), "polyon-artifact-integration-"));
 
