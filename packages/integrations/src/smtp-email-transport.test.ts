@@ -7,7 +7,7 @@ import {
   SmtpTransportError,
 } from "./smtp-email-transport";
 
-function createConnection(responses: string[]) {
+function createConnection(responses: string[]): {\n  read: ReturnType<typeof vi.fn>;\n  write: ReturnType<typeof vi.fn>;\n  close: ReturnType<typeof vi.fn>;\n  startTls: ReturnType<typeof vi.fn>;\n} {
   return {
     read: vi.fn(async () => {
       const response = responses.shift();
