@@ -426,6 +426,14 @@ export class MissionPlanService {
     }
 
     const tasks = loadTasks(this.dependencies.tasks, proposal.taskIds);
+
+    if (input.status === "APPROVED" && mission.status !== "PLANNING") {
+      throw new MissionPlanServiceError(
+        "MISSION_NOT_PLANNING",
+        `Cannot apply a plan while mission ${mission.id} is ${mission.status}.`,
+      );
+    }
+
     const resolvedApproval = transitionApprovalStatus(
       approval,
       input.status,
