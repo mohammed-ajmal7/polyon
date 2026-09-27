@@ -1,7 +1,7 @@
 import type { Execution, Task } from "@polyon/contracts";
 import { describe, expect, it } from "vitest";
 
-import { InMemoryDomainStores } from "@polyon/storage";
+import { InMemoryDomainStores, InMemoryEventStore } from "@polyon/storage";
 
 import {
   ExecutionCoordinatorError,
@@ -49,6 +49,7 @@ function createCoordinator(
 ) {
   const stores = new InMemoryDomainStores();
   const queue = new InMemoryExecutionQueue();
+  const events = new InMemoryEventStore();
 
   stores.executions.save(execution);
   stores.tasks.save(task);
@@ -59,6 +60,7 @@ function createCoordinator(
     runner,
     executions: stores.executions,
     tasks: stores.tasks,
+    events,
   };
 
   return {
@@ -99,6 +101,30 @@ describe("InMemoryExecutionCoordinator", () => {
     expect(stores.executions.get("execution-1")?.status).toBe("SUCCEEDED");
     expect(stores.tasks.get("task-1")?.status).toBe("SUCCEEDED");
     expect(queue.size()).toBe(0);
+  });
+
+  it("records execution and task lifecycle events", async () => {
+    const { stores, events, coordinator } = createCoordinator(runningTask);
+
+    await coordinator.runNext(
+      "2026-09-27T01:02:00.000Z",
+      "2026-09-27T01:05:00.000Z",
+    );
+
+    expect(events.list().map((event) => event.kind)).toEqual([
+      "EXECUTION_STATUS_CHANGED",
+      "EXECUTION_STATUS_CHANGED",
+      "TASK_STATUS_CHANGED",
+    ]);
+    expect(events.list()[0]?.data).toEqual({
+      from: "QUEUED",
+      to: "RUNNING",
+    });
+    expect(events.list()[1]?.data).toEqual({
+      from: "RUNNING",
+      to: "SUCCEEDED",
+    });
+  });
   });
 
   it("moves an approved task to RUNNING before the runner starts", async () => {
@@ -171,6 +197,7 @@ describe("InMemoryExecutionCoordinator", () => {
       runner,
       executions: stores.executions,
       tasks: stores.tasks,
+      events: new InMemoryEventStore(),
     });
 
     await expect(

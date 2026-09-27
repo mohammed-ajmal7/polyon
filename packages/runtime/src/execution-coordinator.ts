@@ -1,8 +1,14 @@
-import type { Execution } from "@polyon/contracts";
+import type {
+  DomainEvent,
+  Execution,
+  ExecutionStatus,
+  Task,
+  TaskStatus,
+} from "@polyon/contracts";
 
 import { completeExecution, startExecution, transitionTaskStatus } from "@polyon/core";
 
-import type { ExecutionStore, TaskStore } from "@polyon/storage";
+import type { EventStore, ExecutionStore, TaskStore } from "@polyon/storage";
 
 import type { ExecutionQueue } from "./execution-queue";
 import type { ExecutionRunner } from "./execution-runner";
@@ -16,6 +22,55 @@ export interface ExecutionCoordinatorDependencies {
   readonly runner: ExecutionRunner;
   readonly executions: ExecutionStore;
   readonly tasks: TaskStore;
+  readonly events: EventStore;
+}
+
+function appendExecutionStatusChangedEvent(
+  events: EventStore,
+  execution: Execution,
+  from: ExecutionStatus,
+  to: ExecutionStatus,
+  occurredAt: string,
+  error?: string,
+): void {
+  const event: DomainEvent = {
+    id: `EXECUTION_STATUS_CHANGED:${execution.id}:${from}:${to}:${occurredAt}`,
+    kind: "EXECUTION_STATUS_CHANGED",
+    actorId: execution.actorId,
+    missionId: execution.missionId,
+    taskId: execution.taskId,
+    executionId: execution.id,
+    occurredAt,
+    data: {
+      from,
+      to,
+      ...(error !== undefined ? { error } : {}),
+    },
+  };
+
+  events.append(event);
+}
+
+function appendTaskStatusChangedEvent(
+  events: EventStore,
+  task: Task,
+  from: TaskStatus,
+  to: TaskStatus,
+  occurredAt: string,
+): void {
+  const event: DomainEvent = {
+    id: `TASK_STATUS_CHANGED:${task.id}:${from}:${to}:${occurredAt}`,
+    kind: "TASK_STATUS_CHANGED",
+    missionId: task.missionId,
+    taskId: task.id,
+    occurredAt,
+    data: {
+      from,
+      to,
+    },
+  };
+
+  events.append(event);
 }
 
 export type ExecutionCoordinatorErrorKind =
@@ -94,6 +149,23 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
     this.dependencies.tasks.save(runningTask);
     this.dependencies.executions.save(running);
 
+    if (task.status !== runningTask.status) {
+      appendTaskStatusChangedEvent(
+        this.dependencies.events,
+        runningTask,
+        task.status,
+        runningTask.status,
+        now,
+      );
+    }
+    appendExecutionStatusChangedEvent(
+      this.dependencies.events,
+      running,
+      persisted.status,
+      running.status,
+      now,
+    );
+
     try {
       const result = await this.dependencies.runner.run(running);
 
@@ -111,13 +183,28 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
             },
       );
 
+      const completedTask = transitionTaskStatus(
+        runningTask,
+        completed.status === "SUCCEEDED" ? "SUCCEEDED" : "FAILED",
+        completionAt,
+      );
+
       this.dependencies.executions.save(completed);
-      this.dependencies.tasks.save(
-        transitionTaskStatus(
-          runningTask,
-          completed.status === "SUCCEEDED" ? "SUCCEEDED" : "FAILED",
-          completionAt,
-        ),
+      this.dependencies.tasks.save(completedTask);
+      appendExecutionStatusChangedEvent(
+        this.dependencies.events,
+        completed,
+        running.status,
+        completed.status,
+        completionAt,
+        result.status === "FAILED" ? result.error : undefined,
+      );
+      appendTaskStatusChangedEvent(
+        this.dependencies.events,
+        completedTask,
+        runningTask.status,
+        completedTask.status,
+        completionAt,
       );
 
       return completed;
@@ -130,8 +217,25 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
         error: message,
       });
 
+      const failedTask = transitionTaskStatus(runningTask, "FAILED", completionAt);
+
       this.dependencies.executions.save(failed);
-      this.dependencies.tasks.save(transitionTaskStatus(runningTask, "FAILED", completionAt));
+      this.dependencies.tasks.save(failedTask);
+      appendExecutionStatusChangedEvent(
+        this.dependencies.events,
+        failed,
+        running.status,
+        failed.status,
+        completionAt,
+        message,
+      );
+      appendTaskStatusChangedEvent(
+        this.dependencies.events,
+        failedTask,
+        runningTask.status,
+        failedTask.status,
+        completionAt,
+      );
 
       return failed;
     }

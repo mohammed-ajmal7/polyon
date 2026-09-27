@@ -2,7 +2,7 @@ import type { ApprovalRequest, Execution, Task } from "@polyon/contracts";
 import { describe, expect, it } from "vitest";
 
 import { InMemoryExecutionQueue } from "@polyon/runtime";
-import { InMemoryDomainStores } from "@polyon/storage";
+import { InMemoryDomainStores, InMemoryEventStore } from "@polyon/storage";
 
 import {
   ExecutionApprovalService,
@@ -51,6 +51,7 @@ const approval: ApprovalRequest = {
 function createService() {
   const stores = new InMemoryDomainStores();
   const queue = new InMemoryExecutionQueue();
+  const events = new InMemoryEventStore();
   stores.tasks.save(task);
 
   const service = new ExecutionApprovalService({
@@ -58,9 +59,10 @@ function createService() {
     executions: stores.executions,
     tasks: stores.tasks,
     queue,
+    events,
   });
 
-  return { stores, queue, service };
+  return { stores, queue, events, service };
 }
 
 describe("ExecutionApprovalService", () => {
@@ -88,7 +90,7 @@ describe("ExecutionApprovalService", () => {
   });
 
   it("approves and queues an execution", () => {
-    const { stores, queue, service } = createService();
+    const { stores, queue, events, service } = createService();
 
     const result = service.resolve(approval, execution, {
       status: "APPROVED",
@@ -112,6 +114,12 @@ describe("ExecutionApprovalService", () => {
     expect(stores.executions.get("execution-1")?.status).toBe("QUEUED");
     expect(stores.tasks.get("task-1")?.status).toBe("APPROVED");
     expect(queue.peek()?.id).toBe("execution-1");
+    expect(events.list().map((event) => event.kind)).toEqual([
+      "APPROVAL_RESOLVED",
+      "EXECUTION_STATUS_CHANGED",
+      "TASK_STATUS_CHANGED",
+      "EXECUTION_STATUS_CHANGED",
+    ]);
   });
 
   it("rejects and persists a rejected execution", () => {

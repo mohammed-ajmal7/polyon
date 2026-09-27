@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { ExecutionDispatchService } from "./execution-dispatch-service";
 import { InMemoryExecutionQueue } from "@polyon/runtime";
-import { InMemoryDomainStores } from "@polyon/storage";
+import { InMemoryDomainStores, InMemoryEventStore } from "@polyon/storage";
 
 const task = {
   id: "task-1",
@@ -40,6 +40,7 @@ function createService() {
       executions: stores.executions,
       approvals: stores.approvals,
       policyDecisions: stores.policyDecisions,
+      events: new InMemoryEventStore(),
     }),
   };
 }
@@ -68,6 +69,7 @@ describe("ExecutionDispatchService", () => {
       executions: stores.executions,
       approvals: stores.approvals,
       policyDecisions: stores.policyDecisions,
+      events: new InMemoryEventStore(),
     });
 
     expect(service.dispatch(input)).toMatchObject({
@@ -81,6 +83,32 @@ describe("ExecutionDispatchService", () => {
     expect(queue.peek()?.id).toBe("execution-1");
   });
 
+  it("records dispatch trace events for an allowed execution", () => {
+    const stores = new InMemoryDomainStores();
+    const queue = new InMemoryExecutionQueue();
+    const events = new InMemoryEventStore();
+    const service = new ExecutionDispatchService({
+      queue,
+      executions: stores.executions,
+      approvals: stores.approvals,
+      policyDecisions: stores.policyDecisions,
+      events,
+    });
+
+    service.dispatch(input);
+
+    expect(events.list().map((event) => event.kind)).toEqual([
+      "EXECUTION_CREATED",
+      "POLICY_DECIDED",
+      "EXECUTION_STATUS_CHANGED",
+    ]);
+    expect(events.listByExecution("execution-1")[2]?.data).toEqual({
+      from: "PENDING",
+      to: "QUEUED",
+    });
+  });
+  });
+
   it("persists an approval-required execution without enqueueing it", () => {
     const stores = new InMemoryDomainStores();
     const queue = new InMemoryExecutionQueue();
@@ -89,6 +117,7 @@ describe("ExecutionDispatchService", () => {
       executions: stores.executions,
       approvals: stores.approvals,
       policyDecisions: stores.policyDecisions,
+      events: new InMemoryEventStore(),
     });
 
     const result = service.dispatch({
@@ -113,6 +142,7 @@ describe("ExecutionDispatchService", () => {
       executions: stores.executions,
       approvals: stores.approvals,
       policyDecisions: stores.policyDecisions,
+      events: new InMemoryEventStore(),
     });
 
     const result = service.dispatch({
@@ -145,6 +175,7 @@ describe("ExecutionDispatchService", () => {
       executions: stores.executions,
       approvals: stores.approvals,
       policyDecisions: stores.policyDecisions,
+      events: new InMemoryEventStore(),
     });
 
     expect(() => service.dispatch(input)).toThrow("Execution already exists: execution-1.");
@@ -158,6 +189,7 @@ describe("ExecutionDispatchService", () => {
       executions: stores.executions,
       approvals: stores.approvals,
       policyDecisions: stores.policyDecisions,
+      events: new InMemoryEventStore(),
     });
 
     const approval: ApprovalRequest = {

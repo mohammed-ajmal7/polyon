@@ -5,7 +5,7 @@ import {
   MissionExecutionService,
 } from "@polyon/application";
 import { InMemoryExecutionCoordinator, InMemoryExecutionQueue } from "@polyon/runtime";
-import { InMemoryDomainStores } from "@polyon/storage";
+import { InMemoryDomainStores, InMemoryEventStore } from "@polyon/storage";
 import { describe, expect, it } from "vitest";
 
 const mission: Mission = {
@@ -54,12 +54,14 @@ describe("governed execution flow", () => {
   it("dispatches, awaits approval, queues, executes, and persists success", async () => {
     const stores = new InMemoryDomainStores();
     const queue = new InMemoryExecutionQueue();
+    const events = new InMemoryEventStore();
 
     const dispatch = new ExecutionDispatchService({
       queue,
       executions: stores.executions,
       approvals: stores.approvals,
       policyDecisions: stores.policyDecisions,
+      events,
     });
 
     const missionService = new MissionExecutionService(
@@ -91,6 +93,7 @@ describe("governed execution flow", () => {
       executions: stores.executions,
       tasks: stores.tasks,
       queue,
+      events,
     });
 
     const approval = stores.approvals.get("approval-task-1-execution-task-1-1");
@@ -120,6 +123,7 @@ describe("governed execution flow", () => {
       },
       executions: stores.executions,
       tasks: stores.tasks,
+      events,
     });
 
     const completed = await coordinator.runNext(
@@ -131,5 +135,19 @@ describe("governed execution flow", () => {
     expect(stores.executions.get("execution-task-1-1")?.status).toBe("SUCCEEDED");
     expect(stores.tasks.get("task-1")?.status).toBe("SUCCEEDED");
     expect(queue.size()).toBe(0);
+    expect(events.list().map((event) => event.kind)).toEqual([
+      "EXECUTION_CREATED",
+      "POLICY_DECIDED",
+      "APPROVAL_REQUESTED",
+      "EXECUTION_STATUS_CHANGED",
+      "APPROVAL_RESOLVED",
+      "EXECUTION_STATUS_CHANGED",
+      "TASK_STATUS_CHANGED",
+      "EXECUTION_STATUS_CHANGED",
+      "EXECUTION_STATUS_CHANGED",
+      "TASK_STATUS_CHANGED",
+      "EXECUTION_STATUS_CHANGED",
+      "TASK_STATUS_CHANGED",
+    ]);
   });
 });

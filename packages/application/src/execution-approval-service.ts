@@ -1,4 +1,12 @@
-import type { ActorId, ApprovalRequest, Execution, Task } from "@polyon/contracts";
+import type {
+  ActorId,
+  ApprovalRequest,
+  DomainEvent,
+  Execution,
+  ExecutionStatus,
+  Task,
+  TaskStatus,
+} from "@polyon/contracts";
 
 import {
   applyApprovedExecutionRun,
@@ -10,7 +18,12 @@ import {
 } from "@polyon/core";
 
 import type { ExecutionQueue } from "@polyon/runtime";
-import type { ApprovalRequestStore, ExecutionStore, TaskStore } from "@polyon/storage";
+import type {
+  ApprovalRequestStore,
+  EventStore,
+  ExecutionStore,
+  TaskStore,
+} from "@polyon/storage";
 
 export interface ResolveExecutionApprovalInput {
   readonly status: "APPROVED" | "REJECTED" | "EXPIRED" | "CANCELLED";
@@ -46,6 +59,54 @@ export interface ExecutionApprovalServiceDependencies {
   readonly executions: ExecutionStore;
   readonly tasks: TaskStore;
   readonly queue: ExecutionQueue;
+  readonly events: EventStore;
+}
+
+function appendExecutionStatusChangedEvent(
+  events: EventStore,
+  execution: Execution,
+  from: ExecutionStatus,
+  to: ExecutionStatus,
+  occurredAt: string,
+): void {
+  const event: DomainEvent = {
+    id: `EXECUTION_STATUS_CHANGED:${execution.id}:${from}:${to}:${occurredAt}`,
+    kind: "EXECUTION_STATUS_CHANGED",
+    actorId: execution.actorId,
+    missionId: execution.missionId,
+    taskId: execution.taskId,
+    executionId: execution.id,
+    occurredAt,
+    data: {
+      from,
+      to,
+    },
+  };
+
+  events.append(event);
+}
+
+function appendTaskStatusChangedEvent(
+  events: EventStore,
+  task: Task,
+  from: TaskStatus,
+  to: TaskStatus,
+  occurredAt: string,
+): void {
+  const event: DomainEvent = {
+    id: `TASK_STATUS_CHANGED:${task.id}:${from}:${to}:${occurredAt}`,
+    kind: "TASK_STATUS_CHANGED",
+    actorId: undefined,
+    missionId: task.missionId,
+    taskId: task.id,
+    occurredAt,
+    data: {
+      from,
+      to,
+    },
+  };
+
+  events.append(event);
 }
 
 function validateExecutionApprovalBinding(approval: ApprovalRequest, execution: Execution): void {
@@ -129,6 +190,43 @@ export class ExecutionApprovalService {
       this.dependencies.approvals.save(resolvedApproval);
       this.dependencies.executions.save(queuedExecution);
       this.dependencies.tasks.save(approvedTask);
+      this.dependencies.events.append({
+        id: `APPROVAL_RESOLVED:${resolvedApproval.id}:${input.resolvedAt}`,
+        kind: "APPROVAL_RESOLVED",
+        ...(resolvedApproval.resolvedBy !== undefined
+          ? { actorId: resolvedApproval.resolvedBy }
+          : {}),
+        missionId: execution.missionId,
+        taskId: execution.taskId,
+        executionId: execution.id,
+        occurredAt: input.resolvedAt,
+        data: {
+          approvalRequestId: resolvedApproval.id,
+          from: approval.status,
+          to: resolvedApproval.status,
+        },
+      });
+      appendExecutionStatusChangedEvent(
+        this.dependencies.events,
+        execution,
+        "APPROVAL_REQUIRED",
+        "APPROVED",
+        input.resolvedAt,
+      );
+      appendTaskStatusChangedEvent(
+        this.dependencies.events,
+        approvedTask,
+        "APPROVAL_REQUIRED",
+        "APPROVED",
+        input.resolvedAt,
+      );
+      appendExecutionStatusChangedEvent(
+        this.dependencies.events,
+        queuedExecution,
+        "APPROVED",
+        "QUEUED",
+        input.resolvedAt,
+      );
       this.dependencies.queue.enqueue(queuedExecution);
 
       return {
@@ -151,6 +249,36 @@ export class ExecutionApprovalService {
     this.dependencies.approvals.save(resolvedApproval);
     this.dependencies.executions.save(updatedExecution);
     this.dependencies.tasks.save(updatedTask);
+    this.dependencies.events.append({
+      id: `APPROVAL_RESOLVED:${resolvedApproval.id}:${input.resolvedAt}`,
+      kind: "APPROVAL_RESOLVED",
+      ...(resolvedApproval.resolvedBy !== undefined
+        ? { actorId: resolvedApproval.resolvedBy }
+        : {}),
+      missionId: execution.missionId,
+      taskId: execution.taskId,
+      executionId: execution.id,
+      occurredAt: input.resolvedAt,
+      data: {
+        approvalRequestId: resolvedApproval.id,
+        from: approval.status,
+        to: resolvedApproval.status,
+      },
+    });
+    appendExecutionStatusChangedEvent(
+      this.dependencies.events,
+      execution,
+      "APPROVAL_REQUIRED",
+      updatedExecution.status,
+      input.resolvedAt,
+    );
+    appendTaskStatusChangedEvent(
+      this.dependencies.events,
+      updatedTask,
+      "APPROVAL_REQUIRED",
+      updatedTask.status,
+      input.resolvedAt,
+    );
 
     return {
       approval: resolvedApproval,
