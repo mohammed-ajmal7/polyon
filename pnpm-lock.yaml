@@ -196,10 +196,9 @@ importers:
       '@polyon/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
-      '@polyon/application':
         specifier: workspace:*
         version: link:../../packages/application
-      '@polyon/contracts':
+# duplicate removed: @polyon/contracts
         specifier: workspace:*
         version: link:../../packages/contracts
       next:
