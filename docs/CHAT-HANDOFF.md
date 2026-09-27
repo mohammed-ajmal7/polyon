@@ -7,7 +7,7 @@
 
 - Repository: `mohammed-ajmal7/polyon`
 - Branch: `feature/core-architecture`
-- Current implementation head at handoff update: **5f64a69713b1006a5c70f98b6edf6035de6695ea**
+- Current implementation head at handoff update: **8056915635aadfd19c6b11332614cb63241ec476**
 - CI is the source of truth for verification. Do not call the current branch green until the latest run for the exact head succeeds.
 
 ## Implemented operating loop
@@ -53,7 +53,7 @@
 - self-hosted Dockerfile + compose configuration;
 - CI typecheck/test/lint/format/build gates.
 - Readiness health checks fail closed on composition/configuration initialization errors and return a stable `503` response without leaking initialization details.
-- Optional semantic memory now has a provider-independent embedding gateway, durable versioned vectors with content hashes, bounded cosine search, and an authenticated memory API mode; automatic indexing/reindex recovery remains.
+- Optional semantic memory now has a provider-independent embedding gateway, durable versioned vectors with content hashes, bounded cosine search, an authenticated memory API mode, and a bounded reindex operation; automatic startup/recovery scheduling and vector-scale optimization remain.
 
 ## Intentional remaining work
 
