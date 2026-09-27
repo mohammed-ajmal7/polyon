@@ -70,6 +70,32 @@ describe("applyExecutionRunAuthorization", () => {
     });
   });
 
+  it("rejects an approval-required authorization with the wrong policy effect", () => {
+    expect(() =>
+      applyExecutionRunAuthorization(
+        {
+          status: "APPROVAL_REQUIRED",
+          policyDecision: {
+            id: "decision-1",
+            policyId: "policy-1",
+            action: "EXECUTION_RUN",
+            riskLevel: "MEDIUM",
+            effect: "ALLOW",
+            reason: "Incorrect synthetic authorization.",
+            evaluatedAt: "2026-09-27T01:01:00.000Z",
+          },
+          approvalRequest: undefined,
+        },
+        pendingExecution,
+        "2026-09-27T01:02:00.000Z",
+      ),
+    ).toThrowError(
+      expect.objectContaining({
+        kind: "AUTHORIZATION_EFFECT_MISMATCH",
+      }),
+    );
+  });
+
   it("requires an approval request for an approval-required authorization", () => {
     const authorization = authorizeExecutionRun({
       ...baseInput,

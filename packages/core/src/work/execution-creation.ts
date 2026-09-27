@@ -9,7 +9,10 @@ export interface CreateExecutionForTaskInput {
   readonly createdAt: string;
 }
 
-export type ExecutionCreationErrorKind = "TASK_NOT_READY" | "TASK_DEPENDENCIES_NOT_SATISFIED";
+export type ExecutionCreationErrorKind =
+  | "TASK_NOT_READY"
+  | "TASK_DEPENDENCIES_NOT_SATISFIED"
+  | "INVALID_ATTEMPT";
 
 export class ExecutionCreationError extends Error {
   readonly kind: ExecutionCreationErrorKind;
@@ -26,6 +29,13 @@ export function createExecutionForTask(
   dependencies: readonly TaskDependency[],
   input: CreateExecutionForTaskInput,
 ): Execution {
+  if (!Number.isInteger(input.attempt) || input.attempt < 1) {
+    throw new ExecutionCreationError(
+      "INVALID_ATTEMPT",
+      `Cannot create execution with invalid attempt: ${input.attempt}.`,
+    );
+  }
+
   if (task.status !== "READY") {
     throw new ExecutionCreationError(
       "TASK_NOT_READY",

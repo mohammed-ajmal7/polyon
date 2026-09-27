@@ -5,6 +5,7 @@ import { transitionExecutionStatus } from "./execution-transition";
 
 export type ExecutionRunAuthorizationApplicationErrorKind =
   | "MISSING_APPROVAL_REQUEST"
+  | "AUTHORIZATION_EFFECT_MISMATCH"
   | "AUTHORIZATION_ACTION_MISMATCH"
   | "APPROVAL_STATUS_MISMATCH"
   | "APPROVAL_ACTION_MISMATCH"

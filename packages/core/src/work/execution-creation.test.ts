@@ -29,6 +29,22 @@ const input = {
 } as const;
 
 describe("createExecutionForTask", () => {
+  it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
+    "rejects invalid attempt %s",
+    (attempt) => {
+      expect(() =>
+        createExecutionForTask(readyTask, [succeededDependency], {
+          ...input,
+          attempt,
+        }),
+      ).toThrowError(
+        expect.objectContaining({
+          kind: "INVALID_ATTEMPT",
+        }),
+      );
+    },
+  );
+
   it("creates a pending execution for a ready task", () => {
     const execution = createExecutionForTask(readyTask, [succeededDependency], input);
 
