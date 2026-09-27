@@ -147,8 +147,16 @@ function acquireCommitLock(filePath: string): string {
     const descriptor = openSync(lockPath, "wx");
     closeSync(descriptor);
     return lockPath;
-  } catch {
-    throw new StorageConcurrencyError(lockPath);
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      error.code === "EEXIST"
+    ) {
+      throw new StorageConcurrencyError(lockPath);
+    }
+
+    throw error;
   }
 }
 
