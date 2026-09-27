@@ -7,7 +7,7 @@
 
 - Repository: `mohammed-ajmal7/polyon`
 - Branch: `feature/core-architecture`
-- Current implementation head at handoff update: **90b41fc43bacd764178065b392287a018af1270d**
+- Current implementation head at handoff update: **5f64a69713b1006a5c70f98b6edf6035de6695ea**
 - CI is the source of truth for verification. Do not call the current branch green until the latest run for the exact head succeeds.
 
 ## Implemented operating loop
@@ -52,6 +52,7 @@
 - file-backed durable state with migrations, atomic replacement, optimistic concurrency and backup/restore;
 - self-hosted Dockerfile + compose configuration;
 - CI typecheck/test/lint/format/build gates.
+- Readiness health checks fail closed on composition/configuration initialization errors and return a stable `503` response without leaking initialization details.
 
 ## Intentional remaining work
 
