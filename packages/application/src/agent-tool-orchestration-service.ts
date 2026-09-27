@@ -59,7 +59,7 @@ export interface AgentToolOrchestrationDependencies {
   readonly tasks: TaskStore;
   readonly events: EventStore;
   readonly unitOfWork?: DomainUnitOfWork;
-  readonly queue?: { enqueue(execution: import("@polyon/contracts").Execution): void };
+  readonly queue: ExecutionQueue;
 }
 
 export class AgentToolOrchestrationService {
@@ -283,7 +283,79 @@ export class AgentToolOrchestrationService {
     else this.dependencies.unitOfWork.transaction(operation);
   }
 
-  async resumeApprovedExecution(executionId: string): Promise<AgentToolOrchestrationResult> {
+  resolveToolApproval(input: {
+    readonly approvalId: string;
+    readonly status: "APPROVED" | "REJECTED" | "EXPIRED" | "CANCELLED";
+    readonly resolvedAt: string;
+    readonly resolvedBy?: ActorId;
+  }): { readonly status: "ENQUEUED" | "REJECTED" | "CANCELLED"; readonly executionId?: string } {
+    const approval = this.dependencies.toolInvocation.resolveApproval(input);
+    if (approval.status !== "APPROVED") {
+      const executionId = approval.executionId;
+      if (executionId !== undefined) {
+        const execution = this.dependencies.executions.get(executionId);
+        const task = execution === undefined ? undefined : this.dependencies.tasks.get(execution.taskId);
+        if (execution !== undefined && task !== undefined) {
+          const target = input.status === "CANCELLED" ? "CANCELLED" : "REJECTED";
+          const updatedExecution = transitionExecutionStatus(execution, target, input.resolvedAt);
+          const updatedTask = transitionTaskStatus(task, target, input.resolvedAt);
+          this.dependencies.executions.save(updatedExecution);
+          this.dependencies.tasks.save(updatedTask);
+        }
+      }
+      return { status: input.status === "CANCELLED" ? "CANCELLED" : "REJECTED", ...(executionId === undefined ? {} : { executionId }) };
+    }
+
+    if (approval.executionId === undefined) {
+      throw new Error(`Approved tool approval ${approval.id} has no execution binding.`);
+    }
+    const execution = this.dependencies.executions.get(approval.executionId);
+    if (execution === undefined || execution.status !== "PAUSED") {
+      throw new Error(`Execution ${approval.executionId} is not paused for tool approval.`);
+    }
+    const task = this.dependencies.tasks.get(execution.taskId);
+    if (task === undefined || task.status !== "PAUSED") {
+      throw new Error(`Task ${execution.taskId} is not paused for tool approval.`);
+    }
+
+    const queuedExecution = transitionExecutionStatus(execution, "QUEUED", input.resolvedAt);
+    const queuedTask = transitionTaskStatus(task, "RUNNING", input.resolvedAt);
+    const operation = (stores: {
+      executions: ExecutionStore;
+      tasks: TaskStore;
+      events: EventStore;
+    }) => {
+      stores.executions.save(queuedExecution);
+      stores.tasks.save(queuedTask);
+      stores.events.append({
+        id: `EXECUTION_STATUS_CHANGED:${execution.id}:PAUSED:QUEUED:${input.resolvedAt}:TOOL_APPROVAL`,
+        kind: "EXECUTION_STATUS_CHANGED",
+        actorId: execution.actorId,
+        missionId: execution.missionId,
+        taskId: execution.taskId,
+        executionId: execution.id,
+        occurredAt: input.resolvedAt,
+        data: { from: "PAUSED", to: "QUEUED", reason: "TOOL_APPROVAL", approvalRequestId: approval.id },
+      });
+      stores.events.append({
+        id: `TASK_STATUS_CHANGED:${task.id}:PAUSED:RUNNING:${input.resolvedAt}:TOOL_APPROVAL`,
+        kind: "TASK_STATUS_CHANGED",
+        missionId: task.missionId,
+        taskId: task.id,
+        occurredAt: input.resolvedAt,
+        data: { from: "PAUSED", to: "RUNNING", reason: "TOOL_APPROVAL", approvalRequestId: approval.id },
+      });
+    };
+    if (this.dependencies.unitOfWork === undefined) operation(this.dependencies);
+    else this.dependencies.unitOfWork.transaction(operation);
+    this.dependencies.queue.enqueue(queuedExecution);
+    return { status: "ENQUEUED", executionId: queuedExecution.id };
+  }
+
+  async resumeApprovedExecution(
+    executionId: string,
+    policy: Policy,
+  ): Promise<AgentToolOrchestrationResult> {
     const approval = this.dependencies.approvals
       .list()
       .find((candidate) => candidate.executionId === executionId && candidate.status === "APPROVED" && candidate.toolContinuation !== undefined);
@@ -343,12 +415,7 @@ export class AgentToolOrchestrationService {
         agentId: continuation.agentId,
         requiredCapabilityIds: continuation.requiredCapabilityIds,
         request,
-        policy: {
-          id: approval.policyId,
-          name: "Persisted approval continuation",
-          enabled: true,
-          rules: [],
-        },
+        policy,
         actorId: approval.requestedBy,
         missionId: approval.missionId,
         taskId: approval.taskId,
