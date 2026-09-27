@@ -167,3 +167,10 @@ export { BoundedWebResearchRetriever, type ResearchSearchResult, type BoundedWeb
 export { DebateOrchestrationService, type CreateDebateInput, type RunDebateInput, type DebateRunResult } from "./debate-orchestration-service";
 
 export { registerKnowledgeTools } from "./knowledge-tools";
+
+export {
+  MissionExecutionOrchestrationService,
+  type MissionExecutionOrchestrationInput,
+  type MissionExecutionOrchestrationResult,
+  type MissionExecutionOrchestrationStatus,
+} from "./mission-execution-orchestration-service";
