@@ -176,7 +176,7 @@ export class IntegrationInvocationService {
         stores.events.append({
           id: `APPROVAL_REQUESTED:${approval.id}`,
           kind: "APPROVAL_REQUESTED",
-          ...(approval.resolvedBy === undefined ? {} : { actorId: approval.resolvedBy }),
+          actorId: approval.requestedBy,
           ...(approval.missionId === undefined ? {} : { missionId: approval.missionId }),
           ...(approval.taskId === undefined ? {} : { taskId: approval.taskId }),
           ...(approval.executionId === undefined ? {} : { executionId: approval.executionId }),
