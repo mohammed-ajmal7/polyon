@@ -9,7 +9,13 @@ import type {
   MissionId,
 } from "@polyon/contracts";
 
-import type { ConversationStore, EventStore, MessageStore } from "@polyon/storage";
+import type {
+  ConversationStore,
+  DomainStoreTransactionContext,
+  DomainUnitOfWork,
+  EventStore,
+  MessageStore,
+} from "@polyon/storage";
 
 export type CommandMode = "Direct" | "Broadcast" | "Debate" | "Mission";
 
@@ -38,38 +44,30 @@ export interface CommandIngressDependencies {
   readonly conversations: ConversationStore;
   readonly messages: MessageStore;
   readonly events: EventStore;
+  readonly unitOfWork?: DomainUnitOfWork;
 }
 
-export interface CommandIngressResult {
-  readonly conversation: Conversation;
-  readonly message: Message;
-  readonly event: DomainEvent;
-}
-
-export type CommandIngressErrorKind =
-  | "COMMAND_REQUIRED"
-  | "CONVERSATION_NOT_ACTIVE"
-  | "CONVERSATION_KIND_MISMATCH"
-  | "CONVERSATION_PARTICIPANTS_REQUIRED"
-  | "ACTOR_NOT_PARTICIPANT"
-  | "MISSION_MISMATCH"
-  | "DUPLICATE_MESSAGE"
-  | "DUPLICATE_EVENT";
-
-export class CommandIngressError extends Error {
-  readonly kind: CommandIngressErrorKind;
-
-  constructor(kind: CommandIngressErrorKind, message: string) {
-    super(message);
-    this.name = "CommandIngressError";
-    this.kind = kind;
-  }
-}
+type CommandIngressStores = Pick<
+  DomainStoreTransactionContext,
+  "conversations" | "messages" | "events"
+>;
 
 export class CommandIngressService {
   constructor(private readonly dependencies: CommandIngressDependencies) {}
 
   submit(input: CommandIngressInput): CommandIngressResult {
+    const operation = (stores: CommandIngressStores) =>
+      this.submitWithStores(stores, input);
+
+    return this.dependencies.unitOfWork === undefined
+      ? operation(this.dependencies)
+      : this.dependencies.unitOfWork.transaction(operation);
+  }
+
+  private submitWithStores(
+    stores: CommandIngressStores,
+    input: CommandIngressInput,
+  ): CommandIngressResult {
     const command = input.command.trim();
 
     if (command === "") {
@@ -77,7 +75,7 @@ export class CommandIngressService {
     }
 
     const expectedKind = modeToConversationKind[input.mode];
-    const existing = this.dependencies.conversations.get(input.conversationId);
+    const existing = stores.conversations.get(input.conversationId);
 
     if (existing === undefined) {
       if (input.participantIds === undefined || input.participantIds.length === 0) {
@@ -107,7 +105,7 @@ export class CommandIngressService {
         updatedAt: input.createdAt,
       };
 
-      return this.persistSubmission(conversation, command, input);
+      return this.persistSubmissionWithStores(stores, conversation, command, input);
     }
 
     if (existing.status !== "ACTIVE") {
@@ -138,22 +136,24 @@ export class CommandIngressService {
       );
     }
 
-    return this.persistSubmission(existing, command, input);
+    return this.persistSubmissionWithStores(stores, existing, command, input);
+  
   }
 
-  private persistSubmission(
+  private persistSubmissionWithStores(
+    stores: CommandIngressStores,
     conversation: Conversation,
     command: string,
     input: CommandIngressInput,
   ): CommandIngressResult {
-    if (this.dependencies.messages.get(input.messageId) !== undefined) {
+    if (stores.messages.get(input.messageId) !== undefined) {
       throw new CommandIngressError(
         "DUPLICATE_MESSAGE",
         `Message already exists: ${input.messageId}.`,
       );
     }
 
-    if (this.dependencies.events.get(input.eventId) !== undefined) {
+    if (stores.events.get(input.eventId) !== undefined) {
       throw new CommandIngressError(
         "DUPLICATE_EVENT",
         `Event already exists: ${input.eventId}.`,
@@ -192,14 +192,15 @@ export class CommandIngressService {
       },
     };
 
-    this.dependencies.messages.save(message);
-    this.dependencies.conversations.save(updatedConversation);
-    this.dependencies.events.append(event);
+    stores.messages.save(message);
+    stores.conversations.save(updatedConversation);
+    stores.events.append(event);
 
     return {
       conversation: updatedConversation,
       message,
       event,
     };
+  
   }
 }
