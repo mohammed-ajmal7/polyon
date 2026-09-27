@@ -6,6 +6,7 @@ import type {
   ExecutionCoordinator,
   ExecutionRunOutcome,
 } from "./execution-coordinator";
+import type { ExecutionRunContext } from "./execution-runner";
 import { recoverQueuedExecutions } from "./execution-recovery";
 import type { ExecutionQueue } from "./execution-queue";
 
@@ -41,7 +42,9 @@ export interface ExecutionWorker {
   readonly running: boolean;
   start(): ExecutionWorkerStartResult;
   stop(): void;
-  runNext(): Promise<ExecutionRunOutcome | undefined>;
+  runNext(
+    context?: ExecutionRunContext,
+  ): Promise<ExecutionRunOutcome | undefined>;
   drain(): Promise<readonly Execution[]>;
 }
 
@@ -116,13 +119,16 @@ export class InMemoryExecutionWorker implements ExecutionWorker {
     this.started = false;
   }
 
-  async runNext(): Promise<ExecutionRunOutcome | undefined> {
+  async runNext(
+    context?: ExecutionRunContext,
+  ): Promise<ExecutionRunOutcome | undefined> {
     this.assertRunning();
 
     try {
       return await this.dependencies.coordinator.runNextWithResult(
         this.dependencies.clock.now(),
         this.dependencies.clock.now(),
+        context,
       );
     } catch (error) {
       recoverQueuedExecutions(
