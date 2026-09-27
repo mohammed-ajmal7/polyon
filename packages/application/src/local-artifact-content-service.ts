@@ -64,7 +64,11 @@ export class LocalArtifactContentService {
     this.maxBytes = maxBytes;
   }
 
-  read(id: ArtifactId): LocalArtifactContent {
+  read(id: ArtifactId, maxBytes = this.maxBytes): LocalArtifactContent {
+    if (!Number.isInteger(maxBytes) || maxBytes <= 0) {
+      throw new RangeError("maxBytes must be a positive integer.");
+    }
+
     const artifact = this.dependencies.artifacts.get(id);
 
     if (artifact === undefined) {
@@ -108,10 +112,10 @@ export class LocalArtifactContentService {
 
     const sizeBytes = statSync(resolved).size;
 
-    if (sizeBytes > this.maxBytes) {
+    if (sizeBytes > maxBytes) {
       throw new LocalArtifactContentServiceError(
         "FILE_TOO_LARGE",
-        `Artifact exceeds the ${this.maxBytes}-byte read limit: ${location}.`,
+        `Artifact exceeds the ${maxBytes}-byte read limit: ${location}.`,
       );
     }
 
