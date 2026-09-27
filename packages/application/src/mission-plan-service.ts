@@ -21,9 +21,9 @@ import {
 } from "@polyon/core";
 import type {
   ApprovalRequestStore,
-  EventStore,
   DomainStoreTransactionContext,
   DomainUnitOfWork,
+  EventStore,
   MissionPlanProposalStore,
   MissionStore,
   PolicyDecisionStore,
@@ -33,12 +33,21 @@ import type {
 export interface MissionPlanServiceDependencies {
   readonly missions: MissionStore;
   readonly tasks: TaskStore;
-  readonly missionPlanProposals: MissionPlanProposalStore;
+  readonly proposals: MissionPlanProposalStore;
   readonly policyDecisions: PolicyDecisionStore;
   readonly approvals: ApprovalRequestStore;
   readonly events: EventStore;
   readonly unitOfWork?: DomainUnitOfWork;
 }
+
+type MissionPlanStores = {
+  readonly missions: MissionStore;
+  readonly tasks: TaskStore;
+  readonly proposals: MissionPlanProposalStore;
+  readonly policyDecisions: PolicyDecisionStore;
+  readonly approvals: ApprovalRequestStore;
+  readonly events: EventStore;
+};
 
 export interface SubmitMissionPlanInput {
   readonly missionId: string;
@@ -240,15 +249,6 @@ function appendPlanAppliedEvent(
   return event;
 }
 
-type MissionPlanStores = {
-  readonly missions: MissionStore;
-  readonly tasks: TaskStore;
-  readonly proposals: MissionPlanProposalStore;
-  readonly policyDecisions: PolicyDecisionStore;
-  readonly approvals: ApprovalRequestStore;
-  readonly events: EventStore;
-};
-
 export class MissionPlanService {
   constructor(private readonly dependencies: MissionPlanServiceDependencies) {}
 
@@ -273,7 +273,10 @@ export class MissionPlanService {
     return this.runInTransaction((stores) => this.submitWithStores(stores, input));
   }
 
-  private submitWithStores(stores: MissionPlanStores, input: SubmitMissionPlanInput): MissionPlanSubmissionResult {
+  private submitWithStores(
+    stores: MissionPlanStores,
+    input: SubmitMissionPlanInput,
+  ): MissionPlanSubmissionResult {
     const mission = stores.missions.get(input.missionId);
 
     if (mission === undefined) {
