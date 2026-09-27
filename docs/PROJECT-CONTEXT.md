@@ -566,7 +566,7 @@ Requirements:
 
 ### Phase 5 — Governed tool execution
 
-Status: governed filesystem-read execution and bounded agent-driven tool orchestration are implemented. Consequential tool categories, durable approval continuation, and broader tool schemas remain.
+Status: governed filesystem-read execution and bounded agent-driven tool orchestration are implemented. Tool approvals now persist the model continuation context, pause the execution/task, and re-queue the execution after approval so the runtime can resume the same model/tool loop. Consequential tool categories, broader tool schemas, and crash recovery during an already-running resumed continuation remain.
 
 The current governed tool invocation path is:
 
