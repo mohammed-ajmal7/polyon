@@ -6,7 +6,7 @@ const transitions: Readonly<Record<ExecutionStatus, readonly ExecutionStatus[]>>
   APPROVED: ["QUEUED", "CANCELLED"],
   QUEUED: ["RUNNING", "CANCELLED"],
   RUNNING: ["PAUSED", "SUCCEEDED", "FAILED", "CANCELLED"],
-  PAUSED: ["QUEUED", "CANCELLED"],
+  PAUSED: ["QUEUED", "REJECTED", "CANCELLED"],
   SUCCEEDED: [],
   FAILED: [],
   CANCELLED: [],
