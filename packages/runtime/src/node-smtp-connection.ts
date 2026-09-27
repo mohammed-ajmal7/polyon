@@ -7,6 +7,7 @@ import type { SmtpConnection, SmtpConnectionFactory } from "@polyon/integrations
 import type { ValidatedSmtpTransportOptions } from "@polyon/integrations";
 
 const MAX_RESPONSE_BYTES = 64 * 1024;
+const MIN_TLS_VERSION = "TLSv1.2" as const;
 
 export class NodeSmtpConnectionFactory implements SmtpConnectionFactory {
   async connect(options: ValidatedSmtpTransportOptions): Promise<SmtpConnection> {
@@ -15,7 +16,7 @@ export class NodeSmtpConnectionFactory implements SmtpConnectionFactory {
           host: options.host,
           port: options.port,
           servername: options.host,
-          minVersion: options.minTlsVersion,
+          minVersion: MIN_TLS_VERSION,
           rejectUnauthorized: true,
         })
       : connectNet({ host: options.host, port: options.port });
@@ -43,18 +44,14 @@ class NodeSmtpConnection implements SmtpConnection {
     this.bindSocket(socket);
   }
 
-  async startTls(
-    serverName: string,
-    timeoutMs: number,
-    minTlsVersion: "TLSv1.2" | "TLSv1.3",
-  ): Promise<void> {
+  async startTls(serverName: string, timeoutMs: number): Promise<void> {
     const plainSocket = this.socket;
     this.unbindSocket(plainSocket);
 
     const tlsSocket = connectTls({
       socket: plainSocket,
       servername: serverName,
-      minVersion: minTlsVersion,
+      minVersion: MIN_TLS_VERSION,
       rejectUnauthorized: true,
     });
     this.socket = tlsSocket;
