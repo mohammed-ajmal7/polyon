@@ -32,6 +32,12 @@ export {
 } from "./scoped-filesystem-read-adapter";
 
 export {
+  validateToolInput,
+  ToolInputValidationError,
+  type ToolInputValidationErrorKind,
+} from "./tool-input-validation";
+
+export {
   BUILTIN_TOOL_IDS,
   createInMemoryBuiltinToolRegistries,
   registerBuiltinTools,
