@@ -19,6 +19,7 @@ describe("ResearchSynthesisService", () => {
       kind: "SUPPORTING",
       claim: "A bounded claim.",
       supportingContent: "The evidence says this.",
+      missionId: "mission-1",
       capturedAt: "2026-09-28T00:00:00.000Z",
     });
 

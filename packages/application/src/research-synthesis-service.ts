@@ -40,7 +40,8 @@ export class ResearchSynthesisService {
     const evidence = this.evidence.list();
     const sourcesById = new Map(this.sources.list().map((source) => [source.id, source]));
     const selected = evidence
-      .filter((item) => input.missionId === undefined || item.context?.includes(input.missionId) === true || true)
+      .filter((item) => input.missionId === undefined || item.missionId === input.missionId)
+      .filter((item) => input.taskId === undefined || item.taskId === input.taskId)
       .slice(-200);
 
     const context = formatEvidenceContext(selected, sourcesById);

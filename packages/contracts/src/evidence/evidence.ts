@@ -12,6 +12,8 @@ export interface Evidence {
   readonly claim: string;
   readonly supportingContent: string;
   readonly context?: string;
+  readonly missionId?: string;
+  readonly taskId?: string;
 
   readonly capturedAt: string;
 }

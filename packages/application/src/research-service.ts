@@ -77,6 +77,8 @@ export class ResearchService {
           claim: candidate.claim?.trim() || query,
           supportingContent: candidate.content,
           ...(candidate.context === undefined ? {} : { context: candidate.context }),
+          ...(input.missionId === undefined ? {} : { missionId: input.missionId }),
+          ...(input.taskId === undefined ? {} : { taskId: input.taskId }),
           capturedAt: input.now,
         };
 
