@@ -21,6 +21,10 @@ export interface CreateApprovalRequestInput {
   readonly toolId?: ToolId;
   readonly integrationId?: string;
   readonly invocationId?: string;
+  readonly integrationInvocation?: {
+    readonly operation: string;
+    readonly input: unknown;
+  };
   readonly expiresAt?: string;
 }
 
@@ -50,6 +54,7 @@ export function createApprovalRequest(
     toolId: input.toolId,
     integrationId: input.integrationId,
     invocationId: input.invocationId,
+    integrationInvocation: input.integrationInvocation,
     action: decision.action,
     riskLevel: decision.riskLevel,
     requestedBy: input.requestedBy,
