@@ -82,12 +82,12 @@ describe("ModelGateway", () => {
       enabled: false,
     };
 
-    const models = new InMemoryModelRegistry();
-    const providers = new InMemoryProviderRegistry();
+    const { providers } = createCatalogs(model, provider);
+    const models: ModelCatalog = {
+      get: (id) => (id === disabledModel.id ? disabledModel : undefined),
+    };
     const adapters = new InMemoryProviderAdapterRegistry();
 
-    models.register(disabledModel);
-    providers.register(provider);
     adapters.register({
       providerId: "provider-1",
       async invoke() {

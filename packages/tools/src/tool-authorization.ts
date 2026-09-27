@@ -1,5 +1,7 @@
 import type {
   ActorId,
+  ActionKind,
+  AgentId,
   ApprovalRequest,
   ApprovalRequestId,
   ExecutionId,
@@ -17,7 +19,7 @@ import { createApprovalRequest, evaluatePolicy } from "@polyon/core";
 export interface AuthorizeToolInvocationInput {
   readonly tool: Tool;
   readonly policy: Policy;
-  readonly action: string & Tool["actionKinds"][number];
+  readonly action: ActionKind;
   readonly riskLevel: RiskLevel;
 
   readonly decisionId: PolicyDecisionId;
@@ -30,7 +32,7 @@ export interface AuthorizeToolInvocationInput {
   readonly missionId?: MissionId;
   readonly taskId?: TaskId;
   readonly executionId?: ExecutionId;
-  readonly agentId?: string;
+  readonly agentId?: AgentId;
   readonly expiresAt?: string;
 }
 

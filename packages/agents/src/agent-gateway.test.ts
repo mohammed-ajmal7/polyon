@@ -84,5 +84,4 @@ describe("AgentGateway", () => {
       output: "model-1:hello",
     });
   });
-;
 });

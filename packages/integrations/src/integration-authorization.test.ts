@@ -1,4 +1,5 @@
-import type { IntegrationAdapter, Policy } from "@polyon/contracts";
+import type { Policy } from "@polyon/contracts";
+import type { IntegrationAdapter } from "./integration-adapter";
 import { describe, expect, it } from "vitest";
 
 import {

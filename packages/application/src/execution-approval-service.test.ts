@@ -6,6 +6,7 @@ import { InMemoryDomainStores } from "@polyon/storage";
 
 import {
   ExecutionApprovalService,
+  ExecutionApprovalServiceError,
   type ResolveExecutionApprovalInput,
 } from "./execution-approval-service";
 
@@ -48,6 +49,29 @@ function createService() {
 }
 
 describe("ExecutionApprovalService", () => {
+  it("rejects resolving an execution that is not awaiting approval", () => {
+    const { service } = createService();
+
+    expect(() =>
+      service.resolve(
+        approval,
+        {
+          ...execution,
+          status: "PENDING",
+        },
+        {
+          status: "REJECTED",
+          resolvedAt: "2026-09-27T01:02:00.000Z",
+        },
+      ),
+    ).toThrowError(
+      new ExecutionApprovalServiceError(
+        "EXECUTION_NOT_AWAITING_APPROVAL",
+        "Cannot resolve execution approval while execution status is PENDING.",
+      ),
+    );
+  });
+
   it("approves and queues an execution", () => {
     const { stores, queue, service } = createService();
 

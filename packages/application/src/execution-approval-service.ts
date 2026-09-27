@@ -22,6 +22,18 @@ export interface ResolveExecutionApprovalInput {
   readonly rejectionReason?: string;
 }
 
+export type ExecutionApprovalServiceErrorKind = "EXECUTION_NOT_AWAITING_APPROVAL";
+
+export class ExecutionApprovalServiceError extends Error {
+  readonly kind: ExecutionApprovalServiceErrorKind;
+
+  constructor(kind: ExecutionApprovalServiceErrorKind, message: string) {
+    super(message);
+    this.name = "ExecutionApprovalServiceError";
+    this.kind = kind;
+  }
+}
+
 export interface ExecutionApprovalResolution {
   readonly approval: ApprovalRequest;
   readonly execution: Execution;
@@ -65,6 +77,13 @@ export class ExecutionApprovalService {
     execution: Execution,
     input: ResolveExecutionApprovalInput,
   ): ExecutionApprovalResolution {
+    if (execution.status !== "APPROVAL_REQUIRED") {
+      throw new ExecutionApprovalServiceError(
+        "EXECUTION_NOT_AWAITING_APPROVAL",
+        `Cannot resolve execution approval while execution status is ${execution.status}.`,
+      );
+    }
+
     validateExecutionApprovalBinding(approval, execution);
 
     const resolvedApproval = transitionApprovalStatus(

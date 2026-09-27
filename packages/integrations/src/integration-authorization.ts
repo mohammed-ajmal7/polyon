@@ -3,7 +3,6 @@ import type {
   ApprovalRequest,
   ApprovalRequestId,
   ExecutionId,
-  IntegrationId,
   MissionId,
   Policy,
   PolicyDecision,
@@ -14,7 +13,7 @@ import type {
 
 import { createApprovalRequest, evaluatePolicy } from "@polyon/core";
 
-import type { IntegrationAdapter } from "./integration-adapter";
+import type { IntegrationAdapter, IntegrationId } from "./integration-adapter";
 
 export interface AuthorizeIntegrationInvocationInput {
   readonly integration: IntegrationAdapter;
