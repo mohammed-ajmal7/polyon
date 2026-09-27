@@ -68,3 +68,9 @@ Do not place business logic directly inside UI components.
 Do not allow clients to access provider secrets.
 
 Prefer explicit interfaces and adapters over tightly coupled implementations.
+
+## Project Context
+
+Before continuing a substantial feature, read `docs/PROJECT-CONTEXT.md` for the current product goal, architecture, completed foundations, roadmap, and continuation procedure.
+
+The repository code and tests remain the final source of truth when this context document and implementation differ.
