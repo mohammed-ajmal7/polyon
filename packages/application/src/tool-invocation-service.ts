@@ -247,6 +247,13 @@ function appendArtifactCreatedEvent(
       kind: artifact.kind,
       location: artifact.location,
       status: artifact.status,
+      ...(input.missionId === undefined
+        ? {}
+        : { missionId: input.missionId }),
+      ...(input.taskId === undefined ? {} : { taskId: input.taskId }),
+      ...(input.executionId === undefined
+        ? {}
+        : { executionId: input.executionId }),
     },
   });
 }
