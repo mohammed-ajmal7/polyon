@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import type { Agent, Mission, Model, Policy, Provider, Task } from "@polyon/contracts";
+import type { Agent, Conversation, Mission, Model, Policy, Provider, Task } from "@polyon/contracts";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -72,6 +72,17 @@ const policy: Policy = {
   updatedAt: now,
 };
 
+const conversation: Conversation = {
+  id: "conversation.test",
+  kind: "MISSION",
+  status: "ACTIVE",
+  participantIds: ["actor.test", agent.id],
+  messageIds: [],
+  missionId: mission.id,
+  createdAt: now,
+  updatedAt: now,
+};
+
 const task: Task = {
   id: "task.test",
   missionId: mission.id,
@@ -111,6 +122,7 @@ describe("createPolyonComposition", () => {
       expect(composition.runtime.status).toBe("STOPPED");
 
       composition.stores.tasks.save(task);
+      composition.stores.conversations.save(conversation);
 
       const dispatched = composition.missionExecution.dispatchReadyTasks({
         mission,
@@ -141,6 +153,17 @@ describe("createPolyonComposition", () => {
       });
 
       expect(composition.stores.tasks.get(task.id)?.status).toBe("SUCCEEDED");
+      expect(composition.stores.messages.get("execution-result:execution:task.test:1")?.content).toBe(
+        "composition works",
+      );
+      expect(composition.stores.conversations.get(conversation.id)?.messageIds).toEqual([
+        "execution-result:execution:task.test:1",
+      ]);
+      expect(
+        composition.stores.events
+          .listByExecution("execution:task.test:1")
+          .map((event) => event.kind),
+      ).toContain("MESSAGE_CREATED");
       expect(composition.stores.events.listByExecution("execution:task.test:1").map((event) => event.kind)).toContain(
         "EXECUTION_ROUTED",
       );
