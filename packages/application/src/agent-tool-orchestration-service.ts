@@ -346,6 +346,136 @@ export class AgentToolOrchestrationService {
     return { status: "ENQUEUED", executionId: queuedExecution.id };
   }
 
+  async reconcileIntegrationExecution(input: {
+    readonly approvalId: string;
+    readonly action: "MARK_COMPLETED" | "RETRY";
+    readonly resolvedAt: string;
+    readonly output?: unknown;
+  }): Promise<{
+    readonly status: "ENQUEUED";
+    readonly executionId: string;
+  }> {
+    const approval = this.dependencies.approvals.get(input.approvalId);
+
+    if (
+      approval === undefined ||
+      approval.integrationContinuation === undefined ||
+      approval.integrationContinuation.state !== "RECONCILIATION_REQUIRED"
+    ) {
+      throw new Error(
+        `Integration approval ${input.approvalId} is not awaiting reconciliation.`,
+      );
+    }
+
+    let continuation = approval.integrationContinuation;
+
+    if (input.action === "MARK_COMPLETED") {
+      if (input.output === undefined) {
+        throw new Error("MARK_COMPLETED requires an integration output.");
+      }
+
+      continuation = {
+        ...continuation,
+        state: "AWAITING_MODEL",
+        integrationOutput: input.output,
+        nextRequest: appendToolResult(
+          continuation.request,
+          continuation.response,
+          continuation.toolCall,
+          input.output,
+          DEFAULT_MAX_TOOL_OUTPUT_BYTES,
+        ),
+      };
+    } else {
+      continuation = {
+        ...continuation,
+        state: "AWAITING_INTEGRATION",
+      };
+    }
+
+    this.saveIntegrationContinuation(input.approvalId, continuation);
+
+    if (approval.executionId === undefined) {
+      throw new Error(
+        `Integration approval ${input.approvalId} has no execution binding.`,
+      );
+    }
+
+    const execution = this.dependencies.executions.get(approval.executionId);
+    if (execution === undefined || execution.status !== "PAUSED") {
+      throw new Error(
+        `Execution ${approval.executionId} is not paused for reconciliation.`,
+      );
+    }
+
+    const task = this.dependencies.tasks.get(execution.taskId);
+    if (task === undefined || task.status !== "PAUSED") {
+      throw new Error(
+        `Task ${execution.taskId} is not paused for reconciliation.`,
+      );
+    }
+
+    const queuedExecution = transitionExecutionStatus(
+      execution,
+      "QUEUED",
+      input.resolvedAt,
+    );
+    const queuedTask = transitionTaskStatus(task, "RUNNING", input.resolvedAt);
+
+    const operation = (stores: {
+      executions: ExecutionStore;
+      tasks: TaskStore;
+      events: EventStore;
+    }) => {
+      stores.executions.save(queuedExecution);
+      stores.tasks.save(queuedTask);
+      stores.events.append({
+        id:
+          `EXECUTION_STATUS_CHANGED:${execution.id}:PAUSED:QUEUED:${input.resolvedAt}:INTEGRATION_RECONCILIATION`,
+        kind: "EXECUTION_STATUS_CHANGED",
+        actorId: execution.actorId,
+        missionId: execution.missionId,
+        taskId: execution.taskId,
+        executionId: execution.id,
+        occurredAt: input.resolvedAt,
+        data: {
+          from: "PAUSED",
+          to: "QUEUED",
+          reason: "INTEGRATION_RECONCILIATION",
+          approvalRequestId: approval.id,
+          action: input.action,
+        },
+      });
+      stores.events.append({
+        id:
+          `TASK_STATUS_CHANGED:${task.id}:PAUSED:RUNNING:${input.resolvedAt}:INTEGRATION_RECONCILIATION`,
+        kind: "TASK_STATUS_CHANGED",
+        missionId: task.missionId,
+        taskId: task.id,
+        occurredAt: input.resolvedAt,
+        data: {
+          from: "PAUSED",
+          to: "RUNNING",
+          reason: "INTEGRATION_RECONCILIATION",
+          approvalRequestId: approval.id,
+          action: input.action,
+        },
+      });
+    };
+
+    if (this.dependencies.unitOfWork === undefined) {
+      operation(this.dependencies);
+    } else {
+      this.dependencies.unitOfWork.transaction(operation);
+    }
+
+    this.dependencies.enqueueExecution(queuedExecution);
+    return {
+      status: "ENQUEUED",
+      executionId: queuedExecution.id,
+    };
+  }
+
   async resumeApprovedExecution(
     executionId: string,
     policy: Policy,
