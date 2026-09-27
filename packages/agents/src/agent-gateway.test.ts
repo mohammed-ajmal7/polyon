@@ -62,6 +62,43 @@ function createGateway(adapter: ModelProviderAdapter) {
 }
 
 describe("AgentGateway", () => {
+  it("passes model invocation reliability options through the agent boundary", async () => {
+    let timeoutMs: number | undefined;
+    let retries: number | undefined;
+
+    const gateway = createGateway({
+      providerId: "provider-1",
+      async invoke() {
+        return { output: "ok" };
+      },
+    });
+
+    const modelGateway = (gateway as unknown as { dependencies: { modelGateway: { invoke: typeof ModelGateway.prototype.invoke } } }).dependencies.modelGateway;
+    const originalInvoke = modelGateway.invoke.bind(modelGateway);
+    modelGateway.invoke = async (...args) => {
+      timeoutMs = args[2]?.timeoutMs;
+      retries = args[2]?.retries;
+      return originalInvoke(...args);
+    };
+
+    await expect(
+      gateway.invoke({
+        agentId: "agent-1",
+        requiredCapabilityIds: ["research"],
+        input: "hello",
+        modelOptions: {
+          timeoutMs: 5000,
+          retries: 2,
+        },
+      }),
+    ).resolves.toMatchObject({
+      output: "ok",
+    });
+
+    expect(timeoutMs).toBe(5000);
+    expect(retries).toBe(2);
+  });
+
   it("routes an agent invocation through model and provider boundaries", async () => {
     const gateway = createGateway({
       providerId: "provider-1",
