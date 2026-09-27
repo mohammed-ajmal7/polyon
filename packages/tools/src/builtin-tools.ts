@@ -7,6 +7,7 @@ import { ScopedTerminalToolAdapter } from "./scoped-terminal-tool-adapter";
 import { ScopedGitReadToolAdapter } from "./scoped-git-read-tool-adapter";
 import { ScopedGitWriteToolAdapter } from "./scoped-git-write-tool-adapter";
 import { ScopedGitCommitToolAdapter } from "./scoped-git-commit-tool-adapter";
+import { ScopedGitPublishToolAdapter } from "./scoped-git-publish-tool-adapter";
 import { ScopedArtifactWriteToolAdapter } from "./scoped-artifact-write-tool-adapter";
 import type { ToolRegistry } from "./tool-registry";
 import { InMemoryToolRegistry } from "./tool-registry";
@@ -17,6 +18,7 @@ export const BUILTIN_TOOL_IDS = {
   gitRead: "git.read.scoped" as ToolId,
   gitWrite: "git.write.scoped" as ToolId,
   gitCommit: "git.commit.scoped" as ToolId,
+  gitPublish: "git.publish.scoped" as ToolId,
   artifactWrite: "artifact.write.scoped" as ToolId,
 } as const;
 
@@ -57,6 +59,14 @@ export interface BuiltinToolOptions {
   readonly gitCommitMaxOutputBytes?: number;
   readonly gitCommitEnvironmentKeys?: readonly string[];
   readonly gitCommitEnabled?: boolean;
+  readonly gitPublishRoot?: string;
+  readonly gitPublishAllowedRemotes?: readonly string[];
+  readonly gitPublishExecutable?: string;
+  readonly gitPublishDefaultTimeoutMs?: number;
+  readonly gitPublishMaxTimeoutMs?: number;
+  readonly gitPublishMaxOutputBytes?: number;
+  readonly gitPublishEnvironmentKeys?: readonly string[];
+  readonly gitPublishEnabled?: boolean;
   readonly artifactRoot?: string;
   readonly artifactDefaultKind?: "DOCUMENT" | "IMAGE" | "VIDEO" | "AUDIO" | "CODE" | "DATASET" | "REPORT" | "OTHER";
   readonly artifactWriteEnabled?: boolean;
@@ -367,6 +377,59 @@ export function registerBuiltinTools(
 
     registries.tools.register(gitCommitTool);
     registries.adapters.register(gitCommitAdapter);
+  }
+
+  if (
+    options.gitPublishRoot !== undefined &&
+    options.gitPublishAllowedRemotes !== undefined
+  ) {
+    const gitPublishTool: Tool = {
+      id: BUILTIN_TOOL_IDS.gitPublish,
+      name: "Scoped Git publish",
+      description:
+        "Publishes the current HEAD to an explicitly allowlisted Git remote and branch.",
+      kind: "GIT",
+      actionKinds: ["PUBLISH"],
+      inputSchema: {
+        type: "object",
+        required: ["remote", "branch"],
+        additionalProperties: false,
+        properties: {
+          remote: {
+            type: "string",
+            minLength: 1,
+          },
+          branch: {
+            type: "string",
+            minLength: 1,
+            maxLength: 200,
+          },
+          timeoutMs: {
+            type: "integer",
+            minimum: 1,
+          },
+          maxOutputBytes: {
+            type: "integer",
+            minimum: 1,
+          },
+        },
+      },
+      enabled: options.gitPublishEnabled ?? true,
+    };
+
+    const gitPublishAdapter = new ScopedGitPublishToolAdapter({
+      toolId: gitPublishTool.id,
+      rootDir: options.gitPublishRoot,
+      allowedRemotes: options.gitPublishAllowedRemotes,
+      gitExecutable: options.gitPublishExecutable,
+      defaultTimeoutMs: options.gitPublishDefaultTimeoutMs,
+      maxTimeoutMs: options.gitPublishMaxTimeoutMs,
+      defaultMaxOutputBytes: options.gitPublishMaxOutputBytes,
+      environmentKeys: options.gitPublishEnvironmentKeys,
+    });
+
+    registries.tools.register(gitPublishTool);
+    registries.adapters.register(gitPublishAdapter);
   }
 
   return registrations;
