@@ -39,6 +39,8 @@ export {
   validateTaskGraph,
 } from "./work/index";
 
+export type { TaskDependency } from "./work/task-readiness";
+
 export type { CreateApprovalRequestInput, PolicyEvaluationInput } from "./policy/index";
 
 export {
