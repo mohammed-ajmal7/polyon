@@ -302,7 +302,7 @@ The most important missing layers include:
 
 ### Real application/runtime execution
 
-The current execution system has boundaries and in-memory implementations. It still needs production-grade orchestration connecting:
+The current execution system has boundaries and in-memory implementations plus a restart-safe runtime bootstrap. It still needs production-grade orchestration connecting:
 
 - accepted commands;
 - mission planning;
@@ -384,7 +384,7 @@ Durable storage now has optimistic concurrency protection. File-backed writes ca
 Still required for the full Phase 3 target:
 
 - broader crash-recovery tests around multi-store operations;
-- startup wiring and recovery monitoring for the durable execution queue.
+- recovery monitoring/operational health signals for the durable execution queue.
 
 Persistence must support recovery and traceability without coupling the application to one database forever.
 
