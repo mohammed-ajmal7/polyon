@@ -9,7 +9,7 @@ import {
 const googleDrive: IntegrationAdapter = {
   integrationId: "drive-primary",
   kind: "GOOGLE_DRIVE",
-  sideEffectClass: "EXTERNAL_SIDE_EFFECT",
+  sideEffectClass: "IDEMPOTENT",
   actionKinds: ["WRITE"],
   supportedOperations: ["CREATE"],
   async invoke() {
@@ -20,7 +20,7 @@ const googleDrive: IntegrationAdapter = {
 const telegram: IntegrationAdapter = {
   integrationId: "telegram-primary",
   kind: "TELEGRAM",
-  sideEffectClass: "EXTERNAL_SIDE_EFFECT",
+  sideEffectClass: "NON_IDEMPOTENT",
   actionKinds: ["EXTERNAL_COMMUNICATION"],
   supportedOperations: ["SEND"],
   async invoke() {
