@@ -3,7 +3,7 @@ import type { TaskStatus } from "@polyon/contracts";
 const transitions: Readonly<Record<TaskStatus, readonly TaskStatus[]>> = {
   PENDING: ["BLOCKED", "READY", "CANCELLED", "REJECTED"],
   BLOCKED: ["READY", "CANCELLED"],
-  READY: ["APPROVAL_REQUIRED", "RUNNING", "CANCELLED", "REJECTED"],
+  READY: ["APPROVAL_REQUIRED", "APPROVED", "RUNNING", "CANCELLED", "REJECTED"],
   APPROVAL_REQUIRED: ["APPROVED", "REJECTED", "CANCELLED"],
   APPROVED: ["RUNNING", "CANCELLED"],
   RUNNING: ["PAUSED", "SUCCEEDED", "FAILED", "CANCELLED"],

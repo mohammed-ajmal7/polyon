@@ -17,6 +17,50 @@ import {
 import type { ExecutionDispatchPlan } from "./execution-dispatch";
 import { ExecutionDispatchService } from "./execution-dispatch-service";
 
+function validateDispatchTasks(mission: Mission, tasks: readonly Task[]): void {
+  const taskIds = new Set<string>();
+  const missionTaskIds = new Set(mission.taskIds);
+
+  for (const task of tasks) {
+    if (taskIds.has(task.id)) {
+      throw new MissionExecutionValidationError([
+        { kind: "DUPLICATE_MISSION_TASK_ID", taskId: task.id },
+      ]);
+    }
+
+    taskIds.add(task.id);
+
+    if (task.missionId !== mission.id) {
+      throw new MissionExecutionValidationError([
+        {
+          kind: "TASK_MISSION_MISMATCH",
+          taskId: task.id,
+          expectedMissionId: mission.id,
+          actualMissionId: task.missionId,
+        },
+      ]);
+    }
+
+    if (!missionTaskIds.has(task.id)) {
+      throw new MissionExecutionValidationError([
+        { kind: "UNDECLARED_MISSION_TASK", taskId: task.id },
+      ]);
+    }
+  }
+
+  const hasCompleteMissionTaskSet =
+    taskIds.size === mission.taskIds.length &&
+    mission.taskIds.every((taskId) => taskIds.has(taskId));
+
+  if (hasCompleteMissionTaskSet) {
+    const validation = validateMissionTaskPlan(mission, tasks);
+
+    if (!validation.valid) {
+      throw new MissionExecutionValidationError(validation.errors);
+    }
+  }
+}
+
 export interface ExecutionIdentityFactory {
   executionId(taskId: string, attempt: number): string;
   policyDecisionId(taskId: string, executionId: string): string;
@@ -62,11 +106,8 @@ export class MissionExecutionService {
 
   dispatchReadyTasks(input: DispatchReadyTasksInput): DispatchReadyTasksResult {
     const currentTasks = input.tasks.map((task) => this.getTask(task.id) ?? task);
-    const validation = validateMissionTaskPlan(input.mission, currentTasks);
 
-    if (!validation.valid) {
-      throw new MissionExecutionValidationError(validation.errors);
-    }
+    validateDispatchTasks(input.mission, currentTasks);
 
     const dependencies: readonly TaskDependency[] = currentTasks.map((task) => ({
       id: task.id,
@@ -110,7 +151,7 @@ export class MissionExecutionService {
         expiresAt: input.expiresAt,
       });
 
-        const taskStatus =
+      const taskStatus =
         plan.nextStep === "ENQUEUE"
           ? "APPROVED"
           : plan.nextStep === "AWAIT_APPROVAL"
