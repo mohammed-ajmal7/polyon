@@ -1,0 +1,270 @@
+import type {
+  ActorId,
+  Artifact,
+  ArtifactId,
+  ArtifactKind,
+  ArtifactStatus,
+  Conversation,
+  DomainEvent,
+  Execution,
+  Message,
+  MessageId,
+} from "@polyon/contracts";
+import type {
+  ArtifactStore,
+  ConversationStore,
+  EventStore,
+  ExecutionStore,
+  MessageStore,
+} from "@polyon/storage";
+
+export interface PersistExecutionArtifactInput {
+  readonly id: ArtifactId;
+  readonly kind: ArtifactKind;
+  readonly name: string;
+  readonly mimeType?: string;
+  readonly location: string;
+  readonly status?: ArtifactStatus;
+  readonly createdAt: string;
+}
+
+export interface PersistExecutionResultInput {
+  readonly executionId: string;
+  readonly conversationId: string;
+  readonly messageId: MessageId;
+  readonly actorId: ActorId;
+  readonly output: string;
+  readonly artifacts?: readonly PersistExecutionArtifactInput[];
+  readonly createdAt: string;
+}
+
+export interface PersistedExecutionResult {
+  readonly execution: Execution;
+  readonly conversation: Conversation;
+  readonly message: Message;
+  readonly artifacts: readonly Artifact[];
+  readonly events: readonly DomainEvent[];
+}
+
+export type ExecutionResultServiceErrorKind =
+  | "EXECUTION_NOT_FOUND"
+  | "EXECUTION_NOT_TERMINAL"
+  | "CONVERSATION_NOT_FOUND"
+  | "CONVERSATION_NOT_ACTIVE"
+  | "CONVERSATION_MISSION_MISMATCH"
+  | "MESSAGE_EXISTS"
+  | "ARTIFACT_EXISTS";
+
+export interface ExecutionResultServiceDependencies {
+  readonly executions: ExecutionStore;
+  readonly conversations: ConversationStore;
+  readonly messages: MessageStore;
+  readonly artifacts: ArtifactStore;
+  readonly events: EventStore;
+}
+
+export class ExecutionResultServiceError extends Error {
+  readonly kind: ExecutionResultServiceErrorKind;
+
+  constructor(kind: ExecutionResultServiceErrorKind, message: string) {
+    super(message);
+    this.name = "ExecutionResultServiceError";
+    this.kind = kind;
+  }
+}
+
+function isTerminalExecution(status: Execution["status"]): boolean {
+  return (
+    status === "SUCCEEDED" ||
+    status === "FAILED" ||
+    status === "CANCELLED" ||
+    status === "REJECTED"
+  );
+}
+
+function createResultMessage(
+  input: PersistExecutionResultInput,
+  execution: Execution,
+): Message {
+  return {
+    id: input.messageId,
+    conversationId: input.conversationId,
+    actorId: input.actorId,
+    role: execution.status === "FAILED" ? "SYSTEM" : "AGENT",
+    kind: execution.status === "FAILED" ? "ERROR" : "TEXT",
+    content: input.output,
+    createdAt: input.createdAt,
+  };
+}
+
+function createArtifact(
+  input: PersistExecutionArtifactInput,
+  execution: Execution,
+): Artifact {
+  return {
+    id: input.id,
+    kind: input.kind,
+    name: input.name,
+    ...(input.mimeType !== undefined ? { mimeType: input.mimeType } : {}),
+    location: input.location,
+    status: input.status ?? "AVAILABLE",
+    missionId: execution.missionId,
+    taskId: execution.taskId,
+    executionId: execution.id,
+    createdAt: input.createdAt,
+    updatedAt: input.createdAt,
+  };
+}
+
+function appendMessageCreatedEvent(
+  events: EventStore,
+  message: Message,
+  execution: Execution,
+): DomainEvent {
+  const event: DomainEvent = {
+    id: "MESSAGE_CREATED:" + message.id,
+    kind: "MESSAGE_CREATED",
+    actorId: message.actorId,
+    conversationId: message.conversationId,
+    missionId: execution.missionId,
+    taskId: execution.taskId,
+    executionId: execution.id,
+    occurredAt: message.createdAt,
+    data: {
+      messageId: message.id,
+      conversationId: message.conversationId,
+      executionId: execution.id,
+      kind: message.kind,
+    },
+  };
+
+  events.append(event);
+  return event;
+}
+
+function appendArtifactCreatedEvent(
+  events: EventStore,
+  artifact: Artifact,
+): DomainEvent {
+  const event: DomainEvent = {
+    id: "ARTIFACT_CREATED:" + artifact.id,
+    kind: "ARTIFACT_CREATED",
+    missionId: artifact.missionId,
+    taskId: artifact.taskId,
+    executionId: artifact.executionId,
+    occurredAt: artifact.createdAt,
+    data: {
+      artifactId: artifact.id,
+      name: artifact.name,
+      kind: artifact.kind,
+      location: artifact.location,
+      status: artifact.status,
+    },
+  };
+
+  events.append(event);
+  return event;
+}
+
+export class ExecutionResultService {
+  constructor(private readonly dependencies: ExecutionResultServiceDependencies) {}
+
+  persist(input: PersistExecutionResultInput): PersistedExecutionResult {
+    const execution = this.dependencies.executions.get(input.executionId);
+
+    if (execution === undefined) {
+      throw new ExecutionResultServiceError(
+        "EXECUTION_NOT_FOUND",
+        "Execution not found: " + input.executionId + ".",
+      );
+    }
+
+    if (!isTerminalExecution(execution.status)) {
+      throw new ExecutionResultServiceError(
+        "EXECUTION_NOT_TERMINAL",
+        "Cannot persist a result while execution " +
+          execution.id +
+          " is " +
+          execution.status +
+          ".",
+      );
+    }
+
+    const conversation = this.dependencies.conversations.get(input.conversationId);
+
+    if (conversation === undefined) {
+      throw new ExecutionResultServiceError(
+        "CONVERSATION_NOT_FOUND",
+        "Conversation not found: " + input.conversationId + ".",
+      );
+    }
+
+    if (conversation.status !== "ACTIVE") {
+      throw new ExecutionResultServiceError(
+        "CONVERSATION_NOT_ACTIVE",
+        "Cannot publish an execution result to conversation " +
+          conversation.id +
+          " while status is " +
+          conversation.status +
+          ".",
+      );
+    }
+
+    if (conversation.missionId !== execution.missionId) {
+      throw new ExecutionResultServiceError(
+        "CONVERSATION_MISSION_MISMATCH",
+        "Conversation " +
+          conversation.id +
+          " is not bound to execution mission " +
+          execution.missionId +
+          ".",
+      );
+    }
+
+    if (this.dependencies.messages.get(input.messageId) !== undefined) {
+      throw new ExecutionResultServiceError(
+        "MESSAGE_EXISTS",
+        "Message already exists: " + input.messageId + ".",
+      );
+    }
+
+    for (const artifact of input.artifacts ?? []) {
+      if (this.dependencies.artifacts.get(artifact.id) !== undefined) {
+        throw new ExecutionResultServiceError(
+          "ARTIFACT_EXISTS",
+          "Artifact already exists: " + artifact.id + ".",
+        );
+      }
+    }
+
+    const message = createResultMessage(input, execution);
+    const artifacts = (input.artifacts ?? []).map((artifact) =>
+      createArtifact(artifact, execution),
+    );
+    const updatedConversation: Conversation = {
+      ...conversation,
+      messageIds: [...conversation.messageIds, message.id],
+      updatedAt: input.createdAt,
+    };
+
+    this.dependencies.messages.save(message);
+    for (const artifact of artifacts) {
+      this.dependencies.artifacts.save(artifact);
+    }
+    this.dependencies.conversations.save(updatedConversation);
+
+    const events: DomainEvent[] = [];
+    events.push(appendMessageCreatedEvent(this.dependencies.events, message, execution));
+    for (const artifact of artifacts) {
+      events.push(appendArtifactCreatedEvent(this.dependencies.events, artifact));
+    }
+
+    return {
+      execution,
+      conversation: updatedConversation,
+      message,
+      artifacts,
+      events,
+    };
+  }
+}
