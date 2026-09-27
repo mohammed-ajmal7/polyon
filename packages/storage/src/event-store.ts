@@ -7,6 +7,8 @@ import type {
   TaskId,
 } from "@polyon/contracts";
 
+import { FileEntityStore, InMemoryEntityStore } from "./entity-store";
+
 export interface EventStore {
   append(event: DomainEvent): void;
   get(eventId: EventId): DomainEvent | undefined;
@@ -21,25 +23,27 @@ function cloneEvent(event: DomainEvent): DomainEvent {
   return structuredClone(event);
 }
 
-export class InMemoryEventStore implements EventStore {
-  private readonly events = new Map<EventId, DomainEvent>();
+class EntityBackedEventStore implements EventStore {
+  constructor(
+    private readonly store: InMemoryEntityStore<DomainEvent> | FileEntityStore<DomainEvent>,
+  ) {}
 
   append(event: DomainEvent): void {
-    if (this.events.has(event.id)) {
+    if (this.store.get(event.id) !== undefined) {
       throw new Error(`Event already exists: ${event.id}.`);
     }
 
-    this.events.set(event.id, cloneEvent(event));
+    this.store.save(cloneEvent(event));
   }
 
   get(eventId: EventId): DomainEvent | undefined {
-    const event = this.events.get(eventId);
+    const event = this.store.get(eventId);
 
     return event === undefined ? undefined : cloneEvent(event);
   }
 
   list(): readonly DomainEvent[] {
-    return [...this.events.values()].map(cloneEvent);
+    return this.store.list().map(cloneEvent);
   }
 
   listByConversation(conversationId: ConversationId): readonly DomainEvent[] {
@@ -56,5 +60,17 @@ export class InMemoryEventStore implements EventStore {
 
   listByExecution(executionId: ExecutionId): readonly DomainEvent[] {
     return this.list().filter((event) => event.executionId === executionId);
+  }
+}
+
+export class InMemoryEventStore extends EntityBackedEventStore {
+  constructor() {
+    super(new InMemoryEntityStore<DomainEvent>());
+  }
+}
+
+export class FileEventStore extends EntityBackedEventStore {
+  constructor(filePath: string) {
+    super(new FileEntityStore<DomainEvent>(filePath));
   }
 }
