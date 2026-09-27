@@ -127,47 +127,85 @@ export class ModelGateway {
   ): Promise<ProviderInvocationResult<TOutput>> {
     const timeoutMs = options.timeoutMs;
     const controller = new AbortController();
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    let removeAbortListener: (() => void) | undefined;
-
-    if (options.signal !== undefined) {
-      if (options.signal.aborted) {
-        throw new ProviderInvocationError(
-          "CANCELLED",
-          adapter.providerId,
-          modelId,
-          `Provider invocation was cancelled for model: ${modelId}.`,
-          false,
-        );
-      }
-
-      const onAbort = () => controller.abort();
-      options.signal.addEventListener("abort", onAbort, { once: true });
-      removeAbortListener = () => options.signal?.removeEventListener("abort", onAbort);
-    }
-
-    if (timeoutMs !== undefined) {
-      timeout = setTimeout(() => controller.abort(), timeoutMs);
-    }
-
-    try {
-      return (await adapter.invoke({
+    const providerPromise = Promise.resolve().then(() =>
+      adapter.invoke({
         modelId,
         input,
         signal: controller.signal,
-      })) as ProviderInvocationResult<TOutput>;
-    } catch (error) {
-      if (timeout !== undefined && controller.signal.aborted && options.signal?.aborted !== true) {
-        throw new ProviderInvocationError(
-          "TIMEOUT",
-          adapter.providerId,
-          modelId,
-          `Provider invocation timed out after ${timeoutMs}ms for model: ${modelId}.`,
-          true,
-        );
+      }),
+    );
+
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    let removeAbortListener: (() => void) | undefined;
+
+    const cancellationPromise =
+      options.signal === undefined
+        ? undefined
+        : new Promise<never>((_, reject) => {
+            if (options.signal?.aborted) {
+              controller.abort();
+              reject(
+                new ProviderInvocationError(
+                  "CANCELLED",
+                  adapter.providerId,
+                  modelId,
+                  `Provider invocation was cancelled for model: ${modelId}.`,
+                  false,
+                ),
+              );
+              return;
+            }
+
+            const onAbort = () => {
+              controller.abort();
+              reject(
+                new ProviderInvocationError(
+                  "CANCELLED",
+                  adapter.providerId,
+                  modelId,
+                  `Provider invocation was cancelled for model: ${modelId}.`,
+                  false,
+                ),
+              );
+            };
+
+            options.signal?.addEventListener("abort", onAbort, { once: true });
+            removeAbortListener = () =>
+              options.signal?.removeEventListener("abort", onAbort);
+          });
+
+    const timeoutPromise =
+      timeoutMs === undefined
+        ? undefined
+        : new Promise<never>((_, reject) => {
+            timeout = setTimeout(() => {
+              controller.abort();
+              reject(
+                new ProviderInvocationError(
+                  "TIMEOUT",
+                  adapter.providerId,
+                  modelId,
+                  `Provider invocation timed out after ${timeoutMs}ms for model: ${modelId}.`,
+                  true,
+                ),
+              );
+            }, timeoutMs);
+          });
+
+    try {
+      const races: Promise<
+        ProviderInvocationResult<TOutput> | never
+      >[] = [providerPromise as Promise<ProviderInvocationResult<TOutput>>];
+
+      if (cancellationPromise !== undefined) {
+        races.push(cancellationPromise);
       }
 
-      throw error;
+      if (timeoutPromise !== undefined) {
+        races.push(timeoutPromise);
+      }
+
+      return await Promise.race(races);
     } finally {
       if (timeout !== undefined) {
         clearTimeout(timeout);
