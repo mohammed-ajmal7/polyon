@@ -1,7 +1,10 @@
 import type { DomainEvent } from "@polyon/contracts";
+import { mkdtempSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 
-import { InMemoryEventStore } from "./event-store";
+import { FileEventStore, InMemoryEventStore } from "./event-store";
 
 const baseEvent: DomainEvent = {
   id: "event-1",
@@ -90,3 +93,40 @@ describe("InMemoryEventStore", () => {
     ).toEqual(["one"]);
   });
 });
+
+
+
+  it("persists events across store instances", () => {
+    const directory = mkdtempSync(join(tmpdir(), "polyon-events-"));
+
+    try {
+      const path = join(directory, "events.json");
+      const first = new FileEventStore(path);
+
+      first.append(baseEvent);
+
+      const second = new FileEventStore(path);
+
+      expect(second.get("event-1")).toEqual(baseEvent);
+      expect(second.listByMission("mission-1")).toEqual([baseEvent]);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("retains duplicate protection after reopening durable storage", () => {
+    const directory = mkdtempSync(join(tmpdir(), "polyon-events-"));
+
+    try {
+      const path = join(directory, "events.json");
+      new FileEventStore(path).append(baseEvent);
+
+      const reopened = new FileEventStore(path);
+
+      expect(() => reopened.append(baseEvent)).toThrow(
+        "Event already exists: event-1.",
+      );
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
