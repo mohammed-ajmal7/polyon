@@ -53,7 +53,9 @@ describe("recoverQueuedExecutions", () => {
     expect(queue.peek()?.id).toBe("execution-1");
   });
 
-  it("requeues an interrupted running execution with an approved resumable tool continuation", () => {
+  it(
+    "requeues an interrupted running execution with an approved resumable tool continuation",
+    () => {
     const stores = new InMemoryDomainStores();
     const queue = new InMemoryExecutionQueue();
 
@@ -104,7 +106,11 @@ describe("recoverQueuedExecutions", () => {
         nextRequest: {
           messages: [
             { role: "USER", content: "Run the tool." },
-            { role: "ASSISTANT", content: "", toolCalls: [{ id: "2", toolId: "tool-1", input: {} }] },
+            {
+              role: "ASSISTANT",
+              content: "",
+              toolCalls: [{ id: "2", toolId: "tool-1", input: {} }],
+            },
             { role: "TOOL", name: "tool-1", toolCallId: "2", content: "already completed" },
           ],
         },
@@ -129,7 +135,8 @@ describe("recoverQueuedExecutions", () => {
     expect(stores.executions.get("execution-2")?.updatedAt).toBe(
       "2026-09-27T01:05:00.000Z",
     );
-  });
+    },
+  );
 
   it("does not duplicate executions already present in the queue", () => {
     const stores = new InMemoryDomainStores();
