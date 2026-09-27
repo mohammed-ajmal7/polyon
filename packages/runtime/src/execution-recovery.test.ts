@@ -68,7 +68,10 @@ describe("recoverQueuedExecutions", () => {
     try {
       const firstProcessStores = new FileDomainStores(directory);
       firstProcessStores.tasks.save(approvedTask);
-      firstProcessStores.executions.save(queued("execution-1"));
+      firstProcessStores.executions.save({
+        ...queued("execution-1"),
+        taskId: "task-1",
+      });
 
       const secondProcessStores = new FileDomainStores(directory);
       const recoveredQueue = new InMemoryExecutionQueue();
