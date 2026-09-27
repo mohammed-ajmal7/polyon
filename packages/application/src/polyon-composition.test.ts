@@ -327,6 +327,7 @@ describe("createPolyonComposition", () => {
           kind: "SMTP_CREDENTIAL",
           provider: "email",
         },
+        emailSmtpUsername: "mailer@example.com",
         emailTransport: transport,
       });
 
