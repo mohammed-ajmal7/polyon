@@ -201,4 +201,56 @@ describe("EmailIntegrationAdapter", () => {
     expect(adapter.supportedOperations).toEqual(["SEND_EMAIL"]);
     expect(adapter.sideEffectClass).toBe("NON_IDEMPOTENT");
   });
+  it("validates provider-neutral SMTP transport bounds", async () => {
+    const { validateSmtpTransportOptions } = await import("./smtp-transport");
+
+    expect(
+      validateSmtpTransportOptions({
+        host: " smtp.example.com ",
+        port: 465,
+        secure: true,
+      }),
+    ).toEqual({
+      host: "smtp.example.com",
+      port: 465,
+      secure: true,
+      connectionTimeoutMs: 10_000,
+      maxMessageBytes: 1_000_000,
+    });
+
+    expect(() =>
+      validateSmtpTransportOptions({
+        host: "",
+        port: 465,
+        secure: true,
+      }),
+    ).toThrow("SMTP host must not be empty.");
+
+    expect(() =>
+      validateSmtpTransportOptions({
+        host: "smtp.example.com",
+        port: 65_536,
+        secure: true,
+      }),
+    ).toThrow("SMTP port must be an integer between 1 and 65535.");
+
+    expect(() =>
+      validateSmtpTransportOptions({
+        host: "smtp.example.com",
+        port: 465,
+        secure: true,
+        connectionTimeoutMs: 60_001,
+      }),
+    ).toThrow("SMTP connection timeout");
+
+    expect(() =>
+      validateSmtpTransportOptions({
+        host: "smtp.example.com",
+        port: 465,
+        secure: true,
+        maxMessageBytes: 10_000_001,
+      }),
+    ).toThrow("SMTP message size");
+  });
+
 });
