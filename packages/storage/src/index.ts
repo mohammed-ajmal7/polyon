@@ -45,3 +45,5 @@ export {
   type DurableMigrationErrorKind,
   type DurableMigrationResult,
 } from "./migrations";
+
+export { DurableBackupService, type DurableBackupServiceOptions } from "./durable-backup-service";
