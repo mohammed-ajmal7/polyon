@@ -1,4 +1,9 @@
-import type { EmailSendInput, EmailSendOutput, EmailSmtpCredential, EmailTransport } from "./email-integration-adapter";
+import type {
+  EmailSendInput,
+  EmailSendOutput,
+  EmailSmtpCredential,
+  EmailTransport,
+} from "./email-integration-adapter";
 import {
   validateSmtpTransportOptions,
   type SmtpTransportOptions,
@@ -111,9 +116,12 @@ function buildMessage(input: EmailSendInput, messageIdDomain: string): string {
   ];
 
   if (input.html === undefined) {
-    return [...headers, "Content-Type: text/plain; charset=utf-8", "", normalizeBody(input.text)].join(
-      "\r\n",
-    );
+    return [
+      ...headers,
+      "Content-Type: text/plain; charset=utf-8",
+      "",
+      normalizeBody(input.text),
+    ].join("\r\n");
   }
 
   return [
