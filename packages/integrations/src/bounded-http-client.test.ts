@@ -69,7 +69,9 @@ describe("BoundedHttpClient", () => {
   });
 
   it("rejects non-allowlisted ports on an otherwise trusted host", async () => {
-    const fetchMock = vi.fn(async () => response("ok"));
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => response("ok"),
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const client = new BoundedHttpClient({
@@ -133,14 +135,13 @@ describe("BoundedHttpClient", () => {
       body: '{"ok":true}',
     });
 
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      3,
-      "https://api.example.com/data",
-      expect.objectContaining({
-        method: "POST",
-        body: '{"ok":true}',
-      }),
-    );
+    const postCall = fetchMock.mock.calls[2];
+    expect(postCall).toBeDefined();
+    expect(postCall?.[0]?.toString()).toBe("https://api.example.com/data");
+    expect(postCall?.[1]).toMatchObject({
+      method: "POST",
+      body: '{"ok":true}',
+    });
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
