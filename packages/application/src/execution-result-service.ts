@@ -73,12 +73,8 @@ export class ExecutionResultService {
   constructor(private readonly dependencies: ExecutionResultServiceDependencies) {}
 
   persist(input: PersistExecutionResultInput): PersistedExecutionResult {
-    const operation = (
-      stores: Pick<
-        DomainStoreTransactionContext,
-        "executions" | "conversations" | "messages" | "artifacts" | "events"
-      >,
-    ) => this.persistWithStores(stores, input);
+    const operation = (stores: ExecutionResultStores) =>
+      this.persistWithStores(stores, input);
 
     return this.dependencies.unitOfWork === undefined
       ? operation(this.dependencies)
@@ -86,139 +82,19 @@ export class ExecutionResultService {
   }
 
   private persistWithStores(
-    stores: Pick<
-      DomainStoreTransactionContext,
-      "executions" | "conversations" | "messages" | "artifacts" | "events"
-    >,
+    stores: ExecutionResultStores,
     input: PersistExecutionResultInput,
   ): PersistedExecutionResult {
-    const execution = stores.executions.get(input.executionId);
+    const operation = (
+      stores: Pick<
+        DomainStoreTransactionContext,
+        "executions" | "conversations" | "messages" | "artifacts" | "events"
+      >,
+    ) => this.persistWithStores(stores, input);
 
-    if (execution === undefined) {
-      throw new ExecutionResultServiceError(
-        "EXECUTION_NOT_FOUND",
-        "Execution not found: " + input.executionId + ".",
-      );
-    }
-
-    if (!isTerminalExecution(execution.status)) {
-      throw new ExecutionResultServiceError(
-        "EXECUTION_NOT_TERMINAL",
-        "Cannot persist a result while execution " +
-          execution.id +
-          " is " +
-          execution.status +
-          ".",
-      );
-    }
-
-    const conversation = stores.conversations.get(input.conversationId);
-
-    if (conversation === undefined) {
-      throw new ExecutionResultServiceError(
-        "CONVERSATION_NOT_FOUND",
-        "Conversation not found: " + input.conversationId + ".",
-      );
-    }
-
-    if (conversation.status !== "ACTIVE") {
-      throw new ExecutionResultServiceError(
-        "CONVERSATION_NOT_ACTIVE",
-        "Cannot publish an execution result to conversation " +
-          conversation.id +
-          " while status is " +
-          conversation.status +
-          ".",
-      );
-    }
-
-    if (conversation.kind !== "MISSION") {
-      throw new ExecutionResultServiceError(
-        "CONVERSATION_KIND_MISMATCH",
-        "Conversation " +
-          conversation.id +
-          " is " +
-          conversation.kind +
-          ", not MISSION.",
-      );
-    }
-
-    if (conversation.missionId !== execution.missionId) {
-      throw new ExecutionResultServiceError(
-        "CONVERSATION_MISSION_MISMATCH",
-        "Conversation " +
-          conversation.id +
-          " is not bound to execution mission " +
-          execution.missionId +
-          ".",
-      );
-    }
-
-    if (!conversation.participantIds.includes(input.actorId)) {
-      throw new ExecutionResultServiceError(
-        "ACTOR_NOT_PARTICIPANT",
-        "Result actor is not a participant in conversation " + conversation.id + ".",
-      );
-    }
-
-    if (stores.messages.get(input.messageId) !== undefined) {
-      throw new ExecutionResultServiceError(
-        "MESSAGE_EXISTS",
-        "Message already exists: " + input.messageId + ".",
-      );
-    }
-
-    const artifactIds = new Set<string>();
-
-    for (const artifact of input.artifacts ?? []) {
-      if (artifactIds.has(artifact.id)) {
-        throw new ExecutionResultServiceError(
-          "DUPLICATE_ARTIFACT_ID",
-          "Artifact ID is duplicated in the result: " + artifact.id + ".",
-        );
-      }
-
-      artifactIds.add(artifact.id);
-
-      if (stores.artifacts.get(artifact.id) !== undefined) {
-        throw new ExecutionResultServiceError(
-          "ARTIFACT_EXISTS",
-          "Artifact already exists: " + artifact.id + ".",
-        );
-      }
-    }
-
-    const message = createResultMessage(input, execution);
-    const artifacts = (input.artifacts ?? []).map((artifact) =>
-      createArtifact(artifact, execution),
-    );
-    const updatedConversation: Conversation = {
-      ...conversation,
-      messageIds: [...conversation.messageIds, message.id],
-      updatedAt: input.createdAt,
-    };
-
-    stores.messages.save(message);
-    for (const artifact of artifacts) {
-      stores.artifacts.save(artifact);
-    }
-    stores.conversations.save(updatedConversation);
-
-    const events: DomainEvent[] = [];
-    events.push(appendMessageCreatedEvent(stores.events, message, execution));
-    for (const artifact of artifacts) {
-      events.push(
-        appendArtifactCreatedEvent(stores.events, artifact, conversation.id),
-      );
-    }
-
-    return {
-      execution,
-      conversation: updatedConversation,
-      message,
-      artifacts,
-      events,
-    };
+    return stores.unitOfWork === undefined
+      ? operation(this.dependencies)
+      : stores.unitOfWork.transaction(operation);
   
   }
 }
