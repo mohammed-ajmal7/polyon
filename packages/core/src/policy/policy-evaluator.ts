@@ -17,6 +17,7 @@ export interface PolicyEvaluationInput {
   readonly agentId?: import("@polyon/contracts").AgentId;
   readonly capabilityId?: import("@polyon/contracts").CapabilityId;
   readonly toolId?: import("@polyon/contracts").ToolId;
+  readonly integrationId?: string;
   readonly evaluatedAt: string;
 }
 
@@ -42,6 +43,10 @@ function matchesRule(rule: PolicyRule, input: PolicyEvaluationInput): boolean {
   }
 
   if (rule.toolId !== undefined && rule.toolId !== input.toolId) {
+    return false;
+  }
+
+  if (rule.integrationId !== undefined && rule.integrationId !== input.integrationId) {
     return false;
   }
 
