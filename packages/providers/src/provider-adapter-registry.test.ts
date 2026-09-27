@@ -1,3 +1,4 @@
+import type { ModelProviderAdapter } from "./provider-adapter";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -5,10 +6,10 @@ import {
   ProviderAdapterRegistryError,
 } from "./provider-adapter-registry";
 
-const adapter = {
+const adapter: ModelProviderAdapter = {
   providerId: "provider-1",
-  async invoke({ input }: { input: string }) {
-    return { output: input.toUpperCase() };
+  async invoke({ input }) {
+    return { output: String(input).toUpperCase() };
   },
 };
 
