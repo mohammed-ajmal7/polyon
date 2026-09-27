@@ -15,6 +15,45 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   const polyon = getPolyonComposition();
+  const mode = optional(url.searchParams.get("mode")) ?? "lexical";
+
+  if (mode === "semantic") {
+    const modelId =
+      optional(url.searchParams.get("modelId")) ??
+      process.env.POLYON_EMBEDDING_MODEL_ID?.trim();
+
+    if (modelId === undefined || polyon.semanticMemory === undefined) {
+      return Response.json(
+        { error: "Semantic memory search is not configured." },
+        { status: 503 },
+      );
+    }
+
+    try {
+      const results = await polyon.semanticMemory.search({
+        query,
+        scope: optional(url.searchParams.get("scope")) as never,
+        missionId: optional(url.searchParams.get("missionId")),
+        taskId: optional(url.searchParams.get("taskId")),
+        limit,
+        modelId,
+      });
+
+      return Response.json({
+        memories: results.map(({ memory, score }) => ({ memory, score })),
+      });
+    } catch (error) {
+      return Response.json(
+        { error: error instanceof Error ? error.message : "Semantic memory search failed." },
+        { status: 400 },
+      );
+    }
+  }
+
+  if (mode !== "lexical") {
+    return Response.json({ error: "mode must be lexical or semantic." }, { status: 400 });
+  }
+
   const memories = polyon.memory.search({
     query,
     scope: optional(url.searchParams.get("scope")) as never,
