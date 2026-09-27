@@ -132,7 +132,7 @@ export class SmtpTransport implements EmailTransport {
       }
 
       await this.command(connection, "DATA", 354);
-      await connection.write(message);
+      await writeData(connection, message);
       await connection.write(".\r\n");
 
       try {
@@ -159,6 +159,16 @@ export class SmtpTransport implements EmailTransport {
   ): Promise<string> {
     await connection.write(command);
     return expectCode(connection, ...codes);
+  }
+}
+
+async function writeData(connection: SmtpConnection, message: string): Promise<void> {
+  const maxChunkBytes = 64 * 1024;
+  const bytes = new TextEncoder().encode(message);
+
+  for (let offset = 0; offset < bytes.length; offset += maxChunkBytes) {
+    const chunk = bytes.slice(offset, offset + maxChunkBytes);
+    await connection.write(new TextDecoder().decode(chunk));
   }
 }
 
