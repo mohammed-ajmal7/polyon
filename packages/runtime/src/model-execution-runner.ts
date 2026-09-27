@@ -14,11 +14,26 @@ import type {
   ExecutionRunner,
 } from "./execution-runner";
 
+export interface ModelExecutionToolOrchestrator {
+  continueFromResponse(input: {
+    readonly execution: Execution;
+    readonly request: TextModelRequest;
+    readonly response: import("@polyon/contracts").TextModelResponse;
+    readonly signal: AbortSignal;
+  }): Promise<{
+    readonly status: "SUCCEEDED" | "APPROVAL_REQUIRED" | "REJECTED" | "FAILED";
+    readonly response: import("@polyon/contracts").TextModelResponse;
+    readonly output?: string;
+    readonly error?: string;
+  }>;
+}
+
 export interface ModelExecutionRunnerDependencies {
   readonly modelGateway: ModelGateway;
   readonly tasks: TaskStore;
   readonly modelOptions?: ModelInvocationOptions;
   readonly systemPrompt?: string;
+  readonly toolOrchestrator?: ModelExecutionToolOrchestrator;
 }
 
 export class ModelExecutionRunner implements ExecutionRunner {
@@ -83,6 +98,44 @@ ${task.description}`,
           status: "FAILED",
           error: "Execution timed out after the runtime execution deadline.",
           output: result.output.content,
+        };
+      }
+
+      if (result.output.toolCalls !== undefined && result.output.toolCalls.length > 0) {
+        if (this.dependencies.toolOrchestrator === undefined) {
+          return {
+            status: "FAILED",
+            error: "Model requested tool execution, but governed tool orchestration is not configured.",
+            output: result.output.content,
+          };
+        }
+
+        const continuation = await this.dependencies.toolOrchestrator.continueFromResponse({
+          execution,
+          request: { messages },
+          response: result.output,
+          signal: context?.signal ?? new AbortController().signal,
+        });
+
+        if (continuation.status === "SUCCEEDED") {
+          return {
+            status: "SUCCEEDED",
+            output: continuation.response.content,
+          };
+        }
+
+        if (continuation.status === "APPROVAL_REQUIRED") {
+          return {
+            status: "FAILED",
+            error: "Execution paused for required tool approval.",
+            output: continuation.response.content,
+          };
+        }
+
+        return {
+          status: "FAILED",
+          error: continuation.error ?? "Governed tool orchestration failed.",
+          output: continuation.response.content,
         };
       }
 
