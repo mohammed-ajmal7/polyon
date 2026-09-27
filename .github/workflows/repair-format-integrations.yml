@@ -1,4 +1,5 @@
 name: Repair integration formatting
+# one-time trigger
 
 on:
   push:
