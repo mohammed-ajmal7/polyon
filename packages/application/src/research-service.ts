@@ -68,6 +68,7 @@ export class ResearchService {
           title: candidate.title.trim(),
           locator: candidate.locator,
           retrievedAt: candidate.retrievedAt,
+
         };
         const evidence: Evidence = {
           id: input.evidenceIdFactory(index, candidate),

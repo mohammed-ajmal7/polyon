@@ -12,7 +12,7 @@ describe("ResearchService", () => {
         {
           title: "Example source",
           locator: "https://example.com/source",
-          kind: "WEB",
+          kind: "WEB" as const,
           content: "A bounded source excerpt.",
           claim: "The source supports the claim.",
           retrievedAt: "2026-09-28T00:00:00.000Z",
@@ -69,7 +69,7 @@ describe("ResearchService", () => {
         {
           title: "",
           locator: "https://example.com",
-          kind: "WEB",
+          kind: "WEB" as const,
           content: "content",
           retrievedAt: "2026-09-28T00:00:00.000Z",
         },
