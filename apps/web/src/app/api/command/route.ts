@@ -1,11 +1,14 @@
 import { randomUUID } from "node:crypto";
 import type { CommandMode } from "@polyon/application";
-import { getPolyonActorId, getPolyonComposition } from "@/server/polyon-server";
+import { getPolyonActorId, getPolyonComposition, isSameOrigin } from "@/server/polyon-server";
 
 export const runtime = "nodejs";
 const MAX_REQUEST_BYTES = 65_536;
 
 export async function POST(request: Request): Promise<Response> {
+  if (!isSameOrigin(request)) {
+    return Response.json({ error: "Cross-origin POST requests are not allowed." }, { status: 403 });
+  }
   try {
     const raw = await request.text();
     if (new TextEncoder().encode(raw).byteLength > MAX_REQUEST_BYTES) {

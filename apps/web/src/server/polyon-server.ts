@@ -144,3 +144,15 @@ export function getPolyonPolicy(): Policy {
 export function executionEnabled(): boolean {
   return process.env.POLYON_EXECUTION_ENABLED === "true";
 }
+
+export function isSameOrigin(request: Request): boolean {
+  const origin = request.headers.get("origin");
+  if (origin === null) return true;
+  const host = request.headers.get("host");
+  if (host === null) return false;
+  try {
+    return new URL(origin).host === host;
+  } catch {
+    return false;
+  }
+}

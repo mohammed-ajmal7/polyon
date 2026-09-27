@@ -1,4 +1,4 @@
-import { getPolyonActorId, getPolyonComposition } from "@/server/polyon-server";
+import { getPolyonActorId, getPolyonComposition, isSameOrigin } from "@/server/polyon-server";
 
 export const runtime = "nodejs";
 
@@ -22,6 +22,9 @@ export async function GET(): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  if (!isSameOrigin(request)) {
+    return Response.json({ error: "Cross-origin POST requests are not allowed." }, { status: 403 });
+  }
   try {
     const input = (await request.json()) as Record<string, unknown>;
     const approvalId = typeof input.approvalId === "string" ? input.approvalId.trim() : "";

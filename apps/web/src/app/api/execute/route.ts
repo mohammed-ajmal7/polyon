@@ -2,13 +2,16 @@ import { randomUUID } from "node:crypto";
 
 import type { CommandMode } from "@polyon/application";
 
-import { getPolyonActorId, getPolyonComposition, getPolyonPolicy } from "@/server/polyon-server";
+import { getPolyonActorId, getPolyonComposition, getPolyonPolicy, isSameOrigin } from "@/server/polyon-server";
 
 export const runtime = "nodejs";
 
 const MAX_REQUEST_BYTES = 65_536;
 
 export async function POST(request: Request): Promise<Response> {
+  if (!isSameOrigin(request)) {
+    return Response.json({ error: "Cross-origin POST requests are not allowed." }, { status: 403 });
+  }
   try {
     if (!process.env.POLYON_EXECUTION_ENABLED || process.env.POLYON_EXECUTION_ENABLED !== "true") {
       return Response.json({ error: "Execution is disabled. Set POLYON_EXECUTION_ENABLED=true." }, { status: 503 });
