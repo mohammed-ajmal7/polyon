@@ -133,11 +133,14 @@ describe("BoundedHttpClient", () => {
       body: '{"ok":true}',
     });
 
-    const postInit = fetchMock.mock.calls[2]?.[1];
-    expect(postInit).toMatchObject({
-      method: "POST",
-      body: '{"ok":true}',
-    });
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "https://api.example.com/data",
+      expect.objectContaining({
+        method: "POST",
+        body: '{"ok":true}',
+      }),
+    );
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
