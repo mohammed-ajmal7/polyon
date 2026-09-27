@@ -307,6 +307,40 @@ describe("createPolyonComposition", () => {
     }
   });
 
+  it("opts into the Email integration only with an explicit secret reference and transport", () => {
+    const root = mkdtempSync(join(tmpdir(), "polyon-composition-email-"));
+
+    try {
+      const secretResolver: import("@polyon/integrations").SecretResolver = {
+        resolve: vi.fn(async () => "smtp-secret"),
+      };
+      const transport: import("@polyon/integrations").EmailTransport = {
+        send: vi.fn(async () => ({ messageId: "message-1" })),
+      };
+
+      const composition = createPolyonComposition({
+        storageRoot: root,
+        secretResolver,
+        emailIntegrationId: "email-primary",
+        emailSecretReference: {
+          id: "email.primary",
+          kind: "SMTP_CREDENTIAL",
+          provider: "email",
+        },
+        emailTransport: transport,
+      });
+
+      expect(composition.integrations.get("email-primary")).toMatchObject({
+        kind: "EMAIL",
+        actionKinds: ["EXTERNAL_COMMUNICATION"],
+        supportedOperations: ["SEND_EMAIL"],
+        sideEffectClass: "NON_IDEMPOTENT",
+      });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("opts into the Telegram integration only with an explicit secret reference", () => {
     const root = mkdtempSync(join(tmpdir(), "polyon-composition-telegram-"));
 
