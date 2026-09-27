@@ -223,8 +223,7 @@ function isSmtpAddress(value: string): boolean {
   return (
     value.length > 0 &&
     value.length <= 320 &&
-    !/[\r\
-]/.test(value) &&
+    !/[\r\n]/.test(value) &&
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
   );
 }
@@ -245,7 +244,7 @@ async function expectCode(connection: SmtpConnection, ...expectedCodes: number[]
     const response = await connection.read();
     lines.push(response);
 
-    const match = /^(\\d{3})([ -])(.*?)(?:\r?\n)?$/.exec(response);
+    const match = /^(\d{3})([ -])(.*?)(?:\r?\n)?$/.exec(response);
 
     if (match === null) {
       throw new SmtpTransportError("PROTOCOL", "SMTP server returned an invalid response.");
