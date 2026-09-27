@@ -166,11 +166,19 @@ function buildArgs(input: ScopedGitWriteToolInput): readonly string[] {
     case "STAGE_PATHS":
       return ["add", "--", ...input.paths!.map(normalizeRelativePath)];
     case "UNSTAGE_PATHS":
-      return ["restore", "--staged", "--", ...input.paths!.map(normalizeRelativePath)];
+      return [
+        "restore",
+        "--staged",
+        "--",
+        ...input.paths!.map(normalizeRelativePath),
+      ];
   }
 }
 
-function validatePaths(rootDir: string, paths: readonly string[] | undefined): void {
+function validatePaths(
+  rootDir: string,
+  paths: readonly string[] | undefined,
+): void {
   if (
     paths === undefined ||
     paths.length === 0 ||
