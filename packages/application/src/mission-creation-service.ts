@@ -8,12 +8,21 @@ import type {
   MissionId,
 } from "@polyon/contracts";
 import { createMission } from "@polyon/core";
-import type { ConversationStore, EventStore, MissionStore } from "@polyon/storage";
+import type {
+  ConversationStore,
+  DomainStoreTransactionContext,
+  DomainUnitOfWork,
+  EventStore,
+  MissionStore,
+} from "@polyon/storage";
 
-export interface MissionCreationServiceDependencies {
-  readonly conversations: ConversationStore;
-  readonly missions: MissionStore;
-  readonly events: EventStore;
+type MissionCreationStores = Pick<
+  DomainStoreTransactionContext,
+  "conversations" | "missions" | "events"
+>;
+
+export interface MissionCreationServiceDependencies extends MissionCreationStores {
+  readonly unitOfWork?: DomainUnitOfWork;
 }
 
 export interface CreateMissionApplicationInput {
@@ -54,21 +63,33 @@ export class MissionCreationService {
   constructor(private readonly dependencies: MissionCreationServiceDependencies) {}
 
   create(input: CreateMissionApplicationInput): CreateMissionApplicationResult {
-    if (this.dependencies.missions.get(input.id) !== undefined) {
+    const operation = (stores: MissionCreationStores) =>
+      this.createWithStores(stores, input);
+
+    return this.dependencies.unitOfWork === undefined
+      ? operation(this.dependencies)
+      : this.dependencies.unitOfWork.transaction(operation);
+  }
+
+  private createWithStores(
+    stores: MissionCreationStores,
+    input: CreateMissionApplicationInput,
+  ): CreateMissionApplicationResult {
+    if (stores.missions.get(input.id) !== undefined) {
       throw new MissionCreationServiceError(
         "MISSION_EXISTS",
         `Mission already exists: ${input.id}.`,
       );
     }
 
-    if (this.dependencies.events.get(input.eventId) !== undefined) {
+    if (stores.events.get(input.eventId) !== undefined) {
       throw new MissionCreationServiceError(
         "EVENT_EXISTS",
         `Event already exists: ${input.eventId}.`,
       );
     }
 
-    const conversation = this.dependencies.conversations.get(input.conversationId);
+    const conversation = stores.conversations.get(input.conversationId);
 
     if (conversation === undefined) {
       throw new MissionCreationServiceError(
@@ -127,9 +148,9 @@ export class MissionCreationService {
       },
     };
 
-    this.dependencies.missions.save(mission);
-    this.dependencies.conversations.save(updatedConversation);
-    this.dependencies.events.append(event);
+    stores.missions.save(mission);
+    stores.conversations.save(updatedConversation);
+    stores.events.append(event);
 
     return {
       mission,
