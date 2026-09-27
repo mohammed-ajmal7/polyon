@@ -186,3 +186,5 @@ export { ConfiguredHttpResearchProvider, type ConfiguredHttpResearchProviderOpti
 export { MissionPlanningService, MissionPlanningValidationError, type GenerateMissionPlanInput, type GeneratedMissionPlan, type GeneratedTaskSpec } from "./mission-planning-service";
 
 export { MissionPlanOrchestrationService, type PlanMissionInput, type PlanMissionResult } from "./mission-plan-orchestration-service";
+
+export { MissionGraphExecutionService, type ExecuteMissionGraphInput, type ExecuteMissionGraphResult } from "./mission-graph-execution-service";
