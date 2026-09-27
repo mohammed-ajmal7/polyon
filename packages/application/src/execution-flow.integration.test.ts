@@ -147,6 +147,7 @@ describe("governed execution flow", () => {
       "EXECUTION_STATUS_CHANGED",
       "EXECUTION_STATUS_CHANGED",
       "EXECUTION_STATUS_CHANGED",
+      "EXECUTION_STATUS_CHANGED",
     ]);
     expect(events.listByTask("task-1").map((event) => event.kind)).toEqual([
       "TASK_STATUS_CHANGED",
