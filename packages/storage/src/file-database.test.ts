@@ -5,10 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import {
-  CURRENT_DURABLE_DOMAIN_VERSION,
-  FileDomainDatabase,
-} from "./file-database";
+import { FileDomainDatabase } from "./file-database";
+import { CURRENT_DURABLE_DOMAIN_VERSION } from "./migrations";
 
 function legacySnapshot(version: number): Record<string, unknown> {
   return {
