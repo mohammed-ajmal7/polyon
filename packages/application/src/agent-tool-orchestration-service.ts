@@ -59,7 +59,7 @@ export interface AgentToolOrchestrationDependencies {
   readonly tasks: TaskStore;
   readonly events: EventStore;
   readonly unitOfWork?: DomainUnitOfWork;
-  readonly queue: ExecutionQueue;
+  readonly enqueueExecution: (execution: import("@polyon/contracts").Execution) => void;
 }
 
 export class AgentToolOrchestrationService {
@@ -348,7 +348,7 @@ export class AgentToolOrchestrationService {
     };
     if (this.dependencies.unitOfWork === undefined) operation(this.dependencies);
     else this.dependencies.unitOfWork.transaction(operation);
-    this.dependencies.queue.enqueue(queuedExecution);
+    this.dependencies.enqueueExecution(queuedExecution);
     return { status: "ENQUEUED", executionId: queuedExecution.id };
   }
 
