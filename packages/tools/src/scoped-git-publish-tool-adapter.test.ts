@@ -112,7 +112,7 @@ describe("ScopedGitPublishToolAdapter", () => {
         kind: "REMOTE_NOT_ALLOWED",
       });
     } finally {
-      cleanup(pair.root.replace(/\/g, "/").split("/work").slice(0, -1)[0] || pair.root);
+      cleanup(pair.base);
     }
   });
 
@@ -137,7 +137,7 @@ describe("ScopedGitPublishToolAdapter", () => {
         kind: "INVALID_BRANCH",
       });
     } finally {
-      cleanup(pair.root.replace(/\/g, "/").split("/work").slice(0, -1)[0] || pair.root);
+      cleanup(pair.base);
     }
   });
 
@@ -154,7 +154,7 @@ describe("ScopedGitPublishToolAdapter", () => {
           }),
       ).toThrow(RangeError);
     } finally {
-      cleanup(pair.root.replace(/\/g, "/").split("/work").slice(0, -1)[0] || pair.root);
+      cleanup(pair.base);
     }
   });
 
@@ -177,7 +177,7 @@ describe("ScopedGitPublishToolAdapter", () => {
         }),
       ).rejects.toBeInstanceOf(ScopedGitPublishToolError);
     } finally {
-      cleanup(pair.root.replace(/\/g, "/").split("/work").slice(0, -1)[0] || pair.root);
+      cleanup(pair.base);
     }
   });
 });
