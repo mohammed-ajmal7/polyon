@@ -61,6 +61,8 @@ export class SemanticMemoryService {
     modelId: string,
     input: { readonly now: string; readonly batchSize?: number; readonly maxEntries?: number },
   ): Promise<{ readonly indexed: number; readonly stale: number; readonly skipped: number }> {
+    if (modelId.trim() === "") throw new RangeError("Embedding model ID must not be empty.");
+
     const batchSize = input.batchSize ?? 16;
     const maxEntries = input.maxEntries ?? 100;
 
@@ -79,7 +81,6 @@ export class SemanticMemoryService {
       .slice(0, maxEntries);
 
     let indexed = 0;
-    let stale = candidates.length;
 
     for (let offset = 0; offset < candidates.length; offset += batchSize) {
       const batch = candidates.slice(offset, offset + batchSize);
@@ -115,7 +116,11 @@ export class SemanticMemoryService {
       indexed += batch.length;
     }
 
-    stale = Math.max(0, stale - indexed);
+    const stale = this.memories.list().filter((memory) => {
+      const embedding = this.embeddings.get(this.embeddingId(memory.id, modelId));
+      return embedding === undefined || embedding.contentHash !== this.contentHash(memory.text);
+    }).length;
+
     return { indexed, stale, skipped: this.memories.list().length - candidates.length };
   }
 
