@@ -8,11 +8,8 @@
 
 - Repository: `mohammed-ajmal7/polyon`
 - Branch: `feature/core-architecture`
-- Latest implementation commit: `99f317f4bf1a101fc77c5c25292447893c5db65d`.
-- Latest fully verified clean CI remains run **880** on commit
-  `145bc37cddfabfba1fc6774518ef6edba1770542`.
-- Commits after run 880 have not received a CI result through the available
-  GitHub workflow-history interface.
+- Latest implementation commit: `5ee8494e3cfa75d27897722509301f45f149a72d`.
+- CI run **924** is currently running against that commit; do not claim green until it completes successfully.
 - Always inspect the live branch and latest CI before continuing.
 
 ## What POLYON is
@@ -116,17 +113,13 @@ Work in normal-sized slices. Do not create giant speculative batches.
 
 Do not claim CI is green unless the current run proves it.
 
-## Likely next Email slice
+## Email status
 
-Continue SMTP protocol hardening:
+The provider-neutral Email adapter and native Node SMTP transport are implemented. The adapter remains agent-callable through the existing dynamic integration tool catalog, while all SEND_EMAIL execution continues through the existing integration invocation, policy, approval, audit, and execution boundaries.
 
-- validate MAIL FROM and RCPT TO against already validated email inputs;
-- classify delivery-stage transient/permanent failures separately where useful;
-- harden message framing and MIME/UTF-8 behavior;
-- add focused tests for envelope and delivery failure cases.
+SMTP production hardening currently includes TLS/STARTTLS, AUTH LOGIN, response classification, envelope validation, MIME encoding, DATA framing, size bounds, bounded socket writes, header line-length handling, and sanitized errors.
 
-Keep Email provider-independent and preserve the existing governance
-boundary.
+After CI is green, do not add speculative SMTP features. Move to the next documented production gap from `docs/PROJECT-CONTEXT.md`.
 
 ## Chat style
 
