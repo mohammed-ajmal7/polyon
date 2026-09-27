@@ -94,7 +94,6 @@ describe("InMemoryEventStore", () => {
       (store.get("event-1")?.data.details as { values: string[] }).values,
     ).toEqual(["one"]);
   });
-});
 
 it("persists events across store instances", () => {
     const directory = mkdtempSync(join(tmpdir(), "polyon-events-"));
@@ -130,5 +129,4 @@ it("persists events across store instances", () => {
       rmSync(directory, { recursive: true, force: true });
     }
   });
-
 });
