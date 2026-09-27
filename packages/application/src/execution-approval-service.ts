@@ -20,6 +20,8 @@ import {
 import type { ExecutionQueue } from "@polyon/runtime";
 import type {
   ApprovalRequestStore,
+  DomainStoreTransactionContext,
+  DomainUnitOfWork,
   EventStore,
   ExecutionStore,
   TaskStore,
@@ -60,7 +62,13 @@ export interface ExecutionApprovalServiceDependencies {
   readonly tasks: TaskStore;
   readonly queue: ExecutionQueue;
   readonly events: EventStore;
+  readonly unitOfWork?: DomainUnitOfWork;
 }
+
+type ExecutionApprovalStores = Pick<
+  DomainStoreTransactionContext,
+  "approvals" | "executions" | "tasks" | "events"
+>;
 
 function appendExecutionStatusChangedEvent(
   events: EventStore,
@@ -135,6 +143,27 @@ export class ExecutionApprovalService {
     execution: Execution,
     input: ResolveExecutionApprovalInput,
   ): ExecutionApprovalResolution {
+    const operation = (stores: ExecutionApprovalStores) =>
+      this.resolveWithStores(stores, approval, execution, input);
+
+    const result =
+      this.dependencies.unitOfWork === undefined
+        ? operation(this.dependencies)
+        : this.dependencies.unitOfWork.transaction(operation);
+
+    if (result.nextStep === "ENQUEUE") {
+      this.dependencies.queue.enqueue(result.execution);
+    }
+
+    return result;
+  }
+
+  private resolveWithStores(
+    stores: ExecutionApprovalStores,
+    approval: ApprovalRequest,
+    execution: Execution,
+    input: ResolveExecutionApprovalInput,
+  ): ExecutionApprovalResolution {
     if (execution.status !== "APPROVAL_REQUIRED") {
       throw new ExecutionApprovalServiceError(
         "EXECUTION_NOT_AWAITING_APPROVAL",
@@ -144,7 +173,7 @@ export class ExecutionApprovalService {
 
     validateExecutionApprovalBinding(approval, execution);
 
-    const task = this.dependencies.tasks.get(execution.taskId);
+    const task = stores.tasks.get(execution.taskId);
 
     if (task === undefined) {
       throw new ExecutionApprovalServiceError(
@@ -187,10 +216,10 @@ export class ExecutionApprovalService {
       );
       const approvedTask = transitionTaskStatus(task, "APPROVED", input.resolvedAt);
 
-      this.dependencies.approvals.save(resolvedApproval);
-      this.dependencies.executions.save(queuedExecution);
-      this.dependencies.tasks.save(approvedTask);
-      this.dependencies.events.append({
+      stores.approvals.save(resolvedApproval);
+      stores.executions.save(queuedExecution);
+      stores.tasks.save(approvedTask);
+      stores.events.append({
         id: `APPROVAL_RESOLVED:${resolvedApproval.id}:${input.resolvedAt}`,
         kind: "APPROVAL_RESOLVED",
         ...(resolvedApproval.resolvedBy !== undefined
@@ -207,28 +236,26 @@ export class ExecutionApprovalService {
         },
       });
       appendExecutionStatusChangedEvent(
-        this.dependencies.events,
+        stores.events,
         execution,
         "APPROVAL_REQUIRED",
         "APPROVED",
         input.resolvedAt,
       );
       appendTaskStatusChangedEvent(
-        this.dependencies.events,
+        stores.events,
         approvedTask,
         "APPROVAL_REQUIRED",
         "APPROVED",
         input.resolvedAt,
       );
       appendExecutionStatusChangedEvent(
-        this.dependencies.events,
+        stores.events,
         queuedExecution,
         "APPROVED",
         "QUEUED",
         input.resolvedAt,
       );
-      this.dependencies.queue.enqueue(queuedExecution);
-
       return {
         approval: resolvedApproval,
         execution: queuedExecution,
@@ -246,10 +273,10 @@ export class ExecutionApprovalService {
         : rejectExecution(execution, input.resolvedAt, reason);
     const updatedTask = transitionTaskStatus(task, targetTaskStatus, input.resolvedAt);
 
-    this.dependencies.approvals.save(resolvedApproval);
-    this.dependencies.executions.save(updatedExecution);
-    this.dependencies.tasks.save(updatedTask);
-    this.dependencies.events.append({
+    stores.approvals.save(resolvedApproval);
+    stores.executions.save(updatedExecution);
+    stores.tasks.save(updatedTask);
+    stores.events.append({
       id: `APPROVAL_RESOLVED:${resolvedApproval.id}:${input.resolvedAt}`,
       kind: "APPROVAL_RESOLVED",
       ...(resolvedApproval.resolvedBy !== undefined
@@ -266,14 +293,14 @@ export class ExecutionApprovalService {
       },
     });
     appendExecutionStatusChangedEvent(
-      this.dependencies.events,
+      stores.events,
       execution,
       "APPROVAL_REQUIRED",
       updatedExecution.status,
       input.resolvedAt,
     );
     appendTaskStatusChangedEvent(
-      this.dependencies.events,
+      stores.events,
       updatedTask,
       "APPROVAL_REQUIRED",
       updatedTask.status,
@@ -285,5 +312,6 @@ export class ExecutionApprovalService {
       execution: updatedExecution,
       nextStep: input.status === "CANCELLED" ? "CANCELLED" : "REJECTED",
     };
+  
   }
 }
