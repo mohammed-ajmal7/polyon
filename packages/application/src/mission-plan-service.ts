@@ -240,21 +240,37 @@ function appendPlanAppliedEvent(
   return event;
 }
 
-type MissionPlanStores = Pick<
-  DomainStoreTransactionContext,
-  "missions" | "tasks" | "missionPlanProposals" | "policyDecisions" | "approvals" | "events"
->;
+type MissionPlanStores = {
+  readonly missions: MissionStore;
+  readonly tasks: TaskStore;
+  readonly proposals: MissionPlanProposalStore;
+  readonly policyDecisions: PolicyDecisionStore;
+  readonly approvals: ApprovalRequestStore;
+  readonly events: EventStore;
+};
 
 export class MissionPlanService {
-  constructor(
-    private readonly dependencies: MissionPlanServiceDependencies,  ) {}
+  constructor(private readonly dependencies: MissionPlanServiceDependencies) {}
+
+  private runInTransaction<T>(work: (stores: MissionPlanStores) => T): T {
+    if (this.dependencies.unitOfWork === undefined) {
+      return work(this.dependencies);
+    }
+
+    return this.dependencies.unitOfWork.transaction((context) =>
+      work({
+        missions: context.missions,
+        tasks: context.tasks,
+        proposals: context.missionPlanProposals,
+        policyDecisions: context.policyDecisions,
+        approvals: context.approvals,
+        events: context.events,
+      }),
+    );
+  }
 
   submit(input: SubmitMissionPlanInput): MissionPlanSubmissionResult {
-    const operation = (stores: MissionPlanStores) => this.submitWithStores(stores, input);
-
-    return this.dependencies.unitOfWork === undefined
-      ? operation(this.dependencies)
-      : this.dependencies.unitOfWork.transaction(operation);
+    return this.runInTransaction((stores) => this.submitWithStores(stores, input));
   }
 
   private submitWithStores(stores: MissionPlanStores, input: SubmitMissionPlanInput): MissionPlanSubmissionResult {
@@ -274,7 +290,7 @@ export class MissionPlanService {
       );
     }
 
-    if (stores.missionPlanProposals.get(input.proposalId) !== undefined) {
+    if (stores.proposals.get(input.proposalId) !== undefined) {
       throw new MissionPlanServiceError(
         "PROPOSAL_EXISTS",
         `Mission plan proposal already exists: ${input.proposalId}.`,
@@ -326,7 +342,7 @@ export class MissionPlanService {
         throw error;
       }
 
-      stores.missionPlanProposals.save(proposal);
+      stores.proposals.save(proposal);
       stores.policyDecisions.save(error.decision);
 
       const proposedEvent = appendPlanProposedEvent(stores.events, proposal);
@@ -347,7 +363,7 @@ export class MissionPlanService {
       };
     }
 
-    stores.missionPlanProposals.save(proposal);
+    stores.proposals.save(proposal);
     stores.policyDecisions.save(authorization.policyDecision);
 
     const proposedEvent = appendPlanProposedEvent(stores.events, proposal);
@@ -406,12 +422,9 @@ export class MissionPlanService {
   resolveApproval(
     input: ResolveMissionPlanApprovalInput,
   ): MissionPlanApprovalResolution {
-    const operation = (stores: MissionPlanStores) =>
-      this.resolveApprovalWithStores(stores, input);
-
-    return this.dependencies.unitOfWork === undefined
-      ? operation(this.dependencies)
-      : this.dependencies.unitOfWork.transaction(operation);
+    return this.runInTransaction((stores) =>
+      this.resolveApprovalWithStores(stores, input),
+    );
   }
 
   private resolveApprovalWithStores(
@@ -439,7 +452,7 @@ export class MissionPlanService {
 
     const mission = missionId === undefined ? undefined : stores.missions.get(missionId);
     const proposal =
-      proposalId === undefined ? undefined : stores.missionPlanProposals.get(proposalId);
+      proposalId === undefined ? undefined : stores.proposals.get(proposalId);
 
     if (mission === undefined) {
       throw new MissionPlanServiceError(
