@@ -49,7 +49,9 @@ export interface IntegrationInvocationAuthorization {
 }
 
 export type IntegrationAuthorizationErrorKind =
-  "INTEGRATION_ACTION_NOT_SUPPORTED" | "INTEGRATION_INVOCATION_DENIED";
+  | "INTEGRATION_ACTION_NOT_SUPPORTED"
+  | "INTEGRATION_OPERATION_NOT_SUPPORTED"
+  | "INTEGRATION_INVOCATION_DENIED";
 
 export class IntegrationAuthorizationError extends Error {
   readonly kind: IntegrationAuthorizationErrorKind;
@@ -66,6 +68,18 @@ export class IntegrationAuthorizationError extends Error {
 export function authorizeIntegrationInvocation(
   input: AuthorizeIntegrationInvocationInput,
 ): IntegrationInvocationAuthorization {
+  if (
+    input.integrationInvocation !== undefined &&
+    !input.integration.supportedOperations.includes(
+      input.integrationInvocation.operation,
+    )
+  ) {
+    throw new IntegrationAuthorizationError(
+      "INTEGRATION_OPERATION_NOT_SUPPORTED",
+      `Integration does not support operation: ${input.integrationInvocation.operation}.`,
+    );
+  }
+
   if (!input.integration.actionKinds.includes(input.action)) {
     throw new IntegrationAuthorizationError(
       "INTEGRATION_ACTION_NOT_SUPPORTED",
