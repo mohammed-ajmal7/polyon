@@ -10,7 +10,7 @@ import {
 const integration: IntegrationAdapter = {
   integrationId: "telegram-primary",
   kind: "TELEGRAM",
-  sideEffectClass: "EXTERNAL_SIDE_EFFECT",
+  sideEffectClass: "NON_IDEMPOTENT",
   actionKinds: ["EXTERNAL_COMMUNICATION"],
   supportedOperations: ["send_message"],
   async invoke() {
