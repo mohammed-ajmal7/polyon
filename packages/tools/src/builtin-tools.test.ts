@@ -63,6 +63,23 @@ describe("registerBuiltinTools", () => {
     ).toBeDefined();
   });
 
+  it("registers scoped Git read independently", () => {
+    const registries = createInMemoryBuiltinToolRegistries();
+
+    registerBuiltinTools(registries, {
+      gitRoot: process.cwd(),
+    });
+
+    expect(registries.tools.get(BUILTIN_TOOL_IDS.gitRead)).toMatchObject({
+      kind: "GIT",
+      actionKinds: ["READ"],
+      enabled: true,
+    });
+    expect(
+      registries.adapters.get(BUILTIN_TOOL_IDS.gitRead),
+    ).toBeDefined();
+  });
+
   it("can disable the built-in tool without removing its adapter boundary", () => {
     const registries = createInMemoryBuiltinToolRegistries();
 
