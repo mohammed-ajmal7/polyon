@@ -1,5 +1,7 @@
 export {
   SmtpTransport,
+  SmtpAuthenticationError,
+  SmtpTransportError,
   type SmtpConnection,
   type SmtpConnectionFactory,
   type SmtpEmailTransportOptions,
@@ -7,6 +9,7 @@ export {
 
 export {
   validateSmtpTransportOptions,
+  type SmtpAuthMechanism,
   type SmtpTransportOptions,
   type ValidatedSmtpTransportOptions,
 } from "./smtp-transport";
