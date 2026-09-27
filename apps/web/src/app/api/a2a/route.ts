@@ -24,6 +24,7 @@ export async function POST(request: Request): Promise<Response> {
       },
       commandIngress: polyon.commandIngress,
       conversationOrchestration: polyon.conversationOrchestration,
+      tasks: polyon.stores.tasks,
       policy: getPolyonPolicy(),
       actorId: "a2a-client",
     });
