@@ -181,8 +181,11 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
               .filter((tool) => tool.enabled)
               .map((tool) => ({
                 toolId: tool.id,
-                name: tool.id,
+                name: tool.id.replace(/[^A-Za-z0-9_-]/g, "_") || "polyon_tool",
                 description: tool.description,
+                ...(tool.inputSchema === undefined
+                  ? {}
+                  : { inputSchema: tool.inputSchema }),
               })),
             toolOrchestrator: {
               continueFromResponse: async ({ execution, request, response }) => {
