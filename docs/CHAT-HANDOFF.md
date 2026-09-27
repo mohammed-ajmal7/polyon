@@ -8,9 +8,11 @@
 
 - Repository: `mohammed-ajmal7/polyon`
 - Branch: `feature/core-architecture`
-- Latest implementation commit before this note: `039f2a165d43d26e978706fc9dd5d5d0554b7f74`
-- The latest CI run before this formatting fix failed only on Prettier.
-- Typecheck, tests, and lint passed in that run.
+- Latest implementation commit: `dde86d18aa88a9e29488182439f5f123b4e46df4`
+- Latest fully verified clean CI remains run **880** on commit
+  `145bc37cddfabfba1fc6774518ef6edba1770542`.
+- The commits after run 880 have not yet received a CI result through the
+  available GitHub workflow-history interface.
 - Always inspect the live branch and latest CI before continuing.
 
 ## What POLYON is
@@ -53,7 +55,7 @@ Already implemented:
 
 ## Current Email work
 
-Email now has a provider-neutral adapter boundary in
+Email has a provider-neutral adapter boundary in
 `packages/integrations/src/email-integration-adapter.ts`.
 
 It provides:
@@ -67,9 +69,21 @@ It provides:
 - sanitized transport errors;
 - `NON_IDEMPOTENT` and `EXTERNAL_COMMUNICATION` capability metadata.
 
-The adapter is exported and can be explicitly registered by
-`createPolyonComposition` only when a secret resolver, email integration
-ID, secret reference, and transport are all supplied.
+A provider-neutral SMTP transport now exists in
+`packages/integrations/src/smtp-email-transport.ts`, with the native Node
+socket implementation isolated in `@polyon/runtime`.
+
+SMTP currently has:
+
+- bounded connection and response handling;
+- implicit TLS support;
+- explicit STARTTLS negotiation;
+- multiline SMTP response handling;
+- deterministic socket cleanup;
+- explicit TLS 1.2 minimum;
+- certificate validation enabled explicitly;
+- mutual exclusion of implicit TLS and STARTTLS modes;
+- message-size enforcement and dot-stuffing.
 
 Do **not** call the Email adapter directly from an agent or model.
 Execution must continue through the existing integration invocation,
@@ -93,18 +107,14 @@ Do not claim CI is green unless the current run proves it.
 
 ## Likely next Email slice
 
-Before implementing a concrete SMTP transport, inspect:
+Harden SMTP authentication and failure handling:
 
-- `packages/integrations/src/secret-resolver.ts`;
-- all secret resolver implementations and tests;
-- `packages/integrations/src/bounded-http-client.ts`;
-- Node/TypeScript runtime dependencies and available network primitives;
-- Email-related architecture documentation.
-
-The current `SecretResolver` returns a string, while
-`SMTP_CREDENTIAL` may need structured host, port, username, password, and
-TLS information. Design that boundary carefully before adding transport
-code.
+- inspect advertised `AUTH` capabilities;
+- avoid sending credentials before TLS;
+- define supported authentication mechanisms explicitly;
+- sanitize authentication failures;
+- distinguish transient `4xx` from permanent `5xx` SMTP failures;
+- add focused tests without real provider credentials or network access.
 
 Keep Email provider-independent and preserve the existing governance
 boundary.
