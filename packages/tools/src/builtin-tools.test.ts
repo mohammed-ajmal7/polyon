@@ -63,6 +63,24 @@ describe("registerBuiltinTools", () => {
     ).toBeDefined();
   });
 
+  it("registers scoped Git publish independently", () => {
+    const registries = createInMemoryBuiltinToolRegistries();
+
+    registerBuiltinTools(registries, {
+      gitPublishRoot: process.cwd(),
+      gitPublishAllowedRemotes: ["origin"],
+    });
+
+    expect(registries.tools.get(BUILTIN_TOOL_IDS.gitPublish)).toMatchObject({
+      kind: "GIT",
+      actionKinds: ["PUBLISH"],
+      enabled: true,
+    });
+    expect(
+      registries.adapters.get(BUILTIN_TOOL_IDS.gitPublish),
+    ).toBeDefined();
+  });
+
   it("registers scoped Git read independently", () => {
     const registries = createInMemoryBuiltinToolRegistries();
 
