@@ -5,9 +5,11 @@ import {
   InMemoryProviderAdapterRegistry,
   ModelGateway,
   ModelGatewayError,
+  ProviderInvocationError,
   type ModelCatalog,
   type ProviderCatalog,
 } from ".";
+import { vi } from "vitest";
 import type { ModelProviderAdapter } from "./provider-adapter";
 
 const model: Model = {
@@ -67,6 +69,141 @@ describe("ModelGateway", () => {
     await expect(gateway.invoke("model-1", "hello")).resolves.toEqual({
       output: "model-1:hello",
     });
+  });
+
+  it("enforces an invocation timeout even when an adapter ignores abort", async () => {
+    vi.useFakeTimers();
+
+    try {
+      const gateway = createGateway({
+        providerId: "provider-1",
+        async invoke() {
+          return new Promise(() => undefined);
+        },
+      });
+
+      const pending = gateway.invoke("model-1", "hello", { timeoutMs: 50 });
+
+      await vi.advanceTimersByTimeAsync(50);
+
+      await expect(pending).rejects.toEqual(
+        new ProviderInvocationError(
+          "TIMEOUT",
+          "provider-1",
+          "model-1",
+          "Provider invocation timed out after 50ms for model: model-1.",
+          true,
+        ),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("cancels an invocation and forwards the abort signal", async () => {
+    const controller = new AbortController();
+    let aborted = false;
+
+    const gateway = createGateway({
+      providerId: "provider-1",
+      async invoke({ signal }) {
+        signal?.addEventListener("abort", () => {
+          aborted = true;
+        });
+        return new Promise(() => undefined);
+      },
+    });
+
+    const pending = gateway.invoke("model-1", "hello", {
+      signal: controller.signal,
+    });
+
+    controller.abort();
+
+    await expect(pending).rejects.toEqual(
+      new ProviderInvocationError(
+        "CANCELLED",
+        "provider-1",
+        "model-1",
+        "Provider invocation was cancelled for model: model-1.",
+        false,
+      ),
+    );
+    expect(aborted).toBe(true);
+  });
+
+  it("retries only retryable provider failures", async () => {
+    let calls = 0;
+    const gateway = createGateway({
+      providerId: "provider-1",
+      async invoke() {
+        calls += 1;
+
+        if (calls === 1) {
+          throw new ProviderInvocationError(
+            "UNAVAILABLE",
+            "provider-1",
+            "model-1",
+            "Provider unavailable.",
+            true,
+          );
+        }
+
+        return { output: "ok" };
+      },
+    });
+
+    await expect(gateway.invoke("model-1", "hello", { retries: 1 })).resolves.toEqual({
+      output: "ok",
+    });
+    expect(calls).toBe(2);
+  });
+
+  it("does not retry permanent provider failures", async () => {
+    let calls = 0;
+    const gateway = createGateway({
+      providerId: "provider-1",
+      async invoke() {
+        calls += 1;
+        throw new ProviderInvocationError(
+          "AUTHENTICATION",
+          "provider-1",
+          "model-1",
+          "Invalid credentials.",
+          false,
+        );
+      },
+    });
+
+    await expect(gateway.invoke("model-1", "hello", { retries: 3 })).rejects.toEqual(
+      new ProviderInvocationError(
+        "AUTHENTICATION",
+        "provider-1",
+        "model-1",
+        "Invalid credentials.",
+        false,
+      ),
+    );
+    expect(calls).toBe(1);
+  });
+
+  it("normalizes unknown adapter failures", async () => {
+    const gateway = createGateway({
+      providerId: "provider-1",
+      async invoke() {
+        throw new Error("socket closed");
+      },
+    });
+
+    await expect(gateway.invoke("model-1", "hello")).rejects.toEqual(
+      new ProviderInvocationError(
+        "UNKNOWN",
+        "provider-1",
+        "model-1",
+        "socket closed",
+        false,
+      ),
+    );
   });
 
   it("rejects an unknown model", async () => {
