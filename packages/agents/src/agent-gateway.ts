@@ -1,6 +1,6 @@
 import type { AgentId, CapabilityId, ModelId, ProviderId } from "@polyon/contracts";
 
-import { ModelGateway } from "@polyon/providers";
+import { ModelGateway, type ModelInvocationOptions } from "@polyon/providers";
 
 import { resolveAgentModel, type AgentModelResolution } from "./agent-model-routing";
 import type { AgentRegistry } from "./agent-registry";
@@ -18,6 +18,7 @@ export interface AgentGatewayInvocationInput<TInput = unknown> {
   readonly agentId: AgentId;
   readonly requiredCapabilityIds: readonly CapabilityId[];
   readonly input: TInput;
+  readonly modelOptions?: ModelInvocationOptions;
 }
 
 export interface AgentGatewayInvocationResult<TOutput = unknown> {
@@ -49,6 +50,7 @@ export class AgentGateway {
     const result = await this.dependencies.modelGateway.invoke<TInput, TOutput>(
       resolution.model.id,
       input.input,
+      input.modelOptions,
     );
 
     return {
