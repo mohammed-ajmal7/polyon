@@ -26,6 +26,10 @@ import type {
   MissionPlanProposal,
   PolicyDecision,
   Task,
+  Debate,
+  Evidence,
+  MemoryEntry,
+  Source,
 } from "@polyon/contracts";
 
 import {
@@ -38,8 +42,12 @@ import {
 import { StorageConcurrencyError } from "./transaction";
 
 export interface DurableDomainState {
-  readonly version: 1;
+  readonly version: 2;
   approvals: ApprovalRequest[];
+  debates: Debate[];
+  evidence: Evidence[];
+  memory: MemoryEntry[];
+  sources: Source[];
   artifacts: Artifact[];
   conversations: Conversation[];
   executions: Execution[];
@@ -62,8 +70,12 @@ function clone<T>(value: T): T {
 
 function emptyState(): DurableDomainState {
   return {
-    version: 1,
+    version: 2,
     approvals: [],
+    debates: [],
+    evidence: [],
+    memory: [],
+    sources: [],
     artifacts: [],
     conversations: [],
     executions: [],
@@ -91,13 +103,17 @@ function validateState(filePath: string, value: unknown): DurableDomainState {
     throw new Error(`Invalid durable domain snapshot: ${filePath}.`);
   }
 
-  if (!("version" in value) || value.version !== 1) {
+  if (!("version" in value) || value.version !== 2) {
     throw new Error(`Unsupported durable domain snapshot version: ${filePath}.`);
   }
 
   const record = value as Record<string, unknown>;
   const collectionNames: readonly (keyof Omit<DurableDomainState, "version">)[] = [
     "approvals",
+    "debates",
+    "evidence",
+    "memory",
+    "sources",
     "artifacts",
     "conversations",
     "executions",

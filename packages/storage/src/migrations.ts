@@ -1,4 +1,4 @@
-export const CURRENT_DURABLE_DOMAIN_VERSION = 1;
+export const CURRENT_DURABLE_DOMAIN_VERSION = 2;
 
 export interface DurableMigration {
   readonly fromVersion: number;
@@ -119,4 +119,16 @@ export function migrateDurableSnapshot(
   };
 }
 
-export const durableMigrations: readonly DurableMigration[] = [];
+export const durableMigrations: readonly DurableMigration[] = [
+  {
+    fromVersion: 1,
+    toVersion: 2,
+    migrate: (state) => ({
+      ...state,
+      debates: Array.isArray(state.debates) ? state.debates : [],
+      evidence: Array.isArray(state.evidence) ? state.evidence : [],
+      memory: Array.isArray(state.memory) ? state.memory : [],
+      sources: Array.isArray(state.sources) ? state.sources : [],
+    }),
+  },
+];

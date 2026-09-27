@@ -9,6 +9,10 @@ export {
 export {
   InMemoryDomainStores,
   type ApprovalRequestStore,
+  type DebateStore,
+  type EvidenceStore,
+  type MemoryStore,
+  type SourceStore,
   type ArtifactStore,
   type ConversationStore,
   type DomainStores,

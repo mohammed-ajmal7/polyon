@@ -41,6 +41,22 @@ export class FileDomainStores implements DurableDomainStores {
     return this.context.approvals;
   }
 
+  get debates() {
+    return this.context.debates;
+  }
+
+  get evidence() {
+    return this.context.evidence;
+  }
+
+  get memory() {
+    return this.context.memory;
+  }
+
+  get sources() {
+    return this.context.sources;
+  }
+
   get artifacts() {
     return this.context.artifacts;
   }

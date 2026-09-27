@@ -1,6 +1,10 @@
 import type {
   ApprovalRequest,
   Artifact,
+  Debate,
+  Evidence,
+  MemoryEntry,
+  Source,
   Conversation,
   DomainEvent,
   Execution,
@@ -138,6 +142,10 @@ export function createStateContext(
 
   return {
     approvals: new StateEntityStore<ApprovalRequest>(getState, persist, "approvals"),
+    debates: new StateEntityStore<Debate>(getState, persist, "debates"),
+    evidence: new StateEntityStore<Evidence>(getState, persist, "evidence"),
+    memory: new StateEntityStore<MemoryEntry>(getState, persist, "memory"),
+    sources: new StateEntityStore<Source>(getState, persist, "sources"),
     artifacts: new StateEntityStore<Artifact>(getState, persist, "artifacts"),
     conversations: new StateEntityStore<Conversation>(getState, persist, "conversations"),
     executions: new StateEntityStore<Execution>(getState, persist, "executions"),
