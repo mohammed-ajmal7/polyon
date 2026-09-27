@@ -6,6 +6,7 @@ import { ScopedFilesystemReadToolAdapter } from "./scoped-filesystem-read-adapte
 import { ScopedTerminalToolAdapter } from "./scoped-terminal-tool-adapter";
 import { ScopedGitReadToolAdapter } from "./scoped-git-read-tool-adapter";
 import { ScopedGitWriteToolAdapter } from "./scoped-git-write-tool-adapter";
+import { ScopedArtifactWriteToolAdapter } from "./scoped-artifact-write-tool-adapter";
 import type { ToolRegistry } from "./tool-registry";
 import { InMemoryToolRegistry } from "./tool-registry";
 
@@ -14,6 +15,7 @@ export const BUILTIN_TOOL_IDS = {
   terminalExecute: "terminal.execute.scoped" as ToolId,
   gitRead: "git.read.scoped" as ToolId,
   gitWrite: "git.write.scoped" as ToolId,
+  artifactWrite: "artifact.write.scoped" as ToolId,
 } as const;
 
 export interface BuiltinToolRegistries {
@@ -46,6 +48,9 @@ export interface BuiltinToolOptions {
   readonly gitWriteMaxOutputBytes?: number;
   readonly gitWriteEnvironmentKeys?: readonly string[];
   readonly gitWriteEnabled?: boolean;
+  readonly artifactRoot?: string;
+  readonly artifactDefaultKind?: "DOCUMENT" | "IMAGE" | "VIDEO" | "AUDIO" | "CODE" | "DATASET" | "REPORT" | "OTHER";
+  readonly artifactWriteEnabled?: boolean;
 }
 
 export interface BuiltinFilesystemReadToolRegistration {
@@ -256,6 +261,58 @@ export function registerBuiltinTools(
 
     registries.tools.register(gitWriteTool);
     registries.adapters.register(gitWriteAdapter);
+  }
+
+  if (options.artifactRoot !== undefined) {
+    const artifactTool: Tool = {
+      id: BUILTIN_TOOL_IDS.artifactWrite,
+      name: "Scoped artifact write",
+      description:
+        "Creates or idempotently replays a text artifact inside the configured artifact root.",
+      kind: "ARTIFACT",
+      actionKinds: ["WRITE"],
+      inputSchema: {
+        type: "object",
+        required: ["name", "content"],
+        additionalProperties: false,
+        properties: {
+          name: {
+            type: "string",
+            minLength: 1,
+          },
+          content: {
+            type: "string",
+          },
+          kind: {
+            type: "string",
+            enum: [
+              "DOCUMENT",
+              "IMAGE",
+              "VIDEO",
+              "AUDIO",
+              "CODE",
+              "DATASET",
+              "REPORT",
+              "OTHER",
+            ],
+          },
+          mimeType: {
+            type: "string",
+            minLength: 1,
+          },
+        },
+      },
+      enabled: options.artifactWriteEnabled ?? true,
+    };
+
+    const artifactAdapter = new ScopedArtifactWriteToolAdapter({
+      toolId: artifactTool.id,
+      rootDir: options.artifactRoot,
+      defaultKind: options.artifactDefaultKind,
+    });
+
+    registries.tools.register(artifactTool);
+    registries.adapters.register(artifactAdapter);
   }
 
   return registrations;
