@@ -224,7 +224,7 @@ function isSmtpAddress(value: string): boolean {
   return (
     value.length > 0 &&
     value.length <= 320 &&
-    !/[\\r\
+    !/[\r\
 ]/.test(value) &&
     /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(value)
   );
@@ -246,7 +246,7 @@ async function expectCode(connection: SmtpConnection, ...expectedCodes: number[]
     const response = await connection.read();
     lines.push(response);
 
-    const match = /^(\\d{3})([ -])(.*?)(?:\\r?\\n)?$/.exec(response);
+    const match = /^(\\d{3})([ -])(.*?)(?:\r?\n)?$/.exec(response);
 
     if (match === null) {
       throw new SmtpTransportError("PROTOCOL", "SMTP server returned an invalid response.");
@@ -260,7 +260,7 @@ async function expectCode(connection: SmtpConnection, ...expectedCodes: number[]
 
     if (match[2] === " ") {
       return lines.map((line) => line.replace(/\r?
-$/, "")).join("\\r\\n");
+$/, "")).join("\r\n");
     }
   }
 }
@@ -329,7 +329,7 @@ function buildMessage(
       "Content-Transfer-Encoding: base64",
       "",
       encodeMimeBody(input.text),
-    ].join("\\r\\n") + "\r
+    ].join("\r\n") + "\r
 ";
   }
 
@@ -351,7 +351,7 @@ function buildMessage(
     encodeMimeBody(input.html),
     `--${boundary}--`,
     "",
-  ].join("\\r\\n");
+  ].join("\r\n");
 }
 
 function encodeHeaderText(value: string): string {
@@ -362,13 +362,13 @@ function encodeHeaderText(value: string): string {
   const bytes = new TextEncoder().encode(value);
   return splitUtf8Bytes(bytes, 45)
     .map((chunk) => `=?UTF-8?B?${bytesToBase64(chunk)}?=`)
-    .join("\\r\\n ");
+    .join("\r\n ");
 }
 
 function encodeMimeBody(value: string): string {
-  const normalized = value.replace(/\\r\\n/g, "\\n").replace(/\\r/g, "\\n");
+  const normalized = value.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   const encoded = bytesToBase64(new TextEncoder().encode(normalized));
-  return encoded.match(/.{1,76}/g)?.join("\\r\\n") ?? "";
+  return encoded.match(/.{1,76}/g)?.join("\r\n") ?? "";
 }
 
 function splitUtf8Bytes(bytes: Uint8Array, maxBytes: number): Uint8Array[] {
