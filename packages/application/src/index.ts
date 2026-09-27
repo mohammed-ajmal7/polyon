@@ -198,3 +198,5 @@ export { ConfiguredHttpCreativeAdapter, type ConfiguredHttpCreativeAdapterOption
 export { McpServerService, type McpJsonRpcRequest, type McpJsonRpcResponse, type McpServerDependencies } from "./mcp-server-service";
 
 export { A2AServerService, type A2AJsonRpcRequest, type A2AJsonRpcResponse, type A2AServerDependencies } from "./a2a-server-service";
+
+export { registerCreativeTools } from "./creative-tools";

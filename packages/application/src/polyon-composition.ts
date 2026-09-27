@@ -438,6 +438,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
         });
 
   registerKnowledgeTools(builtinTools.tools, builtinTools.adapters, memory, research);
+  if (creative !== undefined) registerCreativeTools(builtinTools.tools, builtinTools.adapters, creative);
 
   registerBuiltinTools(builtinTools, {
     artifactList: (filter) => artifactCatalog.list(filter),
