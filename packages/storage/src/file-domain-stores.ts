@@ -2,7 +2,11 @@
 
 import { join } from "node:path";
 
-import type { DomainStoreTransactionContext, DomainUnitOfWork } from "./transaction";
+import {
+  DomainTransactionError,
+  type DomainStoreTransactionContext,
+  type DomainUnitOfWork,
+} from "./transaction";
 import { FileDomainDatabase } from "./file-database";
 import { createStateContext } from "./state-store";
 import type { DomainStores } from "./domain-stores";
@@ -14,6 +18,8 @@ export interface DurableDomainStores extends DomainStores, DomainUnitOfWork {
 }
 
 export class FileDomainStores implements DurableDomainStores {
+  private transactionActive = false;
+
   private readonly database: FileDomainDatabase;
   private readonly state: ReturnType<FileDomainDatabase["snapshot"]>;
   private readonly context: DomainStoreTransactionContext;
