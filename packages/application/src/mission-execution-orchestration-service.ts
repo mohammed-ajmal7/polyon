@@ -58,6 +58,7 @@ export interface MissionExecutionOrchestrationInput {
 export type MissionExecutionOrchestrationStatus =
   | "QUEUED"
   | "PLAN_APPROVAL_REQUIRED"
+  | "EXECUTION_APPROVAL_REQUIRED"
   | "PLAN_DENIED";
 
 export interface MissionExecutionOrchestrationResult {
@@ -175,11 +176,19 @@ export class MissionExecutionOrchestrationService {
     });
 
     return {
-      status: dispatched.dispatched.length > 0 ? "QUEUED" : "PLAN_DENIED",
+      status:
+        dispatched.dispatched.length > 0
+          ? "QUEUED"
+          : dispatched.awaitingApproval.length > 0
+            ? "EXECUTION_APPROVAL_REQUIRED"
+            : "PLAN_DENIED",
       mission: running.mission,
       conversation: created.conversation,
       task: this.tasks.get(task.id) ?? task,
-      executionIds: dispatched.dispatched.map((plan) => plan.execution.id),
+      executionIds: [
+        ...dispatched.dispatched.map((plan) => plan.execution.id),
+        ...dispatched.awaitingApproval.map((plan) => plan.execution.id),
+      ],
     };
   }
 }
