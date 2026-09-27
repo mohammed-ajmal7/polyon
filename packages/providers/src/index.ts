@@ -17,5 +17,13 @@ export {
   type ModelCatalog,
   type ModelGatewayDependencies,
   type ModelGatewayErrorKind,
+  type ModelInvocationOptions,
   type ProviderCatalog,
 } from "./model-gateway";
+
+
+export {
+  ProviderInvocationError,
+  normalizeProviderInvocationError,
+  type ProviderInvocationErrorKind,
+} from "./provider-errors";
