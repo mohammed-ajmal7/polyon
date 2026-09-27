@@ -5,10 +5,8 @@ import type {
   Tool,
 } from "@polyon/contracts";
 
-import type {
-  IntegrationInvocationService,
-  ToolInvocationService,
-} from "./index";
+import type { ToolInvocationService, ToolInvocationOutcome } from "./tool-invocation-service";
+import type { IntegrationInvocationService, IntegrationInvocationOutcome } from "./integration-invocation-service";
 
 export interface McpJsonRpcRequest {
   readonly jsonrpc: "2.0";
@@ -170,7 +168,7 @@ export class McpServerService {
   }
 }
 
-function toolOutcomeResponse(id: string | number | null, outcome: any): McpJsonRpcResponse {
+function toolOutcomeResponse(id: string | number | null, outcome: ToolInvocationOutcome | IntegrationInvocationOutcome): McpJsonRpcResponse {
   switch (outcome.status) {
     case "SUCCEEDED":
       return { jsonrpc: "2.0", id, result: { content: [{ type: "text", text: JSON.stringify(outcome.output) }] } };
