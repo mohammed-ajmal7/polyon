@@ -1,4 +1,11 @@
-import type { AgentId, CapabilityId, ModelId, ProviderId } from "@polyon/contracts";
+import type {
+  AgentId,
+  CapabilityId,
+  ModelId,
+  ProviderId,
+  TextModelRequest,
+  TextModelResponse,
+} from "@polyon/contracts";
 
 import { ModelGateway, type ModelInvocationOptions } from "@polyon/providers";
 
@@ -29,8 +36,45 @@ export interface AgentGatewayInvocationResult<TOutput = unknown> {
   readonly output: TOutput;
 }
 
+export interface AgentGatewayTextInvocationInput {
+  readonly agentId: AgentId;
+  readonly requiredCapabilityIds: readonly CapabilityId[];
+  readonly request: TextModelRequest;
+  readonly modelOptions?: ModelInvocationOptions;
+}
+
 export class AgentGateway {
   constructor(private readonly dependencies: AgentGatewayDependencies) {}
+
+  async invokeText(
+    input: AgentGatewayTextInvocationInput,
+  ): Promise<AgentGatewayInvocationResult<TextModelResponse>> {
+    const resolution = resolveAgentModel(
+      {
+        agentId: input.agentId,
+        requiredCapabilityIds: input.requiredCapabilityIds,
+      },
+      {
+        agents: this.dependencies.agents,
+        models: this.dependencies.models,
+        providers: this.dependencies.providers,
+      },
+    );
+
+    const result = await this.dependencies.modelGateway.invokeText(
+      resolution.model.id,
+      input.request,
+      input.modelOptions,
+    );
+
+    return {
+      agentId: resolution.agent.id,
+      modelId: resolution.model.id,
+      providerId: resolution.provider.id,
+      source: resolution.source,
+      output: result.output,
+    };
+  }
 
   async invoke<TInput = unknown, TOutput = unknown>(
     input: AgentGatewayInvocationInput<TInput>,
