@@ -2,10 +2,7 @@ export type IntegrationKind = "GOOGLE_DRIVE" | "TELEGRAM" | "EMAIL";
 
 export type IntegrationId = string;
 
-export type IntegrationSideEffectClass =
-  | "READ_ONLY"
-  | "IDEMPOTENT"
-  | "NON_IDEMPOTENT";
+export type IntegrationSideEffectClass = "READ_ONLY" | "IDEMPOTENT" | "NON_IDEMPOTENT";
 
 export interface IntegrationInvocationRequest<TInput = unknown> {
   readonly invocationId: string;

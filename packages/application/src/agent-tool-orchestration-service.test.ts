@@ -13,10 +13,7 @@ import type {
   Tool,
 } from "@polyon/contracts";
 import type { AgentGateway } from "@polyon/agents";
-import {
-  InMemoryIntegrationAdapterRegistry,
-  type IntegrationAdapter,
-} from "@polyon/integrations";
+import { InMemoryIntegrationAdapterRegistry, type IntegrationAdapter } from "@polyon/integrations";
 import { InMemoryToolAdapterRegistry, InMemoryToolRegistry, type ToolAdapter } from "@polyon/tools";
 import { FileDomainStores } from "@polyon/storage";
 import { describe, expect, it, vi } from "vitest";

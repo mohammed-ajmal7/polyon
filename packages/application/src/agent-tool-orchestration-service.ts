@@ -109,8 +109,7 @@ export class AgentToolOrchestrationService {
         return {
           toolId,
           name: toModelToolName(toolId),
-          description:
-            `${integration.kind} integration ${integration.integrationId} operation ${operation}`,
+          description: `${integration.kind} integration ${integration.integrationId} operation ${operation}`,
           inputSchema: {
             type: "object" as const,
             additionalProperties: true,
@@ -362,9 +361,7 @@ export class AgentToolOrchestrationService {
       approval.integrationContinuation === undefined ||
       approval.integrationContinuation.state !== "RECONCILIATION_REQUIRED"
     ) {
-      throw new Error(
-        `Integration approval ${input.approvalId} is not awaiting reconciliation.`,
-      );
+      throw new Error(`Integration approval ${input.approvalId} is not awaiting reconciliation.`);
     }
 
     let continuation = approval.integrationContinuation;
@@ -396,30 +393,20 @@ export class AgentToolOrchestrationService {
     this.saveIntegrationContinuation(input.approvalId, continuation);
 
     if (approval.executionId === undefined) {
-      throw new Error(
-        `Integration approval ${input.approvalId} has no execution binding.`,
-      );
+      throw new Error(`Integration approval ${input.approvalId} has no execution binding.`);
     }
 
     const execution = this.dependencies.executions.get(approval.executionId);
     if (execution === undefined || execution.status !== "PAUSED") {
-      throw new Error(
-        `Execution ${approval.executionId} is not paused for reconciliation.`,
-      );
+      throw new Error(`Execution ${approval.executionId} is not paused for reconciliation.`);
     }
 
     const task = this.dependencies.tasks.get(execution.taskId);
     if (task === undefined || task.status !== "PAUSED") {
-      throw new Error(
-        `Task ${execution.taskId} is not paused for reconciliation.`,
-      );
+      throw new Error(`Task ${execution.taskId} is not paused for reconciliation.`);
     }
 
-    const queuedExecution = transitionExecutionStatus(
-      execution,
-      "QUEUED",
-      input.resolvedAt,
-    );
+    const queuedExecution = transitionExecutionStatus(execution, "QUEUED", input.resolvedAt);
     const queuedTask = transitionTaskStatus(task, "RUNNING", input.resolvedAt);
 
     const operation = (stores: {
@@ -430,8 +417,7 @@ export class AgentToolOrchestrationService {
       stores.executions.save(queuedExecution);
       stores.tasks.save(queuedTask);
       stores.events.append({
-        id:
-          `EXECUTION_STATUS_CHANGED:${execution.id}:PAUSED:QUEUED:${input.resolvedAt}:INTEGRATION_RECONCILIATION`,
+        id: `EXECUTION_STATUS_CHANGED:${execution.id}:PAUSED:QUEUED:${input.resolvedAt}:INTEGRATION_RECONCILIATION`,
         kind: "EXECUTION_STATUS_CHANGED",
         actorId: execution.actorId,
         missionId: execution.missionId,
@@ -447,8 +433,7 @@ export class AgentToolOrchestrationService {
         },
       });
       stores.events.append({
-        id:
-          `TASK_STATUS_CHANGED:${task.id}:PAUSED:RUNNING:${input.resolvedAt}:INTEGRATION_RECONCILIATION`,
+        id: `TASK_STATUS_CHANGED:${task.id}:PAUSED:RUNNING:${input.resolvedAt}:INTEGRATION_RECONCILIATION`,
         kind: "TASK_STATUS_CHANGED",
         missionId: task.missionId,
         taskId: task.id,
@@ -504,8 +489,7 @@ export class AgentToolOrchestrationService {
 
     if (
       approval === undefined ||
-      (approval.toolContinuation === undefined &&
-        approval.integrationContinuation === undefined)
+      (approval.toolContinuation === undefined && approval.integrationContinuation === undefined)
     ) {
       return { status: "NO_CONTINUATION", rounds: 0 };
     }
@@ -647,8 +631,7 @@ export class AgentToolOrchestrationService {
       return {
         status: "FAILED",
         response: continuation.response,
-        error:
-          `Integration ${continuation.integrationId} requires human reconciliation before replay.`,
+        error: `Integration ${continuation.integrationId} requires human reconciliation before replay.`,
         rounds: continuation.rounds,
       };
     }

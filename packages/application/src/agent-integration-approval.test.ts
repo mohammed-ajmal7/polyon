@@ -1,14 +1,5 @@
-import type {
-  Agent,
-  Execution,
-  Mission,
-  Policy,
-  Task,
-} from "@polyon/contracts";
-import {
-  InMemoryIntegrationAdapterRegistry,
-  type IntegrationAdapter,
-} from "@polyon/integrations";
+import type { Agent, Execution, Mission, Policy, Task } from "@polyon/contracts";
+import { InMemoryIntegrationAdapterRegistry, type IntegrationAdapter } from "@polyon/integrations";
 import { InMemoryDomainStores } from "@polyon/storage";
 import { describe, expect, it, vi } from "vitest";
 
@@ -78,7 +69,8 @@ const policy: Policy = {
   updatedAt: now,
 };
 
-describe("agent-driven integration approval", () => {  it("reconciles an uncertain non-idempotent integration without replaying it", async () => {
+describe("agent-driven integration approval", () => {
+  it("reconciles an uncertain non-idempotent integration without replaying it", async () => {
     const stores = new InMemoryDomainStores();
     stores.tasks.save(task);
     stores.executions.save(execution);
@@ -204,16 +196,13 @@ describe("agent-driven integration approval", () => {  it("reconciles an uncerta
       executionId: execution.id,
     });
     expect(externalCalls).toBe(0);
-    expect(
-      stores.approvals.get("approval-reconcile")?.integrationContinuation,
-    ).toMatchObject({
+    expect(stores.approvals.get("approval-reconcile")?.integrationContinuation).toMatchObject({
       state: "AWAITING_MODEL",
       integrationOutput: { messageId: 42 },
     });
     expect(stores.executions.get(execution.id)?.status).toBe("QUEUED");
     expect(stores.tasks.get(task.id)?.status).toBe("RUNNING");
   });
-
 
   it("persists an integration continuation, blocks the side effect, then resumes after approval", async () => {
     const stores = new InMemoryDomainStores();
@@ -362,13 +351,10 @@ describe("agent-driven integration approval", () => {  it("reconciles an uncerta
     expect(resolution.status).toBe("ENQUEUED");
     expect(externalCalls).toBe(0);
 
-    const result = await orchestrator.resumeApprovedExecution(
-      execution.id,
-      {
-        ...policy,
-        defaultEffect: "ALLOW",
-      },
-    );
+    const result = await orchestrator.resumeApprovedExecution(execution.id, {
+      ...policy,
+      defaultEffect: "ALLOW",
+    });
 
     expect(result.status).toBe("SUCCEEDED");
     if (result.status === "SUCCEEDED") {
@@ -376,8 +362,6 @@ describe("agent-driven integration approval", () => {  it("reconciles an uncerta
     }
     expect(externalCalls).toBe(1);
     expect(modelCalls).toBe(2);
-    expect(stores.approvals.get(approval!.id)?.integrationContinuation?.state).toBe(
-      "COMPLETED",
-    );
+    expect(stores.approvals.get(approval!.id)?.integrationContinuation?.state).toBe("COMPLETED");
   });
 });
