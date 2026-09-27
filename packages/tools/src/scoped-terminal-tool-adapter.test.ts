@@ -146,7 +146,7 @@ describe("ScopedTerminalToolAdapter", () => {
         toolId: "terminal.execute.scoped",
         rootDir: root,
         allowedCommands: [command.executable],
-        defaultMaxOutputBytes: 16,
+        defaultMaxOutputBytes: 15,
       });
 
       await expect(
