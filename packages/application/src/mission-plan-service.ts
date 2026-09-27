@@ -33,7 +33,7 @@ import type {
 export interface MissionPlanServiceDependencies {
   readonly missions: MissionStore;
   readonly tasks: TaskStore;
-  readonly proposals: MissionPlanProposalStore;
+  readonly missionPlanProposals: MissionPlanProposalStore;
   readonly policyDecisions: PolicyDecisionStore;
   readonly approvals: ApprovalRequestStore;
   readonly events: EventStore;
@@ -242,7 +242,7 @@ function appendPlanAppliedEvent(
 
 type MissionPlanStores = Pick<
   DomainStoreTransactionContext,
-  "missions" | "tasks" | "proposals" | "policyDecisions" | "approvals" | "events"
+  "missions" | "tasks" | "missionPlanProposals" | "policyDecisions" | "approvals" | "events"
 >;
 
 export class MissionPlanService {
@@ -274,7 +274,7 @@ export class MissionPlanService {
       );
     }
 
-    if (stores.proposals.get(input.proposalId) !== undefined) {
+    if (stores.missionPlanProposals.get(input.proposalId) !== undefined) {
       throw new MissionPlanServiceError(
         "PROPOSAL_EXISTS",
         `Mission plan proposal already exists: ${input.proposalId}.`,
@@ -326,7 +326,7 @@ export class MissionPlanService {
         throw error;
       }
 
-      stores.proposals.save(proposal);
+      stores.missionPlanProposals.save(proposal);
       stores.policyDecisions.save(error.decision);
 
       const proposedEvent = appendPlanProposedEvent(stores.events, proposal);
@@ -347,7 +347,7 @@ export class MissionPlanService {
       };
     }
 
-    stores.proposals.save(proposal);
+    stores.missionPlanProposals.save(proposal);
     stores.policyDecisions.save(authorization.policyDecision);
 
     const proposedEvent = appendPlanProposedEvent(stores.events, proposal);
@@ -439,7 +439,7 @@ export class MissionPlanService {
 
     const mission = missionId === undefined ? undefined : stores.missions.get(missionId);
     const proposal =
-      proposalId === undefined ? undefined : stores.proposals.get(proposalId);
+      proposalId === undefined ? undefined : stores.missionPlanProposals.get(proposalId);
 
     if (mission === undefined) {
       throw new MissionPlanServiceError(
