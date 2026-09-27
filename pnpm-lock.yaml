@@ -47,6 +47,9 @@ importers:
 
   packages/providers:
     dependencies:
+      '@polyon/agents':
+        specifier: workspace:*
+        version: link:../agents
       '@polyon/contracts':
         specifier: workspace:*
         version: link:../contracts
