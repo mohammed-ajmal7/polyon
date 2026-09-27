@@ -8,13 +8,4 @@ export interface EmbeddingResponse {
   readonly vectors: readonly (readonly number[])[];
 }
 
-export interface EmbeddingModelProviderAdapter {
-  readonly providerId: string;
-  embed(
-    request: {
-      readonly modelId: ModelId;
-      readonly input: EmbeddingRequest;
-      readonly signal?: AbortSignal;
-    },
-  ): Promise<{ readonly output: EmbeddingResponse }>;
-}
+export type EmbeddingModelId = ModelId;
