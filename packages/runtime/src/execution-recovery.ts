@@ -1,14 +1,53 @@
 import type { ExecutionId } from "@polyon/contracts";
 
-import { recoverRunningExecution } from "@polyon/core";
-import type { ApprovalRequestStore, ExecutionStore } from "@polyon/storage";
+import {
+  pauseExecution,
+  recoverRunningExecution,
+  transitionTaskStatus,
+} from "@polyon/core";
+import type {
+  ApprovalRequestStore,
+  ExecutionStore,
+  TaskStore,
+} from "@polyon/storage";
 
 import type { ExecutionQueue } from "./execution-queue";
+
+function findToolContinuation(
+  approvals: ApprovalRequestStore,
+  executionId: ExecutionId,
+  status: "PENDING" | "APPROVED",
+): NonNullable<import("@polyon/contracts").ApprovalRequest["toolContinuation"]> | undefined {
+  return approvals
+    .list()
+    .filter(
+      (approval) =>
+        approval.executionId === executionId &&
+        approval.status === status &&
+        approval.toolContinuation !== undefined,
+    )
+    .sort((left, right) =>
+      (right.resolvedAt ?? right.requestedAt).localeCompare(
+        left.resolvedAt ?? left.requestedAt,
+      ),
+    )
+    .map((approval) => approval.toolContinuation!)
+    .at(0);
+}
 
 function hasResumableToolContinuation(
   approvals: ApprovalRequestStore,
   executionId: ExecutionId,
 ): boolean {
+  return findToolContinuation(approvals, executionId, "APPROVED") !== undefined;
+}
+
+function hasPendingToolContinuation(
+  approvals: ApprovalRequestStore,
+  executionId: ExecutionId,
+): boolean {
+  return findToolContinuation(approvals, executionId, "PENDING") !== undefined;
+}
   return approvals.list().some(
     (approval) =>
       approval.executionId === executionId &&
@@ -38,7 +77,8 @@ export function recoverQueuedExecutions(
 
 export type ExecutionRecoveryKind =
   | "QUEUED_EXECUTION"
-  | "INTERRUPTED_TOOL_CONTINUATION";
+  | "INTERRUPTED_TOOL_CONTINUATION"
+  | "PENDING_TOOL_APPROVAL_RESTART";
 
 export interface ExecutionRecovery {
   readonly executionId: ExecutionId;
@@ -49,6 +89,7 @@ export function recoverExecutions(
   executions: ExecutionStore,
   queue: ExecutionQueue,
   approvals: ApprovalRequestStore | undefined,
+  tasks: TaskStore | undefined,
   recoveredAt: string,
 ): readonly ExecutionRecovery[] {
   const recovered: ExecutionRecovery[] = [];
@@ -67,18 +108,39 @@ export function recoverExecutions(
       continue;
     }
 
-    if (
-      execution.status === "RUNNING" &&
-      approvals !== undefined &&
-      hasResumableToolContinuation(approvals, execution.id)
-    ) {
-      const recoveredExecution = recoverRunningExecution(execution, recoveredAt);
-      executions.save(recoveredExecution);
-      queue.enqueue(recoveredExecution);
-      recovered.push({
-        executionId: recoveredExecution.id,
-        kind: "INTERRUPTED_TOOL_CONTINUATION",
-      });
+    if (execution.status === "RUNNING" && approvals !== undefined) {
+      if (hasPendingToolContinuation(approvals, execution.id)) {
+        if (tasks === undefined) {
+          continue;
+        }
+        const task = tasks.get(execution.taskId);
+        if (task === undefined || task.status !== "RUNNING") {
+          continue;
+        }
+
+        const pausedExecution = pauseExecution(execution, recoveredAt);
+        const pausedTask = transitionTaskStatus(task, "PAUSED", recoveredAt);
+        executions.save(pausedExecution);
+        tasks.save(pausedTask);
+        recovered.push({
+          executionId: pausedExecution.id,
+          kind: "PENDING_TOOL_APPROVAL_RESTART",
+        });
+        continue;
+      }
+
+      if (hasResumableToolContinuation(approvals, execution.id)) {
+        const recoveredExecution = recoverRunningExecution(
+          execution,
+          recoveredAt,
+        );
+        executions.save(recoveredExecution);
+        queue.enqueue(recoveredExecution);
+        recovered.push({
+          executionId: recoveredExecution.id,
+          kind: "INTERRUPTED_TOOL_CONTINUATION",
+        });
+      }
     }
   }
 
