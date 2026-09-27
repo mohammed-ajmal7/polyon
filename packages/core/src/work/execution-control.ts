@@ -31,6 +31,14 @@ export function startExecution(execution: Execution, startedAt: string): Executi
   };
 }
 
+export function pauseExecution(execution: Execution, pausedAt: string): Execution {
+  return transitionExecutionStatus(execution, "PAUSED", pausedAt);
+}
+
+export function resumeExecution(execution: Execution, resumedAt: string): Execution {
+  return transitionExecutionStatus(execution, "QUEUED", resumedAt);
+}
+
 export function completeExecution(
   execution: Execution,
   input: CompleteExecutionInput,
