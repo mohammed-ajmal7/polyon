@@ -40,6 +40,20 @@ import { FileDomainStores } from "./file-domain-stores";
 import { InMemoryDomainStores } from "./domain-stores";
 
 describe("FileDomainStores", () => {
+  it("rejects nested transactions", () => {
+    const directory = mkdtempSync(join(tmpdir(), "polyon-domain-"));
+
+    try {
+      const stores = new FileDomainStores(directory);
+
+      expect(() =>
+        stores.transaction(() => stores.transaction(() => undefined)),
+      ).toThrow("A storage transaction is already in progress.");
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("reopens the same durable domain stores without losing entities", () => {
     const directory = mkdtempSync(join(tmpdir(), "polyon-domain-"));
 
