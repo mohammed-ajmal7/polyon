@@ -113,6 +113,9 @@ describe("createExecutionRuntime", () => {
 
     runtime.stop();
 
+    await vi.waitFor(() => {
+      expect(runtime.activeExecutionCount).toBe(0);
+    });
     expect(runtime.status).toBe("STOPPED");
     expect(runtime.worker.running).toBe(false);
     expect(runtime.activeExecutionCount).toBe(0);
@@ -490,6 +493,7 @@ describe("createExecutionRuntime", () => {
       retryBackoffMaxMs: 40,
       wait: async (milliseconds) => {
         waits.push(milliseconds);
+        await new Promise((resolve) => setTimeout(resolve, milliseconds));
       },
       onError: () => {
         errorCount += 1;
@@ -539,7 +543,7 @@ describe("createExecutionRuntime", () => {
       createRuntime(stores, {
         executionTimeoutMs: 0,
       }),
-    ).toThrow("execution runtime timeout must be a positive finite number");
+    ).toThrow("Execution runtime timeout must be a positive finite number.");
 
     expect(() =>
       createRuntime(stores, {
