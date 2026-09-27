@@ -31,3 +31,10 @@ export {
   type BindExecutionRoutingInput,
   type ExecutionRoutingRegistries,
 } from "./execution-routing";
+
+export {
+  AgentGateway,
+  type AgentGatewayDependencies,
+  type AgentGatewayInvocationInput,
+  type AgentGatewayInvocationResult,
+} from "./agent-gateway";

@@ -425,6 +425,9 @@ importers:
       '@polyon/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@polyon/providers':
+        specifier: workspace:*
+        version: link:../providers
     devDependencies:
       typescript:
         specifier: 5.9.3
