@@ -11,11 +11,13 @@
     "@polyon/contracts": "workspace:*",
     "@polyon/core": "workspace:*",
     "@polyon/providers": "workspace:*",
-    "@polyon/storage": "workspace:*"
+    "@polyon/storage": "workspace:*",
+    "@polyon/integrations": "workspace:*"
   },
   "devDependencies": {
     "typescript": "5.9.3",
-    "vitest": "5.0.2"
+    "vitest": "5.0.2",
+    "@types/node": "24.13.6"
   },
   "exports": {
     ".": "./src/index.ts"
