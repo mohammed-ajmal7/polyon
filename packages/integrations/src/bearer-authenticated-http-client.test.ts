@@ -98,7 +98,12 @@ describe("BearerAuthenticatedHttpClient", () => {
       url: "https://www.googleapis.com/drive/v3/files",
     });
 
-    const calledInput = request.mock.calls[0]?.[0] as {
+    const called = request.mock.calls[0];
+    expect(called).toBeDefined();
+    if (called === undefined) {
+      throw new Error("Expected bearer-authenticated HTTP request.");
+    }
+    const calledInput = called[0] as {
       readonly headers?: Readonly<Record<string, string>>;
     };
     expect(calledInput.headers?.Authorization).toBe("Bearer " + secret);
