@@ -22,14 +22,18 @@ export class FileDomainStores implements DurableDomainStores {
 
   private readonly database: FileDomainDatabase;
   private readonly state: ReturnType<FileDomainDatabase["snapshot"]>;
+  private revision: string;
   private readonly context: DomainStoreTransactionContext;
 
   constructor(readonly rootDir: string) {
     this.database = new FileDomainDatabase(join(rootDir, "domain-state.json"));
-    this.state = this.database.snapshot();
+    const snapshot = this.database.snapshotWithRevision();
+    this.state = snapshot.state;
+    this.revision = snapshot.revision;
     this.context = createStateContext(this.state, (nextState) => {
-      this.database.replace(nextState);
+      const nextRevision = this.database.replaceIfRevision(nextState, this.revision);
       Object.assign(this.state, nextState);
+      this.revision = nextRevision;
     });
   }
 
@@ -81,12 +85,17 @@ export class FileDomainStores implements DurableDomainStores {
     this.transactionActive = true;
 
     try {
-      const stagedState = this.database.snapshot();
+      const snapshot = this.database.snapshotWithRevision();
+      const stagedState = snapshot.state;
       const stagedContext = createStateContext(stagedState);
       const result = work(stagedContext);
 
-      this.database.replace(stagedState);
+      const nextRevision = this.database.replaceIfRevision(
+        stagedState,
+        snapshot.revision,
+      );
       Object.assign(this.state, stagedState);
+      this.revision = nextRevision;
 
       return result;
     } finally {
