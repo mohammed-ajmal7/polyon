@@ -52,8 +52,11 @@ export type ExecutionResultServiceErrorKind =
   | "CONVERSATION_NOT_FOUND"
   | "CONVERSATION_NOT_ACTIVE"
   | "CONVERSATION_MISSION_MISMATCH"
+  | "CONVERSATION_KIND_MISMATCH"
+  | "ACTOR_NOT_PARTICIPANT"
   | "MESSAGE_EXISTS"
-  | "ARTIFACT_EXISTS";
+  | "ARTIFACT_EXISTS"
+  | "DUPLICATE_ARTIFACT_ID";
 
 export interface ExecutionResultServiceDependencies {
   readonly executions: ExecutionStore;
@@ -210,6 +213,17 @@ export class ExecutionResultService {
       );
     }
 
+    if (conversation.kind !== "MISSION") {
+      throw new ExecutionResultServiceError(
+        "CONVERSATION_KIND_MISMATCH",
+        "Conversation " +
+          conversation.id +
+          " is " +
+          conversation.kind +
+          ", not MISSION.",
+      );
+    }
+
     if (conversation.missionId !== execution.missionId) {
       throw new ExecutionResultServiceError(
         "CONVERSATION_MISSION_MISMATCH",
@@ -221,6 +235,13 @@ export class ExecutionResultService {
       );
     }
 
+    if (!conversation.participantIds.includes(input.actorId)) {
+      throw new ExecutionResultServiceError(
+        "ACTOR_NOT_PARTICIPANT",
+        "Result actor is not a participant in conversation " + conversation.id + ".",
+      );
+    }
+
     if (this.dependencies.messages.get(input.messageId) !== undefined) {
       throw new ExecutionResultServiceError(
         "MESSAGE_EXISTS",
@@ -228,7 +249,18 @@ export class ExecutionResultService {
       );
     }
 
+    const artifactIds = new Set<string>();
+
     for (const artifact of input.artifacts ?? []) {
+      if (artifactIds.has(artifact.id)) {
+        throw new ExecutionResultServiceError(
+          "DUPLICATE_ARTIFACT_ID",
+          "Artifact ID is duplicated in the result: " + artifact.id + ".",
+        );
+      }
+
+      artifactIds.add(artifact.id);
+
       if (this.dependencies.artifacts.get(artifact.id) !== undefined) {
         throw new ExecutionResultServiceError(
           "ARTIFACT_EXISTS",
