@@ -64,12 +64,12 @@ describe("ScopedGitReadToolAdapter", () => {
       await expect(
         adapter.invoke({
           input: {
-            operation: "LOG",
+            operation: "DIFF",
           },
         }),
       ).resolves.toMatchObject({
         output: {
-          operation: "LOG",
+          operation: "DIFF",
           commandOutput: {
             exitCode: 0,
           },
