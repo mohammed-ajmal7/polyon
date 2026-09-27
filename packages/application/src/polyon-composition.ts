@@ -1,6 +1,6 @@
 import type { Agent, Model, Provider } from "@polyon/contracts";
 import { AgentGateway, InMemoryAgentRegistry, InMemoryModelRegistry, InMemoryProviderRegistry } from "@polyon/agents";
-import { ExecutionApprovalService, ExecutionDispatchService, ExecutionResultService, ExecutionRetryService, MissionExecutionService, MissionTaskOrchestrationService, ToolInvocationService, type ReadyTaskHandler } from "@polyon/application";
+import { ExecutionApprovalService, ExecutionDispatchService, ExecutionResultService, AgentToolOrchestrationService, ExecutionRetryService, MissionExecutionService, MissionTaskOrchestrationService, ToolInvocationService, type ReadyTaskHandler } from "@polyon/application";
 import { InMemoryProviderAdapterRegistry, ModelGateway, type ModelProviderAdapter } from "@polyon/providers";
 import { FileDomainStores } from "@polyon/storage";
 import { createExecutionRuntime, ModelExecutionRunner, type ExecutionRunOutcome, type ExecutionRuntime, type ExecutionRuntimeCompletionHandler, type ExecutionRuntimeWait, type ExecutionWorkerClock } from "@polyon/runtime";
@@ -48,6 +48,7 @@ export interface PolyonComposition {
   readonly executionApproval: ExecutionApprovalService;
   readonly executionRetry: ExecutionRetryService;
   readonly toolInvocation: ToolInvocationService;
+  readonly agentToolOrchestration: AgentToolOrchestrationService;
   readonly runtime: ExecutionRuntime;
 }
 
@@ -194,6 +195,12 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     unitOfWork: stores,
   });
 
+  const agentToolOrchestration = new AgentToolOrchestrationService({
+    agentGateway,
+    toolInvocation,
+    tools: builtinTools.tools,
+  });
+
   return {
     stores,
     agents,
@@ -211,6 +218,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     executionApproval,
     executionRetry,
     toolInvocation,
+    agentToolOrchestration,
     runtime,
   };
 }
