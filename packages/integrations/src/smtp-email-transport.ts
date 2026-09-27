@@ -38,7 +38,7 @@ export class SmtpTransportError extends Error {
   }
 }
 
-export class SmtpAuthenticationError extends SmtpTransportError {
+export class SmtpEnvelopeError extends SmtpTransportError {\n  constructor(kind: "TRANSIENT" | "PERMANENT" | "PROTOCOL", smtpCode?: number) {\n    super(kind, "SMTP envelope was rejected.", smtpCode);\n    this.name = "SmtpEnvelopeError";\n  }\n}\n\nexport class SmtpAuthenticationError extends SmtpTransportError {
   constructor(kind: "TRANSIENT" | "PERMANENT" | "PROTOCOL", smtpCode?: number) {
     super(kind, "SMTP authentication failed.", smtpCode);
     this.name = "SmtpAuthenticationError";
@@ -74,7 +74,7 @@ export class SmtpTransport implements EmailTransport {
   }
 
   async send(input: EmailSendInput, credential: EmailSmtpCredential): Promise<EmailSendOutput> {
-    const message = buildMessage(input, this.options.messageIdDomain);
+    validateEnvelope(input, credential);\n\n    const message = buildMessage(input, this.options.messageIdDomain);
 
     if (new TextEncoder().encode(message).byteLength > this.options.maxMessageBytes) {
       throw new Error("SMTP message exceeds configured maximum size.");
@@ -107,10 +107,10 @@ export class SmtpTransport implements EmailTransport {
         this.options.authMechanism,
         credential,
       );
-      await this.command(connection, `MAIL FROM:<${credential.username}>`, 250);
+      await envelopeCommand(connection, `MAIL FROM:<${credential.username}>`, 250);
 
       for (const recipient of [...input.to, ...(input.cc ?? []), ...(input.bcc ?? [])]) {
-        await this.command(connection, `RCPT TO:<${recipient}>`, 250, 251);
+        await envelopeCommand(connection, `RCPT TO:<${recipient}>`, 250, 251);
       }
 
       await this.command(connection, "DATA", 354);
@@ -165,6 +165,44 @@ async function login(connection: SmtpConnection, credential: EmailSmtpCredential
   await writeAndExpect(connection, "AUTH LOGIN", 334);
   await writeAndExpect(connection, encodeBase64(credential.username), 334);
   await writeAndExpect(connection, encodeBase64(credential.password), 235);
+}
+
+async function envelopeCommand(
+  connection: SmtpConnection,
+  command: string,
+  ...codes: number[]
+): Promise<string> {
+  try {
+    await connection.write(command);
+    return await expectCode(connection, ...codes);
+  } catch (error) {
+    if (error instanceof SmtpTransportError) {
+      throw new SmtpEnvelopeError(error.kind, error.smtpCode);
+    }
+
+    throw error;
+  }
+}
+
+function validateEnvelope(input: EmailSendInput, credential: EmailSmtpCredential): void {
+  if (!isSmtpAddress(credential.username)) {
+    throw new SmtpEnvelopeError("PROTOCOL");
+  }
+
+  const recipients = [...input.to, ...(input.cc ?? []), ...(input.bcc ?? [])];
+
+  if (recipients.length === 0 || recipients.some((recipient) => !isSmtpAddress(recipient))) {
+    throw new SmtpEnvelopeError("PROTOCOL");
+  }
+}
+
+function isSmtpAddress(value: string): boolean {
+  return (
+    value.length > 0 &&
+    value.length <= 320 &&
+    !/[\\r\\n]/.test(value) &&
+    /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(value)
+  );
 }
 
 async function writeAndExpect(
