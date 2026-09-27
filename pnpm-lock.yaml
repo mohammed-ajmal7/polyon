@@ -187,6 +187,21 @@ importers:
       '@polyon/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@polyon/integrations':
+        specifier: workspace:*
+        version: link:../../packages/integrations
+      '@polyon/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
+      '@polyon/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
+      '@polyon/application':
+        specifier: workspace:*
+        version: link:../../packages/application
+      '@polyon/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       next:
         specifier: 16.3.6
         version: 16.3.6(@types/node@24.13.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)

@@ -16,7 +16,10 @@
     "@polyon/contracts": "workspace:*",
     "next": "16.3.6",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "@polyon/integrations": "workspace:*",
+    "@polyon/providers": "workspace:*",
+    "@polyon/runtime": "workspace:*"
   },
   "devDependencies": {
     "@eslint-react/eslint-plugin": "5.19.1",
