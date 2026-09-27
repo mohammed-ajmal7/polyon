@@ -152,6 +152,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   const models = new InMemoryModelRegistry();
   const providers = new InMemoryProviderRegistry();
   const providerAdapters = new InMemoryProviderAdapterRegistry();
+  const integrations = new InMemoryIntegrationAdapterRegistry();
 
   for (const agent of options.agents ?? []) agents.register(agent);
   for (const model of options.models ?? []) models.register(model);
