@@ -11,7 +11,7 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { dirname } from "node:path";
 
 import type {
@@ -27,6 +27,8 @@ import type {
   Task,
 } from "@polyon/contracts";
 
+import { StorageConcurrencyError } from "./transaction";
+
 export interface DurableDomainState {
   readonly version: 1;
   approvals: ApprovalRequest[];
@@ -39,6 +41,11 @@ export interface DurableDomainState {
   policyDecisions: PolicyDecision[];
   tasks: Task[];
   events: DomainEvent[];
+}
+
+export interface DurableDomainSnapshot {
+  readonly state: DurableDomainState;
+  readonly revision: string;
 }
 
 function clone<T>(value: T): T {
@@ -59,6 +66,16 @@ function emptyState(): DurableDomainState {
     tasks: [],
     events: [],
   };
+}
+
+function serializeState(state: DurableDomainState): string {
+  return JSON.stringify(state) + "\n";
+}
+
+function revisionForRaw(raw: string | undefined): string {
+  return createHash("sha256")
+    .update(raw ?? "<missing>")
+    .digest("hex");
 }
 
 function validateState(filePath: string, value: unknown): DurableDomainState {
@@ -99,7 +116,8 @@ function writeAtomically(filePath: string, state: DurableDomainState): void {
   mkdirSync(dirname(filePath), { recursive: true });
 
   const tempPath = `${filePath}.${Date.now()}.${randomUUID()}.tmp`;
-  writeFileSync(tempPath, JSON.stringify(state) + "\n", "utf8");
+  const serialized = serializeState(state);
+  writeFileSync(tempPath, serialized, "utf8");
 
   try {
     const fileDescriptor = openSync(tempPath, "r");
@@ -122,32 +140,101 @@ function writeAtomically(filePath: string, state: DurableDomainState): void {
   }
 }
 
+function acquireCommitLock(filePath: string): string {
+  const lockPath = `${filePath}.lock`;
+  const descriptor = openSync(lockPath, "wx");
+
+  closeSync(descriptor);
+  return lockPath;
+}
+
+function withCommitLock<T>(filePath: string, work: () => T): T {
+  const lockPath = acquireCommitLock(filePath);
+
+  try {
+    return work();
+  } finally {
+    try {
+      unlinkSync(lockPath);
+    } catch {
+      // Preserve the original commit result/error.
+    }
+  }
+}
+
 export class FileDomainDatabase {
   private state: DurableDomainState;
+  private revision: string;
 
   constructor(private readonly filePath: string) {
-    this.state = this.read();
+    const snapshot = this.readSnapshot();
+    this.state = snapshot.state;
+    this.revision = snapshot.revision;
   }
 
   snapshot(): DurableDomainState {
     return clone(this.state);
   }
 
-  replace(state: DurableDomainState): void {
+  snapshotWithRevision(): DurableDomainSnapshot {
+    return {
+      state: clone(this.state),
+      revision: this.revision,
+    };
+  }
+
+  replace(state: DurableDomainState): string {
+    return this.replaceIfRevision(state, this.revision);
+  }
+
+  replaceIfRevision(
+    state: DurableDomainState,
+    expectedRevision: string,
+  ): string {
     const next = validateState(this.filePath, state);
-    writeAtomically(this.filePath, next);
-    this.state = next;
+
+    return withCommitLock(this.filePath, () => {
+      const currentRevision = this.readCurrentRevision();
+
+      if (currentRevision !== expectedRevision) {
+        throw new StorageConcurrencyError(this.filePath);
+      }
+
+      writeAtomically(this.filePath, next);
+      this.state = clone(next);
+      this.revision = revisionForRaw(serializeState(next));
+
+      return this.revision;
+    });
   }
 
   get path(): string {
     return this.filePath;
   }
 
-  private read(): DurableDomainState {
+  private readCurrentRevision(): string {
     if (!existsSync(this.filePath)) {
-      return emptyState();
+      return revisionForRaw(undefined);
     }
 
-    return validateState(this.filePath, JSON.parse(readFileSync(this.filePath, "utf8")));
+    return revisionForRaw(readFileSync(this.filePath, "utf8"));
+  }
+
+  private readSnapshot(): DurableDomainSnapshot {
+    if (!existsSync(this.filePath)) {
+      const state = emptyState();
+
+      return {
+        state,
+        revision: revisionForRaw(undefined),
+      };
+    }
+
+    const raw = readFileSync(this.filePath, "utf8");
+
+    return {
+      state: validateState(this.filePath, JSON.parse(raw)),
+      revision: revisionForRaw(raw),
+    };
   }
 }
