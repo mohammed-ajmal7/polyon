@@ -13,10 +13,79 @@ function createConnection(responses: string[]) {
     }),
     write: vi.fn(async () => undefined),
     close: vi.fn(async () => undefined),
+    startTls: vi.fn(async () => undefined),
   };
 }
 
 describe("SmtpTransport", () => {
+  it("requires and negotiates STARTTLS before authentication", async () => {
+    const connection = createConnection([
+      "220 ready",
+      "250-smtp.example.com",
+      "250-STARTTLS",
+      "250 AUTH LOGIN",
+      "220 ready to start TLS",
+      "250 smtp.example.com",
+      "334 VXNlcm5hbWU6",
+      "334 UGFzc3dvcmQ6",
+      "235 authenticated",
+      "250 sender accepted",
+      "250 recipient accepted",
+      "354 continue",
+      "250 queued",
+      "221 bye",
+    ]);
+    const factory = { connect: vi.fn(async () => connection) };
+
+    const transport = new SmtpTransport(
+      {
+        host: "smtp.example.com",
+        port: 587,
+        secure: false,
+        startTls: true,
+        heloName: "polyon.local",
+        messageIdDomain: "polyon.local",
+      },
+      factory,
+    );
+
+    await transport.send(
+      { to: ["user@example.com"], subject: "Hello", text: "Hello" },
+      { username: "mailer@example.com", password: "secret" },
+    );
+
+    expect(connection.write).toHaveBeenNthCalledWith(2, "STARTTLS");
+    expect(connection.startTls).toHaveBeenCalledWith("smtp.example.com", 10000);
+    expect(connection.write).toHaveBeenNthCalledWith(3, "EHLO polyon.local");
+  });
+
+  it("rejects STARTTLS when the server does not advertise it", async () => {
+    const connection = createConnection(["220 ready", "250 smtp.example.com AUTH LOGIN"]);
+    const factory = { connect: vi.fn(async () => connection) };
+
+    const transport = new SmtpTransport(
+      {
+        host: "smtp.example.com",
+        port: 587,
+        secure: false,
+        startTls: true,
+        heloName: "polyon.local",
+        messageIdDomain: "polyon.local",
+      },
+      factory,
+    );
+
+    await expect(
+      transport.send(
+        { to: ["user@example.com"], subject: "Hello", text: "Hello" },
+        { username: "mailer@example.com", password: "secret" },
+      ),
+    ).rejects.toThrow("SMTP server does not support STARTTLS.");
+
+    expect(connection.startTls).not.toHaveBeenCalled();
+    expect(connection.close).toHaveBeenCalledTimes(1);
+  });
+
   it("performs a bounded authenticated SMTP send", async () => {
     const connection = createConnection([
       "220 smtp.example.com ready",
