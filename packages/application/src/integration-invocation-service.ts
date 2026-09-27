@@ -42,6 +42,7 @@ export interface InvokeIntegrationInput<TInput = unknown> {
   readonly executionId?: string;
   readonly agentId?: string;
   readonly expiresAt?: string;
+  readonly integrationContinuation?: ApprovalRequest["integrationContinuation"];
 }
 
 export interface InvokeApprovedIntegrationInput<TInput = unknown> {
@@ -197,6 +198,9 @@ export class IntegrationInvocationService {
       const approval = {
         ...authorization.approvalRequest!,
         integrationId: integration.integrationId,
+        ...(input.integrationContinuation === undefined
+          ? {}
+          : { integrationContinuation: input.integrationContinuation }),
         reason: `Integration ${integration.integrationId} requested operation ${input.operation}: ${authorization.policyDecision.reason}`,
       };
 

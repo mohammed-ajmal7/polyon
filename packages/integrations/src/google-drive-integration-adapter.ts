@@ -83,6 +83,7 @@ export class GoogleDriveIntegrationAdapter implements IntegrationAdapter {
   readonly kind = "GOOGLE_DRIVE" as const;
   readonly actionKinds = ["READ"] as const;
   readonly supportedOperations = ["LIST_FILES", "GET_METADATA"] as const;
+  readonly sideEffectClass = "READ_ONLY" as const;
 
   private readonly http: BearerAuthenticatedHttpClient;
   private readonly defaultPageSize: number;

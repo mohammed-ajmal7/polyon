@@ -56,6 +56,7 @@ export class TelegramIntegrationAdapter implements IntegrationAdapter {
   readonly kind = "TELEGRAM" as const;
   readonly actionKinds = ["EXTERNAL_COMMUNICATION"] as const;
   readonly supportedOperations = ["SEND_MESSAGE"] as const;
+  readonly sideEffectClass = "NON_IDEMPOTENT" as const;
 
   private readonly secretResolver: SecretResolver;
   private readonly secretReference: SecretReference;

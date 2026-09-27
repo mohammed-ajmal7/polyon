@@ -29,6 +29,32 @@ export interface ApprovalRequest {
     readonly input: unknown;
   };
 
+  /**
+   * Durable checkpoint for a model-driven external integration approval.
+   * NON_IDEMPOTENT operations must not be automatically replayed after an
+   * interrupted process because the side effect may already have occurred.
+   */
+  readonly integrationContinuation?: {
+    readonly agentId: string;
+    readonly requiredCapabilityIds: readonly string[];
+    readonly request: TextModelRequest;
+    readonly response: TextModelResponse;
+    readonly toolCall: ModelToolCall;
+    readonly rounds: number;
+    readonly integrationId: string;
+    readonly operation: string;
+    readonly input: unknown;
+    readonly sideEffectClass: import("../integration/side-effect-class").IntegrationSideEffectClass;
+    readonly state:
+      | "AWAITING_INTEGRATION"
+      | "AWAITING_MODEL"
+      | "RESPONSE_READY"
+      | "COMPLETED"
+      | "RECONCILIATION_REQUIRED";
+    readonly integrationOutput?: unknown;
+    readonly nextRequest?: TextModelRequest;
+  };
+
   readonly action: ActionKind;
   readonly riskLevel: RiskLevel;
 

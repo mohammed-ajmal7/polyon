@@ -1,9 +1,29 @@
 import type { ExecutionId } from "@polyon/contracts";
 
 import { pauseExecution, recoverRunningExecution, transitionTaskStatus } from "@polyon/core";
-import type { ApprovalRequestStore, ExecutionStore, TaskStore } from "@polyon/storage";
+import type { ApprovalRequest, ApprovalRequestStore, ExecutionStore, TaskStore } from "@polyon/storage";
 
 import type { ExecutionQueue } from "./execution-queue";
+
+function findIntegrationContinuation(
+  approvals: ApprovalRequestStore,
+  executionId: ExecutionId,
+  status: "PENDING" | "APPROVED",
+): NonNullable<import("@polyon/contracts").ApprovalRequest["integrationContinuation"]> | undefined {
+  return approvals
+    .list()
+    .filter(
+      (approval) =>
+        approval.executionId === executionId &&
+        approval.status === status &&
+        approval.integrationContinuation !== undefined,
+    )
+    .sort((left, right) =>
+      (right.resolvedAt ?? right.requestedAt).localeCompare(left.resolvedAt ?? left.requestedAt),
+    )
+    .map((approval) => approval.integrationContinuation!)
+    .at(0);
+}
 
 function findToolContinuation(
   approvals: ApprovalRequestStore,
@@ -39,6 +59,20 @@ function hasPendingToolContinuation(
   return findToolContinuation(approvals, executionId, "PENDING") !== undefined;
 }
 
+function hasPendingIntegrationContinuation(
+  approvals: ApprovalRequestStore,
+  executionId: ExecutionId,
+): boolean {
+  return findIntegrationContinuation(approvals, executionId, "PENDING") !== undefined;
+}
+
+function hasResumableIntegrationContinuation(
+  approvals: ApprovalRequestStore,
+  executionId: ExecutionId,
+): boolean {
+  return findIntegrationContinuation(approvals, executionId, "APPROVED") !== undefined;
+}
+
 export function recoverQueuedExecutions(
   executions: ExecutionStore,
   queue: ExecutionQueue,
@@ -58,7 +92,12 @@ export function recoverQueuedExecutions(
 }
 
 export type ExecutionRecoveryKind =
-  "QUEUED_EXECUTION" | "INTERRUPTED_TOOL_CONTINUATION" | "PENDING_TOOL_APPROVAL_RESTART";
+  | "QUEUED_EXECUTION"
+  | "INTERRUPTED_TOOL_CONTINUATION"
+  | "PENDING_TOOL_APPROVAL_RESTART"
+  | "INTERRUPTED_INTEGRATION_CONTINUATION"
+  | "PENDING_INTEGRATION_APPROVAL_RESTART"
+  | "NON_IDEMPOTENT_INTEGRATION_RECONCILIATION";
 
 export interface ExecutionRecovery {
   readonly executionId: ExecutionId;
@@ -105,6 +144,63 @@ export function recoverExecutions(
         recovered.push({
           executionId: pausedExecution.id,
           kind: "PENDING_TOOL_APPROVAL_RESTART",
+        });
+        continue;
+      }
+
+      if (hasPendingIntegrationContinuation(approvals, execution.id)) {
+        if (tasks === undefined) {
+          continue;
+        }
+        const task = tasks.get(execution.taskId);
+        if (task === undefined || task.status !== "RUNNING") {
+          continue;
+        }
+
+        const pausedExecution = pauseExecution(execution, recoveredAt);
+        const pausedTask = transitionTaskStatus(task, "PAUSED", recoveredAt);
+        executions.save(pausedExecution);
+        tasks.save(pausedTask);
+        recovered.push({
+          executionId: pausedExecution.id,
+          kind: "PENDING_INTEGRATION_APPROVAL_RESTART",
+        });
+        continue;
+      }
+
+      const integrationContinuation = findIntegrationContinuation(
+        approvals,
+        execution.id,
+        "APPROVED",
+      );
+
+      if (integrationContinuation !== undefined) {
+        if (integrationContinuation.sideEffectClass === "NON_IDEMPOTENT") {
+          if (tasks === undefined) {
+            continue;
+          }
+          const task = tasks.get(execution.taskId);
+          if (task === undefined || task.status !== "RUNNING") {
+            continue;
+          }
+
+          const pausedExecution = pauseExecution(execution, recoveredAt);
+          const pausedTask = transitionTaskStatus(task, "PAUSED", recoveredAt);
+          executions.save(pausedExecution);
+          tasks.save(pausedTask);
+          recovered.push({
+            executionId: pausedExecution.id,
+            kind: "NON_IDEMPOTENT_INTEGRATION_RECONCILIATION",
+          });
+          continue;
+        }
+
+        const recoveredExecution = recoverRunningExecution(execution, recoveredAt);
+        executions.save(recoveredExecution);
+        queue.enqueue(recoveredExecution);
+        recovered.push({
+          executionId: recoveredExecution.id,
+          kind: "INTERRUPTED_INTEGRATION_CONTINUATION",
         });
         continue;
       }
