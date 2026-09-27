@@ -148,10 +148,12 @@ function appendMessageCreatedEvent(
 function appendArtifactCreatedEvent(
   events: EventStore,
   artifact: Artifact,
+  conversationId: string,
 ): DomainEvent {
   const event: DomainEvent = {
     id: "ARTIFACT_CREATED:" + artifact.id,
     kind: "ARTIFACT_CREATED",
+    conversationId,
     missionId: artifact.missionId,
     taskId: artifact.taskId,
     executionId: artifact.executionId,
@@ -288,7 +290,9 @@ export class ExecutionResultService {
     const events: DomainEvent[] = [];
     events.push(appendMessageCreatedEvent(this.dependencies.events, message, execution));
     for (const artifact of artifacts) {
-      events.push(appendArtifactCreatedEvent(this.dependencies.events, artifact));
+      events.push(
+        appendArtifactCreatedEvent(this.dependencies.events, artifact, conversation.id),
+      );
     }
 
     return {
