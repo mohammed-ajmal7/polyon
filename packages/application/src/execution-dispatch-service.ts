@@ -216,8 +216,7 @@ export class ExecutionDispatchService {
       "APPROVED",
       "QUEUED",
       now,
-    );
-    return queued;
+    );return queued;
   
   }
 }
