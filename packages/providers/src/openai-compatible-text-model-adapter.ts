@@ -1,10 +1,10 @@
 import type {
+  ModelId,
+  ProviderId,
   TextModelFinishReason,
   TextModelRequest,
   TextModelResponse,
   TextModelUsage,
-  type ModelId,
-  type ProviderId,
 } from "@polyon/contracts";
 
 import { ProviderInvocationError } from "./provider-errors";
