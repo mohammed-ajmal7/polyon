@@ -115,14 +115,35 @@ function pickEnvironment(
   keys: readonly string[],
 ): Record<string, string | undefined> {
   const environment: Record<string, string | undefined> = {};
+  const runtime = (
+    globalThis as unknown as {
+      readonly process?: {
+        readonly env?: Readonly<Record<string, string | undefined>>;
+      };
+    }
+  ).process;
 
   for (const key of keys) {
-    if (process.env[key] !== undefined) {
-      environment[key] = process.env[key];
+    const value = runtime?.env?.[key];
+    if (value !== undefined) {
+      environment[key] = value;
     }
   }
 
   return environment;
+}
+
+function decodeChunks(chunks: readonly Uint8Array[]): string {
+  const totalBytes = chunks.reduce((total, chunk) => total + chunk.byteLength, 0);
+  const combined = new Uint8Array(totalBytes);
+  let offset = 0;
+
+  for (const chunk of chunks) {
+    combined.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  return new TextDecoder().decode(combined);
 }
 
 export class ScopedTerminalToolAdapter
@@ -306,8 +327,8 @@ export class ScopedTerminalToolAdapter
         stdio: ["ignore", "pipe", "pipe"],
       });
 
-      const stdoutChunks: Buffer[] = [];
-      const stderrChunks: Buffer[] = [];
+      const stdoutChunks: Uint8Array[] = [];
+      const stderrChunks: Uint8Array[] = [];
       let capturedBytes = 0;
       let truncated = false;
       let settled = false;
@@ -322,7 +343,7 @@ export class ScopedTerminalToolAdapter
         rejectPromise(error);
       };
 
-      const onData = (target: Buffer[], chunk: Buffer): void => {
+      const onData = (target: Uint8Array[], chunk: Uint8Array): void => {
         if (settled) return;
 
         const remaining = maxOutputBytes - capturedBytes;
@@ -385,8 +406,8 @@ export class ScopedTerminalToolAdapter
           globalThis.clearTimeout(timeoutHandle);
         }
 
-        const stdout = Buffer.concat(stdoutChunks).toString("utf8");
-        const stderr = Buffer.concat(stderrChunks).toString("utf8");
+        const stdout = decodeChunks(stdoutChunks);
+        const stderr = decodeChunks(stderrChunks);
         const durationMs = Date.now() - startedAt;
 
         const output: ScopedTerminalToolOutput = {
