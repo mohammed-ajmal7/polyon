@@ -236,6 +236,41 @@ describe("ToolInvocationService", () => {
     ]);
   });
 
+  it("rejects approved tool execution after the approval expires", async () => {
+    const invoke = vi.fn(async () => ({ output: "executed" }));
+    const { stores, service } = createService({
+      toolId: "tool-1",
+      invoke,
+    });
+
+    await service.invoke({
+      ...baseInput,
+      policy: { ...policy, defaultEffect: "REQUIRE_APPROVAL" },
+      expiresAt: "2026-09-27T00:00:00.000Z",
+    });
+
+    service.resolveApproval({
+      approvalId: "approval-1",
+      status: "APPROVED",
+      resolvedAt: "2026-09-27T01:02:00.000Z",
+      resolvedBy: "user-1",
+    });
+
+    await expect(
+      service.invokeApproved({
+        invocationId: "invocation-1",
+        approvalId: "approval-1",
+        toolId: "tool-1",
+        input: { value: "hello" },
+      }),
+    ).rejects.toMatchObject({
+      kind: "TOOL_APPROVAL_EXPIRED",
+    });
+
+    expect(invoke).not.toHaveBeenCalled();
+    expect(stores.approvals.get("approval-1")?.status).toBe("APPROVED");
+  });
+
   it("durably records model continuation state with a pending approval", async () => {
     const { stores, service } = createService({
       toolId: "tool-1",
