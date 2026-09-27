@@ -108,14 +108,14 @@ export default function Home() {
     const trimmed = command.trim();
     if (!trimmed) return;
     setError(null);
-    const response = await fetch("/api/command", {
+    const response = await fetch("/api/execute", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ mode, command: trimmed }),
     });
     if (!response.ok) {
       const body = (await response.json().catch(() => ({}))) as { error?: string };
-      throw new Error(body.error ?? "Command submission failed.");
+      throw new Error(body.error ?? "Execution submission failed.");
     }
     setCommand("");
     await refreshOverview();
@@ -199,7 +199,7 @@ export default function Home() {
                   </div>
                   <div className="p-5 sm:p-6">
                     <textarea value={command} onChange={(event) => setCommand(event.target.value)} onKeyDown={(event) => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") void submitCommand().catch((cause) => setError(cause instanceof Error ? cause.message : "Command submission failed.")); }} placeholder="Give POLYON a command..." className="min-h-36 w-full resize-none rounded-2xl border border-white/8 bg-black/20 p-4 text-sm leading-6 text-slate-100 outline-none placeholder:text-slate-600 focus:border-violet-300/25 focus:ring-4 focus:ring-violet-300/5" />
-                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><div className="text-xs text-slate-600">⌘↵ to run · governance remains enforced</div><button type="button" onClick={() => void submitCommand().catch((cause) => setError(cause instanceof Error ? cause.message : "Command submission failed."))} className="rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-semibold text-slate-900 transition hover:bg-white">Submit command</button></div>
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><div className="text-xs text-slate-600">⌘↵ to run · governed execution path</div><button type="button" onClick={() => void submitCommand().catch((cause) => setError(cause instanceof Error ? cause.message : "Command submission failed."))} className="rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-semibold text-slate-900 transition hover:bg-white">Submit command</button></div>
                   </div>
                 </section>
 
