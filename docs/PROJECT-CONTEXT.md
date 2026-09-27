@@ -251,7 +251,7 @@ Implemented boundaries include:
 - integration adapter interface/registry;
 - planned integration kinds for Google Drive, Telegram, and Email.
 
-Actual provider/tool/integration implementations still need to be built.
+A concrete bounded filesystem-read tool now exists behind the tool adapter boundary, and the application-level ToolInvocationService enforces tool lookup, policy decisions, approvals, invocation tracing, and adapter execution. The composition root now exposes that governed invocation path. Broader tool categories and external integrations remain to be implemented.
 
 ### Conversations and application ingress
 
@@ -331,7 +331,9 @@ The architecture should permit hosted models, local models, CLI agents, and remo
 
 ### Real tool execution
 
-The tool registry and adapter boundary exist. Actual tools and policy-controlled invocation still need to be implemented.
+The governed tool invocation path is now implemented for the current filesystem-read capability. The application validates the tool, evaluates policy, persists approval/decision state when required, executes the registered adapter, and records invocation events. The composition root exposes this service as the single application entry point.
+
+Broader consequential tool categories still need concrete adapters and end-to-end agent integration.
 
 Important future tool categories include:
 
@@ -564,7 +566,9 @@ Requirements:
 
 ### Phase 5 — Governed tool execution
 
-Build the actual tool invocation path:
+Status: foundation implemented; agent-driven tool orchestration remains.
+
+The current governed tool invocation path is:
 
 ```
 Agent request
