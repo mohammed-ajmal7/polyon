@@ -936,3 +936,5 @@ Built-in local/repository tool surfaces are intentionally structured rather than
 - Git publish accepts only an allowlisted remote and safe branch and is classified as PUBLISH/HIGH risk;
 - artifact creation is root-scoped, atomic, idempotent, and durably catalogued.
   Remote publish must remain approval-governed and must never gain force/refspec/credential-manipulation arguments through a generic command interface.
+
+External integrations follow the same governance boundary. Integration adapters are registered explicitly, policy evaluation includes actor/agent/mission/task context, approval-required calls persist approval state before any adapter execution, approved calls are identity-checked and idempotent, and every terminal outcome emits an `INTEGRATION_INVOKED` audit event. The reusable outbound HTTP transport is bounded by exact host allowlists, HTTPS by default, GET/HEAD methods, no automatic redirects, timeouts, and response-size limits.
