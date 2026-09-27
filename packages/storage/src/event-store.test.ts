@@ -95,7 +95,7 @@ describe("InMemoryEventStore", () => {
     ).toEqual(["one"]);
   });
 
-it("persists events across store instances", () => {
+  it("persists events across store instances", () => {
     const directory = mkdtempSync(join(tmpdir(), "polyon-events-"));
 
     try {
