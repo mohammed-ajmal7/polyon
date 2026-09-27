@@ -2,6 +2,7 @@ export type {
   ModelProviderAdapter,
   ProviderInvocationRequest,
   ProviderInvocationResult,
+  TextModelProviderAdapter,
 } from "./provider-adapter";
 
 export {
