@@ -108,10 +108,12 @@ describe("prepareExecutionDispatch", () => {
         missionId: "mission-1",
         taskId: "task-1",
         actorId: "agent-1",
+        agentId: "agent-1",
         attempt: 1,
         status: "REJECTED",
         createdAt: "2026-09-27T01:01:00.000Z",
         updatedAt: "2026-09-27T01:02:00.000Z",
+        error: "No policy rule matched; using the policy default effect.",
       },
       policyDecision: {
         id: "decision-1",
