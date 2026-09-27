@@ -23,6 +23,15 @@ export {
 } from "./tool-authorization";
 
 export {
+  ScopedTerminalToolAdapter,
+  ScopedTerminalToolError,
+  type ScopedTerminalToolAdapterOptions,
+  type ScopedTerminalToolErrorKind,
+  type ScopedTerminalToolInput,
+  type ScopedTerminalToolOutput,
+} from "./scoped-terminal-tool-adapter";
+
+export {
   ScopedFilesystemReadToolAdapter,
   FilesystemReadToolError,
   type FilesystemReadToolAdapterOptions,
