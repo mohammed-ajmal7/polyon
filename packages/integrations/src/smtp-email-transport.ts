@@ -61,8 +61,8 @@ export class SmtpTransport implements EmailTransport {
       await expectCode(connection, 220);
       await this.command(connection, `EHLO ${this.options.heloName}`, 250);
       await this.command(connection, `AUTH LOGIN`, 334);
-      await this.command(connection, Buffer.from(credential.username).toString("base64"), 334);
-      await this.command(connection, Buffer.from(credential.password).toString("base64"), 235);
+      await this.command(connection, encodeBase64(credential.username), 334);
+      await this.command(connection, encodeBase64(credential.password), 235);
       await this.command(connection, `MAIL FROM:<${credential.username}>`, 250);
 
       for (const recipient of [...input.to, ...(input.cc ?? []), ...(input.bcc ?? [])]) {
@@ -144,4 +144,8 @@ function extractMessageId(message: string): string {
   }
 
   return match[1];
+}
+
+function encodeBase64(value: string): string {
+  return btoa(value);
 }
