@@ -210,6 +210,7 @@ describe("EmailIntegrationAdapter", () => {
         port: 465,
         secure: true,
       }),
+      startTls: false,
     ).toEqual({
       host: "smtp.example.com",
       port: 465,
