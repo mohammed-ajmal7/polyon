@@ -12,6 +12,7 @@ export {
   type DebateStore,
   type EvidenceStore,
   type MemoryStore,
+  type MemoryEmbeddingStore,
   type SourceStore,
   type ArtifactStore,
   type ConversationStore,
