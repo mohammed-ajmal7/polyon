@@ -1,0 +1,68 @@
+name: Format POLYON slice
+
+on:
+  push:
+    branches:
+      - feature/core-architecture
+
+jobs:
+  format-slice:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24.13.1
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Format slice
+        run: |
+          pnpm exec prettier --write \
+            packages/application/src/builtin-filesystem-tool.integration.test.ts \
+            packages/application/src/durable-execution-restart.integration.test.ts \
+            packages/application/src/index.ts \
+            packages/application/src/tool-invocation-service.test.ts \
+            packages/application/src/tool-invocation-service.ts \
+            packages/contracts/src/policy/approval.ts \
+            packages/core/src/policy/approval-request.ts \
+            packages/tools/src/builtin-tools.test.ts \
+            packages/tools/src/builtin-tools.ts \
+            packages/tools/src/index.ts \
+            packages/tools/src/node-runtime.d.ts \
+            packages/tools/src/scoped-filesystem-read-adapter.test.ts \
+            packages/tools/src/scoped-filesystem-read-adapter.ts \
+            packages/tools/src/tool-authorization.ts
+
+      - name: Package formatted files
+        run: |
+          tar -czf formatted-polyon-slice.tar.gz \
+            packages/application/src/builtin-filesystem-tool.integration.test.ts \
+            packages/application/src/durable-execution-restart.integration.test.ts \
+            packages/application/src/index.ts \
+            packages/application/src/tool-invocation-service.test.ts \
+            packages/application/src/tool-invocation-service.ts \
+            packages/contracts/src/policy/approval.ts \
+            packages/core/src/policy/approval-request.ts \
+            packages/tools/src/builtin-tools.test.ts \
+            packages/tools/src/builtin-tools.ts \
+            packages/tools/src/index.ts \
+            packages/tools/src/node-runtime.d.ts \
+            packages/tools/src/scoped-filesystem-read-adapter.test.ts \
+            packages/tools/src/scoped-filesystem-read-adapter.ts \
+            packages/tools/src/tool-authorization.ts
+
+      - name: Upload formatted slice
+        uses: actions/upload-artifact@v4
+        with:
+          name: formatted-polyon-slice
+          path: formatted-polyon-slice.tar.gz
+          if-no-files-found: error
