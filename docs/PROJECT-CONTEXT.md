@@ -330,9 +330,9 @@ The architecture should permit hosted models, local models, CLI agents, and remo
 
 ### Real tool execution
 
-The governed tool invocation path is now implemented for the current filesystem-read capability. The application validates the tool, evaluates policy, persists approval/decision state when required, executes the registered adapter, and records invocation events. The composition root exposes this service as the single application entry point.
+The governed tool invocation path is implemented for the current filesystem, terminal, Git, artifact, and bounded model-tool orchestration surfaces. The application validates tools, evaluates policy, persists approval/decision state when required, executes registered adapters, checkpoints resumable tool continuations, and records invocation events.
 
-Broader consequential tool categories still need concrete adapters and end-to-end agent integration.
+Broader consequential tool categories and direct agent access to external integrations still need end-to-end integration.
 
 Important future tool categories include:
 
@@ -347,7 +347,9 @@ Every consequential tool action must pass policy/approval controls.
 
 ### Real external integrations
 
-Google Drive, Telegram, and Email need concrete adapters and authentication/token handling.
+Google Drive now has a concrete bounded READ adapter with OAuth access-token resolution, HTTPS/host/port allowlisting, response-size and pagination limits, and deterministic metadata parsing. It is exposed through the application-level integration invocation boundary with policy/approval and durable invocation tracing.
+
+Telegram and Email still need concrete adapters and authentication/token handling.
 
 Secrets must never be exposed to the web client or committed to Git.
 
