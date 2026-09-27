@@ -719,4 +719,10 @@ The system must remain understandable, testable, replaceable, private by default
 
 ## Current project status note
 
-The repository is actively under development on `feature/core-architecture`. The repository is actively under development on `feature/core-architecture`. Phase 3 has now started with a durable file-backed storage adapter and restart-safe persistence tests. The multi-store transaction boundary remains the next persistence hardening slice. The exact implementation state should always be re-read from the repository before continuing. This document describes the intended direction and the major completed foundations; it is not a substitute for reading the code.
+The repository is actively under development on `feature/core-architecture`.
+
+The codebase currently includes the Phase 3 durable-storage foundation and the beginning of Phase 4 real-intelligence execution work. In particular, durable file-backed storage, transactional application write paths, restart-safe execution queue recovery, result replay idempotency, formal snapshot migrations, optimistic concurrency protection, provider invocation reliability controls, a concrete OpenAI-compatible text-model adapter, and a model-backed execution runner have been implemented.
+
+The exact implementation state must always be re-read from the repository before continuing. Do not rely on this paragraph as a substitute for inspecting the current code, tests, and git history.
+
+This document describes the intended architecture, roadmap, and continuation procedure; the repository code and tests remain the final source of truth.
