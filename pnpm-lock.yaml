@@ -196,11 +196,6 @@ importers:
       '@polyon/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
-        specifier: workspace:*
-        version: link:../../packages/application
-# duplicate removed: @polyon/contracts
-        specifier: workspace:*
-        version: link:../../packages/contracts
       next:
         specifier: 16.3.6
         version: 16.3.6(@types/node@24.13.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
