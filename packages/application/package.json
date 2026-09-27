@@ -14,7 +14,8 @@
     "@polyon/runtime": "workspace:*",
     "@polyon/storage": "workspace:*",
     "@polyon/tools": "workspace:*",
-    "@polyon/providers": "workspace:*"
+    "@polyon/providers": "workspace:*",
+    "@polyon/integrations": "workspace:*"
   },
   "devDependencies": {
     "typescript": "5.9.3",
