@@ -462,6 +462,105 @@ describe("createExecutionRuntime", () => {
     }
   });
 
+  it("recovers an interrupted approved tool continuation after process restart", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "polyon-interrupted-tool-recovery-"));
+
+    try {
+      const firstProcessStores = new FileDomainStores(directory);
+      firstProcessStores.tasks.save({
+        ...task,
+        status: "RUNNING",
+      });
+      firstProcessStores.executions.save({
+        ...execution,
+        status: "RUNNING",
+      });
+      firstProcessStores.approvals.save({
+        id: "approval-1",
+        policyId: "policy-1",
+        policyDecisionId: "decision-1",
+        executionId: "execution-1",
+        toolId: "tool-1",
+        invocationId: "tool-call:1",
+        action: "TERMINAL",
+        riskLevel: "MEDIUM",
+        requestedBy: "agent-1",
+        reason: "Tool approval.",
+        status: "APPROVED",
+        requestedAt: "2026-09-27T01:00:00.000Z",
+        resolvedAt: "2026-09-27T01:01:00.000Z",
+        toolContinuation: {
+          agentId: "agent-1",
+          requiredCapabilityIds: ["text.generate"],
+          request: {
+            messages: [{ role: "USER", content: "Run the tool." }],
+          },
+          response: {
+            content: "",
+            finishReason: "TOOL_CALL",
+            toolCalls: [
+              {
+                id: "1",
+                toolId: "tool-1",
+                input: {},
+              },
+            ],
+          },
+          toolCall: {
+            id: "1",
+            toolId: "tool-1",
+            input: {},
+          },
+          rounds: 1,
+          state: "AWAITING_MODEL",
+          toolOutput: "already completed",
+          nextRequest: {
+            messages: [
+              { role: "USER", content: "Run the tool." },
+              { role: "ASSISTANT", content: "", toolCalls: [{ id: "1", toolId: "tool-1", input: {} }] },
+              { role: "TOOL", name: "tool-1", toolCallId: "1", content: "already completed" },
+            ],
+          },
+        },
+      });
+
+      const secondProcessStores = new FileDomainStores(directory);
+      const run = vi.fn(async (currentExecution) => {
+        expect(currentExecution.id).toBe("execution-1");
+        expect(currentExecution.status).toBe("RUNNING");
+        return {
+          status: "SUCCEEDED" as const,
+          output: "Recovered continuation completed.",
+        };
+      });
+      const runtime = createRuntime(secondProcessStores, {
+        runner: { run },
+        approvals: secondProcessStores.approvals,
+      });
+
+      const startup = runtime.start();
+
+      expect(startup.recoveredExecutionIds).toEqual(["execution-1"]);
+      await vi.waitFor(() => {
+        expect(run).toHaveBeenCalledTimes(1);
+        expect(secondProcessStores.executions.get("execution-1")?.status).toBe(
+          "SUCCEEDED",
+        );
+      });
+
+      expect(
+        secondProcessStores.events
+          .listByExecution("execution-1")
+          .find((event) => event.kind === "EXECUTION_RECOVERED")?.data,
+      ).toMatchObject({
+        reason: "RESUMABLE_TOOL_CONTINUATION_RESTART",
+      });
+      runtime.stop();
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("recovers multiple durable queued executions in persisted FIFO order and reports recovery health", async () => {
     const directory = mkdtempSync(join(tmpdir(), "polyon-execution-multi-recovery-"));
 
