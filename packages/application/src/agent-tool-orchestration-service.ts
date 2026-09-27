@@ -38,6 +38,7 @@ export interface AgentToolOrchestrationInput {
   readonly executionId?: string;
   readonly maxToolRounds?: number;
   readonly defaultRiskLevel?: RiskLevel;
+  readonly checkpointApprovalId?: string;
   readonly now?: () => string;
 }
 
@@ -184,6 +185,21 @@ export class AgentToolOrchestrationService {
         requiredCapabilityIds: input.requiredCapabilityIds,
         request: currentRequest,
       });
+
+      if (input.checkpointApprovalId !== undefined) {
+        const checkpoint = this.dependencies.approvals.get(
+          input.checkpointApprovalId,
+        )?.toolContinuation;
+        if (checkpoint !== undefined) {
+          this.saveContinuation(input.checkpointApprovalId, {
+            ...checkpoint,
+            state: "RESPONSE_READY",
+            response: next.output,
+            nextRequest: currentRequest,
+          });
+        }
+      }
+
       currentResponse = next.output;
     }
 
@@ -431,6 +447,7 @@ export class AgentToolOrchestrationService {
           taskId: approval.taskId,
           executionId,
           maxToolRounds: 8,
+          checkpointApprovalId: approval.id,
         },
         request,
         continuation.response,
@@ -528,6 +545,22 @@ export class AgentToolOrchestrationService {
         rounds: continuation.rounds,
         state: "AWAITING_TOOL",
       },
+      ...(input.checkpointApprovalId === undefined
+        ? {}
+        : {
+            continuationCheckpoint: {
+              approvalId: input.checkpointApprovalId,
+              toolContinuation: {
+                agentId: input.agentId,
+                requiredCapabilityIds: input.requiredCapabilityIds,
+                request: continuation.request,
+                response: continuation.response,
+                toolCall,
+                rounds: continuation.rounds,
+                state: "AWAITING_MODEL" as const,
+              },
+            },
+          }),
     });
   }
 
