@@ -20,7 +20,9 @@ export {
 
 export {
   ExecutionApprovalService,
+  ExecutionApprovalServiceError,
   type ExecutionApprovalResolution,
   type ExecutionApprovalServiceDependencies,
+  type ExecutionApprovalServiceErrorKind,
   type ResolveExecutionApprovalInput,
 } from "./execution-approval-service";
