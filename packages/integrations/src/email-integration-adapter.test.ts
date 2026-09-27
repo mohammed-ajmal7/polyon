@@ -17,7 +17,10 @@ describe("EmailIntegrationAdapter", () => {
   it("sends a bounded email through the injected transport", async () => {
     const transport: EmailTransport = {
       send: vi.fn(async (input, credential) => {
-        expect(credential).toBe("smtp-secret");
+        expect(credential).toEqual({
+          username: "mailer@example.com",
+          password: "smtp-secret",
+        });
         expect(input).toEqual({
           to: ["user@example.com"],
           subject: "Hello",
@@ -35,6 +38,7 @@ describe("EmailIntegrationAdapter", () => {
       integrationId: "email-primary",
       secretResolver,
       secretReference,
+      smtpUsername: "mailer@example.com",
       transport,
     });
 
@@ -66,6 +70,7 @@ describe("EmailIntegrationAdapter", () => {
       integrationId: "email-primary",
       secretResolver,
       secretReference,
+      smtpUsername: "mailer@example.com",
       transport,
     });
 
@@ -126,6 +131,7 @@ describe("EmailIntegrationAdapter", () => {
       integrationId: "email-primary",
       secretResolver,
       secretReference,
+      smtpUsername: "mailer@example.com",
       transport,
     });
 
@@ -156,6 +162,7 @@ describe("EmailIntegrationAdapter", () => {
       integrationId: "email-primary",
       secretResolver,
       secretReference,
+      smtpUsername: "mailer@example.com",
       transport,
     });
 
@@ -182,6 +189,7 @@ describe("EmailIntegrationAdapter", () => {
         resolve: vi.fn(async () => "smtp-secret"),
       },
       secretReference,
+      smtpUsername: "mailer@example.com",
       transport: {
         send: vi.fn(async () => ({ messageId: "unused" })),
       },
