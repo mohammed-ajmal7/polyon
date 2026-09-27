@@ -50,7 +50,7 @@ describe("ResearchSynthesisService", () => {
       now: "2026-09-28T00:00:01.000Z",
     });
 
-    const firstCall = invokeText.mock.calls[0] as [{
+    const firstCall = invokeText.mock.calls[0] as unknown as [{
       request: { messages: Array<{ content?: unknown }> }
     }];
     expect(firstCall[0].request.messages[1]?.content).toContain(
