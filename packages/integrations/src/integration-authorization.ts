@@ -19,6 +19,10 @@ export interface AuthorizeIntegrationInvocationInput {
   readonly integration: IntegrationAdapter;
   readonly integrationId?: IntegrationId;
   readonly invocationId?: string;
+  readonly integrationInvocation?: {
+    readonly operation: string;
+    readonly input: unknown;
+  };
   readonly action: import("@polyon/contracts").ActionKind;
   readonly policy: Policy;
   readonly riskLevel: RiskLevel;
