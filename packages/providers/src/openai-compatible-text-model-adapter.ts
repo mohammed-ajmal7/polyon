@@ -39,6 +39,13 @@ interface OpenAIChatResponse {
   readonly choices?: readonly {
     readonly message?: {
       readonly content?: unknown;
+      readonly tool_calls?: readonly {
+        readonly id?: unknown;
+        readonly function?: {
+          readonly name?: unknown;
+          readonly arguments?: unknown;
+        };
+      }[];
     };
     readonly finish_reason?: unknown;
   }[];
@@ -112,6 +119,18 @@ export class OpenAICompatibleTextModelAdapter implements TextModelProviderAdapte
       body: JSON.stringify({
         model: modelId,
         messages: input.messages,
+        ...(input.tools === undefined
+          ? {}
+          : {
+              tools: input.tools.map((tool) => ({
+                type: "function",
+                function: {
+                  name: tool.name,
+                  description: tool.description,
+                  ...(tool.inputSchema === undefined ? {} : { parameters: tool.inputSchema }),
+                },
+              })),
+            }),
         ...(input.temperature === undefined ? {} : { temperature: input.temperature }),
         ...(input.maxOutputTokens === undefined
           ? {}
@@ -135,22 +154,24 @@ export class OpenAICompatibleTextModelAdapter implements TextModelProviderAdapte
     const body = payload as OpenAIChatResponse;
     const choice = body.choices?.[0];
     const content = choice?.message?.content;
+    const toolCalls = parseToolCalls(choice?.message?.tool_calls);
 
-    if (typeof content !== "string") {
+    if (typeof content !== "string" && toolCalls === undefined) {
       throw new ProviderInvocationError(
         "UNKNOWN",
         this.providerId,
         modelId,
-        "Provider response did not contain a text message.",
+        "Provider response did not contain a text message or tool calls.",
         false,
       );
     }
 
     return {
-      content,
+      content: typeof content === "string" ? content : "",
       ...(mapFinishReason(choice?.finish_reason) === undefined
         ? {}
         : { finishReason: mapFinishReason(choice?.finish_reason) }),
+      ...(toolCalls === undefined ? {} : { toolCalls }),
       ...(mapUsage(body.usage) === undefined ? {} : { usage: mapUsage(body.usage) }),
     };
   }
@@ -272,4 +293,45 @@ function mapUsage(value: OpenAIChatResponse["usage"]): TextModelUsage | undefine
   };
 
   return Object.keys(usage).length === 0 ? undefined : usage;
+}
+
+
+function parseToolCalls(
+  value: OpenAIChatResponse["choices"] extends readonly (infer T)[]
+    ? T extends { message?: infer M } ? M extends { tool_calls?: infer C } ? C : never : never
+    : never,
+): TextModelResponse["toolCalls"] | undefined {
+  if (!Array.isArray(value) || value.length === 0) {
+    return undefined;
+  }
+
+  const calls = [];
+  for (const candidate of value) {
+    if (!isRecord(candidate) || !isRecord(candidate.function)) {
+      continue;
+    }
+
+    const id = candidate.id;
+    const name = candidate.function.name;
+    const rawArguments = candidate.function.arguments;
+
+    if (typeof id !== "string" || typeof name !== "string") {
+      continue;
+    }
+
+    let input: unknown;
+    if (typeof rawArguments === "string") {
+      try {
+        input = JSON.parse(rawArguments);
+      } catch {
+        continue;
+      }
+    } else {
+      input = rawArguments;
+    }
+
+    calls.push({ id, toolId: name, input });
+  }
+
+  return calls.length === 0 ? undefined : calls;
 }
