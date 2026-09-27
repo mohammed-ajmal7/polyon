@@ -55,3 +55,11 @@ declare module "node:child_process" {
     },
   ): SpawnedChildProcess;
 }
+
+
+declare const process: {
+  readonly env: Readonly<Record<string, string | undefined>>;
+  readonly execPath: string;
+  readonly platform: string;
+  cwd(): string;
+};
