@@ -8,11 +8,11 @@
 
 - Repository: `mohammed-ajmal7/polyon`
 - Branch: `feature/core-architecture`
-- Latest implementation commit: `dde86d18aa88a9e29488182439f5f123b4e46df4`
+- Latest implementation commit: `9b5f49642619a230dcb70e06c06cb89961d78c00`
 - Latest fully verified clean CI remains run **880** on commit
   `145bc37cddfabfba1fc6774518ef6edba1770542`.
-- The commits after run 880 have not yet received a CI result through the
-  available GitHub workflow-history interface.
+- Commits after run 880 have not received a CI result through the available
+  GitHub workflow-history interface.
 - Always inspect the live branch and latest CI before continuing.
 
 ## What POLYON is
@@ -80,9 +80,14 @@ SMTP currently has:
 - explicit STARTTLS negotiation;
 - multiline SMTP response handling;
 - deterministic socket cleanup;
-- explicit TLS 1.2 minimum;
+- TLS 1.2 minimum in the native Node TLS layer;
 - certificate validation enabled explicitly;
 - mutual exclusion of implicit TLS and STARTTLS modes;
+- authenticated plaintext SMTP rejection;
+- explicit `AUTH LOGIN` mechanism policy;
+- authentication capability advertisement checking;
+- sanitized authentication errors;
+- transient `4xx` vs permanent `5xx` response classification;
 - message-size enforcement and dot-stuffing.
 
 Do **not** call the Email adapter directly from an agent or model.
@@ -107,14 +112,12 @@ Do not claim CI is green unless the current run proves it.
 
 ## Likely next Email slice
 
-Harden SMTP authentication and failure handling:
+Continue SMTP protocol hardening:
 
-- inspect advertised `AUTH` capabilities;
-- avoid sending credentials before TLS;
-- define supported authentication mechanisms explicitly;
-- sanitize authentication failures;
-- distinguish transient `4xx` from permanent `5xx` SMTP failures;
-- add focused tests without real provider credentials or network access.
+- validate MAIL FROM and RCPT TO against already validated email inputs;
+- classify delivery-stage transient/permanent failures separately where useful;
+- harden message framing and MIME/UTF-8 behavior;
+- add focused tests for envelope and delivery failure cases.
 
 Keep Email provider-independent and preserve the existing governance
 boundary.
