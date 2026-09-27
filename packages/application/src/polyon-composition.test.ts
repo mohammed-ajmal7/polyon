@@ -237,6 +237,74 @@ describe("createPolyonComposition", () => {
     }
   });
 
+  it("registers integrations behind the governed invocation service", async () => {
+    const root = mkdtempSync(join(tmpdir(), "polyon-composition-integration-"));
+    const invoke = vi.fn(async () => ({ output: { delivered: true } }));
+
+    try {
+      const integration: import("@polyon/integrations").IntegrationAdapter = {
+        integrationId: "email-primary",
+        kind: "EMAIL",
+        actionKinds: ["EXTERNAL_COMMUNICATION"],
+        invoke,
+      };
+
+      const composition = createPolyonComposition({
+        storageRoot: root,
+        integrations: [integration],
+      });
+
+      expect(composition.integrations.get("email-primary")).toBe(integration);
+      expect(composition.integrationInvocation).toBeDefined();
+
+      const result = await composition.integrationInvocation.invoke({
+        invocationId: "integration:composition:email",
+        integrationId: "email-primary",
+        operation: "send",
+        input: { to: "example@example.invalid", body: "hello" },
+        action: "EXTERNAL_COMMUNICATION",
+        riskLevel: "HIGH",
+        policy: {
+          ...policy,
+          defaultEffect: "REQUIRE_APPROVAL",
+        },
+        decisionId: "decision:composition:email",
+        approvalRequestId: "approval:composition:email",
+        requestedBy: "actor.test",
+        requestedAt: now,
+        evaluatedAt: now,
+        actorId: "actor.test",
+        agentId: agent.id,
+        missionId: mission.id,
+        taskId: task.id,
+        executionId: "execution:composition:email",
+      });
+
+      expect(result.status).toBe("APPROVAL_REQUIRED");
+      expect(invoke).not.toHaveBeenCalled();
+
+      composition.integrationInvocation.resolveApproval({
+        approvalId: "approval:composition:email",
+        status: "APPROVED",
+        resolvedAt: now,
+        resolvedBy: "actor.test",
+      });
+
+      const approved = await composition.integrationInvocation.invokeApproved({
+        invocationId: "integration:composition:email",
+        approvalId: "approval:composition:email",
+        integrationId: "email-primary",
+        operation: "send",
+        input: { to: "example@example.invalid", body: "hello" },
+      });
+
+      expect(approved.status).toBe("SUCCEEDED");
+      expect(invoke).toHaveBeenCalledOnce();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("runs a model tool call through policy, the filesystem adapter, and back to the model", async () => {
     const root = mkdtempSync(join(tmpdir(), "polyon-tool-loop-"));
 
