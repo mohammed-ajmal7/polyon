@@ -1,5 +1,3 @@
-import type { ModelId } from "./ids";
-
 export interface EmbeddingRequest {
   readonly input: readonly string[];
 }
