@@ -1,6 +1,7 @@
 import type {
   ActionKind,
   ActorId,
+  Artifact,
   ApprovalRequest,
   ApprovalStatus,
   DomainEvent,
@@ -25,6 +26,7 @@ import type {
   DomainUnitOfWork,
   EventStore,
   PolicyDecisionStore,
+  ArtifactStore,
 } from "@polyon/storage";
 
 export interface InvokeToolInput {
@@ -118,7 +120,7 @@ export class ToolInvocationServiceError extends Error {
 
 type ToolInvocationStores = Pick<
   DomainStoreTransactionContext,
-  "approvals" | "policyDecisions" | "events"
+  "approvals" | "policyDecisions" | "events" | "artifacts"
 >;
 
 function appendPolicyDecisionEvent(
@@ -191,6 +193,34 @@ function appendApprovalResolvedEvent(
   });
 }
 
+function appendArtifactCreatedEvent(
+  events: EventStore,
+  artifact: Artifact,
+  input: Pick<
+    InvokeToolInput,
+    "actorId" | "missionId" | "taskId" | "executionId"
+  >,
+): void {
+  events.append({
+    id: `ARTIFACT_CREATED:${artifact.id}`,
+    kind: "ARTIFACT_CREATED",
+    ...(input.actorId === undefined ? {} : { actorId: input.actorId }),
+    ...(input.missionId === undefined ? {} : { missionId: input.missionId }),
+    ...(input.taskId === undefined ? {} : { taskId: input.taskId }),
+    ...(input.executionId === undefined
+      ? {}
+      : { executionId: input.executionId }),
+    occurredAt: artifact.createdAt,
+    data: {
+      artifactId: artifact.id,
+      name: artifact.name,
+      kind: artifact.kind,
+      location: artifact.location,
+      status: artifact.status,
+    },
+  });
+}
+
 function appendToolInvocationEvent(
   events: EventStore,
   input: {
@@ -242,6 +272,7 @@ export interface ToolInvocationServiceDependencies {
   readonly approvals: ApprovalRequestStore;
   readonly policyDecisions: PolicyDecisionStore;
   readonly events: EventStore;
+  readonly artifacts?: ArtifactStore;
   readonly unitOfWork?: DomainUnitOfWork;
 }
 
@@ -574,6 +605,46 @@ export class ToolInvocationService {
       const result = await adapter.invoke({ input: input.input });
 
       this.withStores((stores) => {
+        for (const artifactResult of result.artifacts ?? []) {
+          const artifact: Artifact = {
+            id: artifactResult.id,
+            kind: artifactResult.kind,
+            name: artifactResult.name,
+            ...(artifactResult.mimeType === undefined
+              ? {}
+              : { mimeType: artifactResult.mimeType }),
+            location: artifactResult.location,
+            status: artifactResult.status,
+            ...(context.missionId === undefined
+              ? {}
+              : { missionId: context.missionId }),
+            ...(context.taskId === undefined
+              ? {}
+              : { taskId: context.taskId }),
+            ...(context.executionId === undefined
+              ? {}
+              : { executionId: context.executionId }),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+
+          const existing = stores.artifacts.get(artifact.id);
+
+          if (
+            existing !== undefined &&
+            JSON.stringify(existing) !== JSON.stringify(artifact)
+          ) {
+            throw new Error(
+              `Artifact already exists with conflicting metadata: ${artifact.id}.`,
+            );
+          }
+
+          if (existing === undefined) {
+            stores.artifacts.save(artifact);
+            appendArtifactCreatedEvent(stores.events, artifact, input as InvokeToolInput);
+          }
+        }
+
         if (approval?.toolContinuation !== undefined) {
           const continuation = approval.toolContinuation;
           stores.approvals.save({
