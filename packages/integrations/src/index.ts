@@ -1,4 +1,10 @@
 export {
+  validateSmtpTransportOptions,
+  type SmtpTransportOptions,
+  type ValidatedSmtpTransportOptions,
+} from "./smtp-transport";
+
+export {
   EmailIntegrationAdapter,
   EmailIntegrationAdapterError,
   type EmailIntegrationAdapterErrorKind,
