@@ -522,7 +522,7 @@ describe("createExecutionRuntime", () => {
       status: "RUNNING",
       queuedExecutionCount: 0,
       activeExecutionCount: 0,
-      recoveredExecutionCount: 0,
+      recoveredExecutionCount: 1,
       consecutiveErrorCount: 0,
       retryBackoffMs: 0,
     });
