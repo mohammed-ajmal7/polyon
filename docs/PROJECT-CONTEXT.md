@@ -361,14 +361,25 @@ The implementation provides:
 
 The current durable backend is intentionally a replaceable adapter rather than a commitment to one database technology.
 
-A storage-level unit-of-work boundary is now available. File-backed domain stores stage changes against a complete domain snapshot and commit them with one atomic filesystem replacement; in-memory stores provide rollback semantics for tests. Mission creation has been made transaction-aware.
+A storage-level unit-of-work boundary is now available. File-backed domain stores stage changes against a complete domain snapshot and commit them with one atomic filesystem replacement; in-memory stores provide rollback semantics for tests.
+
+The main cross-store application write paths are now transaction-aware:
+
+- command ingress;
+- mission creation;
+- mission plan submission and approval resolution;
+- mission lifecycle transitions/progress sync;
+- execution dispatch and execution approval resolution;
+- execution result/message/artifact publication.
+
+Runtime queueing remains outside the storage transaction because it is an external runtime side effect. Durable queue recovery is still required.
 
 Still required for the full Phase 3 target:
 
-- transaction integration across the remaining cross-store application services;
 - concurrency/locking semantics for multiple writers;
 - formal migration execution beyond the current snapshot version marker;
-- crash-recovery tests around multi-store operations.
+- crash-recovery tests around multi-store operations;
+- durable execution-queue recovery/reconciliation.
 
 Persistence must support recovery and traceability without coupling the application to one database forever.
 
