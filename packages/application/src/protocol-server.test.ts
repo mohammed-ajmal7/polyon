@@ -42,7 +42,7 @@ describe("protocol servers", () => {
 
     const response = await service.handle(
       { jsonrpc: "2.0", id: 1, method: "tools/list" },
-      { protocolVersion: "2026-07-28" },
+      { protocolVersion: "2026-07-28", method: "tools/list" },
     );
 
     expect(response.result).toMatchObject({

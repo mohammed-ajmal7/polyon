@@ -66,8 +66,22 @@ export class McpServerService {
       return rpcError(request.id, -32602, "Unsupported MCP protocol version.");
     }
 
-    if (headers.method !== undefined && headers.method !== request.method) {
-      return rpcError(request.id, -32602, "Mcp-Method does not match the JSON-RPC method.");
+    if (headers.method !== request.method) {
+      return rpcError(request.id, -32602, "Mcp-Method must match the JSON-RPC method.");
+    }
+
+    if (request.method === "server/discover") {
+      return {
+        jsonrpc: "2.0",
+        id: request.id,
+        result: {
+          protocolVersion: "2026-07-28",
+          capabilities: {
+            tools: { listChanged: false },
+          },
+          methods: ["server/discover", "tools/list", "tools/call"],
+        },
+      };
     }
 
     if (request.method === "tools/list") {
@@ -105,8 +119,8 @@ export class McpServerService {
     const name = typeof params.name === "string" ? params.name.trim() : "";
     if (name === "") return rpcError(request.id, -32602, "tools/call requires params.name.");
 
-    if (headers.name !== undefined && headers.name !== name) {
-      return rpcError(request.id, -32602, "Mcp-Name does not match params.name.");
+    if (headers.name !== name) {
+      return rpcError(request.id, -32602, "Mcp-Name must match params.name.");
     }
 
     const input = params.arguments ?? {};
