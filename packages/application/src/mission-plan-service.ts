@@ -483,7 +483,7 @@ export class MissionPlanService {
     events.push(approvalEvent);
 
     return {
-      status: resolvedApproval.status,
+      status: input.status,
       approval: resolvedApproval,
       mission,
       proposal,
