@@ -247,6 +247,7 @@ describe("createPolyonComposition", () => {
         kind: "EMAIL",
         actionKinds: ["EXTERNAL_COMMUNICATION"],
         supportedOperations: ["send"],
+        sideEffectClass: "NON_IDEMPOTENT",
         invoke,
       };
 
