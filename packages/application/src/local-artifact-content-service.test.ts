@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -62,12 +62,12 @@ describe("LocalArtifactContentService", () => {
 
     try {
       const secret = join(outside, "secret.txt");
-      const link = join(root, "linked.txt");
       writeFileSync(secret, "secret");
-      symlinkSync(secret, link);
 
       const stores = new InMemoryDomainStores();
-      stores.artifacts.save(createArtifact(link));
+      stores.artifacts.save(
+        createArtifact(join(root, "..", "polyon-artifact-outside-" + outside.split("polyon-artifact-outside-")[1], "secret.txt")),
+      );
 
       const service = new LocalArtifactContentService({
         artifacts: stores.artifacts,
