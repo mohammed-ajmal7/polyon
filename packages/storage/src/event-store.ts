@@ -24,9 +24,15 @@ function cloneEvent(event: DomainEvent): DomainEvent {
 }
 
 class EntityBackedEventStore implements EventStore {
+  protected readonly store:
+    | InMemoryEntityStore<DomainEvent>
+    | FileEntityStore<DomainEvent>;
+
   constructor(
-    private readonly store: InMemoryEntityStore<DomainEvent> | FileEntityStore<DomainEvent>,
-  ) {}
+    store: InMemoryEntityStore<DomainEvent> | FileEntityStore<DomainEvent>,
+  ) {
+    this.store = store;
+  }
 
   append(event: DomainEvent): void {
     if (this.store.get(event.id) !== undefined) {
@@ -66,6 +72,16 @@ class EntityBackedEventStore implements EventStore {
 export class InMemoryEventStore extends EntityBackedEventStore {
   constructor() {
     super(new InMemoryEntityStore<DomainEvent>());
+  }
+
+  restore(events: readonly DomainEvent[]): void {
+    for (const event of this.store.list()) {
+      this.store.delete(event.id);
+    }
+
+    for (const event of events) {
+      this.store.save(structuredClone(event));
+    }
   }
 }
 
