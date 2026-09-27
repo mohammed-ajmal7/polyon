@@ -222,4 +222,105 @@ describe("createPolyonComposition", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+
+  it("runs a model tool call through policy, the filesystem adapter, and back to the model", async () => {
+    const root = mkdtempSync(join(tmpdir(), "polyon-tool-loop-"));
+
+    try {
+      const workspace = join(root, "workspace");
+      mkdirSync(workspace, { recursive: true });
+      writeFileSync(join(workspace, "notes.txt"), "tool loop content", "utf8");
+
+      let calls = 0;
+      const provider: Provider = {
+        id: "provider.tool-loop",
+        name: "Tool loop provider",
+        kind: "HOSTED_MODEL",
+        enabled: true,
+      };
+      const adapter: PolyonProviderRegistration["adapter"] = {
+        providerId: provider.id,
+        async invoke({ input }) {
+          calls += 1;
+          if (calls === 1) {
+            return {
+              output: {
+                content: "",
+                finishReason: "TOOL_CALL",
+                toolCalls: [
+                  {
+                    id: "call-1",
+                    toolId: BUILTIN_TOOL_IDS.filesystemRead,
+                    input: { path: "notes.txt", maxBytes: 1024 },
+                  },
+                ],
+              },
+            };
+          }
+
+          const messages = (input as { messages: readonly { role: string; content: string }[] }).messages;
+          expect(messages.some((message) => message.role === "TOOL" && message.content.includes("tool loop content"))).toBe(
+            true,
+          );
+
+          return {
+            output: {
+              content: "Final answer after reading the file.",
+              finishReason: "STOP",
+            },
+          };
+        },
+      };
+
+      const composition = createPolyonComposition({
+        storageRoot: root,
+        filesystemRoot: workspace,
+        providers: [{ provider, adapter }],
+        models: [{ ...model, id: "model.tool-loop", providerId: provider.id }],
+        agents: [{ ...agent, id: "agent.tool-loop", preferredModelId: "model.tool-loop" }],
+        toolPolicy: policy,
+        maxToolRounds: 3,
+      });
+
+      const result = await composition.agentToolOrchestration.invoke({
+        agentId: "agent.tool-loop",
+        requiredCapabilityIds: ["text.generate"],
+        request: {
+          messages: [{ role: "USER", content: "Read notes.txt and answer." }],
+        },
+        policy,
+        actorId: "actor.test",
+        missionId: mission.id,
+        taskId: task.id,
+        executionId: "execution:tool-loop",
+        now: () => now,
+      });
+
+      expect(result.status).toBe("SUCCEEDED");
+      if (result.status === "SUCCEEDED") {
+        expect(result.response.content).toBe("Final answer after reading the file.");
+        expect(result.rounds).toBe(1);
+      }
+      expect(calls).toBe(2);
+      expect(
+        composition.stores.events
+          .listByExecution("execution:tool-loop")
+          .map((event) => event.kind),
+      ).toContain("TOOL_INVOKED");
+      expect(
+        composition.stores.events
+          .listByExecution("execution:tool-loop")
+          .filter((event) => event.kind === "TOOL_INVOKED")
+          .map((event) => event.data),
+      ).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ status: "SUCCEEDED", toolId: BUILTIN_TOOL_IDS.filesystemRead }),
+        ]),
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
 });
