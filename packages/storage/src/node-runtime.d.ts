@@ -37,5 +37,10 @@ declare module "node:path" {
 }
 
 declare module "node:crypto" {
+  export function createHash(algorithm: "sha256"): {
+    update(data: string, encoding?: "utf8"): {
+      digest(encoding: "hex"): string;
+    };
+  };
   export function randomUUID(): string;
 }
