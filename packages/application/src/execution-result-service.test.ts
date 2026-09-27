@@ -61,6 +61,58 @@ const baseInput = {
 };
 
 describe("ExecutionResultService", () => {
+  it("runs result publication through the supplied unit of work", () => {
+    const stores = new InMemoryDomainStores();
+
+    stores.executions.save(execution);
+    stores.conversations.save(conversation);
+
+    let transactionCalls = 0;
+    const unitOfWork = {
+      transaction<T>(
+        work: Parameters<InMemoryDomainStores["transaction"]>[0],
+      ): T {
+        transactionCalls += 1;
+        return stores.transaction(work) as T;
+      },
+    };
+
+    const service = new ExecutionResultService({
+      executions: stores.executions,
+      conversations: stores.conversations,
+      messages: stores.messages,
+      artifacts: stores.artifacts,
+      events: stores.events,
+      unitOfWork,
+    });
+
+    const result = service.persist({
+      ...baseInput,
+      artifacts: [
+        {
+          id: "artifact-transaction-1",
+          kind: "REPORT",
+          name: "transaction-report.md",
+          location: "local://transaction-report.md",
+          createdAt: "2026-09-27T03:06:00.000Z",
+        },
+      ],
+    });
+
+    expect(transactionCalls).toBe(1);
+    expect(stores.messages.get("message-2")).toEqual(result.message);
+    expect(stores.artifacts.get("artifact-transaction-1")).toEqual(
+      result.artifacts[0],
+    );
+    expect(stores.conversations.get("conversation-1")).toEqual(
+      result.conversation,
+    );
+    expect(stores.events.list().map((event) => event.kind)).toEqual([
+      "MESSAGE_CREATED",
+      "ARTIFACT_CREATED",
+    ]);
+  });
+
   it("persists the result message, artifacts, conversation update, and trace events", () => {
     const { stores, events, service } = createService();
 
