@@ -285,6 +285,9 @@ importers:
       '@polyon/storage':
         specifier: workspace:*
         version: link:../storage
+      '@polyon/tools':
+        specifier: workspace:*
+        version: link:../tools
     devDependencies:
       '@polyon/providers':
         specifier: workspace:*
