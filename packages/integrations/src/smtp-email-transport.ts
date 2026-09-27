@@ -126,8 +126,7 @@ export class SmtpTransport implements EmailTransport {
 
       await this.command(connection, "DATA", 354);
       await connection.write(message);
-      await connection.write(".\r
-");
+      await connection.write(".\r\n");
 
       try {
         await expectCode(connection, 250);
@@ -283,8 +282,7 @@ function classifySmtpResponse(code: number): SmtpTransportError {
 
 function hasSmtpCapability(response: string, capability: string): boolean {
   const normalizedCapability = capability.toUpperCase();
-  return response.split("\r
-").some((line) => {
+  return response.split("\r\n").some((line) => {
     const match = /^\d{3}-?\s*(.*?)\s*$/.exec(line);
     if (match === null) {
       return false;
@@ -295,8 +293,7 @@ function hasSmtpCapability(response: string, capability: string): boolean {
 }
 
 function hasSmtpAuthMechanism(response: string, mechanism: SmtpAuthMechanism): boolean {
-  return response.split("\r
-").some((line) => {
+  return response.split("\r\n").some((line) => {
     const match = /^\d{3}-?\s*AUTH\s+(.+?)\s*$/i.exec(line);
     if (match === null) {
       return false;
@@ -329,8 +326,7 @@ function buildMessage(
       "Content-Transfer-Encoding: base64",
       "",
       encodeMimeBody(input.text),
-    ].join("\r\n") + "\r
-";
+    ].join("\r\n") + "\r\n";
   }
 
   const boundary = `=_POLYON_${messageId.slice(1, -1).replace(/[^A-Za-z0-9]/g, "")}`;
