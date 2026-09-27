@@ -247,7 +247,15 @@ export class AgentToolOrchestrationService {
     readonly status: "ENQUEUED" | "REJECTED" | "CANCELLED";
     readonly executionId?: string;
   }> {
-    const approval = this.dependencies.toolInvocation.resolveApproval(input);
+    const storedApproval = this.dependencies.approvals.get(input.approvalId);
+    if (storedApproval === undefined) {
+      throw new Error(`Approval not found: ${input.approvalId}.`);
+    }
+
+    const approval =
+      storedApproval.integrationContinuation !== undefined
+        ? this.dependencies.integrationInvocation.resolveApproval(input)
+        : this.dependencies.toolInvocation.resolveApproval(input);
 
     if (approval.status !== "APPROVED") {
       const executionId = approval.executionId;
@@ -350,21 +358,39 @@ export class AgentToolOrchestrationService {
         (candidate) =>
           candidate.executionId === executionId &&
           candidate.status === "APPROVED" &&
-          candidate.toolContinuation !== undefined,
+          (candidate.toolContinuation !== undefined ||
+            candidate.integrationContinuation !== undefined),
       )
       .sort((left, right) =>
         (right.resolvedAt ?? right.requestedAt).localeCompare(left.resolvedAt ?? left.requestedAt),
       );
 
     const approval =
-      candidates.find((candidate) => candidate.toolContinuation?.state !== "COMPLETED") ??
-      candidates[0];
+      candidates.find(
+        (candidate) =>
+          candidate.toolContinuation?.state !== "COMPLETED" &&
+          candidate.integrationContinuation?.state !== "COMPLETED",
+      ) ?? candidates[0];
 
-    if (approval === undefined || approval.toolContinuation === undefined) {
+    if (
+      approval === undefined ||
+      (approval.toolContinuation === undefined &&
+        approval.integrationContinuation === undefined)
+    ) {
       return { status: "NO_CONTINUATION", rounds: 0 };
     }
 
-    let continuation = approval.toolContinuation;
+    if (approval.integrationContinuation !== undefined) {
+      return this.resumeIntegrationContinuation(
+        approval,
+        approval.integrationContinuation,
+        executionId,
+        policy,
+        maxToolOutputBytes,
+      );
+    }
+
+    let continuation = approval.toolContinuation!;
 
     if (continuation.state === "COMPLETED") {
       return {
@@ -468,6 +494,154 @@ export class AgentToolOrchestrationService {
     }
 
     throw new Error(`Unsupported tool continuation state: ${continuation.state}.`);
+  }
+
+  private async resumeIntegrationContinuation(
+    approval: import("@polyon/contracts").ApprovalRequest,
+    continuation: NonNullable<
+      import("@polyon/contracts").ApprovalRequest["integrationContinuation"]
+    >,
+    executionId: string,
+    policy: Policy,
+    maxToolOutputBytes: number,
+  ): Promise<AgentToolOrchestrationResult> {
+    if (continuation.state === "COMPLETED") {
+      return {
+        status: "SUCCEEDED",
+        response: continuation.response,
+        rounds: continuation.rounds,
+      };
+    }
+
+    if (continuation.state === "RECONCILIATION_REQUIRED") {
+      return {
+        status: "FAILED",
+        response: continuation.response,
+        error:
+          `Integration ${continuation.integrationId} requires human reconciliation before replay.`,
+        rounds: continuation.rounds,
+      };
+    }
+
+    let current = continuation;
+
+    if (current.state === "AWAITING_INTEGRATION") {
+      const outcome = await this.dependencies.integrationInvocation.invokeApproved({
+        invocationId: current.toolCall.id.startsWith("tool-call:")
+          ? current.toolCall.id
+          : `tool-call:${current.toolCall.id}`,
+        approvalId: approval.id,
+        integrationId: current.integrationId,
+        operation: current.operation,
+        input: current.input,
+      });
+
+      if (outcome.status !== "SUCCEEDED") {
+        if (current.sideEffectClass === "NON_IDEMPOTENT") {
+          this.saveIntegrationContinuation(approval.id, {
+            ...current,
+            state: "RECONCILIATION_REQUIRED",
+          });
+        }
+
+        return {
+          status: outcome.status === "REJECTED" ? "REJECTED" : "FAILED",
+          response: current.response,
+          error: outcome.error,
+          rounds: current.rounds,
+        };
+      }
+
+      current = {
+        ...current,
+        state: "AWAITING_MODEL",
+        integrationOutput: outcome.output,
+        nextRequest: appendToolResult(
+          current.request,
+          current.response,
+          current.toolCall,
+          outcome.output,
+          maxToolOutputBytes,
+        ),
+      };
+      this.saveIntegrationContinuation(approval.id, current);
+    }
+
+    if (current.state === "AWAITING_MODEL") {
+      if (current.nextRequest === undefined) {
+        throw new Error(`Approval ${approval.id} is missing its next model request checkpoint.`);
+      }
+
+      const next = await this.dependencies.agentGateway.invokeText({
+        agentId: current.agentId,
+        requiredCapabilityIds: current.requiredCapabilityIds,
+        request: this.withToolDefinitions(current.nextRequest),
+      });
+
+      current = {
+        ...current,
+        state: "RESPONSE_READY",
+        response: next.output,
+      };
+      this.saveIntegrationContinuation(approval.id, current);
+    }
+
+    if (current.state === "RESPONSE_READY") {
+      if (current.nextRequest === undefined) {
+        throw new Error(
+          `Approval ${approval.id} is missing the request that produced its response checkpoint.`,
+        );
+      }
+
+      const result = await this.continueFromResponse(
+        {
+          agentId: current.agentId,
+          requiredCapabilityIds: current.requiredCapabilityIds,
+          request: current.nextRequest,
+          policy,
+          actorId: approval.requestedBy,
+          missionId: approval.missionId,
+          taskId: approval.taskId,
+          executionId,
+          maxToolRounds: 8,
+          maxToolOutputBytes,
+          checkpointApprovalId: approval.id,
+        },
+        current.nextRequest,
+        current.response,
+      );
+
+      this.saveIntegrationContinuation(approval.id, {
+        ...current,
+        state: "COMPLETED",
+      });
+
+      return result;
+    }
+
+    throw new Error(`Unsupported integration continuation state: ${current.state}.`);
+  }
+
+  private saveIntegrationContinuation(
+    approvalId: string,
+    continuation: NonNullable<
+      import("@polyon/contracts").ApprovalRequest["integrationContinuation"]
+    >,
+  ): void {
+    const approval = this.dependencies.approvals.get(approvalId);
+    if (approval === undefined) {
+      throw new Error(`Approval not found: ${approvalId}.`);
+    }
+
+    const updated = { ...approval, integrationContinuation: continuation };
+
+    if (this.dependencies.unitOfWork === undefined) {
+      this.dependencies.approvals.save(updated);
+    } else {
+      this.dependencies.unitOfWork.transaction((stores) => {
+        stores.approvals.save(updated);
+      });
+    }
   }
 
   private saveContinuation(
@@ -654,6 +828,92 @@ export class AgentToolOrchestrationService {
 
   private now(input: AgentToolOrchestrationInput): string {
     return (input.now ?? (() => new Date().toISOString()))();
+  }
+}
+
+function integrationToolId(integrationId: string, operation: string): string {
+  return `integration.invoke:${encodeURIComponent(integrationId)}:${encodeURIComponent(operation)}`;
+}
+
+function parseIntegrationToolId(
+  toolId: string,
+): { readonly integrationId: string; readonly operation: string } | undefined {
+  const prefix = "integration.invoke:";
+  if (!toolId.startsWith(prefix)) {
+    return undefined;
+  }
+
+  const remainder = toolId.slice(prefix.length);
+  const separator = remainder.indexOf(":");
+  if (separator <= 0) {
+    return undefined;
+  }
+
+  try {
+    return {
+      integrationId: decodeURIComponent(remainder.slice(0, separator)),
+      operation: decodeURIComponent(remainder.slice(separator + 1)),
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+function syntheticIntegrationOutcome(
+  status: "REJECTED" | "FAILED",
+  toolId: string,
+  error: string,
+  policy: Policy,
+  riskLevel: RiskLevel,
+  evaluatedAt: string,
+): ToolInvocationOutcome {
+  return {
+    status,
+    invocationId: `synthetic:${toolId}`,
+    toolId,
+    policyDecision: {
+      id: `synthetic-policy:${toolId}`,
+      policyId: policy.id,
+      action: "OTHER",
+      riskLevel,
+      effect: "DENY",
+      reason: error,
+      evaluatedAt,
+    },
+    error,
+  };
+}
+
+function mapIntegrationOutcome(
+  outcome: IntegrationInvocationOutcome,
+  toolId: string,
+): ToolInvocationOutcome {
+  switch (outcome.status) {
+    case "SUCCEEDED":
+      return {
+        status: "SUCCEEDED",
+        invocationId: outcome.invocationId,
+        toolId,
+        policyDecision: outcome.policyDecision,
+        output: outcome.output,
+      };
+    case "APPROVAL_REQUIRED":
+      return {
+        status: "APPROVAL_REQUIRED",
+        invocationId: outcome.invocationId,
+        toolId,
+        policyDecision: outcome.policyDecision,
+        approvalRequest: outcome.approvalRequest,
+      };
+    case "FAILED":
+    case "REJECTED":
+      return {
+        status: outcome.status,
+        invocationId: outcome.invocationId,
+        toolId,
+        policyDecision: outcome.policyDecision,
+        error: outcome.error,
+      };
   }
 }
 
