@@ -117,6 +117,9 @@ describe("IntegrationInvocationService", () => {
       status: "PENDING",
       invocationId: "integration-invocation-1",
     });
+    expect(stores.events.get("APPROVAL_REQUESTED:integration-approval-1")?.actorId).toBe(
+      "actor-1",
+    );
 
     const approved = service.resolveApproval({
       approvalId: "integration-approval-1",
