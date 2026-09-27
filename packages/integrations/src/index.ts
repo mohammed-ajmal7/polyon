@@ -1,6 +1,7 @@
 export {
   SmtpTransport,
-  SmtpAuthenticationError,\n  SmtpEnvelopeError,
+  SmtpAuthenticationError,
+  SmtpEnvelopeError,
   SmtpDeliveryError,
   SmtpTransportError,
   type SmtpConnection,
