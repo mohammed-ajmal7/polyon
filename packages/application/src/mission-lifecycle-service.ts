@@ -48,6 +48,7 @@ export interface MissionLifecycleServiceDependencies {
   readonly missions: MissionStore;
   readonly tasks: TaskStore;
   readonly events: EventStore;
+  readonly unitOfWork?: DomainUnitOfWork;
 }
 
 export type MissionLifecycleServiceErrorKind =
@@ -166,20 +167,17 @@ function loadMissionTasks(
   });
 }
 
-export interface MissionLifecycleServiceDependencies {
-  readonly missions: MissionStore;
-  readonly tasks: TaskStore;
-  readonly events: EventStore;
-  readonly unitOfWork?: DomainUnitOfWork;
-}
+type MissionLifecycleStores = Pick<
+  DomainStoreTransactionContext,
+  "missions" | "tasks" | "events"
+>;
 
 export class MissionLifecycleService {
   constructor(private readonly dependencies: MissionLifecycleServiceDependencies) {}
 
   transition(input: TransitionMissionStatusInput): MissionStatusTransitionResult {
-    const operation = (
-      stores: Pick<DomainStoreTransactionContext, "missions" | "tasks" | "events">,
-    ) => this.transitionWithStores(stores, input);
+    const operation = (stores: MissionLifecycleStores) =>
+      this.transitionWithStores(stores, input);
 
     return this.dependencies.unitOfWork === undefined
       ? operation(this.dependencies)
@@ -187,9 +185,112 @@ export class MissionLifecycleService {
   }
 
   private transitionWithStores(
-    stores: Pick<DomainStoreTransactionContext, "missions" | "tasks" | "events">,
+    stores: MissionLifecycleStores,
     input: TransitionMissionStatusInput,
   ): MissionStatusTransitionResult {
-    // replaced below
+    const mission = stores.missions.get(input.missionId);
+
+    if (mission === undefined) {
+      throw new MissionLifecycleServiceError(
+        "MISSION_NOT_FOUND",
+        `Mission not found: ${input.missionId}.`,
+      );
+    }
+
+    if (stores.events.get(input.eventId) !== undefined) {
+      throw new MissionLifecycleServiceError(
+        "EVENT_EXISTS",
+        `Mission status event already exists: ${input.eventId}.`,
+      );
+    }
+
+    const updatedMission = transitionMissionStatus(mission, input.to, input.now);
+
+    stores.missions.save(updatedMission);
+
+    const event = appendMissionStatusChangedEvent(
+      stores.events,
+      updatedMission,
+      mission.status,
+      updatedMission.status,
+      input.actorId,
+      input.eventId,
+      input.causedByEventId,
+    );
+
+    return {
+      mission: updatedMission,
+      event,
+    };
+  }
+
+  syncProgress(input: SyncMissionProgressInput): MissionProgressSyncResult {
+    const operation = (stores: MissionLifecycleStores) =>
+      this.syncProgressWithStores(stores, input);
+
+    return this.dependencies.unitOfWork === undefined
+      ? operation(this.dependencies)
+      : this.dependencies.unitOfWork.transaction(operation);
+  }
+
+  private syncProgressWithStores(
+    stores: MissionLifecycleStores,
+    input: SyncMissionProgressInput,
+  ): MissionProgressSyncResult {
+    const mission = stores.missions.get(input.missionId);
+
+    if (mission === undefined) {
+      throw new MissionLifecycleServiceError(
+        "MISSION_NOT_FOUND",
+        `Mission not found: ${input.missionId}.`,
+      );
+    }
+
+    if (isTerminal(mission.status)) {
+      return {
+        changed: false,
+        mission,
+      };
+    }
+
+    const tasks = loadMissionTasks(mission, stores.tasks);
+    const candidateStatus = deriveProgressStatus(mission.status, tasks);
+    const nextStatus =
+      candidateStatus !== undefined && canTransitionMission(mission.status, candidateStatus)
+        ? candidateStatus
+        : undefined;
+
+    if (nextStatus === undefined || nextStatus === mission.status) {
+      return {
+        changed: false,
+        mission,
+      };
+    }
+
+    if (stores.events.get(input.eventId) !== undefined) {
+      throw new MissionLifecycleServiceError(
+        "EVENT_EXISTS",
+        `Mission status event already exists: ${input.eventId}.`,
+      );
+    }
+
+    const updatedMission = transitionMissionStatus(mission, nextStatus, input.now);
+    stores.missions.save(updatedMission);
+
+    const event = appendMissionStatusChangedEvent(
+      stores.events,
+      updatedMission,
+      mission.status,
+      updatedMission.status,
+      input.actorId,
+      input.eventId,
+      input.causedByEventId,
+    );
+
+    return {
+      changed: true,
+      mission: updatedMission,
+      event,
+    };
   }
 }
