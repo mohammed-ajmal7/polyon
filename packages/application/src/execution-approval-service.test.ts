@@ -120,6 +120,26 @@ describe("ExecutionApprovalService", () => {
     expect(stores.approvals.get("approval-1")?.status).toBe("CANCELLED");
   });
 
+  it("rejects a non-execution approval action for every resolution path", () => {
+    expect(() =>
+      service.resolve(
+        { ...approval, action: "PLAN_APPLY" },
+        execution,
+        { status: "REJECTED", resolvedAt: "2026-09-27T01:02:00.000Z" },
+      ),
+    ).toThrow("Approval does not authorize an execution run.");
+  });
+
+  it("rejects an approval bound to another execution before rejection", () => {
+    expect(() =>
+      service.resolve(
+        { ...approval, executionId: "execution-2" },
+        execution,
+        { status: "REJECTED", resolvedAt: "2026-09-27T01:02:00.000Z" },
+      ),
+    ).toThrow("Approval is not bound to the supplied execution.");
+  });
+
   it("propagates approval binding failures", () => {
     const { service } = createService();
 

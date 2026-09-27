@@ -34,6 +34,27 @@ export interface ExecutionApprovalServiceDependencies {
   readonly queue: ExecutionQueue;
 }
 
+function validateExecutionApprovalBinding(
+  approval: ApprovalRequest,
+  execution: Execution,
+): void {
+  if (approval.action !== "EXECUTION_RUN") {
+    throw new Error("Approval does not authorize an execution run.");
+  }
+
+  if (approval.missionId !== execution.missionId) {
+    throw new Error("Approval is not bound to the supplied execution mission.");
+  }
+
+  if (approval.taskId !== execution.taskId) {
+    throw new Error("Approval is not bound to the supplied execution task.");
+  }
+
+  if (approval.executionId !== execution.id) {
+    throw new Error("Approval is not bound to the supplied execution.");
+  }
+}
+
 export class ExecutionApprovalService {
   constructor(
     private readonly dependencies: ExecutionApprovalServiceDependencies,
@@ -44,6 +65,8 @@ export class ExecutionApprovalService {
     execution: Execution,
     input: ResolveExecutionApprovalInput,
   ): ExecutionApprovalResolution {
+    validateExecutionApprovalBinding(approval, execution);
+
     const resolvedApproval = transitionApprovalStatus(
       approval,
       input.status,
