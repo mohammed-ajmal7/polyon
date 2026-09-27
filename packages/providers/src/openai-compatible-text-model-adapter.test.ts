@@ -82,9 +82,54 @@ describe("OpenAICompatibleTextModelAdapter", () => {
 
     expect(receivedBody).toEqual({
       model: "model-1",
-      messages: request.messages,
+      messages: [{ role: "user", content: "Hello." }],
       temperature: 0.2,
       max_tokens: 100,
+    });
+  });
+
+
+  it("maps provider tool calls into structured POLYON tool calls", async () => {
+    const adapter = new OpenAICompatibleTextModelAdapter({
+      providerId: "provider-1",
+      endpoint: "https://example.test/v1/chat/completions",
+      fetch: createFetch({
+        ok: true,
+        status: 200,
+        payload: {
+          choices: [
+            {
+              message: {
+                content: null,
+                tool_calls: [
+                  {
+                    id: "call-1",
+                    function: {
+                      name: "builtin.filesystem.read",
+                      arguments: '{"path":"notes.txt","maxBytes":1024}',
+                    },
+                  },
+                ],
+              },
+              finish_reason: "tool_calls",
+            },
+          ],
+        },
+      }),
+    });
+
+    await expect(adapter.invoke({ modelId: "model-1", input: request })).resolves.toEqual({
+      output: {
+        content: "",
+        finishReason: "TOOL_CALL",
+        toolCalls: [
+          {
+            id: "call-1",
+            toolId: "builtin.filesystem.read",
+            input: { path: "notes.txt", maxBytes: 1024 },
+          },
+        ],
+      },
     });
   });
 
