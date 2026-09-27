@@ -12,3 +12,11 @@ export {
   type IntegrationAdapterRegistry,
   type IntegrationAdapterRegistryErrorKind,
 } from "./integration-adapter-registry";
+
+export {
+  authorizeIntegrationInvocation,
+  IntegrationAuthorizationError,
+  type AuthorizeIntegrationInvocationInput,
+  type IntegrationInvocationAuthorization,
+  type IntegrationAuthorizationErrorKind,
+} from "./integration-authorization";

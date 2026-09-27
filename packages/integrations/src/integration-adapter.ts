@@ -11,9 +11,12 @@ export interface IntegrationInvocationResult<TOutput = unknown> {
   readonly output: TOutput;
 }
 
+import type { ActionKind } from "@polyon/contracts";
+
 export interface IntegrationAdapter<TInput = unknown, TOutput = unknown> {
   readonly integrationId: IntegrationId;
   readonly kind: IntegrationKind;
+  readonly actionKinds: readonly ActionKind[];
   invoke(
     request: IntegrationInvocationRequest<TInput>,
   ): Promise<IntegrationInvocationResult<TOutput>>;

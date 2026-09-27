@@ -9,6 +9,7 @@ import {
 const googleDrive: IntegrationAdapter = {
   integrationId: "drive-primary",
   kind: "GOOGLE_DRIVE",
+  actionKinds: ["WRITE"],
   async invoke() {
     return { output: "ok" };
   },
@@ -17,6 +18,7 @@ const googleDrive: IntegrationAdapter = {
 const telegram: IntegrationAdapter = {
   integrationId: "telegram-primary",
   kind: "TELEGRAM",
+  actionKinds: ["EXTERNAL_COMMUNICATION"],
   async invoke() {
     return { output: "ok" };
   },
