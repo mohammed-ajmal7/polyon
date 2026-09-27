@@ -97,6 +97,9 @@ describe("governed artifact access integration", () => {
       });
 
       expect(listResult.status).toBe("SUCCEEDED");
+      if (listResult.status !== "SUCCEEDED") {
+        throw new Error("Artifact list invocation did not succeed.");
+      }
       expect(listResult.output).toMatchObject({
         artifacts: [{ id: "artifact-1", name: "report.txt" }],
       });
@@ -121,6 +124,9 @@ describe("governed artifact access integration", () => {
       });
 
       expect(readResult.status).toBe("SUCCEEDED");
+      if (readResult.status !== "SUCCEEDED") {
+        throw new Error("Artifact read invocation did not succeed.");
+      }
       expect(readResult.output).toMatchObject({
         artifact: { id: "artifact-1" },
         content: "POLYON artifact",
