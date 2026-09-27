@@ -97,15 +97,9 @@ export class LocalArtifactContentService {
     }
 
     const location = artifact.location;
-
-    if (isAbsolute(location)) {
-      throw new LocalArtifactContentServiceError(
-        "OUTSIDE_ROOT",
-        `Artifact location must be relative to the configured local root: ${location}.`,
-      );
-    }
-
-    const candidate = resolve(this.rootDir, location);
+    const candidate = isAbsolute(location)
+      ? location
+      : resolve(this.rootDir, location);
     const resolved = existsSync(candidate)
       ? realpathSync(candidate)
       : candidate;
