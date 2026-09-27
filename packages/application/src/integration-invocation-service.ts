@@ -334,12 +334,11 @@ export class IntegrationInvocationService {
 
   private async execute(
     integration: IntegrationAdapter,
-
     input: {
       readonly invocationId: string;
       readonly integrationId: IntegrationId;
       readonly operation: string;
-      readonly input: TInput;
+      readonly input: unknown;
       readonly actorId?: ActorId;
       readonly missionId?: string;
       readonly taskId?: string;
@@ -347,7 +346,7 @@ export class IntegrationInvocationService {
       readonly agentId?: string;
     },
     policyDecision: PolicyDecision,
-  ): Promise<IntegrationInvocationOutcome<TOutput>> {
+  ): Promise<IntegrationInvocationOutcome> {
     try {
       const result: IntegrationInvocationResult = await integration.invoke({
         operation: input.operation,
