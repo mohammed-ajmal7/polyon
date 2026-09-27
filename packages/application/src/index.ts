@@ -1,4 +1,12 @@
 export {
+  ArtifactCatalogService,
+  ArtifactCatalogServiceError,
+  type ArtifactCatalogFilter,
+  type ArtifactCatalogServiceDependencies,
+  type ArtifactCatalogServiceErrorKind,
+} from "./artifact-catalog-service";
+
+export {
   AgentToolOrchestrationService,
   type AgentToolOrchestrationDependencies,
   type AgentToolOrchestrationInput,
