@@ -80,29 +80,21 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     const now = new Date().toISOString();
-    const result = polyon.missionExecutionOrchestration.orchestrate({
-      command: commandResult,
+    const result = await polyon.missionWorkflow.execute({
       missionId: parseOptionalString(input.missionId) ?? randomUUID(),
-      taskIdFactory: (missionId) => missionId + "-task-1",
-      taskKind: parseTaskKind(input.taskKind),
-      taskTitle: parseOptionalString(input.taskTitle),
-      taskDescription: parseOptionalString(input.taskDescription),
-      proposalId: parseOptionalString(input.proposalId) ?? randomUUID(),
-      decisionId: parseOptionalString(input.decisionId) ?? randomUUID(),
-      approvalRequestId: parseOptionalString(input.approvalRequestId) ?? randomUUID(),
-      missionCreatedEventId: randomUUID(),
-      planningEventId: randomUUID(),
-      runningEventId: randomUUID(),
-      planCreatedAt: now,
-      planningAt: now,
-      taskCreatedAt: now,
-      runningAt: now,
+      conversationId: commandResult.conversation.id,
+      objective: command,
       actorId,
       planningAgentId: first.agentId,
       executionAgentId: first.agentId,
       requiredCapabilityIds,
       policy,
       riskLevel: parseRiskLevel(input.riskLevel),
+      proposalId: parseOptionalString(input.proposalId) ?? randomUUID(),
+      decisionId: parseOptionalString(input.decisionId) ?? randomUUID(),
+      approvalRequestId: parseOptionalString(input.approvalRequestId) ?? randomUUID(),
+      createdAt: now,
+      planningAt: now,
       identities: {
         executionId: (taskId, attempt) => `execution-${taskId}-${attempt}`,
         policyDecisionId: (taskId, executionId) => `decision-${taskId}-${executionId}`,
