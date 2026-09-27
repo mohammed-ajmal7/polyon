@@ -1,4 +1,19 @@
 export {
+  GoogleDriveIntegrationAdapter,
+  GoogleDriveIntegrationAdapterError,
+  type GoogleDriveFileMetadata,
+  type GoogleDriveGetMetadataInput,
+  type GoogleDriveIntegrationAdapterErrorKind,
+  type GoogleDriveIntegrationAdapterOptions,
+  type GoogleDriveInvocationInput,
+  type GoogleDriveInvocationOutput,
+  type GoogleDriveListInput,
+  type GoogleDriveListOutput,
+  type GoogleDriveMetadataOutput,
+  type GoogleDriveOperation,
+} from "./google-drive-integration-adapter";
+
+export {
   EnvironmentSecretResolver,
   SecretResolverError,
   type EnvironmentSecretResolverOptions,
