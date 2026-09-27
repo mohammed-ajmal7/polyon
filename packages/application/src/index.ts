@@ -28,6 +28,15 @@ export {
 } from "./execution-approval-service";
 
 export {
+  MissionCreationService,
+  MissionCreationServiceError,
+  type CreateMissionApplicationInput,
+  type CreateMissionApplicationResult,
+  type MissionCreationServiceDependencies,
+  type MissionCreationServiceErrorKind,
+} from "./mission-creation-service";
+
+export {
   CommandIngressError,
   CommandIngressService,
   type CommandIngressDependencies,
