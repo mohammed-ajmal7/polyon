@@ -1,3 +1,5 @@
+/// <reference path="./node-runtime.d.ts" />
+
 import type { DomainEvent } from "@polyon/contracts";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
