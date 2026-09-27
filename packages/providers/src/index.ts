@@ -35,3 +35,24 @@ export {
   normalizeProviderInvocationError,
   type ProviderInvocationErrorKind,
 } from "./provider-errors";
+
+export {
+  InMemoryEmbeddingAdapterRegistry,
+  type EmbeddingAdapterRegistry,
+  type EmbeddingProviderAdapter,
+} from "./embedding-adapter";
+
+export {
+  EmbeddingGateway,
+  EmbeddingGatewayError,
+  type EmbeddingGatewayDependencies,
+  type EmbeddingGatewayErrorKind,
+} from "./embedding-gateway";
+
+export {
+  OpenAICompatibleEmbeddingAdapter,
+  type OpenAICompatibleEmbeddingAdapterOptions,
+  type OpenAICompatibleEmbeddingFetch,
+  type OpenAICompatibleEmbeddingFetchInit,
+  type OpenAICompatibleEmbeddingResponse,
+} from "./openai-compatible-embedding-adapter";
