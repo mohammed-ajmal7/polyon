@@ -17,3 +17,11 @@ export {
   type ToolAdapterRegistry,
   type ToolAdapterRegistryErrorKind,
 } from "./tool-adapter-registry";
+
+export {
+  authorizeToolInvocation,
+  ToolAuthorizationError,
+  type AuthorizeToolInvocationInput,
+  type ToolInvocationAuthorization,
+  type ToolAuthorizationErrorKind,
+} from "./tool-authorization";
