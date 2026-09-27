@@ -19,6 +19,7 @@ export function applyMissionPlanProposal(
   proposal: MissionPlanProposal,
   mission: Mission,
   tasks: readonly Task[],
+  updatedAt = new Date().toISOString(),
 ): Mission {
   const validation = validateMissionPlanProposal(proposal, mission, tasks);
 
@@ -29,6 +30,6 @@ export function applyMissionPlanProposal(
   return {
     ...mission,
     taskIds: [...proposal.taskIds],
-    updatedAt: new Date().toISOString(),
+    updatedAt,
   };
 }
