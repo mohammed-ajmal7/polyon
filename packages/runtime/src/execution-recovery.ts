@@ -36,13 +36,22 @@ export function recoverQueuedExecutions(
   return recovered;
 }
 
+export type ExecutionRecoveryKind =
+  | "QUEUED_EXECUTION"
+  | "INTERRUPTED_TOOL_CONTINUATION";
+
+export interface ExecutionRecovery {
+  readonly executionId: ExecutionId;
+  readonly kind: ExecutionRecoveryKind;
+}
+
 export function recoverExecutions(
   executions: ExecutionStore,
   queue: ExecutionQueue,
   approvals: ApprovalRequestStore | undefined,
   recoveredAt: string,
-): readonly ExecutionId[] {
-  const recovered: ExecutionId[] = [];
+): readonly ExecutionRecovery[] {
+  const recovered: ExecutionRecovery[] = [];
 
   for (const execution of executions.list()) {
     if (queue.has(execution.id)) {
@@ -51,7 +60,10 @@ export function recoverExecutions(
 
     if (execution.status === "QUEUED") {
       queue.enqueue(execution);
-      recovered.push(execution.id);
+      recovered.push({
+        executionId: execution.id,
+        kind: "QUEUED_EXECUTION",
+      });
       continue;
     }
 
@@ -63,7 +75,10 @@ export function recoverExecutions(
       const recoveredExecution = recoverRunningExecution(execution, recoveredAt);
       executions.save(recoveredExecution);
       queue.enqueue(recoveredExecution);
-      recovered.push(recoveredExecution.id);
+      recovered.push({
+        executionId: recoveredExecution.id,
+        kind: "INTERRUPTED_TOOL_CONTINUATION",
+      });
     }
   }
 
