@@ -166,7 +166,7 @@ function parseSendEmailInput(input: unknown): EmailSendInput {
   const replyTo = value.replyTo === undefined ? undefined : parseAddress(value.replyTo, "replyTo");
 
   return {
-    to,
+    to: to as readonly string[],
     subject: value.subject,
     text: value.text,
     ...(value.html === undefined ? {} : { html: value.html as string }),
