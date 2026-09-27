@@ -13,3 +13,5 @@ export type {
   TextModelResponse,
   TextModelUsage,
 } from "./model-invocation";
+
+export type { EmbeddingModelProviderAdapter, EmbeddingRequest, EmbeddingResponse } from "./embedding";
