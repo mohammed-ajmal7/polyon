@@ -155,7 +155,6 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
                 name: tool.id,
                 description: tool.description,
               })),
-            ...{
             toolOrchestrator: {
               continueFromResponse: async ({ execution, request, response }) => {
                 if (execution.agentId === undefined) {
@@ -189,7 +188,6 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
                     : {}),
                 };
               },
-          },
         }),
     }),
     executions: stores.executions,
