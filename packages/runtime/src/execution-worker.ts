@@ -70,7 +70,7 @@ function appendRecoveryEvent(
     return;
   }
 
-  const eventId = `EXECUTION_RECOVERED:${execution.id}:${execution.updatedAt}`;
+  const eventId = `EXECUTION_RECOVERED:${execution.id}:${execution.attempt}:${reason}`;
 
   if (events.get(eventId) !== undefined) {
     return;
