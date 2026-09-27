@@ -35,7 +35,8 @@ export class OpenAICompatibleEmbeddingAdapter implements EmbeddingProviderAdapte
 
   constructor(options: OpenAICompatibleEmbeddingAdapterOptions) {
     if (options.endpoint.trim() === "") throw new RangeError("Embedding endpoint must not be empty.");
-    if (!new URL(options.endpoint).protocol.startsWith("http")) {
+    const protocol = new URL(options.endpoint).protocol;
+    if (protocol !== "http:" && protocol !== "https:") {
       throw new RangeError("Embedding endpoint must use HTTP(S).");
     }
     this.providerId = options.providerId;
