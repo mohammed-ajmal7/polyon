@@ -104,7 +104,7 @@ describe("GoogleDriveIntegrationAdapter", () => {
     };
     expect(input.url).toContain("pageSize=25");
     expect(input.url).toContain("fields=");
-    expect(input.url).toContain("q=name+contains+%27%5C%27Report%5C%27%27");
+    expect(new URL(input.url).searchParams.get("q")).toBe("name contains 'Report'");
     expect(input.headers).toEqual({
       Accept: "application/json",
       Authorization: "Bearer google-token",
