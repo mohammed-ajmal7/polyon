@@ -89,6 +89,7 @@ export type IntegrationInvocationServiceErrorKind =
   | "INTEGRATION_APPROVAL_INTEGRATION_MISMATCH"
   | "INTEGRATION_APPROVAL_INVOCATION_MISMATCH"
   | "INTEGRATION_APPROVAL_PAYLOAD_MISMATCH"
+  | "INTEGRATION_APPROVAL_EXPIRED"
   | "INTEGRATION_INVOCATION_ALREADY_RECORDED";
 
 export class IntegrationInvocationServiceError extends Error {
@@ -317,6 +318,16 @@ export class IntegrationInvocationService {
       throw new IntegrationInvocationServiceError(
         "INTEGRATION_APPROVAL_NOT_APPROVED",
         `Integration approval is not approved: ${input.approvalId}.`,
+      );
+    }
+
+    if (
+      approval.expiresAt !== undefined &&
+      Date.now() >= Date.parse(approval.expiresAt)
+    ) {
+      throw new IntegrationInvocationServiceError(
+        "INTEGRATION_APPROVAL_EXPIRED",
+        `Integration approval has expired: ${input.approvalId}.`,
       );
     }
 
