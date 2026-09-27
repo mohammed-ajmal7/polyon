@@ -36,4 +36,6 @@ export {
   createExecutionRuntime,
   type ExecutionRuntime,
   type ExecutionRuntimeDependencies,
+  type ExecutionRuntimeStatus,
+  type ExecutionRuntimeWait,
 } from "./execution-runtime";
