@@ -52,6 +52,7 @@ describe("CommandIngressService", () => {
       id: "event-1",
       kind: "MESSAGE_CREATED",
       actorId: "user-1",
+      conversationId: "conversation-1",
       missionId: "mission-1",
       occurredAt: createdAt,
       data: {

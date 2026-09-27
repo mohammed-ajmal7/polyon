@@ -142,6 +142,7 @@ describe("governed execution flow", () => {
       "POLICY_DECIDED",
       "APPROVAL_REQUESTED",
       "EXECUTION_STATUS_CHANGED",
+      "TASK_STATUS_CHANGED",
       "APPROVAL_RESOLVED",
       "EXECUTION_STATUS_CHANGED",
       "TASK_STATUS_CHANGED",
