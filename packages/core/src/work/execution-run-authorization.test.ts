@@ -341,3 +341,4 @@ describe("applyExecutionRunAuthorization", () => {
       ),
     ).toThrowError(ExecutionRunAuthorizationApplicationError);
   });
+});
