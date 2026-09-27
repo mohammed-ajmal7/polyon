@@ -210,6 +210,38 @@ describe("ToolInvocationService", () => {
     });
   });
 
+  it("cannot use an approval for another invocation", async () => {
+    const invoke = vi.fn(async () => ({ output: "should not run" }));
+    const { service } = createService({
+      toolId: "tool-1",
+      invoke,
+    });
+
+    await service.invoke({
+      ...baseInput,
+      policy: { ...policy, defaultEffect: "REQUIRE_APPROVAL" },
+    });
+    service.resolveApproval({
+      approvalId: "approval-1",
+      status: "APPROVED",
+      resolvedAt: "2026-09-27T01:02:00.000Z",
+      resolvedBy: "user-1",
+    });
+
+    await expect(
+      service.invokeApproved({
+        invocationId: "invocation-2",
+        approvalId: "approval-1",
+        toolId: "tool-1",
+        input: { value: "hello" },
+      }),
+    ).rejects.toMatchObject({
+      kind: "TOOL_APPROVAL_INVOCATION_MISMATCH",
+    });
+
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
   it("does not execute the same invocation twice", async () => {
     const invoke = vi.fn(async () => ({ output: "executed" }));
     const { service } = createService({
