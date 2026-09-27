@@ -26,6 +26,7 @@ export interface BuiltinToolOptions {
   readonly terminalDefaultTimeoutMs?: number;
   readonly terminalMaxTimeoutMs?: number;
   readonly terminalMaxOutputBytes?: number;
+  readonly terminalEnvironmentKeys?: readonly string[];
   readonly terminalEnabled?: boolean;
 }
 
@@ -131,6 +132,7 @@ export function registerBuiltinTools(
       defaultTimeoutMs: options.terminalDefaultTimeoutMs,
       maxTimeoutMs: options.terminalMaxTimeoutMs,
       defaultMaxOutputBytes: options.terminalMaxOutputBytes,
+      environmentKeys: options.terminalEnvironmentKeys,
     });
 
     registries.tools.register(terminalTool);
