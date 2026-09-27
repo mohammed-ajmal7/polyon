@@ -1,3 +1,5 @@
+/// <reference path="./node-runtime.d.ts" />
+
 import {
   closeSync,
   existsSync,
@@ -154,7 +156,7 @@ export class ScopedFilesystemReadToolAdapter
     const fileDescriptor = openSync(resolvedPath, "r");
 
     try {
-      const buffer = Buffer.alloc(maxBytes + 1);
+      const buffer = new Uint8Array(maxBytes + 1);
       const bytesRead = readSync(
         fileDescriptor,
         buffer,
@@ -171,7 +173,7 @@ export class ScopedFilesystemReadToolAdapter
         );
       }
 
-      const content = buffer.subarray(0, bytesRead).toString("utf8");
+      const content = new TextDecoder().decode(buffer.subarray(0, bytesRead));
 
       return {
         output: {
