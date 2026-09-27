@@ -28,6 +28,19 @@ export {
 } from "./execution-approval-service";
 
 export {
+  MissionPlanService,
+  MissionPlanServiceError,
+  type MissionPlanApprovalResolution,
+  type MissionPlanApprovalResolutionStatus,
+  type MissionPlanServiceDependencies,
+  type MissionPlanServiceErrorKind,
+  type MissionPlanSubmissionResult,
+  type MissionPlanSubmissionStatus,
+  type ResolveMissionPlanApprovalInput,
+  type SubmitMissionPlanInput,
+} from "./mission-plan-service";
+
+export {
   MissionCreationService,
   MissionCreationServiceError,
   type CreateMissionApplicationInput,
