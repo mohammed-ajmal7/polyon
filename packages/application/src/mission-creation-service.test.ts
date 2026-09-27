@@ -81,6 +81,28 @@ describe("MissionCreationService", () => {
     expect(stores.missions.get("mission-1")?.objective).toBe("Existing mission");
   });
 
+  it("propagates domain validation before writing anything", () => {
+    const stores = new InMemoryDomainStores();
+    const events = new InMemoryEventStore();
+    const service = new MissionCreationService({
+      missions: stores.missions,
+      events,
+    });
+
+    expect(() =>
+      service.create({
+        id: "mission-1",
+        objective: "   ",
+        actorId: "user-1",
+        eventId: "event-1",
+        createdAt: "2026-09-27T02:11:00.000Z",
+      }),
+    ).toThrow();
+
+    expect(stores.missions.get("mission-1")).toBeUndefined();
+    expect(events.list()).toEqual([]);
+  });
+
   it("fails before writing when the event ID already exists", () => {
     const stores = new InMemoryDomainStores();
     const events = new InMemoryEventStore();
