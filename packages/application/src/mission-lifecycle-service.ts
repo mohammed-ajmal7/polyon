@@ -8,7 +8,13 @@ import type {
 } from "@polyon/contracts";
 
 import { canTransitionMission, transitionMissionStatus } from "@polyon/core";
-import type { EventStore, MissionStore, TaskStore } from "@polyon/storage";
+import type {
+  DomainStoreTransactionContext,
+  DomainUnitOfWork,
+  EventStore,
+  MissionStore,
+  TaskStore,
+} from "@polyon/storage";
 
 export interface TransitionMissionStatusInput {
   readonly missionId: string;
@@ -160,101 +166,30 @@ function loadMissionTasks(
   });
 }
 
+export interface MissionLifecycleServiceDependencies {
+  readonly missions: MissionStore;
+  readonly tasks: TaskStore;
+  readonly events: EventStore;
+  readonly unitOfWork?: DomainUnitOfWork;
+}
+
 export class MissionLifecycleService {
   constructor(private readonly dependencies: MissionLifecycleServiceDependencies) {}
 
   transition(input: TransitionMissionStatusInput): MissionStatusTransitionResult {
-    const mission = this.dependencies.missions.get(input.missionId);
+    const operation = (
+      stores: Pick<DomainStoreTransactionContext, "missions" | "tasks" | "events">,
+    ) => this.transitionWithStores(stores, input);
 
-    if (mission === undefined) {
-      throw new MissionLifecycleServiceError(
-        "MISSION_NOT_FOUND",
-        `Mission not found: ${input.missionId}.`,
-      );
-    }
-
-    if (this.dependencies.events.get(input.eventId) !== undefined) {
-      throw new MissionLifecycleServiceError(
-        "EVENT_EXISTS",
-        `Mission status event already exists: ${input.eventId}.`,
-      );
-    }
-
-    const updatedMission = transitionMissionStatus(mission, input.to, input.now);
-
-    this.dependencies.missions.save(updatedMission);
-
-    const event = appendMissionStatusChangedEvent(
-      this.dependencies.events,
-      updatedMission,
-      mission.status,
-      updatedMission.status,
-      input.actorId,
-      input.eventId,
-      input.causedByEventId,
-    );
-
-    return {
-      mission: updatedMission,
-      event,
-    };
+    return this.dependencies.unitOfWork === undefined
+      ? operation(this.dependencies)
+      : this.dependencies.unitOfWork.transaction(operation);
   }
 
-  syncProgress(input: SyncMissionProgressInput): MissionProgressSyncResult {
-    const mission = this.dependencies.missions.get(input.missionId);
-
-    if (mission === undefined) {
-      throw new MissionLifecycleServiceError(
-        "MISSION_NOT_FOUND",
-        `Mission not found: ${input.missionId}.`,
-      );
-    }
-
-    if (isTerminal(mission.status)) {
-      return {
-        changed: false,
-        mission,
-      };
-    }
-
-    const tasks = loadMissionTasks(mission, this.dependencies.tasks);
-    const candidateStatus = deriveProgressStatus(mission.status, tasks);
-    const nextStatus =
-      candidateStatus !== undefined && canTransitionMission(mission.status, candidateStatus)
-        ? candidateStatus
-        : undefined;
-
-    if (nextStatus === undefined || nextStatus === mission.status) {
-      return {
-        changed: false,
-        mission,
-      };
-    }
-
-    if (this.dependencies.events.get(input.eventId) !== undefined) {
-      throw new MissionLifecycleServiceError(
-        "EVENT_EXISTS",
-        `Mission status event already exists: ${input.eventId}.`,
-      );
-    }
-
-    const updatedMission = transitionMissionStatus(mission, nextStatus, input.now);
-    this.dependencies.missions.save(updatedMission);
-
-    const event = appendMissionStatusChangedEvent(
-      this.dependencies.events,
-      updatedMission,
-      mission.status,
-      updatedMission.status,
-      input.actorId,
-      input.eventId,
-      input.causedByEventId,
-    );
-
-    return {
-      changed: true,
-      mission: updatedMission,
-      event,
-    };
+  private transitionWithStores(
+    stores: Pick<DomainStoreTransactionContext, "missions" | "tasks" | "events">,
+    input: TransitionMissionStatusInput,
+  ): MissionStatusTransitionResult {
+    // replaced below
   }
 }
