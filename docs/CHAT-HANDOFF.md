@@ -7,9 +7,9 @@
 
 - Repository: `mohammed-ajmal7/polyon`
 - Working branch: `feature/core-architecture`
-- Current branch tip: `87e01ec7e95632c2e3b7722639d89204ac1aa36f`
-- Latest CI run for the current tip: `36333715864`.
-- That run passed install, typecheck, tests, and lint, but failed the format check on this handoff file.
+- Current branch tip: `95e3e50f08335b436af50f4fa69683a8d41578c8`
+- Latest CI run: `36333992212`.
+- CI passes install, typecheck, tests, and lint; format check failed on this file.
 - The repository code/tests are the final source of truth if this file conflicts with implementation.
 
 ## What POLYON is
