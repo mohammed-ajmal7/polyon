@@ -221,6 +221,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     }),
     executions: stores.executions,
     tasks: stores.tasks,
+    approvals: stores.approvals,
     events: stores.events,
     clock: options.clock ?? new SystemClock(),
     executionTimeoutMs: options.executionTimeoutMs,
