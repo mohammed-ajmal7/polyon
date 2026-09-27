@@ -118,6 +118,7 @@ describe("createPolyonComposition", () => {
       const composition = createPolyonComposition({
         storageRoot: root,
         filesystemRoot: fileRoot,
+        artifactRoot: fileRoot,
         providers: [registration()],
         models: [model],
         agents: [agent],
@@ -129,6 +130,16 @@ describe("createPolyonComposition", () => {
       expect(composition.providers.get("provider.test")?.enabled).toBe(true);
       expect(composition.runtime.status).toBe("STOPPED");
       expect(composition.toolInvocation).toBeDefined();
+      expect(composition.artifactCatalog).toBeDefined();
+      expect(composition.localArtifactContent).toBeDefined();
+      expect(composition.tools.get(BUILTIN_TOOL_IDS.artifactList)).toMatchObject({
+        kind: "ARTIFACT",
+        actionKinds: ["READ"],
+      });
+      expect(composition.tools.get(BUILTIN_TOOL_IDS.artifactRead)).toMatchObject({
+        kind: "ARTIFACT",
+        actionKinds: ["READ"],
+      });
 
       const toolFile = join(fileRoot, "mission.txt");
       writeFileSync(toolFile, "governed composition tool", "utf8");
