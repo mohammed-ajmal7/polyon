@@ -69,6 +69,116 @@ export interface ExecutionResultServiceDependencies {
   readonly unitOfWork?: DomainUnitOfWork;
 }
 
+type ExecutionResultStores = Pick<
+  DomainStoreTransactionContext,
+  "executions" | "conversations" | "messages" | "artifacts" | "events"
+>;
+
+export class ExecutionResultServiceError extends Error {
+  readonly kind: ExecutionResultServiceErrorKind;
+
+  constructor(kind: ExecutionResultServiceErrorKind, message: string) {
+    super(message);
+    this.name = "ExecutionResultServiceError";
+    this.kind = kind;
+  }
+}
+
+function isTerminalExecution(status: Execution["status"]): boolean {
+  return (
+    status === "SUCCEEDED" ||
+    status === "FAILED" ||
+    status === "CANCELLED" ||
+    status === "REJECTED"
+  );
+}
+
+function createResultMessage(
+  input: PersistExecutionResultInput,
+  execution: Execution,
+): Message {
+  return {
+    id: input.messageId,
+    conversationId: input.conversationId,
+    actorId: input.actorId,
+    role: execution.status === "FAILED" ? "SYSTEM" : "AGENT",
+    kind: execution.status === "FAILED" ? "ERROR" : "TEXT",
+    content: input.output,
+    createdAt: input.createdAt,
+  };
+}
+
+function createArtifact(
+  input: PersistExecutionArtifactInput,
+  execution: Execution,
+): Artifact {
+  return {
+    id: input.id,
+    kind: input.kind,
+    name: input.name,
+    ...(input.mimeType !== undefined ? { mimeType: input.mimeType } : {}),
+    location: input.location,
+    status: input.status ?? "AVAILABLE",
+    missionId: execution.missionId,
+    taskId: execution.taskId,
+    executionId: execution.id,
+    createdAt: input.createdAt,
+    updatedAt: input.createdAt,
+  };
+}
+
+function appendMessageCreatedEvent(
+  events: EventStore,
+  message: Message,
+  execution: Execution,
+): DomainEvent {
+  const event: DomainEvent = {
+    id: "MESSAGE_CREATED:" + message.id,
+    kind: "MESSAGE_CREATED",
+    actorId: message.actorId,
+    conversationId: message.conversationId,
+    missionId: execution.missionId,
+    taskId: execution.taskId,
+    executionId: execution.id,
+    occurredAt: message.createdAt,
+    data: {
+      messageId: message.id,
+      conversationId: message.conversationId,
+      executionId: execution.id,
+      kind: message.kind,
+    },
+  };
+
+  events.append(event);
+  return event;
+}
+
+function appendArtifactCreatedEvent(
+  events: EventStore,
+  artifact: Artifact,
+  conversationId: string,
+): DomainEvent {
+  const event: DomainEvent = {
+    id: "ARTIFACT_CREATED:" + artifact.id,
+    kind: "ARTIFACT_CREATED",
+    conversationId,
+    missionId: artifact.missionId,
+    taskId: artifact.taskId,
+    executionId: artifact.executionId,
+    occurredAt: artifact.createdAt,
+    data: {
+      artifactId: artifact.id,
+      name: artifact.name,
+      kind: artifact.kind,
+      location: artifact.location,
+      status: artifact.status,
+    },
+  };
+
+  events.append(event);
+  return event;
+}
+
 export class ExecutionResultService {
   constructor(private readonly dependencies: ExecutionResultServiceDependencies) {}
 
@@ -85,16 +195,133 @@ export class ExecutionResultService {
     stores: ExecutionResultStores,
     input: PersistExecutionResultInput,
   ): PersistedExecutionResult {
-    const operation = (
-      stores: Pick<
-        DomainStoreTransactionContext,
-        "executions" | "conversations" | "messages" | "artifacts" | "events"
-      >,
-    ) => this.persistWithStores(stores, input);
+    const execution = stores.executions.get(input.executionId);
 
-    return stores.unitOfWork === undefined
-      ? operation(this.dependencies)
-      : stores.unitOfWork.transaction(operation);
+    if (execution === undefined) {
+      throw new ExecutionResultServiceError(
+        "EXECUTION_NOT_FOUND",
+        "Execution not found: " + input.executionId + ".",
+      );
+    }
+
+    if (!isTerminalExecution(execution.status)) {
+      throw new ExecutionResultServiceError(
+        "EXECUTION_NOT_TERMINAL",
+        "Cannot persist a result while execution " +
+          execution.id +
+          " is " +
+          execution.status +
+          ".",
+      );
+    }
+
+    const conversation = stores.conversations.get(input.conversationId);
+
+    if (conversation === undefined) {
+      throw new ExecutionResultServiceError(
+        "CONVERSATION_NOT_FOUND",
+        "Conversation not found: " + input.conversationId + ".",
+      );
+    }
+
+    if (conversation.status !== "ACTIVE") {
+      throw new ExecutionResultServiceError(
+        "CONVERSATION_NOT_ACTIVE",
+        "Cannot publish an execution result to conversation " +
+          conversation.id +
+          " while status is " +
+          conversation.status +
+          ".",
+      );
+    }
+
+    if (conversation.kind !== "MISSION") {
+      throw new ExecutionResultServiceError(
+        "CONVERSATION_KIND_MISMATCH",
+        "Conversation " +
+          conversation.id +
+          " is " +
+          conversation.kind +
+          ", not MISSION.",
+      );
+    }
+
+    if (conversation.missionId !== execution.missionId) {
+      throw new ExecutionResultServiceError(
+        "CONVERSATION_MISSION_MISMATCH",
+        "Conversation " +
+          conversation.id +
+          " is not bound to execution mission " +
+          execution.missionId +
+          ".",
+      );
+    }
+
+    if (!conversation.participantIds.includes(input.actorId)) {
+      throw new ExecutionResultServiceError(
+        "ACTOR_NOT_PARTICIPANT",
+        "Result actor is not a participant in conversation " + conversation.id + ".",
+      );
+    }
+
+    if (stores.messages.get(input.messageId) !== undefined) {
+      throw new ExecutionResultServiceError(
+        "MESSAGE_EXISTS",
+        "Message already exists: " + input.messageId + ".",
+      );
+    }
+
+    const artifactIds = new Set<string>();
+
+    for (const artifact of input.artifacts ?? []) {
+      if (artifactIds.has(artifact.id)) {
+        throw new ExecutionResultServiceError(
+          "DUPLICATE_ARTIFACT_ID",
+          "Artifact ID is duplicated in the result: " + artifact.id + ".",
+        );
+      }
+
+      artifactIds.add(artifact.id);
+
+      if (stores.artifacts.get(artifact.id) !== undefined) {
+        throw new ExecutionResultServiceError(
+          "ARTIFACT_EXISTS",
+          "Artifact already exists: " + artifact.id + ".",
+        );
+      }
+    }
+
+    const message = createResultMessage(input, execution);
+    const artifacts = (input.artifacts ?? []).map((artifact) =>
+      createArtifact(artifact, execution),
+    );
+    const updatedConversation: Conversation = {
+      ...conversation,
+      messageIds: [...conversation.messageIds, message.id],
+      updatedAt: input.createdAt,
+    };
+
+    stores.messages.save(message);
+    for (const artifact of artifacts) {
+      stores.artifacts.save(artifact);
+    }
+    stores.conversations.save(updatedConversation);
+
+    const events: DomainEvent[] = [];
+    events.push(appendMessageCreatedEvent(stores.events, message, execution));
+    for (const artifact of artifacts) {
+      events.push(
+        appendArtifactCreatedEvent(stores.events, artifact, conversation.id),
+      );
+    }
+
+    return {
+      execution,
+      conversation: updatedConversation,
+      message,
+      artifacts,
+      events,
+    };
   
   }
 }
