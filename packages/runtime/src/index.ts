@@ -25,6 +25,7 @@ export { recoverQueuedExecutions } from "./execution-recovery";
 export {
   ModelExecutionRunner,
   type ModelExecutionRunnerDependencies,
+  type ModelExecutionToolOrchestrator,
 } from "./model-execution-runner";
 
 export {
