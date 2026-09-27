@@ -1,4 +1,12 @@
 describe("InMemoryDomainStores", () => {
+  it("rejects nested transactions", () => {
+    const stores = new InMemoryDomainStores();
+
+    expect(() =>
+      stores.transaction(() => stores.transaction(() => undefined)),
+    ).toThrow("A storage transaction is already in progress.");
+  });
+
   it("rolls back all domain collections and events when a transaction throws", () => {
     const stores = new InMemoryDomainStores();
 
