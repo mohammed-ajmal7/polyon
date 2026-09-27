@@ -55,6 +55,8 @@ export class ScopedArtifactReadToolAdapter implements ToolAdapter<
     if (options.toolId.trim() === "") {
       throw new RangeError("toolId must not be empty.");
     }
+
+    this.toolId = options.toolId;
   }
 
   async invoke(
