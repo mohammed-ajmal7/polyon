@@ -490,8 +490,15 @@ export class MissionPlanService {
     );
     events.push(approvalEvent);
 
+    const status =
+      input.status === "REJECTED"
+        ? "REJECTED"
+        : input.status === "EXPIRED"
+          ? "EXPIRED"
+          : "CANCELLED";
+
     return {
-      status: input.status,
+      status,
       approval: resolvedApproval,
       mission,
       proposal,
