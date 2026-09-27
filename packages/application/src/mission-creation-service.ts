@@ -1,4 +1,11 @@
-import type { ActorId, DomainEvent, EventId, Mission, MissionId } from "@polyon/contracts";
+import type {
+  ActorId,
+  ConversationId,
+  DomainEvent,
+  EventId,
+  Mission,
+  MissionId,
+} from "@polyon/contracts";
 import { createMission } from "@polyon/core";
 import type { EventStore, MissionStore } from "@polyon/storage";
 
@@ -13,7 +20,7 @@ export interface CreateMissionApplicationInput {
   readonly constraints?: readonly string[];
   readonly actorId: ActorId;
   readonly eventId: EventId;
-  readonly conversationId?: string;
+  readonly conversationId?: ConversationId;
   readonly createdAt: string;
 }
 
