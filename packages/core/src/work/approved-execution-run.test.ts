@@ -1,10 +1,7 @@
 import type { ApprovalRequest, Execution } from "@polyon/contracts";
 import { describe, expect, it } from "vitest";
 
-import {
-  applyApprovedExecutionRun,
-  ApprovedExecutionRunError,
-} from "./approved-execution-run";
+import { applyApprovedExecutionRun, ApprovedExecutionRunError } from "./approved-execution-run";
 
 const execution: Execution = {
   id: "execution-1",
@@ -64,41 +61,25 @@ describe("applyApprovedExecutionRun", () => {
 
   it("rejects an expired approval at the exact expiry time", () => {
     expect(() =>
-      applyApprovedExecutionRun(
-        { ...approval, expiresAt: evaluatedAt },
-        execution,
-        evaluatedAt,
-      ),
+      applyApprovedExecutionRun({ ...approval, expiresAt: evaluatedAt }, execution, evaluatedAt),
     ).toThrowError(expect.objectContaining({ kind: "APPROVAL_EXPIRED" }));
   });
 
   it("rejects an approval with the wrong action", () => {
     expect(() =>
-      applyApprovedExecutionRun(
-        { ...approval, action: "PLAN_APPLY" },
-        execution,
-        evaluatedAt,
-      ),
+      applyApprovedExecutionRun({ ...approval, action: "PLAN_APPLY" }, execution, evaluatedAt),
     ).toThrowError(expect.objectContaining({ kind: "APPROVAL_ACTION_MISMATCH" }));
   });
 
   it("rejects an approval bound to another mission", () => {
     expect(() =>
-      applyApprovedExecutionRun(
-        { ...approval, missionId: "mission-2" },
-        execution,
-        evaluatedAt,
-      ),
+      applyApprovedExecutionRun({ ...approval, missionId: "mission-2" }, execution, evaluatedAt),
     ).toThrowError(expect.objectContaining({ kind: "APPROVAL_MISSION_MISMATCH" }));
   });
 
   it("rejects an approval bound to another task", () => {
     expect(() =>
-      applyApprovedExecutionRun(
-        { ...approval, taskId: "task-2" },
-        execution,
-        evaluatedAt,
-      ),
+      applyApprovedExecutionRun({ ...approval, taskId: "task-2" }, execution, evaluatedAt),
     ).toThrowError(expect.objectContaining({ kind: "APPROVAL_TASK_MISMATCH" }));
   });
 

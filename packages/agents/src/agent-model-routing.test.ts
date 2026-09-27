@@ -2,10 +2,7 @@ import type { Agent, Model, Provider } from "@polyon/contracts";
 import { describe, expect, it } from "vitest";
 
 import { InMemoryAgentRegistry } from "./agent-registry";
-import {
-  AgentModelRoutingError,
-  resolveAgentModel,
-} from "./agent-model-routing";
+import { AgentModelRoutingError, resolveAgentModel } from "./agent-model-routing";
 import { InMemoryModelRegistry } from "./model-registry";
 import { InMemoryProviderRegistry } from "./provider-registry";
 
@@ -99,7 +96,8 @@ describe("resolveAgentModel", () => {
       {
         ...registries,
         models: {
-          get: (id) => (id === "model-1" ? { ...preferredModel, enabled: false } : registries.models.get(id)),
+          get: (id) =>
+            id === "model-1" ? { ...preferredModel, enabled: false } : registries.models.get(id),
           list: () => registries.models.list(),
           register: (model) => registries.models.register(model),
         },
@@ -144,7 +142,8 @@ describe("resolveAgentModel", () => {
       {
         ...registries,
         providers: {
-          get: (id) => (id === "provider-1" ? { ...provider1, enabled: false } : registries.providers.get(id)),
+          get: (id) =>
+            id === "provider-1" ? { ...provider1, enabled: false } : registries.providers.get(id),
           list: () => registries.providers.list(),
           register: (provider) => registries.providers.register(provider),
         },
@@ -164,11 +163,7 @@ describe("resolveAgentModel", () => {
         createRegistries(),
       ),
     ).toThrowError(
-      new AgentModelRoutingError(
-        "AGENT_NOT_FOUND",
-        "missing",
-        "Agent not found: missing.",
-      ),
+      new AgentModelRoutingError("AGENT_NOT_FOUND", "missing", "Agent not found: missing."),
     );
   });
 

@@ -1,10 +1,4 @@
-import type {
-  ActorId,
-  AgentId,
-  Mission,
-  Policy,
-  Task,
-} from "@polyon/contracts";
+import type { ActorId, AgentId, Mission, Policy, Task } from "@polyon/contracts";
 
 import {
   getReadyTaskIds,

@@ -5,11 +5,7 @@ export {
   type ToolRegistryErrorKind,
 } from "./tool-registry";
 
-export type {
-  ToolAdapter,
-  ToolInvocationRequest,
-  ToolInvocationResult,
-} from "./tool-adapter";
+export type { ToolAdapter, ToolInvocationRequest, ToolInvocationResult } from "./tool-adapter";
 
 export {
   InMemoryToolAdapterRegistry,

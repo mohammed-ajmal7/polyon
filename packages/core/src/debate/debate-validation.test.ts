@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  DebateValidationError,
-  validateDebateDefinition,
-} from "./debate-validation";
+import { DebateValidationError, validateDebateDefinition } from "./debate-validation";
 
 const valid = {
   objective: "Compare approaches.",

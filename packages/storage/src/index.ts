@@ -1,8 +1,4 @@
-export {
-  InMemoryEntityStore,
-  type EntityStore,
-  type EntityWithId,
-} from "./entity-store";
+export { InMemoryEntityStore, type EntityStore, type EntityWithId } from "./entity-store";
 
 export {
   InMemoryDomainStores,

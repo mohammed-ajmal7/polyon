@@ -4,10 +4,7 @@ import {
   ExecutionDispatchService,
   MissionExecutionService,
 } from "@polyon/application";
-import {
-  InMemoryExecutionCoordinator,
-  InMemoryExecutionQueue,
-} from "@polyon/runtime";
+import { InMemoryExecutionCoordinator, InMemoryExecutionQueue } from "@polyon/runtime";
 import { InMemoryDomainStores } from "@polyon/storage";
 import { describe, expect, it } from "vitest";
 
@@ -85,9 +82,7 @@ describe("governed execution flow", () => {
     });
 
     expect(dispatched.awaitingApproval).toHaveLength(1);
-    expect(dispatched.awaitingApproval[0]?.execution.status).toBe(
-      "APPROVAL_REQUIRED",
-    );
+    expect(dispatched.awaitingApproval[0]?.execution.status).toBe("APPROVAL_REQUIRED");
     expect(stores.tasks.get("task-1")?.status).toBe("APPROVAL_REQUIRED");
     expect(queue.size()).toBe(0);
 
@@ -104,15 +99,11 @@ describe("governed execution flow", () => {
     expect(approval).toBeDefined();
     expect(execution).toBeDefined();
 
-    const approvalResult = approvalService.resolve(
-      approval!,
-      execution!,
-      {
-        status: "APPROVED",
-        resolvedAt: "2026-09-27T01:03:00.000Z",
-        resolvedBy: "user-1",
-      },
-    );
+    const approvalResult = approvalService.resolve(approval!, execution!, {
+      status: "APPROVED",
+      resolvedAt: "2026-09-27T01:03:00.000Z",
+      resolvedBy: "user-1",
+    });
 
     expect(approvalResult.execution.status).toBe("QUEUED");
     expect(stores.tasks.get("task-1")?.status).toBe("APPROVED");

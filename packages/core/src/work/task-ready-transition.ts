@@ -3,9 +3,7 @@ import type { Task } from "@polyon/contracts";
 import { areTaskDependenciesSatisfied, type TaskDependency } from "./task-readiness";
 import { transitionTaskStatus } from "./task-transition";
 
-export type TaskReadyErrorKind =
-  | "TASK_NOT_PENDING_OR_BLOCKED"
-  | "TASK_DEPENDENCIES_NOT_SATISFIED";
+export type TaskReadyErrorKind = "TASK_NOT_PENDING_OR_BLOCKED" | "TASK_DEPENDENCIES_NOT_SATISFIED";
 
 export class TaskReadyError extends Error {
   readonly kind: TaskReadyErrorKind;

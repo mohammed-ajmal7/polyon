@@ -1,7 +1,3 @@
 export type { DebateId } from "./ids";
 
-export type {
-  Debate,
-  DebatePhase,
-  DebateStatus,
-} from "./debate";
+export type { Debate, DebatePhase, DebateStatus } from "./debate";

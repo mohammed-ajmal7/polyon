@@ -23,23 +23,17 @@ const queuedExecution: Execution = {
 };
 
 describe("startExecution", () => {
-  it.each([
-    "PENDING",
-    "APPROVAL_REQUIRED",
-    "APPROVED",
-    "QUEUED",
-    "RUNNING",
-    "PAUSED",
-  ] as const)("cancels execution from status %s", (status) => {
-    const execution: Execution = {
-      ...queuedExecution,
-      status,
-    };
+  it.each(["PENDING", "APPROVAL_REQUIRED", "APPROVED", "QUEUED", "RUNNING", "PAUSED"] as const)(
+    "cancels execution from status %s",
+    (status) => {
+      const execution: Execution = {
+        ...queuedExecution,
+        status,
+      };
 
-    expect(cancelExecution(execution, "2026-09-27T01:02:00.000Z").status).toBe(
-      "CANCELLED",
-    );
-  });
+      expect(cancelExecution(execution, "2026-09-27T01:02:00.000Z").status).toBe("CANCELLED");
+    },
+  );
 
   it("rejects terminal execution cancellation", () => {
     expect(() =>
@@ -69,9 +63,7 @@ describe("startExecution", () => {
       startedAt: "2026-09-27T01:02:00.000Z",
     };
 
-    expect(() =>
-      startExecution(pausedExecution, "2026-09-27T01:10:00.000Z"),
-    ).toThrow();
+    expect(() => startExecution(pausedExecution, "2026-09-27T01:10:00.000Z")).toThrow();
   });
 
   it("does not mutate the original execution", () => {
@@ -109,11 +101,7 @@ describe("rejectExecution", () => {
     };
     const before = structuredClone(pendingExecution);
 
-    rejectExecution(
-      pendingExecution,
-      "2026-09-27T01:02:00.000Z",
-      "Denied.",
-    );
+    rejectExecution(pendingExecution, "2026-09-27T01:02:00.000Z", "Denied.");
 
     expect(pendingExecution).toEqual(before);
   });

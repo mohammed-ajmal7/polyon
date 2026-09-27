@@ -1,19 +1,9 @@
 import type { AgentId } from "../agent/ids";
 import type { DebateId } from "./ids";
 
-export type DebateStatus =
-  | "DRAFT"
-  | "RUNNING"
-  | "ADJUDICATING"
-  | "DECIDED"
-  | "CANCELLED";
+export type DebateStatus = "DRAFT" | "RUNNING" | "ADJUDICATING" | "DECIDED" | "CANCELLED";
 
-export type DebatePhase =
-  | "PROPOSAL"
-  | "CRITICISM"
-  | "EVIDENCE"
-  | "REBUTTAL"
-  | "ADJUDICATION";
+export type DebatePhase = "PROPOSAL" | "CRITICISM" | "EVIDENCE" | "REBUTTAL" | "ADJUDICATION";
 
 export interface Debate {
   readonly id: DebateId;

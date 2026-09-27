@@ -107,9 +107,7 @@ describe("authorizeIntegrationInvocation", () => {
   });
 
   it("retains the integration identity in the authorization result", () => {
-    expect(authorizeIntegrationInvocation(input).integrationId).toBe(
-      "telegram-primary",
-    );
+    expect(authorizeIntegrationInvocation(input).integrationId).toBe("telegram-primary");
   });
 
   it("exposes denied policy decision details", () => {

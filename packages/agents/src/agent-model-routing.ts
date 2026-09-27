@@ -1,10 +1,4 @@
-import type {
-  Agent,
-  AgentId,
-  CapabilityId,
-  Model,
-  Provider,
-} from "@polyon/contracts";
+import type { Agent, AgentId, CapabilityId, Model, Provider } from "@polyon/contracts";
 
 import type { AgentRegistry } from "./agent-registry";
 import type { ModelRegistry } from "./model-registry";
@@ -23,10 +17,7 @@ export interface AgentModelResolution {
 }
 
 export type AgentModelRoutingErrorKind =
-  | "AGENT_NOT_FOUND"
-  | "AGENT_NOT_ACTIVE"
-  | "AGENT_MISSING_CAPABILITY"
-  | "NO_COMPATIBLE_MODEL";
+  "AGENT_NOT_FOUND" | "AGENT_NOT_ACTIVE" | "AGENT_MISSING_CAPABILITY" | "NO_COMPATIBLE_MODEL";
 
 export class AgentModelRoutingError extends Error {
   readonly kind: AgentModelRoutingErrorKind;
@@ -47,7 +38,9 @@ function hasCapabilities(
   return requiredCapabilityIds.every((required) => availableCapabilityIds.includes(required));
 }
 
-function candidateModelIds(agent: Agent): readonly { id: string; source: "PREFERRED" | "FALLBACK" }[] {
+function candidateModelIds(
+  agent: Agent,
+): readonly { id: string; source: "PREFERRED" | "FALLBACK" }[] {
   const candidates: { id: string; source: "PREFERRED" | "FALLBACK" }[] = [];
 
   if (agent.preferredModelId !== undefined) {

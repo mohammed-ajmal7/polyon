@@ -16,7 +16,12 @@ interface Activity {
 const agents = [
   { name: "Research", role: "Evidence & synthesis", status: "ACTIVE", model: "Primary reasoning" },
   { name: "Builder", role: "Coding & implementation", status: "ACTIVE", model: "Coding runtime" },
-  { name: "Critic", role: "Verification & challenge", status: "READY", model: "Independent reviewer" },
+  {
+    name: "Critic",
+    role: "Verification & challenge",
+    status: "READY",
+    model: "Independent reviewer",
+  },
   { name: "Creative", role: "Image, video & audio", status: "READY", model: "Creative runtime" },
 ] as const;
 
@@ -72,7 +77,8 @@ export default function Home() {
   const modeDescription = useMemo(() => {
     if (mode === "Direct") return "Work with one intelligence at a time.";
     if (mode === "Broadcast") return "Send one request to multiple agents independently.";
-    if (mode === "Debate") return "Run a bounded proposal, criticism, evidence and adjudication flow.";
+    if (mode === "Debate")
+      return "Run a bounded proposal, criticism, evidence and adjudication flow.";
     return "Turn a larger objective into governed, executable work.";
   }, [mode]);
 
@@ -185,9 +191,7 @@ export default function Home() {
                         <h2 className="mt-2 text-lg font-semibold text-white">
                           What should POLYON do?
                         </h2>
-                        <p className="mt-1 max-w-2xl text-sm text-slate-400">
-                          {modeDescription}
-                        </p>
+                        <p className="mt-1 max-w-2xl text-sm text-slate-400">{modeDescription}</p>
                       </div>
                       <div className="rounded-xl border border-emerald-300/10 bg-emerald-300/5 px-3 py-2 text-xs text-emerald-200">
                         {connectedAgent} selected
@@ -228,11 +232,13 @@ export default function Home() {
                           ? "Describe the outcome you want. POLYON will turn it into governed work."
                           : "Give POLYON a command..."
                       }
-                      className="min-h-36 w-full resize-none rounded-2xl border border-white/8 bg-black/20 p-4 text-sm leading-6 text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-violet-300/25 focus:ring-4 focus:ring-violet-300/5"
+                      className="min-h-36 w-full resize-none rounded-2xl border border-white/8 bg-black/20 p-4 text-sm leading-6 text-slate-100 transition outline-none placeholder:text-slate-600 focus:border-violet-300/25 focus:ring-4 focus:ring-violet-300/5"
                     />
 
                     <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                      <div className="text-xs text-slate-600">⌘↵ to run · approval gates remain enforced</div>
+                      <div className="text-xs text-slate-600">
+                        ⌘↵ to run · approval gates remain enforced
+                      </div>
                       <button
                         type="button"
                         onClick={submitCommand}
@@ -266,7 +272,10 @@ export default function Home() {
                       ["Approvals", "0 waiting"],
                       ["Queue", "2 ready"],
                     ].map(([label, value]) => (
-                      <div key={label} className="rounded-2xl border border-white/7 bg-white/[0.02] p-4">
+                      <div
+                        key={label}
+                        className="rounded-2xl border border-white/7 bg-white/[0.02] p-4"
+                      >
                         <div className="text-xs text-slate-600">{label}</div>
                         <div className="mt-2 text-sm font-medium text-slate-200">{value}</div>
                       </div>
@@ -303,7 +312,11 @@ export default function Home() {
                             <div className="text-sm font-medium text-slate-100">{agent.name}</div>
                             <div className="mt-1 text-xs text-slate-500">{agent.role}</div>
                           </div>
-                          <span className={"rounded-full px-2 py-1 text-[10px] " + statusClass(agent.status)}>
+                          <span
+                            className={
+                              "rounded-full px-2 py-1 text-[10px] " + statusClass(agent.status)
+                            }
+                          >
                             {agent.status}
                           </span>
                         </div>
@@ -365,10 +378,14 @@ export default function Home() {
                           </div>
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-sm font-medium text-slate-200">{activity.title}</span>
+                              <span className="text-sm font-medium text-slate-200">
+                                {activity.title}
+                              </span>
                               <span className="text-[11px] text-slate-600">{activity.time}</span>
                             </div>
-                            <p className="mt-1 text-xs leading-5 text-slate-500">{activity.detail}</p>
+                            <p className="mt-1 text-xs leading-5 text-slate-500">
+                              {activity.detail}
+                            </p>
                           </div>
                         </div>
                       ))}

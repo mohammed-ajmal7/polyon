@@ -1,7 +1,4 @@
-import type {
-  ApprovalRequest,
-  PolicyDecision,
-} from "@polyon/contracts";
+import type { ApprovalRequest, PolicyDecision } from "@polyon/contracts";
 
 import { applyApprovedExecutionRun } from "@polyon/core";
 

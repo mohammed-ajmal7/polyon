@@ -1,10 +1,7 @@
 import type { Execution } from "@polyon/contracts";
 import { describe, expect, it } from "vitest";
 
-import {
-  ExecutionQueueError,
-  InMemoryExecutionQueue,
-} from "./execution-queue";
+import { ExecutionQueueError, InMemoryExecutionQueue } from "./execution-queue";
 
 const queuedExecution = (id: string): Execution => ({
   id,
@@ -50,11 +47,7 @@ describe("InMemoryExecutionQueue", () => {
     queue.enqueue(execution);
 
     expect(() => queue.enqueue(execution)).toThrowError(
-      new ExecutionQueueError(
-        "EXECUTION_ALREADY_QUEUED",
-        "execution-1",
-        "QUEUED",
-      ),
+      new ExecutionQueueError("EXECUTION_ALREADY_QUEUED", "execution-1", "QUEUED"),
     );
   });
 
@@ -81,9 +74,7 @@ describe("InMemoryExecutionQueue", () => {
         ...queuedExecution("execution-1"),
         status: "RUNNING",
       }),
-    ).toThrowError(
-      new ExecutionQueueError("EXECUTION_NOT_QUEUED", "execution-1", "RUNNING"),
-    );
+    ).toThrowError(new ExecutionQueueError("EXECUTION_NOT_QUEUED", "execution-1", "RUNNING"));
   });
 
   it("does not expose mutable queue state", () => {

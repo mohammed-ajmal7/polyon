@@ -29,9 +29,7 @@ export interface ExecutionRunAuthorization {
   readonly approvalRequest?: ApprovalRequest;
 }
 
-export type ExecutionRunAuthorizationErrorKind =
-  | "EXECUTION_NOT_PENDING"
-  | "EXECUTION_RUN_DENIED";
+export type ExecutionRunAuthorizationErrorKind = "EXECUTION_NOT_PENDING" | "EXECUTION_RUN_DENIED";
 
 export class ExecutionRunAuthorizationError extends Error {
   readonly kind: ExecutionRunAuthorizationErrorKind;

@@ -42,11 +42,7 @@ describe("markTaskReady", () => {
 
   it("rejects a task whose dependencies are not satisfied", () => {
     expect(() =>
-      markTaskReady(
-        blockedTask,
-        [{ id: "task-1", status: "RUNNING" }],
-        "2026-09-27T01:02:00.000Z",
-      ),
+      markTaskReady(blockedTask, [{ id: "task-1", status: "RUNNING" }], "2026-09-27T01:02:00.000Z"),
     ).toThrowError(
       expect.objectContaining({
         kind: "TASK_DEPENDENCIES_NOT_SATISFIED",

@@ -40,12 +40,14 @@ function createCatalogs(
   };
 }
 
-function createGateway(adapter: ModelProviderAdapter = {
-  providerId: "provider-1",
-  async invoke({ input }) {
-    return { output: input };
+function createGateway(
+  adapter: ModelProviderAdapter = {
+    providerId: "provider-1",
+    async invoke({ input }) {
+      return { output: input };
+    },
   },
-}) {
+) {
   const { models, providers } = createCatalogs();
   const adapters = new InMemoryProviderAdapterRegistry();
   adapters.register(adapter);

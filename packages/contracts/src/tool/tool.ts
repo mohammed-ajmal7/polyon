@@ -2,13 +2,7 @@ import type { ActionKind } from "../policy/risk";
 import type { ToolId } from "./ids";
 
 export type ToolKind =
-  | "FILESYSTEM"
-  | "TERMINAL"
-  | "NETWORK"
-  | "GIT"
-  | "ARTIFACT"
-  | "COMMUNICATION"
-  | "OTHER";
+  "FILESYSTEM" | "TERMINAL" | "NETWORK" | "GIT" | "ARTIFACT" | "COMMUNICATION" | "OTHER";
 
 export interface Tool {
   readonly id: ToolId;

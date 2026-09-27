@@ -1,10 +1,6 @@
 import type { Execution } from "@polyon/contracts";
 
-import {
-  completeExecution,
-  startExecution,
-  transitionTaskStatus,
-} from "@polyon/core";
+import { completeExecution, startExecution, transitionTaskStatus } from "@polyon/core";
 
 import type { ExecutionStore, TaskStore } from "@polyon/storage";
 
@@ -39,9 +35,7 @@ export class ExecutionCoordinatorError extends Error {
 }
 
 export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
-  constructor(
-    private readonly dependencies: ExecutionCoordinatorDependencies,
-  ) {}
+  constructor(private readonly dependencies: ExecutionCoordinatorDependencies) {}
 
   async runNext(now: string, completionAt: string): Promise<Execution | undefined> {
     const queued = this.dependencies.queue.dequeue();
@@ -137,9 +131,7 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
       });
 
       this.dependencies.executions.save(failed);
-      this.dependencies.tasks.save(
-        transitionTaskStatus(runningTask, "FAILED", completionAt),
-      );
+      this.dependencies.tasks.save(transitionTaskStatus(runningTask, "FAILED", completionAt));
 
       return failed;
     }

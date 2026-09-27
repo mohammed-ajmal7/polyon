@@ -50,19 +50,11 @@ export class ModelGateway {
     const model = this.dependencies.models.get(modelId);
 
     if (model === undefined) {
-      throw new ModelGatewayError(
-        "MODEL_NOT_FOUND",
-        modelId,
-        `Model not found: ${modelId}.`,
-      );
+      throw new ModelGatewayError("MODEL_NOT_FOUND", modelId, `Model not found: ${modelId}.`);
     }
 
     if (!model.enabled) {
-      throw new ModelGatewayError(
-        "MODEL_DISABLED",
-        modelId,
-        `Model is disabled: ${modelId}.`,
-      );
+      throw new ModelGatewayError("MODEL_DISABLED", modelId, `Model is disabled: ${modelId}.`);
     }
 
     const provider = this.dependencies.providers.get(model.providerId);

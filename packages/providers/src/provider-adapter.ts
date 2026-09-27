@@ -11,7 +11,5 @@ export interface ProviderInvocationResult<TOutput = unknown> {
 
 export interface ModelProviderAdapter<TInput = unknown, TOutput = unknown> {
   readonly providerId: ProviderId;
-  invoke(
-    request: ProviderInvocationRequest<TInput>,
-  ): Promise<ProviderInvocationResult<TOutput>>;
+  invoke(request: ProviderInvocationRequest<TInput>): Promise<ProviderInvocationResult<TOutput>>;
 }

@@ -44,10 +44,7 @@ describe("InMemoryIntegrationAdapterRegistry", () => {
     registry.register(googleDrive);
 
     expect(() => registry.register(googleDrive)).toThrowError(
-      new IntegrationAdapterRegistryError(
-        "INTEGRATION_ADAPTER_ALREADY_EXISTS",
-        "drive-primary",
-      ),
+      new IntegrationAdapterRegistryError("INTEGRATION_ADAPTER_ALREADY_EXISTS", "drive-primary"),
     );
   });
 

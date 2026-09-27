@@ -167,11 +167,10 @@ describe("ExecutionApprovalService", () => {
     const { service } = createService();
 
     expect(() =>
-      service.resolve(
-        { ...approval, action: "PLAN_APPLY" },
-        execution,
-        { status: "REJECTED", resolvedAt: "2026-09-27T01:02:00.000Z" },
-      ),
+      service.resolve({ ...approval, action: "PLAN_APPLY" }, execution, {
+        status: "REJECTED",
+        resolvedAt: "2026-09-27T01:02:00.000Z",
+      }),
     ).toThrow("Approval does not authorize an execution run.");
   });
 
@@ -179,11 +178,10 @@ describe("ExecutionApprovalService", () => {
     const { service } = createService();
 
     expect(() =>
-      service.resolve(
-        { ...approval, executionId: "execution-2" },
-        execution,
-        { status: "REJECTED", resolvedAt: "2026-09-27T01:02:00.000Z" },
-      ),
+      service.resolve({ ...approval, executionId: "execution-2" }, execution, {
+        status: "REJECTED",
+        resolvedAt: "2026-09-27T01:02:00.000Z",
+      }),
     ).toThrow("Approval is not bound to the supplied execution.");
   });
 

@@ -83,9 +83,7 @@ describe("debate control", () => {
   });
 
   it("can only be decided during adjudication", () => {
-    expect(() => decideDebate(create(), "2026-09-27T01:02:00.000Z")).toThrow(
-      DebateControlError,
-    );
+    expect(() => decideDebate(create(), "2026-09-27T01:02:00.000Z")).toThrow(DebateControlError);
   });
 
   it("decides an adjudicating debate", () => {
@@ -104,9 +102,7 @@ describe("debate control", () => {
   it("cancels a running debate", () => {
     const running = startDebate(create(), "2026-09-27T01:01:00.000Z");
 
-    expect(cancelDebate(running, "2026-09-27T01:02:00.000Z").status).toBe(
-      "CANCELLED",
-    );
+    expect(cancelDebate(running, "2026-09-27T01:02:00.000Z").status).toBe("CANCELLED");
   });
 
   it("does not mutate source participant arrays", () => {

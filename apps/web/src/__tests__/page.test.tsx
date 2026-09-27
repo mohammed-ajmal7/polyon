@@ -17,9 +17,7 @@ describe("POLYON AI HQ shell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Debate" }));
 
     expect(
-      screen.getByText(
-        "Run a bounded proposal, criticism, evidence and adjudication flow.",
-      ),
+      screen.getByText("Run a bounded proposal, criticism, evidence and adjudication flow."),
     ).toBeInTheDocument();
   });
 
@@ -36,9 +34,7 @@ describe("POLYON AI HQ shell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Run command" }));
 
     expect(screen.getByText("Command accepted")).toBeInTheDocument();
-    expect(
-      screen.getByText("Review the execution architecture."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Review the execution architecture.")).toBeInTheDocument();
   });
 
   it("changes the selected logical agent", () => {

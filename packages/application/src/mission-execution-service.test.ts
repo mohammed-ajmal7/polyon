@@ -109,10 +109,7 @@ describe("MissionExecutionService", () => {
       identities,
     });
 
-    expect(result.dispatched.map((plan) => plan.execution.taskId)).toEqual([
-      "task-1",
-      "task-2",
-    ]);
+    expect(result.dispatched.map((plan) => plan.execution.taskId)).toEqual(["task-1", "task-2"]);
     expect(result.awaitingApproval).toEqual([]);
     expect(result.rejected).toEqual([]);
     expect(queue.size()).toBe(2);
@@ -267,4 +264,5 @@ describe("MissionExecutionService", () => {
         identities,
       }),
     ).toThrowError(MissionExecutionValidationError);
-  });});
+  });
+});

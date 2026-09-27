@@ -27,10 +27,7 @@ export class InMemoryProviderAdapterRegistry implements ProviderAdapterRegistry 
 
   register(adapter: ModelProviderAdapter): void {
     if (this.adapters.has(adapter.providerId)) {
-      throw new ProviderAdapterRegistryError(
-        "PROVIDER_ADAPTER_ALREADY_EXISTS",
-        adapter.providerId,
-      );
+      throw new ProviderAdapterRegistryError("PROVIDER_ADAPTER_ALREADY_EXISTS", adapter.providerId);
     }
 
     this.adapters.set(adapter.providerId, adapter);

@@ -1,10 +1,4 @@
-import type {
-  AgentId,
-  CapabilityId,
-  Execution,
-  ModelId,
-  ProviderId,
-} from "@polyon/contracts";
+import type { AgentId, CapabilityId, Execution, ModelId, ProviderId } from "@polyon/contracts";
 
 import {
   resolveAgentModel,

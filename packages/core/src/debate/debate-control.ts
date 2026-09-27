@@ -57,9 +57,7 @@ export function startDebate(debate: Debate, startedAt: string): Debate {
 
 export function advanceDebatePhase(debate: Debate, now: string): Debate {
   if (debate.status !== "RUNNING") {
-    throw new DebateControlError(
-      `Cannot advance debate while status is ${debate.status}.`,
-    );
+    throw new DebateControlError(`Cannot advance debate while status is ${debate.status}.`);
   }
 
   if (debate.phase === "REBUTTAL") {
@@ -81,9 +79,7 @@ export function advanceDebatePhase(debate: Debate, now: string): Debate {
   }
 
   if (debate.phase === "ADJUDICATION") {
-    throw new DebateControlError(
-      "An adjudication phase cannot be advanced from RUNNING status.",
-    );
+    throw new DebateControlError("An adjudication phase cannot be advanced from RUNNING status.");
   }
 
   return {
@@ -95,17 +91,11 @@ export function advanceDebatePhase(debate: Debate, now: string): Debate {
 
 export function decideDebate(debate: Debate, decidedAt: string): Debate {
   if (!canTransitionDebate(debate.status, "DECIDED")) {
-    throw new InvalidStateTransitionError(
-      "debate",
-      debate.status,
-      "DECIDED",
-    );
+    throw new InvalidStateTransitionError("debate", debate.status, "DECIDED");
   }
 
   if (debate.phase !== "ADJUDICATION") {
-    throw new DebateControlError(
-      "A debate can only be decided during adjudication.",
-    );
+    throw new DebateControlError("A debate can only be decided during adjudication.");
   }
 
   return {
@@ -118,11 +108,7 @@ export function decideDebate(debate: Debate, decidedAt: string): Debate {
 
 export function cancelDebate(debate: Debate, cancelledAt: string): Debate {
   if (!canTransitionDebate(debate.status, "CANCELLED")) {
-    throw new InvalidStateTransitionError(
-      "debate",
-      debate.status,
-      "CANCELLED",
-    );
+    throw new InvalidStateTransitionError("debate", debate.status, "CANCELLED");
   }
 
   return {

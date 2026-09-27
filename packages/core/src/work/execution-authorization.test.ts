@@ -1,10 +1,7 @@
 import type { Execution } from "@polyon/contracts";
 import { describe, expect, it } from "vitest";
 
-import {
-  authorizeExecutionRun,
-  ExecutionRunAuthorizationError,
-} from "./execution-authorization";
+import { authorizeExecutionRun, ExecutionRunAuthorizationError } from "./execution-authorization";
 
 const execution: Execution = {
   id: "execution-1",

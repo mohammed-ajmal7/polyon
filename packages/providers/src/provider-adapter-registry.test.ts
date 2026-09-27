@@ -33,10 +33,7 @@ describe("InMemoryProviderAdapterRegistry", () => {
     registry.register(adapter);
 
     expect(() => registry.register(adapter)).toThrowError(
-      new ProviderAdapterRegistryError(
-        "PROVIDER_ADAPTER_ALREADY_EXISTS",
-        "provider-1",
-      ),
+      new ProviderAdapterRegistryError("PROVIDER_ADAPTER_ALREADY_EXISTS", "provider-1"),
     );
   });
 
@@ -50,9 +47,6 @@ describe("InMemoryProviderAdapterRegistry", () => {
     registry.register(adapter);
     registry.register(second);
 
-    expect(registry.list().map((entry) => entry.providerId)).toEqual([
-      "provider-1",
-      "provider-2",
-    ]);
+    expect(registry.list().map((entry) => entry.providerId)).toEqual(["provider-1", "provider-2"]);
   });
 });

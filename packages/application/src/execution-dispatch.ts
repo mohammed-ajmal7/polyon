@@ -81,8 +81,7 @@ export function prepareExecutionDispatch(
       execution: updatedExecution,
       policyDecision: authorization.policyDecision,
       approvalRequest: authorization.approvalRequest,
-      nextStep:
-        authorization.status === "AUTHORIZED" ? "ENQUEUE" : "AWAIT_APPROVAL",
+      nextStep: authorization.status === "AUTHORIZED" ? "ENQUEUE" : "AWAIT_APPROVAL",
     };
   } catch (error) {
     if (

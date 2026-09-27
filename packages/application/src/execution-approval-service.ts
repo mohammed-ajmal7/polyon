@@ -1,9 +1,4 @@
-import type {
-  ActorId,
-  ApprovalRequest,
-  Execution,
-  Task,
-} from "@polyon/contracts";
+import type { ActorId, ApprovalRequest, Execution, Task } from "@polyon/contracts";
 
 import {
   applyApprovedExecutionRun,
@@ -53,10 +48,7 @@ export interface ExecutionApprovalServiceDependencies {
   readonly queue: ExecutionQueue;
 }
 
-function validateExecutionApprovalBinding(
-  approval: ApprovalRequest,
-  execution: Execution,
-): void {
+function validateExecutionApprovalBinding(approval: ApprovalRequest, execution: Execution): void {
   if (approval.action !== "EXECUTION_RUN") {
     throw new Error("Approval does not authorize an execution run.");
   }
@@ -75,9 +67,7 @@ function validateExecutionApprovalBinding(
 }
 
 export class ExecutionApprovalService {
-  constructor(
-    private readonly dependencies: ExecutionApprovalServiceDependencies,
-  ) {}
+  constructor(private readonly dependencies: ExecutionApprovalServiceDependencies) {}
 
   resolve(
     approval: ApprovalRequest,
@@ -134,11 +124,7 @@ export class ExecutionApprovalService {
         "QUEUED",
         input.resolvedAt,
       );
-      const approvedTask = transitionTaskStatus(
-        task,
-        "APPROVED",
-        input.resolvedAt,
-      );
+      const approvedTask = transitionTaskStatus(task, "APPROVED", input.resolvedAt);
 
       this.dependencies.approvals.save(resolvedApproval);
       this.dependencies.executions.save(queuedExecution);
@@ -153,19 +139,14 @@ export class ExecutionApprovalService {
     }
 
     const reason =
-      input.rejectionReason ??
-      "Execution approval was " + input.status.toLowerCase() + ".";
+      input.rejectionReason ?? "Execution approval was " + input.status.toLowerCase() + ".";
 
     const targetTaskStatus = input.status === "CANCELLED" ? "CANCELLED" : "REJECTED";
     const updatedExecution =
       input.status === "CANCELLED"
         ? cancelExecution(execution, input.resolvedAt)
         : rejectExecution(execution, input.resolvedAt, reason);
-    const updatedTask = transitionTaskStatus(
-      task,
-      targetTaskStatus,
-      input.resolvedAt,
-    );
+    const updatedTask = transitionTaskStatus(task, targetTaskStatus, input.resolvedAt);
 
     this.dependencies.approvals.save(resolvedApproval);
     this.dependencies.executions.save(updatedExecution);

@@ -8,9 +8,6 @@ const transitions: Readonly<Record<DebateStatus, readonly DebateStatus[]>> = {
   CANCELLED: [],
 };
 
-export function canTransitionDebate(
-  from: DebateStatus,
-  to: DebateStatus,
-): boolean {
+export function canTransitionDebate(from: DebateStatus, to: DebateStatus): boolean {
   return transitions[from].includes(to);
 }

@@ -1,16 +1,8 @@
-import type {
-  AgentId,
-  CapabilityId,
-  ModelId,
-  ProviderId,
-} from "@polyon/contracts";
+import type { AgentId, CapabilityId, ModelId, ProviderId } from "@polyon/contracts";
 
 import { ModelGateway } from "@polyon/providers";
 
-import {
-  resolveAgentModel,
-  type AgentModelResolution,
-} from "./agent-model-routing";
+import { resolveAgentModel, type AgentModelResolution } from "./agent-model-routing";
 import type { AgentRegistry } from "./agent-registry";
 import type { ModelRegistry } from "./model-registry";
 import type { ProviderRegistry } from "./provider-registry";

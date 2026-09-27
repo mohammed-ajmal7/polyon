@@ -1,10 +1,7 @@
 import type { Provider } from "@polyon/contracts";
 import { describe, expect, it } from "vitest";
 
-import {
-  InMemoryProviderRegistry,
-  ProviderRegistryError,
-} from "./provider-registry";
+import { InMemoryProviderRegistry, ProviderRegistryError } from "./provider-registry";
 
 const provider: Provider = {
   id: "provider-1",
@@ -47,9 +44,6 @@ describe("InMemoryProviderRegistry", () => {
       kind: "HOSTED_MODEL",
     });
 
-    expect(registry.list().map((entry) => entry.id)).toEqual([
-      "provider-1",
-      "provider-2",
-    ]);
+    expect(registry.list().map((entry) => entry.id)).toEqual(["provider-1", "provider-2"]);
   });
 });

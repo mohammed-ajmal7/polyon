@@ -20,10 +20,7 @@ export interface PolicyEvaluationInput {
   readonly evaluatedAt: string;
 }
 
-function matchesRule(
-  rule: PolicyRule,
-  input: PolicyEvaluationInput,
-): boolean {
+function matchesRule(rule: PolicyRule, input: PolicyEvaluationInput): boolean {
   if (rule.actorId !== undefined && rule.actorId !== input.actorId) {
     return false;
   }

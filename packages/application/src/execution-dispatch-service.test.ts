@@ -1,9 +1,7 @@
 import type { ApprovalRequest, Execution } from "@polyon/contracts";
 import { describe, expect, it } from "vitest";
 
-import {
-  ExecutionDispatchService,
-} from "./execution-dispatch-service";
+import { ExecutionDispatchService } from "./execution-dispatch-service";
 import { InMemoryExecutionQueue } from "@polyon/runtime";
 import { InMemoryDomainStores } from "@polyon/storage";
 

@@ -25,10 +25,7 @@ export function validateDebateDefinition(input: {
   readonly maxRounds: number;
 }): void {
   if (input.objective.trim() === "") {
-    throw new DebateValidationError(
-      "OBJECTIVE_REQUIRED",
-      "A debate objective is required.",
-    );
+    throw new DebateValidationError("OBJECTIVE_REQUIRED", "A debate objective is required.");
   }
 
   if (!Number.isInteger(input.maxParticipants) || input.maxParticipants < 2) {
@@ -39,10 +36,7 @@ export function validateDebateDefinition(input: {
   }
 
   if (!Number.isInteger(input.maxRounds) || input.maxRounds < 1) {
-    throw new DebateValidationError(
-      "MAX_ROUNDS_INVALID",
-      "maxRounds must be a positive integer.",
-    );
+    throw new DebateValidationError("MAX_ROUNDS_INVALID", "maxRounds must be a positive integer.");
   }
 
   if (input.participantAgentIds.length < 2) {
@@ -62,9 +56,6 @@ export function validateDebateDefinition(input: {
   const uniqueParticipantIds = new Set(input.participantAgentIds);
 
   if (uniqueParticipantIds.size !== input.participantAgentIds.length) {
-    throw new DebateValidationError(
-      "DUPLICATE_PARTICIPANT",
-      "Debate participants must be unique.",
-    );
+    throw new DebateValidationError("DUPLICATE_PARTICIPANT", "Debate participants must be unique.");
   }
 }

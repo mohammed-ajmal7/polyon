@@ -27,9 +27,7 @@ describe("recoverQueuedExecutions", () => {
       status: "RUNNING",
     });
 
-    expect(recoverQueuedExecutions(stores.executions, queue)).toEqual([
-      "execution-1",
-    ]);
+    expect(recoverQueuedExecutions(stores.executions, queue)).toEqual(["execution-1"]);
     expect(queue.peek()?.id).toBe("execution-1");
   });
 

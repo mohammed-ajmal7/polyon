@@ -17,9 +17,7 @@ const failedTask: Task = {
 
 describe("retryTask", () => {
   it("moves a failed task back to READY", () => {
-    expect(
-      retryTask(failedTask, [], "2026-09-27T01:10:00.000Z"),
-    ).toEqual({
+    expect(retryTask(failedTask, [], "2026-09-27T01:10:00.000Z")).toEqual({
       ...failedTask,
       status: "READY",
       updatedAt: "2026-09-27T01:10:00.000Z",
@@ -33,11 +31,7 @@ describe("retryTask", () => {
     };
 
     expect(() =>
-      retryTask(
-        task,
-        [{ id: "dependency-1", status: "FAILED" }],
-        "2026-09-27T01:10:00.000Z",
-      ),
+      retryTask(task, [{ id: "dependency-1", status: "FAILED" }], "2026-09-27T01:10:00.000Z"),
     ).toThrowError(
       new TaskRetryError(
         "TASK_DEPENDENCIES_NOT_SATISFIED",
@@ -57,10 +51,7 @@ describe("retryTask", () => {
         "2026-09-27T01:10:00.000Z",
       ),
     ).toThrowError(
-      new TaskRetryError(
-        "TASK_NOT_FAILED",
-        "Cannot retry task with status: SUCCEEDED.",
-      ),
+      new TaskRetryError("TASK_NOT_FAILED", "Cannot retry task with status: SUCCEEDED."),
     );
   });
 
@@ -79,11 +70,8 @@ describe("retryTask", () => {
     };
 
     expect(
-      retryTask(
-        task,
-        [{ id: "dependency-1", status: "SUCCEEDED" }],
-        "2026-09-27T01:10:00.000Z",
-      ).status,
+      retryTask(task, [{ id: "dependency-1", status: "SUCCEEDED" }], "2026-09-27T01:10:00.000Z")
+        .status,
     ).toBe("READY");
   });
 });

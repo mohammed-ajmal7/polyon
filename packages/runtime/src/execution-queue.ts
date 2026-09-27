@@ -1,19 +1,13 @@
 import type { Execution, ExecutionId, ExecutionStatus } from "@polyon/contracts";
 
-export type ExecutionQueueErrorKind =
-  | "EXECUTION_NOT_QUEUED"
-  | "EXECUTION_ALREADY_QUEUED";
+export type ExecutionQueueErrorKind = "EXECUTION_NOT_QUEUED" | "EXECUTION_ALREADY_QUEUED";
 
 export class ExecutionQueueError extends Error {
   readonly kind: ExecutionQueueErrorKind;
   readonly executionId: ExecutionId;
   readonly status: ExecutionStatus;
 
-  constructor(
-    kind: ExecutionQueueErrorKind,
-    executionId: ExecutionId,
-    status: ExecutionStatus,
-  ) {
+  constructor(kind: ExecutionQueueErrorKind, executionId: ExecutionId, status: ExecutionStatus) {
     super(`Cannot enqueue execution ${executionId} with status: ${status}.`);
     this.name = "ExecutionQueueError";
     this.kind = kind;
@@ -39,19 +33,11 @@ export class InMemoryExecutionQueue implements ExecutionQueue {
 
   enqueue(execution: Execution): void {
     if (execution.status !== "QUEUED") {
-      throw new ExecutionQueueError(
-        "EXECUTION_NOT_QUEUED",
-        execution.id,
-        execution.status,
-      );
+      throw new ExecutionQueueError("EXECUTION_NOT_QUEUED", execution.id, execution.status);
     }
 
     if (this.has(execution.id)) {
-      throw new ExecutionQueueError(
-        "EXECUTION_ALREADY_QUEUED",
-        execution.id,
-        execution.status,
-      );
+      throw new ExecutionQueueError("EXECUTION_ALREADY_QUEUED", execution.id, execution.status);
     }
 
     this.queue.push(cloneExecution(execution));

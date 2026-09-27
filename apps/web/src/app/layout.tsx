@@ -15,7 +15,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "POLYON — Personal AI Operations Network",
-  description: "A governed personal AI workspace for coordinating models, agents, tools and execution.",
+  description:
+    "A governed personal AI workspace for coordinating models, agents, tools and execution.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

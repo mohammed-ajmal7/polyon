@@ -42,18 +42,13 @@ export interface IntegrationInvocationAuthorization {
 }
 
 export type IntegrationAuthorizationErrorKind =
-  | "INTEGRATION_ACTION_NOT_SUPPORTED"
-  | "INTEGRATION_INVOCATION_DENIED";
+  "INTEGRATION_ACTION_NOT_SUPPORTED" | "INTEGRATION_INVOCATION_DENIED";
 
 export class IntegrationAuthorizationError extends Error {
   readonly kind: IntegrationAuthorizationErrorKind;
   readonly decision?: PolicyDecision;
 
-  constructor(
-    kind: IntegrationAuthorizationErrorKind,
-    message: string,
-    decision?: PolicyDecision,
-  ) {
+  constructor(kind: IntegrationAuthorizationErrorKind, message: string, decision?: PolicyDecision) {
     super(message);
     this.name = "IntegrationAuthorizationError";
     this.kind = kind;

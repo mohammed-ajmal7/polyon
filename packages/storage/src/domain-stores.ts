@@ -7,10 +7,7 @@ import type {
   Task,
 } from "@polyon/contracts";
 
-import {
-  InMemoryEntityStore,
-  type EntityStore,
-} from "./entity-store";
+import { InMemoryEntityStore, type EntityStore } from "./entity-store";
 
 export type ApprovalRequestStore = EntityStore<ApprovalRequest>;
 export type ArtifactStore = EntityStore<Artifact>;

@@ -1,10 +1,7 @@
 import type { ToolAdapter } from "./tool-adapter";
 import { describe, expect, it } from "vitest";
 
-import {
-  InMemoryToolAdapterRegistry,
-  ToolAdapterRegistryError,
-} from "./tool-adapter-registry";
+import { InMemoryToolAdapterRegistry, ToolAdapterRegistryError } from "./tool-adapter-registry";
 
 const adapter: ToolAdapter = {
   toolId: "tool-1",
@@ -47,9 +44,6 @@ describe("InMemoryToolAdapterRegistry", () => {
     registry.register(adapter);
     registry.register(second);
 
-    expect(registry.list().map((entry) => entry.toolId)).toEqual([
-      "tool-1",
-      "tool-2",
-    ]);
+    expect(registry.list().map((entry) => entry.toolId)).toEqual(["tool-1", "tool-2"]);
   });
 });

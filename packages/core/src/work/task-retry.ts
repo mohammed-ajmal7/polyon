@@ -3,9 +3,7 @@ import type { Task } from "@polyon/contracts";
 import { areTaskDependenciesSatisfied, type TaskDependency } from "./task-readiness";
 import { transitionTaskStatus } from "./task-transition";
 
-export type TaskRetryErrorKind =
-  | "TASK_NOT_FAILED"
-  | "TASK_DEPENDENCIES_NOT_SATISFIED";
+export type TaskRetryErrorKind = "TASK_NOT_FAILED" | "TASK_DEPENDENCIES_NOT_SATISFIED";
 
 export class TaskRetryError extends Error {
   readonly kind: TaskRetryErrorKind;
@@ -17,16 +15,9 @@ export class TaskRetryError extends Error {
   }
 }
 
-export function retryTask(
-  task: Task,
-  dependencies: readonly TaskDependency[],
-  now: string,
-): Task {
+export function retryTask(task: Task, dependencies: readonly TaskDependency[], now: string): Task {
   if (task.status !== "FAILED") {
-    throw new TaskRetryError(
-      "TASK_NOT_FAILED",
-      `Cannot retry task with status: ${task.status}.`,
-    );
+    throw new TaskRetryError("TASK_NOT_FAILED", `Cannot retry task with status: ${task.status}.`);
   }
 
   if (!areTaskDependenciesSatisfied(task, dependencies)) {

@@ -14,14 +14,9 @@ export class ExecutionRetryError extends Error {
   }
 }
 
-export function createRetryExecution(
-  execution: Execution,
-  input: RetryExecutionInput,
-): Execution {
+export function createRetryExecution(execution: Execution, input: RetryExecutionInput): Execution {
   if (execution.status !== "FAILED") {
-    throw new ExecutionRetryError(
-      `Cannot retry execution with status: ${execution.status}.`,
-    );
+    throw new ExecutionRetryError(`Cannot retry execution with status: ${execution.status}.`);
   }
 
   return {

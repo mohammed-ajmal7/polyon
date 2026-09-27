@@ -13,9 +13,7 @@ function cloneEntity<TEntity extends EntityWithId>(entity: TEntity): TEntity {
   return structuredClone(entity);
 }
 
-export class InMemoryEntityStore<TEntity extends EntityWithId>
-  implements EntityStore<TEntity>
-{
+export class InMemoryEntityStore<TEntity extends EntityWithId> implements EntityStore<TEntity> {
   private readonly entities = new Map<TEntity["id"], TEntity>();
 
   get(id: TEntity["id"]): TEntity | undefined {

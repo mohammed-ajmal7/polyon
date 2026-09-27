@@ -1,10 +1,7 @@
 import type { Policy, Tool } from "@polyon/contracts";
 import { describe, expect, it } from "vitest";
 
-import {
-  authorizeToolInvocation,
-  ToolAuthorizationError,
-} from "./tool-authorization";
+import { authorizeToolInvocation, ToolAuthorizationError } from "./tool-authorization";
 
 const tool: Tool = {
   id: "tool-1",

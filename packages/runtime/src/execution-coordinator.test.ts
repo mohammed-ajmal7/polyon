@@ -70,19 +70,22 @@ function createCoordinator(
 
 describe("InMemoryExecutionCoordinator", () => {
   it("persists RUNNING before invoking the runner and persists success", async () => {
-    const { stores, queue, coordinator } = createCoordinator({
-      ...runningTask,
-      status: "RUNNING",
-    }, {
-      async run(current) {
-        expect(stores.executions.get("execution-1")?.status).toBe("RUNNING");
-        expect(stores.tasks.get("task-1")?.status).toBe("RUNNING");
-        expect(current.status).toBe("RUNNING");
-        expect(current.startedAt).toBe("2026-09-27T01:02:00.000Z");
-
-        return { status: "SUCCEEDED" };
+    const { stores, queue, coordinator } = createCoordinator(
+      {
+        ...runningTask,
+        status: "RUNNING",
       },
-    });
+      {
+        async run(current) {
+          expect(stores.executions.get("execution-1")?.status).toBe("RUNNING");
+          expect(stores.tasks.get("task-1")?.status).toBe("RUNNING");
+          expect(current.status).toBe("RUNNING");
+          expect(current.startedAt).toBe("2026-09-27T01:02:00.000Z");
+
+          return { status: "SUCCEEDED" };
+        },
+      },
+    );
 
     await expect(
       coordinator.runNext("2026-09-27T01:02:00.000Z", "2026-09-27T01:05:00.000Z"),
@@ -106,10 +109,7 @@ describe("InMemoryExecutionCoordinator", () => {
       },
     });
 
-    await coordinator.runNext(
-      "2026-09-27T01:02:00.000Z",
-      "2026-09-27T01:05:00.000Z",
-    );
+    await coordinator.runNext("2026-09-27T01:02:00.000Z", "2026-09-27T01:05:00.000Z");
 
     expect(stores.tasks.get("task-1")?.status).toBe("SUCCEEDED");
   });

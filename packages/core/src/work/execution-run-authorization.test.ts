@@ -45,7 +45,9 @@ describe("applyExecutionRunAuthorization", () => {
   it("queues an execution when authorization is granted", () => {
     const authorization = authorizeExecutionRun(baseInput);
 
-    expect(applyExecutionRunAuthorization(authorization, pendingExecution, "2026-09-27T01:02:00.000Z")).toEqual({
+    expect(
+      applyExecutionRunAuthorization(authorization, pendingExecution, "2026-09-27T01:02:00.000Z"),
+    ).toEqual({
       ...pendingExecution,
       status: "QUEUED",
       updatedAt: "2026-09-27T01:02:00.000Z",
@@ -136,7 +138,11 @@ describe("applyExecutionRunAuthorization", () => {
     };
 
     expect(() =>
-      applyExecutionRunAuthorization(withoutApprovalRequest, pendingExecution, "2026-09-27T01:02:00.000Z"),
+      applyExecutionRunAuthorization(
+        withoutApprovalRequest,
+        pendingExecution,
+        "2026-09-27T01:02:00.000Z",
+      ),
     ).toThrowError(
       expect.objectContaining({
         kind: "MISSING_APPROVAL_REQUEST",

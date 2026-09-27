@@ -54,10 +54,7 @@ export function resumeExecution(execution: Execution, resumedAt: string): Execut
   return transitionExecutionStatus(execution, "QUEUED", resumedAt);
 }
 
-export function completeExecution(
-  execution: Execution,
-  input: CompleteExecutionInput,
-): Execution {
+export function completeExecution(execution: Execution, input: CompleteExecutionInput): Execution {
   if (input.status === "FAILED" && (input.error === undefined || input.error.trim() === "")) {
     throw new ExecutionControlError(
       "FAILED_EXECUTION_REQUIRES_ERROR",
@@ -70,8 +67,6 @@ export function completeExecution(
   return {
     ...updated,
     completedAt: input.completedAt,
-    ...(input.status === "FAILED" && input.error !== undefined
-      ? { error: input.error }
-      : {}),
+    ...(input.status === "FAILED" && input.error !== undefined ? { error: input.error } : {}),
   };
 }

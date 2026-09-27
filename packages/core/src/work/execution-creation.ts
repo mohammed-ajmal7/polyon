@@ -11,9 +11,7 @@ export interface CreateExecutionForTaskInput {
 }
 
 export type ExecutionCreationErrorKind =
-  | "TASK_NOT_READY"
-  | "TASK_DEPENDENCIES_NOT_SATISFIED"
-  | "INVALID_ATTEMPT";
+  "TASK_NOT_READY" | "TASK_DEPENDENCIES_NOT_SATISFIED" | "INVALID_ATTEMPT";
 
 export class ExecutionCreationError extends Error {
   readonly kind: ExecutionCreationErrorKind;
