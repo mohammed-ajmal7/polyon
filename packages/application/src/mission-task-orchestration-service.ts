@@ -15,10 +15,16 @@ export interface AdvanceMissionTasksResult {
   readonly blocked: readonly Task[];
 }
 
+export type ReadyTaskHandler = (
+  result: AdvanceMissionTasksResult,
+  input: AdvanceMissionTasksInput,
+) => void;
+
 export interface MissionTaskOrchestrationServiceDependencies {
   readonly tasks: TaskStore;
   readonly events: EventStore;
   readonly unitOfWork?: DomainUnitOfWork;
+  readonly onReadyTasks?: ReadyTaskHandler;
 }
 
 type MissionTaskStores = Pick<DomainStoreTransactionContext, "tasks" | "events">;
@@ -83,8 +89,15 @@ export class MissionTaskOrchestrationService {
       };
     };
 
-    return this.dependencies.unitOfWork === undefined
-      ? operation(this.dependencies)
-      : this.dependencies.unitOfWork.transaction(operation);
+    const result =
+      this.dependencies.unitOfWork === undefined
+        ? operation(this.dependencies)
+        : this.dependencies.unitOfWork.transaction(operation);
+
+    if (result.changed.length > 0) {
+      this.dependencies.onReadyTasks?.(result, input);
+    }
+
+    return result;
   }
 }
