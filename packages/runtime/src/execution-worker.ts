@@ -4,6 +4,7 @@ import type {
   ApprovalRequestStore,
   EventStore,
   ExecutionStore,
+  TaskStore,
 } from "@polyon/storage";
 
 import type {
@@ -26,6 +27,7 @@ export interface ExecutionWorkerDependencies {
   readonly coordinator: ExecutionCoordinator;
   readonly executions: ExecutionStore;
   readonly approvals?: ApprovalRequestStore;
+  readonly tasks?: TaskStore;
   readonly events: EventStore;
   readonly clock: ExecutionWorkerClock;
 }
@@ -113,7 +115,7 @@ export class InMemoryExecutionWorker implements ExecutionWorker {
       this.dependencies.executions,
       this.dependencies.queue,
       this.dependencies.approvals,
-      undefined,
+      this.dependencies.tasks,
       this.dependencies.clock.now(),
     );
     const recoveredExecutionIds = recoveries.map(
