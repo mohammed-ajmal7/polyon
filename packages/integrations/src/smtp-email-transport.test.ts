@@ -279,7 +279,7 @@ describe("SmtpTransport", () => {
       {
         to: ["user@example.com"],
         subject: "Café — Привет",
-        text: "Hello\\n.Second line",
+        text: "Hello\n.Second line",
       },
       { username: "mailer@example.com", password: "secret" },
     );
@@ -289,12 +289,12 @@ describe("SmtpTransport", () => {
       .filter((value): value is string => value.startsWith("Message-ID:"))
       .join("");
 
-    expect(message).toContain("From: mailer@example.com\\r\\n");
-    expect(message).toContain("Content-Transfer-Encoding: base64\\r\\n");
+    expect(message).toContain("From: mailer@example.com\r\n");
+    expect(message).toContain("Content-Transfer-Encoding: base64\r\n");
     expect(message).toContain("Subject: =?UTF-8?B?");
-    expect(message).toContain("\\r\\n\\r\\nSGVsbG8KLlNlY29uZCBsaW5l\\r\\n");
-    expect(message?.endsWith("\\r\\n")).toBe(true);
-    expect(connection.write).toHaveBeenLastCalledWith(".\\r\\n");
+    expect(message).toContain("\r\n\r\nSGVsbG8KLlNlY29uZCBsaW5l\r\n");
+    expect(message?.endsWith("\r\n")).toBe(true);
+    expect(connection.write).toHaveBeenLastCalledWith(".\r\n");
   });
 
   it("chunks large SMTP DATA payloads within the connection write bound", async () => {
