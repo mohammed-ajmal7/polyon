@@ -91,3 +91,5 @@ export type { MemoryEntry, MemoryId, MemoryKind, MemoryScope } from "./memory/in
 
 export type { InteroperabilityAdapter, InteroperabilityEnvelope, InteroperabilityProtocol } from "./interoperability/index";
 export { validateInteroperabilityEnvelope } from "./interoperability/index";
+
+export { JsonInteroperabilityAdapter } from "./interoperability/index";
