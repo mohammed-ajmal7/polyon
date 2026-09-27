@@ -18,6 +18,7 @@ export interface IntegrationAdapter<TInput = unknown, TOutput = unknown> {
   readonly integrationId: IntegrationId;
   readonly kind: IntegrationKind;
   readonly actionKinds: readonly ActionKind[];
+  readonly supportedOperations: readonly string[];
   invoke(
     request: IntegrationInvocationRequest<TInput>,
   ): Promise<IntegrationInvocationResult<TOutput>>;
