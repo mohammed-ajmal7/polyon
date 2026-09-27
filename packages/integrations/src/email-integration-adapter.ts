@@ -166,10 +166,9 @@ function parseSendEmailInput(input: unknown): EmailSendInput {
     }
   }
 
-  const replyTo =
-    value.replyTo === undefined
-      ? undefined
-      : parseAddress(value.replyTo, "replyTo");
+  const replyTo = value.replyTo === undefined
+    ? undefined
+    : parseAddress(value.replyTo, "replyTo");
 
   return {
     to: to as readonly string[],
@@ -202,9 +201,7 @@ function parseRecipients(
     );
   }
 
-  return value.map((candidate, index) =>
-    parseAddress(candidate, `${field}[${index}]`),
-  );
+  return value.map((candidate, index) => parseAddress(candidate, `${field}[${index}]`));
 }
 
 function parseAddress(value: unknown, field: string): string {
