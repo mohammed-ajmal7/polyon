@@ -14,4 +14,4 @@ export type {
   TextModelUsage,
 } from "./model-invocation";
 
-export type { EmbeddingModelProviderAdapter, EmbeddingRequest, EmbeddingResponse } from "./embedding";
+export type { EmbeddingRequest, EmbeddingResponse } from "./embedding";
