@@ -169,6 +169,9 @@ export class BoundedProcessAgentAdapter {
     const stderrChunks: Uint8Array[] = [];
 
     const result = await new Promise<BoundedProcessAgentResponse>((resolveResult, rejectResult) => {
+      let childExitCode: number | null = null;
+      let childSignal: string | null = null;
+
       const finishError = (error: BoundedProcessAgentError): void => {
         if (settled) return;
         settled = true;
@@ -201,7 +204,7 @@ export class BoundedProcessAgentAdapter {
 
         const stdout = decode(stdoutChunks);
         const stderr = decode(stderrChunks);
-        const exitCode = child.exitCode;
+        const exitCode = childExitCode;
 
         if (timedOut) return;
         if (exitCode !== 0) {
@@ -217,13 +220,17 @@ export class BoundedProcessAgentAdapter {
           stdout,
           stderr,
           exitCode,
-          ...(child.signalCode === null ? {} : { signal: child.signalCode }),
+          ...(childSignal === null ? {} : { signal: childSignal }),
           durationMs: Date.now() - startedAt,
         });
       };
 
       child.once("error", (error) => finish(error));
-      child.once("close", () => finish());
+      child.once("close", (exitCode, signal) => {
+        childExitCode = exitCode;
+        childSignal = signal;
+        finish();
+      });
       child.stdout.on("data", (chunk: Uint8Array) => {
         stdoutBytes += chunk.byteLength;
         if (stdoutBytes > maxOutputBytes) {
