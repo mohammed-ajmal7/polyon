@@ -12,7 +12,10 @@ declare module "node:fs" {
   export function openSync(path: string, flags: string): number;
   export function readFileSync(path: string, encoding: "utf8"): string;
   export function statSync(path: string): {
+    readonly size: number;
     readonly mtimeMs: number;
+    isDirectory(): boolean;
+    isFile(): boolean;
   };
   export function renameSync(oldPath: string, newPath: string): void;
   export function rmSync(
@@ -27,7 +30,7 @@ declare module "node:fs" {
   export function writeFileSync(
     path: string,
     data: string,
-    encoding: "utf8",
+    encoding?: "utf8",
   ): void;
 }
 
