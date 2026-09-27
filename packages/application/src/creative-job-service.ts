@@ -1,39 +1,88 @@
-import { describe, expect, it, vi } from "vitest";
+import type { Artifact, ArtifactKind, DomainEvent } from "@polyon/contracts";
+import type { ArtifactStore, DomainUnitOfWork, EventStore } from "@polyon/storage";
 
-import { InMemoryDomainStores } from "@polyon/storage";
+export type CreativeOperation = "IMAGE" | "VIDEO" | "AUDIO" | "VOICE" | "EDIT";
 
-import { CreativeJobService } from "./creative-job-service";
+export interface CreativeJobRequest {
+  readonly id: string;
+  readonly operation: CreativeOperation;
+  readonly prompt: string;
+  readonly outputKind: Extract<ArtifactKind, "IMAGE" | "VIDEO" | "AUDIO" | "CODE" | "DOCUMENT">;
+  readonly artifactId: string;
+  readonly artifactName: string;
+  readonly location: string;
+  readonly mimeType?: string;
+  readonly missionId?: string;
+  readonly taskId?: string;
+  readonly createdAt: string;
+}
 
-describe("CreativeJobService", () => {
-  it("delegates to an injected creative adapter and persists the resulting artifact", async () => {
-    const stores = new InMemoryDomainStores();
-    const adapter = {
-      generate: vi.fn(async () => ({
-        artifact: {
-          kind: "IMAGE" as const,
-          name: "image.png",
-          status: "AVAILABLE" as const,
-          location: "local://image.png",
-          mimeType: "image/png",
-        },
-      })),
+export interface CreativeAdapter {
+  generate(request: CreativeJobRequest, signal?: AbortSignal): Promise<{
+    readonly artifact: Omit<Artifact, "id" | "createdAt" | "updatedAt">;
+  }>;
+}
+
+export class CreativeJobService {
+  constructor(
+    private readonly adapter: CreativeAdapter,
+    private readonly artifacts: ArtifactStore,
+    private readonly events: EventStore,
+    private readonly unitOfWork?: DomainUnitOfWork,
+  ) {}
+
+  async run(request: CreativeJobRequest, signal?: AbortSignal): Promise<Artifact> {
+    validateCreativeRequest(request);
+
+    const output = await this.adapter.generate(request, signal);
+    if (output.artifact.kind !== request.outputKind) {
+      throw new Error("Creative adapter returned an artifact kind that does not match the requested output.");
+    }
+    if (output.artifact.status !== "AVAILABLE" && output.artifact.status !== "CREATING") {
+      throw new Error("Creative adapter returned an invalid artifact status.");
+    }
+    const artifact: Artifact = {
+      ...output.artifact,
+      id: request.artifactId,
+      createdAt: request.createdAt,
+      updatedAt: request.createdAt,
     };
 
-    const service = new CreativeJobService(adapter, stores.artifacts, stores.events, stores);
-    const artifact = await service.run({
-      id: "job-1",
-      operation: "IMAGE",
-      prompt: "Generate an abstract test image.",
-      outputKind: "IMAGE",
-      artifactId: "artifact-creative-1",
-      artifactName: "image.png",
-      location: "local://image.png",
-      mimeType: "image/png",
-      createdAt: "2026-09-28T00:00:00.000Z",
-    });
+    const operation = () => {
+      if (this.artifacts.get(artifact.id) !== undefined) {
+        throw new Error(`Creative artifact already exists: ${artifact.id}.`);
+      }
+      this.artifacts.save(artifact);
+      const event: DomainEvent = {
+        id: `CREATIVE_ARTIFACT_CREATED:${artifact.id}`,
+        kind: "ARTIFACT_CREATED",
+        missionId: artifact.missionId,
+        taskId: artifact.taskId,
+        occurredAt: artifact.createdAt,
+        data: {
+          artifactId: artifact.id,
+          creativeOperation: request.operation,
+          location: artifact.location,
+          mimeType: artifact.mimeType,
+        },
+      };
+      this.events.append(event);
+    };
 
-    expect(adapter.generate).toHaveBeenCalledTimes(1);
-    expect(artifact.kind).toBe("IMAGE");
-    expect(stores.artifacts.get("artifact-creative-1")).toEqual(artifact);
-  });
-});
+    if (this.unitOfWork === undefined) operation();
+    else this.unitOfWork.transaction(operation);
+
+    return artifact;
+  }
+}
+
+function validateCreativeRequest(request: CreativeJobRequest): void {
+  if (request.id.trim() === "" || request.artifactId.trim() === "") {
+    throw new RangeError("Creative request IDs must not be empty.");
+  }
+  if (request.prompt.trim() === "") throw new RangeError("Creative prompt must not be empty.");
+  if (request.prompt.length > 50_000) throw new RangeError("Creative prompt exceeds the 50000-character limit.");
+  if (request.artifactName.trim() === "") throw new RangeError("Creative artifactName must not be empty.");
+  if (request.location.trim() === "") throw new RangeError("Creative artifact location must not be empty.");
+  if (!Number.isFinite(Date.parse(request.createdAt))) throw new RangeError("Creative createdAt must be a valid timestamp.");
+}
