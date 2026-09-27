@@ -65,6 +65,39 @@ function createService() {
 }
 
 describe("ExecutionDispatchService", () => {
+  it("runs execution state persistence through the supplied unit of work", () => {
+    const stores = new InMemoryDomainStores();
+    const queue = new InMemoryExecutionQueue();
+
+    let transactionCalls = 0;
+    const unitOfWork = {
+      transaction<T>(
+        work: Parameters<InMemoryDomainStores["transaction"]>[0],
+      ): T {
+        transactionCalls += 1;
+        return stores.transaction(work) as T;
+      },
+    };
+
+    const service = new ExecutionDispatchService({
+      queue,
+      executions: stores.executions,
+      approvals: stores.approvals,
+      policyDecisions: stores.policyDecisions,
+      events: stores.events,
+      unitOfWork,
+    });
+
+    const result = service.dispatch(input);
+
+    expect(transactionCalls).toBe(1);
+    expect(result.execution.status).toBe("QUEUED");
+    expect(stores.executions.get("execution-1")).toEqual(result.execution);
+    expect(stores.policyDecisions.get("decision-1")).toEqual(result.policyDecision);
+    expect(stores.events.get("EXECUTION_CREATED:execution-1")).toBeDefined();
+    expect(queue.peek()?.id).toBe("execution-1");
+  });
+
   it("persists and enqueues an allowed execution", () => {
     const { stores, queue, service } = createService();
 
