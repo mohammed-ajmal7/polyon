@@ -14,7 +14,11 @@ export interface SmtpConnection {
   read(): Promise<string>;
   write(command: string): Promise<void>;
   close(): Promise<void>;
-  startTls(serverName: string, timeoutMs: number): Promise<void>;
+  startTls(
+    serverName: string,
+    timeoutMs: number,
+    minTlsVersion: ValidatedSmtpTransportOptions["minTlsVersion"],
+  ): Promise<void>;
 }
 
 export interface SmtpConnectionFactory {
@@ -72,7 +76,11 @@ export class SmtpTransport implements EmailTransport {
           throw new Error("SMTP server does not support STARTTLS.");
         }
         await this.command(connection, "STARTTLS", 220);
-        await connection.startTls(this.options.host, this.options.connectionTimeoutMs);
+        await connection.startTls(
+          this.options.host,
+          this.options.connectionTimeoutMs,
+          this.options.minTlsVersion,
+        );
         await this.command(connection, `EHLO ${this.options.heloName}`, 250);
       }
 
