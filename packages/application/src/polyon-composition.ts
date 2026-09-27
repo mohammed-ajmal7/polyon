@@ -259,6 +259,16 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
           },
         });
 
+  registerBuiltinTools(builtinTools, {
+    artifactList: (filter) => artifactCatalog.list(filter),
+    ...(localArtifactContent === undefined
+      ? {}
+      : {
+          artifactRead: (artifactId, maxBytes) =>
+            localArtifactContent.read(artifactId, maxBytes),
+        }),
+  });
+
   const toolInvocation = new ToolInvocationService({
     tools: builtinTools.tools,
     adapters: builtinTools.adapters,
