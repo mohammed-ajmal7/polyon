@@ -88,6 +88,7 @@ export type IntegrationInvocationServiceErrorKind =
   | "INTEGRATION_APPROVAL_NOT_APPROVED"
   | "INTEGRATION_APPROVAL_INTEGRATION_MISMATCH"
   | "INTEGRATION_APPROVAL_INVOCATION_MISMATCH"
+  | "INTEGRATION_APPROVAL_PAYLOAD_MISMATCH"
   | "INTEGRATION_INVOCATION_ALREADY_RECORDED";
 
 export class IntegrationInvocationServiceError extends Error {
@@ -97,6 +98,14 @@ export class IntegrationInvocationServiceError extends Error {
     super(message);
     this.name = "IntegrationInvocationServiceError";
     this.kind = kind;
+  }
+}
+
+function areEquivalentJsonValues(left: unknown, right: unknown): boolean {
+  try {
+    return JSON.stringify(left) === JSON.stringify(right);
+  } catch {
+    return false;
   }
 }
 
@@ -131,6 +140,10 @@ export class IntegrationInvocationService {
         integration,
         integrationId: input.integrationId,
         invocationId: input.invocationId,
+        integrationInvocation: {
+          operation: input.operation,
+          input: input.input,
+        },
         action: input.action,
         policy: input.policy,
         riskLevel: input.riskLevel,
@@ -323,6 +336,17 @@ export class IntegrationInvocationService {
       throw new IntegrationInvocationServiceError(
         "INTEGRATION_APPROVAL_INVOCATION_MISMATCH",
         `Integration approval does not match invocation: ${input.invocationId}.`,
+      );
+    }
+
+    if (
+      approval.integrationInvocation === undefined ||
+      approval.integrationInvocation.operation !== input.operation ||
+      !areEquivalentJsonValues(approval.integrationInvocation.input, input.input)
+    ) {
+      throw new IntegrationInvocationServiceError(
+        "INTEGRATION_APPROVAL_PAYLOAD_MISMATCH",
+        `Integration approval does not match the approved operation or input: ${input.invocationId}.`,
       );
     }
 
