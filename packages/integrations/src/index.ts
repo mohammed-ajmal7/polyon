@@ -1,4 +1,11 @@
 export {
+  SmtpTransport,
+  type SmtpConnection,
+  type SmtpConnectionFactory,
+  type SmtpEmailTransportOptions,
+} from "./smtp-email-transport";
+
+export {
   validateSmtpTransportOptions,
   type SmtpTransportOptions,
   type ValidatedSmtpTransportOptions,
