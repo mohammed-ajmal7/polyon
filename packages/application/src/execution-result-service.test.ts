@@ -2,6 +2,8 @@ import type { Conversation, Execution } from "@polyon/contracts";
 import { InMemoryDomainStores, InMemoryEventStore } from "@polyon/storage";
 import { describe, expect, it } from "vitest";
 
+import { MissionTaskOrchestrationService } from "./mission-task-orchestration-service";
+
 import {
   ExecutionResultService,
   ExecutionResultServiceError,
@@ -111,6 +113,49 @@ describe("ExecutionResultService", () => {
       "MESSAGE_CREATED",
       "ARTIFACT_CREATED",
     ]);
+  });
+
+  it("advances dependent mission tasks after a successful result is persisted", () => {
+    const stores = new InMemoryDomainStores();
+    const orchestration = new MissionTaskOrchestrationService(stores);
+    stores.executions.save(execution);
+    stores.conversations.save(conversation);
+    stores.tasks.save({
+      id: "task-1",
+      missionId: "mission-1",
+      kind: "ANALYSIS",
+      title: "First",
+      description: "First task",
+      status: "SUCCEEDED",
+      dependsOn: [],
+      createdAt: "2026-09-27T02:00:00.000Z",
+      updatedAt: "2026-09-27T03:05:00.000Z",
+    });
+    stores.tasks.save({
+      id: "task-2",
+      missionId: "mission-1",
+      kind: "ANALYSIS",
+      title: "Second",
+      description: "Second task",
+      status: "BLOCKED",
+      dependsOn: ["task-1"],
+      createdAt: "2026-09-27T02:00:00.000Z",
+      updatedAt: "2026-09-27T02:00:00.000Z",
+    });
+
+    const service = new ExecutionResultService({
+      executions: stores.executions,
+      conversations: stores.conversations,
+      messages: stores.messages,
+      artifacts: stores.artifacts,
+      events: stores.events,
+      taskOrchestration: orchestration,
+    });
+
+    service.persist(baseInput);
+
+    expect(stores.tasks.get("task-2")?.status).toBe("READY");
+    expect(stores.events.list().map((event) => event.kind)).toContain("TASK_STATUS_CHANGED");
   });
 
   it("persists the result message, artifacts, conversation update, and trace events", () => {

@@ -61,6 +61,10 @@ export type ExecutionResultServiceErrorKind =
   | "DUPLICATE_ARTIFACT_ID";
 
 export interface ExecutionResultServiceDependencies {
+  readonly taskOrchestration?: Pick<
+    import("./mission-task-orchestration-service").MissionTaskOrchestrationService,
+    "advanceReadyTasks"
+  >;
   readonly executions: ExecutionStore;
   readonly conversations: ConversationStore;
   readonly messages: MessageStore;
@@ -269,9 +273,23 @@ export class ExecutionResultService {
     const operation = (stores: ExecutionResultStores) =>
       this.persistWithStores(stores, input);
 
-    return this.dependencies.unitOfWork === undefined
-      ? operation(this.dependencies)
-      : this.dependencies.unitOfWork.transaction(operation);
+    const result =
+      this.dependencies.unitOfWork === undefined
+        ? operation(this.dependencies)
+        : this.dependencies.unitOfWork.transaction(operation);
+
+    if (
+      result.execution.status === "SUCCEEDED" &&
+      this.dependencies.taskOrchestration !== undefined
+    ) {
+      this.dependencies.taskOrchestration.advanceReadyTasks({
+        missionId: result.execution.missionId,
+        actorId: result.execution.actorId,
+        now: result.execution.completedAt ?? input.createdAt,
+      });
+    }
+
+    return result;
   }
 
   private persistWithStores(
