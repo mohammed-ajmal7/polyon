@@ -98,3 +98,10 @@ export {
   type ToolInvocationServiceDependencies,
   type ToolInvocationServiceErrorKind,
 } from "./tool-invocation-service";
+
+export {
+  MissionTaskOrchestrationService,
+  type AdvanceMissionTasksInput,
+  type AdvanceMissionTasksResult,
+  type MissionTaskOrchestrationServiceDependencies,
+} from "./mission-task-orchestration-service";

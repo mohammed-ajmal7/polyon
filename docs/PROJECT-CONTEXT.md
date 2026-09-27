@@ -530,7 +530,7 @@ Build complete use cases around the current domain:
 - conversation updates;
 - domain event generation.
 
-The application layer should orchestrate packages rather than duplicate domain rules.
+The application layer should orchestrate packages rather than duplicate domain rules. A mission task orchestration service now re-evaluates persisted task dependencies after progress changes, marks newly eligible PENDING/BLOCKED tasks READY using the core readiness rules, and records the transition atomically. It intentionally stops at READY; execution dispatch remains a separate policy/approval-aware step.
 
 ### Phase 3 — Durable persistence
 
