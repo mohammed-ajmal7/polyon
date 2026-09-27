@@ -33,6 +33,7 @@ const basePolicy: Policy = {
 const baseInput = {
   task,
   dependencies,
+  agentId: "agent-1",
   actorId: "agent-1",
   executionId: "execution-1",
   attempt: 1,

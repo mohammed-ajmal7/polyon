@@ -45,6 +45,15 @@ describe("createExecutionForTask", () => {
     },
   );
 
+  it("preserves an optional logical agent on the execution", () => {
+    const execution = createExecutionForTask(readyTask, [succeededDependency], {
+      ...input,
+      agentId: "agent-1",
+    });
+
+    expect(execution.agentId).toBe("agent-1");
+  });
+
   it("creates a pending execution for a ready task", () => {
     const execution = createExecutionForTask(readyTask, [succeededDependency], input);
 

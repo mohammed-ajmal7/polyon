@@ -25,6 +25,7 @@ export interface DispatchReadyTasksInput {
   readonly mission: Mission;
   readonly tasks: readonly Task[];
   readonly actorId: ActorId;
+  readonly agentId?: import("@polyon/contracts").AgentId;
   readonly policy: Policy;
   readonly requestedBy: ActorId;
   readonly now: string;
@@ -94,6 +95,7 @@ export class MissionExecutionService {
           task: readyTask,
           dependencies,
           actorId: input.actorId,
+          agentId: input.agentId,
           executionId,
           attempt,
           policy: input.policy,

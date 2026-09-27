@@ -24,6 +24,7 @@ export interface PrepareExecutionDispatchInput {
   readonly task: Task;
   readonly dependencies: readonly TaskDependency[];
   readonly actorId: ActorId;
+  readonly agentId?: import("@polyon/contracts").AgentId;
   readonly executionId: string;
   readonly attempt: number;
 
@@ -51,6 +52,7 @@ export function prepareExecutionDispatch(
   const execution = createExecutionForTask(input.task, input.dependencies, {
     id: input.executionId,
     actorId: input.actorId,
+    agentId: input.agentId,
     attempt: input.attempt,
     createdAt: input.requestedAt,
   });
