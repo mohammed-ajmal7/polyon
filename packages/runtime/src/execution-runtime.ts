@@ -60,6 +60,7 @@ export interface ExecutionRuntimeDependencies {
   readonly retryBackoffMaxMs?: number;
   readonly wait?: ExecutionRuntimeWait;
   readonly onError?: (error: unknown) => void;
+  readonly unitOfWork?: DomainUnitOfWork;
 }
 
 export interface ExecutionRuntime {
@@ -295,6 +296,11 @@ export function createExecutionRuntime(
         control.controller.abort();
       }, dependencies.executionTimeoutMs);
     }
+
+    const context: ExecutionRunContext = {
+      signal: control.controller.signal,
+      getAbortReason: control.getAbortReason,
+    };
 
     void worker
       .runNext(context)

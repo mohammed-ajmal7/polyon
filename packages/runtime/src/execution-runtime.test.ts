@@ -9,6 +9,7 @@ import {
   FileDomainStores,
   InMemoryDomainStores,
   type DomainStores,
+  type EventStore,
 } from "@polyon/storage";
 import { describe, expect, it, vi } from "vitest";
 
@@ -55,8 +56,12 @@ function createWorkItem(index: number): {
   };
 }
 
+type RuntimeTestStores = DomainStores & {
+  readonly events: EventStore;
+};
+
 function createRuntime(
-  stores: DomainStores,
+  stores: RuntimeTestStores,
   overrides?: Partial<Parameters<typeof createExecutionRuntime>[0]>,
 ) {
   return createExecutionRuntime({
