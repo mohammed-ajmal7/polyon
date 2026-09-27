@@ -161,8 +161,6 @@ export {
 export { MemoryService, type RememberMemoryInput, type SearchMemoryInput } from "./memory-service";
 export { ResearchService, type ResearchRetriever, type ResearchSourceCandidate, type ConductResearchInput, type ConductResearchResult } from "./research-service";
 
-export { MemoryService, type RememberMemoryInput, type SearchMemoryInput } from "./memory-service";
-export { ResearchService, type ResearchRetriever, type ResearchSourceCandidate, type ConductResearchInput, type ConductResearchResult } from "./research-service";
 export { BoundedWebResearchRetriever, type ResearchSearchResult, type BoundedWebResearchRetrieverOptions } from "./bounded-web-research-retriever";
 export { DebateOrchestrationService, type CreateDebateInput, type RunDebateInput, type DebateRunResult } from "./debate-orchestration-service";
 

@@ -123,6 +123,6 @@ describe("MissionExecutionOrchestrationService", () => {
     expect(stores.missions.get("mission-1")?.status).toBe("RUNNING");
     expect(stores.tasks.get("mission-1-task-1")?.status).toBe("APPROVED");
     expect(stores.executions.get("execution-mission-1-task-1-1")?.status).toBe("QUEUED");
-    expect(queue.list()).toHaveLength(1);
+    expect(queue.size()).toBe(1);
   });
 });

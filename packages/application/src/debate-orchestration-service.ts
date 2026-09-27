@@ -76,8 +76,9 @@ export class DebateOrchestrationService {
   }
 
   async run(input: RunDebateInput): Promise<DebateRunResult> {
-    let debate = this.debates.get(input.debateId);
-    if (debate === undefined) throw new Error(`Debate not found: ${input.debateId}.`);
+    const loadedDebate = this.debates.get(input.debateId);
+    if (loadedDebate === undefined) throw new Error(`Debate not found: ${input.debateId}.`);
+    let debate = loadedDebate;
     if (!debate.participantAgentIds.includes(input.adjudicatorAgentId)) {
       throw new Error("Adjudicator must be one of the debate participants.");
     }
