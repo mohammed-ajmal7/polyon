@@ -149,10 +149,18 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
         ? {}
         : {
             toolOrchestrator: {
-              continueFromResponse: async ({ execution, request, response, signal }) => {
+              continueFromResponse: async ({ execution, request, response }) => {
+                if (execution.agentId === undefined) {
+                  return {
+                    status: "FAILED" as const,
+                    response,
+                    error: "Execution requested a tool call without a bound agent.",
+                  };
+                }
+
                 const result = await agentToolOrchestration.continueFromResponse(
                   {
-                    agentId: execution.agentId ?? "",
+                    agentId: execution.agentId,
                     requiredCapabilityIds: options.toolRequiredCapabilityIds ?? [],
                     request,
                     response,
