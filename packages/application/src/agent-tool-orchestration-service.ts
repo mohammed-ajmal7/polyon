@@ -13,6 +13,7 @@ import type {
   Tool,
 } from "@polyon/contracts";
 import type { AgentGateway } from "@polyon/agents";
+import type { IntegrationAdapterRegistry } from "@polyon/integrations";
 import { transitionExecutionStatus, transitionTaskStatus } from "@polyon/core";
 import type {
   ApprovalRequestStore,
@@ -23,6 +24,10 @@ import type {
 } from "@polyon/storage";
 
 import type { ToolInvocationOutcome, ToolInvocationService } from "./tool-invocation-service";
+import {
+  IntegrationInvocationService,
+  type IntegrationInvocationOutcome,
+} from "./integration-invocation-service";
 
 export interface AgentToolOrchestrationInput {
   readonly agentId: string;
@@ -69,6 +74,8 @@ export type AgentToolOrchestrationResult =
 export interface AgentToolOrchestrationDependencies {
   readonly agentGateway: AgentGateway;
   readonly toolInvocation: ToolInvocationService;
+  readonly integrationInvocation: IntegrationInvocationService;
+  readonly integrations: IntegrationAdapterRegistry;
   readonly tools: {
     get(toolId: string): Tool | undefined;
     list(): readonly Tool[];
@@ -83,6 +90,37 @@ export interface AgentToolOrchestrationDependencies {
 
 export class AgentToolOrchestrationService {
   constructor(private readonly dependencies: AgentToolOrchestrationDependencies) {}
+
+  modelToolDefinitions(): readonly ModelToolDefinition[] {
+    const tools = this.dependencies.tools
+      .list()
+      .filter((tool) => tool.enabled)
+      .map((tool) => ({
+        toolId: tool.id,
+        name: toModelToolName(tool.id),
+        description: tool.description,
+        ...(tool.inputSchema === undefined ? {} : { inputSchema: tool.inputSchema }),
+      }));
+
+    const integrations = this.dependencies.integrations.list().flatMap((integration) =>
+      integration.supportedOperations.map((operation) => {
+        const toolId = integrationToolId(integration.integrationId, operation);
+
+        return {
+          toolId,
+          name: toModelToolName(toolId),
+          description:
+            `${integration.kind} integration ${integration.integrationId} operation ${operation}`,
+          inputSchema: {
+            type: "object" as const,
+            additionalProperties: true,
+          },
+        };
+      }),
+    );
+
+    return [...tools, ...integrations];
+  }
 
   async invoke(input: AgentToolOrchestrationInput): Promise<AgentToolOrchestrationResult> {
     const request = this.withToolDefinitions(input.request);
@@ -460,6 +498,82 @@ export class AgentToolOrchestrationService {
       readonly rounds: number;
     },
   ): Promise<ToolInvocationOutcome> {
+    const integrationSpec = parseIntegrationToolId(toolCall.toolId);
+
+    if (integrationSpec !== undefined) {
+      const integration = this.dependencies.integrations.get(integrationSpec.integrationId);
+
+      if (integration === undefined) {
+        return syntheticIntegrationOutcome(
+          "REJECTED",
+          toolCall.toolId,
+          `Integration not found: ${integrationSpec.integrationId}.`,
+          input.policy,
+          input.defaultRiskLevel ?? "LOW",
+          this.now(input),
+        );
+      }
+
+      if (!integration.supportedOperations.includes(integrationSpec.operation)) {
+        return syntheticIntegrationOutcome(
+          "REJECTED",
+          toolCall.toolId,
+          `Integration operation not supported: ${integrationSpec.operation}.`,
+          input.policy,
+          input.defaultRiskLevel ?? "LOW",
+          this.now(input),
+        );
+      }
+
+      const action = integration.actionKinds[0];
+
+      if (action === undefined) {
+        return syntheticIntegrationOutcome(
+          "FAILED",
+          toolCall.toolId,
+          `Integration ${integration.integrationId} has no action classification.`,
+          input.policy,
+          input.defaultRiskLevel ?? "LOW",
+          this.now(input),
+        );
+      }
+
+      const outcome = await this.dependencies.integrationInvocation.invoke({
+        invocationId: `tool-call:${toolCall.id}`,
+        integrationId: integration.integrationId,
+        operation: integrationSpec.operation,
+        input: toolCall.input,
+        action,
+        riskLevel: input.defaultRiskLevel ?? defaultRiskForAction(action),
+        policy: input.policy,
+        decisionId: `policy-decision:tool-call:${toolCall.id}`,
+        approvalRequestId: `approval:tool-call:${toolCall.id}`,
+        requestedBy: input.actorId,
+        requestedAt: this.now(input),
+        evaluatedAt: this.now(input),
+        actorId: input.actorId,
+        ...(input.missionId === undefined ? {} : { missionId: input.missionId }),
+        ...(input.taskId === undefined ? {} : { taskId: input.taskId }),
+        ...(input.executionId === undefined ? {} : { executionId: input.executionId }),
+        agentId: input.agentId,
+        integrationContinuation: {
+          agentId: input.agentId,
+          requiredCapabilityIds: input.requiredCapabilityIds,
+          request: continuation.request,
+          response: continuation.response,
+          toolCall,
+          rounds: continuation.rounds,
+          integrationId: integration.integrationId,
+          operation: integrationSpec.operation,
+          input: toolCall.input,
+          sideEffectClass: integration.sideEffectClass,
+          state: "AWAITING_INTEGRATION",
+        },
+      });
+
+      return mapIntegrationOutcome(outcome, toolCall.toolId);
+    }
+
     const tool = this.dependencies.tools.get(toolCall.toolId);
 
     if (tool === undefined) {
@@ -533,15 +647,7 @@ export class AgentToolOrchestrationService {
       return request;
     }
 
-    const tools: ModelToolDefinition[] = this.dependencies.tools
-      .list()
-      .filter((tool) => tool.enabled)
-      .map((tool) => ({
-        toolId: tool.id,
-        name: toModelToolName(tool.id),
-        description: tool.description,
-        ...(tool.inputSchema === undefined ? {} : { inputSchema: tool.inputSchema }),
-      }));
+    const tools = this.modelToolDefinitions();
 
     return tools.length === 0 ? request : { ...request, tools };
   }
