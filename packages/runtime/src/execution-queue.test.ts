@@ -64,7 +64,7 @@ describe("InMemoryExecutionQueue", () => {
     queue.enqueue(execution);
 
     const retrieved = queue.peek()!;
-    retrieved.status = "FAILED";
+    (retrieved as { status: Execution["status"] }).status = "FAILED";
 
     expect(queue.peek()?.status).toBe("QUEUED");
   });
