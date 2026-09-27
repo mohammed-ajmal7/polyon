@@ -16,6 +16,7 @@ import {
 } from "@polyon/agents";
 import {
   ArtifactCatalogService,
+  CommandIngressService,
   IntegrationCatalogService,
   IntegrationInvocationService,
   LocalArtifactContentService,
@@ -139,6 +140,7 @@ export interface PolyonCompositionOptions {
 }
 
 export interface PolyonComposition {
+  readonly commandIngress: CommandIngressService;
   readonly stores: FileDomainStores;
   readonly agents: InMemoryAgentRegistry;
   readonly models: InMemoryModelRegistry;
@@ -262,6 +264,13 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
 
   const modelGateway = new ModelGateway({ models, providers, adapters: providerAdapters });
   const agentGateway = new AgentGateway({ agents, models, providers, modelGateway });
+
+  const commandIngress = new CommandIngressService({
+    conversations: stores.conversations,
+    messages: stores.messages,
+    events: stores.events,
+    unitOfWork: stores,
+  });
 
   const memory = new MemoryService(stores.memory, stores.events, stores);
   const debates = new DebateOrchestrationService(agentGateway, stores.debates, stores.events, stores);
@@ -442,6 +451,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
                 return { status: "NO_CONTINUATION" as const };
               }
               return {
+    commandIngress,
                 status:
                   result.status === "SUCCEEDED"
                     ? ("SUCCEEDED" as const)
