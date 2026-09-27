@@ -22,6 +22,16 @@ function createRepository(): string {
     "polyon@example.invalid",
   ]);
   execFileSync("git", ["-C", root, "config", "user.name", "POLYON Test"]);
+  writeFileSync(join(root, "initial.txt"), "initial");
+  execFileSync("git", ["-C", root, "add", "--", "initial.txt"]);
+  execFileSync("git", [
+    "-C",
+    root,
+    "commit",
+    "-q",
+    "-m",
+    "chore: initialize test repository",
+  ]);
   return root;
 }
 
