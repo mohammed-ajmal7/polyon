@@ -13,6 +13,7 @@ import {
 } from "@polyon/agents";
 import {
   ArtifactCatalogService,
+  IntegrationCatalogService,
   IntegrationInvocationService,
   LocalArtifactContentService,
   ExecutionApprovalService,
@@ -143,6 +144,7 @@ export interface PolyonComposition {
   readonly executionRetry: ExecutionRetryService;
   readonly toolInvocation: ToolInvocationService;
   readonly integrationInvocation: IntegrationInvocationService;
+  readonly integrationCatalog: IntegrationCatalogService;
   readonly artifactCatalog: ArtifactCatalogService;
   readonly localArtifactContent?: LocalArtifactContentService;
   readonly agentToolOrchestration: AgentToolOrchestrationService;
@@ -313,6 +315,8 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
           artifactRead: (artifactId, maxBytes) => localArtifactContent.read(artifactId, maxBytes),
         }),
   });
+
+  const integrationCatalog = new IntegrationCatalogService(integrations);
 
   const integrationInvocation = new IntegrationInvocationService({
     integrations,
@@ -515,6 +519,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     executionRetry,
     toolInvocation,
     integrationInvocation,
+    integrationCatalog,
     artifactCatalog,
     ...(localArtifactContent === undefined ? {} : { localArtifactContent }),
     agentToolOrchestration,
