@@ -6,6 +6,8 @@ import type { EventId } from "./ids";
 export type EventKind =
   | "MISSION_CREATED"
   | "MISSION_STATUS_CHANGED"
+  | "MISSION_PLAN_PROPOSED"
+  | "MISSION_PLAN_APPLIED"
   | "TASK_STATUS_CHANGED"
   | "POLICY_DECIDED"
   | "APPROVAL_REQUESTED"
