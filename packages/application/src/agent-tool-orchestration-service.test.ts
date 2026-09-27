@@ -2,7 +2,15 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import type { Agent, AgentId, Model, Policy, Provider, Tool } from "@polyon/contracts";
+import type {
+  Agent,
+  AgentId,
+  Model,
+  ModelMessage,
+  Policy,
+  Provider,
+  Tool,
+} from "@polyon/contracts";
 import type { AgentGateway } from "@polyon/agents";
 import { InMemoryToolAdapterRegistry, InMemoryToolRegistry, type ToolAdapter } from "@polyon/tools";
 import { FileDomainStores } from "@polyon/storage";
@@ -137,7 +145,7 @@ describe("AgentToolOrchestrationService", () => {
             };
           }
 
-          const messages = request.messages;
+          const messages = request.messages as readonly ModelMessage[];
           const toolMessage = messages.find((message) => message.role === "TOOL");
           modelToolContent = toolMessage?.content ?? "";
 
