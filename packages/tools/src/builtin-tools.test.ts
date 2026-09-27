@@ -20,11 +20,47 @@ describe("registerBuiltinTools", () => {
       description: "Reads a bounded file from the configured POLYON filesystem root.",
       kind: "FILESYSTEM",
       actionKinds: ["READ"],
+      inputSchema: {
+        type: "object",
+        required: ["path"],
+        additionalProperties: false,
+        properties: {
+          path: {
+            type: "string",
+            minLength: 1,
+          },
+          maxBytes: {
+            type: "integer",
+            minimum: 1,
+          },
+        },
+      },
       enabled: true,
     });
     expect(registration.adapter.toolId).toBe(BUILTIN_TOOL_IDS.filesystemRead);
     expect(registries.tools.get(BUILTIN_TOOL_IDS.filesystemRead)).toEqual(registration.tool);
     expect(registries.adapters.get(BUILTIN_TOOL_IDS.filesystemRead)).toBe(registration.adapter);
+  });
+
+  it("can register terminal execution without requiring filesystem registration", () => {
+    const registries = createInMemoryBuiltinToolRegistries();
+
+    registerBuiltinTools(registries, {
+      terminalRoot: process.cwd(),
+      terminalAllowedCommands: [process.execPath],
+    });
+
+    expect(registries.tools.get(BUILTIN_TOOL_IDS.filesystemRead)).toBeUndefined();
+    expect(
+      registries.tools.get(BUILTIN_TOOL_IDS.terminalExecute),
+    ).toMatchObject({
+      kind: "TERMINAL",
+      actionKinds: ["TERMINAL"],
+      enabled: true,
+    });
+    expect(
+      registries.adapters.get(BUILTIN_TOOL_IDS.terminalExecute),
+    ).toBeDefined();
   });
 
   it("can disable the built-in tool without removing its adapter boundary", () => {
