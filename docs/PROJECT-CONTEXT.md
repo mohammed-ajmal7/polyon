@@ -347,7 +347,7 @@ Every consequential tool action must pass policy/approval controls.
 
 ### Real external integrations
 
-Google Drive now has a concrete bounded READ adapter with OAuth access-token resolution, HTTPS/host/port allowlisting, response-size and pagination limits, and deterministic metadata parsing. It is exposed through the application-level integration invocation boundary with policy/approval and durable invocation tracing.
+Google Drive now has a concrete bounded READ adapter with OAuth access-token resolution, HTTPS/host/port allowlisting, response-size and pagination limits, and deterministic metadata parsing. It is exposed through the application-level integration invocation boundary with policy/approval and durable invocation tracing. Integration adapters also declare their supported operations, and unsupported operations are rejected before policy approval or external execution.
 
 Telegram and Email still need concrete adapters and authentication/token handling.
 
