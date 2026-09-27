@@ -9,7 +9,9 @@
   },
   "dependencies": {
     "@polyon/contracts": "workspace:*",
-    "@polyon/core": "workspace:*"
+    "@polyon/core": "workspace:*",
+    "@polyon/runtime": "workspace:*",
+    "@polyon/storage": "workspace:*"
   },
   "devDependencies": {
     "typescript": "5.9.3",
