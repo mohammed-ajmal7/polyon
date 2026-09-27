@@ -44,6 +44,12 @@ or configure the encrypted local secret store with `POLYON_SECRET_STORE_PATH` an
 
 SMTP can use implicit TLS or STARTTLS, but not both for the same transport configuration.
 
+## Embeddings
+
+Set `POLYON_EMBEDDING_ENDPOINT` and `POLYON_EMBEDDING_MODEL_ID` to enable optional semantic memory indexing/search. The endpoint must be HTTP(S); credentials remain server-side in `POLYON_EMBEDDING_API_KEY`. Embeddings are stored with model identity and a content hash so stale vectors are ignored after memory edits.
+
+Semantic indexing/search is optional; lexical memory search remains available without an embedding provider.
+
 ## Research
 
 Set both:
