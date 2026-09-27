@@ -28,6 +28,16 @@ export {
 } from "./execution-approval-service";
 
 export {
+  ExecutionResultService,
+  ExecutionResultServiceError,
+  type ExecutionResultServiceDependencies,
+  type ExecutionResultServiceErrorKind,
+  type PersistedExecutionResult,
+  type PersistExecutionArtifactInput,
+  type PersistExecutionResultInput,
+} from "./execution-result-service";
+
+export {
   MissionPlanService,
   MissionPlanServiceError,
   type MissionPlanApprovalResolution,
