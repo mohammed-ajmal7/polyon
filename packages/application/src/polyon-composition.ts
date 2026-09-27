@@ -135,13 +135,21 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     unitOfWork: stores,
   });
 
+  let runtime: ExecutionRuntime;
+
   const agentToolOrchestration = new AgentToolOrchestrationService({
     agentGateway,
     toolInvocation,
     tools: builtinTools.tools,
+    approvals: stores.approvals,
+    executions: stores.executions,
+    tasks: stores.tasks,
+    events: stores.events,
+    unitOfWork: stores,
+    enqueueExecution: (execution) => runtime.queue.enqueue(execution),
   });
 
-  const runtime = createExecutionRuntime({
+  runtime = createExecutionRuntime({
     runner: new ModelExecutionRunner({
       modelGateway,
       tasks: stores.tasks,
