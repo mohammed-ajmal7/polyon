@@ -128,9 +128,10 @@ async function expectCode(connection: SmtpConnection, ...expectedCodes: number[]
 }
 
 function hasSmtpCapability(response: string, capability: string): boolean {
+  const normalizedCapability = capability.toUpperCase();
   return response
     .split(/\r?\n/)
-    .some((line) => line.slice(4).trim().toUpperCase() === capability);
+    .some((line) => /^\d{3}[- ]/.test(line) && line.slice(4).trim().toUpperCase() === normalizedCapability);
 }
 
 function buildMessage(input: EmailSendInput, messageIdDomain: string): string {
