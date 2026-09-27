@@ -57,6 +57,68 @@ export class SemanticMemoryService {
     return this.unitOfWork === undefined ? operation() : this.unitOfWork.transaction(() => operation());
   }
 
+  async reindex(
+    modelId: string,
+    input: { readonly now: string; readonly batchSize?: number; readonly maxEntries?: number },
+  ): Promise<{ readonly indexed: number; readonly stale: number; readonly skipped: number }> {
+    const batchSize = input.batchSize ?? 16;
+    const maxEntries = input.maxEntries ?? 100;
+
+    assertBound(batchSize, 1, 32, "batchSize");
+    assertBound(maxEntries, 1, 1_000, "maxEntries");
+
+    const candidates = this.memories
+      .list()
+      .map((memory) => {
+        const id = this.embeddingId(memory.id, modelId);
+        const existing = this.embeddings.get(id);
+        const stale = existing === undefined || existing.contentHash !== this.contentHash(memory.text);
+        return { memory, stale };
+      })
+      .filter((candidate) => candidate.stale)
+      .slice(0, maxEntries);
+
+    let indexed = 0;
+    let stale = candidates.length;
+
+    for (let offset = 0; offset < candidates.length; offset += batchSize) {
+      const batch = candidates.slice(offset, offset + batchSize);
+      const response = await this.embeddingGateway.embed(modelId, {
+        input: batch.map(({ memory }) => memory.text),
+      });
+
+      if (response.vectors.length !== batch.length) {
+        throw new Error("Embedding reindex returned an unexpected vector count.");
+      }
+
+      const operation = () => {
+        for (let index = 0; index < batch.length; index += 1) {
+          const memory = batch[index]!.memory;
+          const vector = response.vectors[index];
+          if (vector === undefined) throw new Error("Embedding reindex returned a missing vector.");
+
+          this.embeddings.save({
+            id: this.embeddingId(memory.id, modelId),
+            memoryId: memory.id,
+            modelId,
+            dimensions: vector.length,
+            vector,
+            contentHash: this.contentHash(memory.text),
+            createdAt: memory.createdAt,
+            updatedAt: input.now,
+          });
+        }
+      };
+
+      if (this.unitOfWork === undefined) operation();
+      else this.unitOfWork.transaction(operation);
+      indexed += batch.length;
+    }
+
+    stale = Math.max(0, stale - indexed);
+    return { indexed, stale, skipped: this.memories.list().length - candidates.length };
+  }
+
   async search(input: SemanticMemorySearchInput): Promise<readonly SemanticMemorySearchResult[]> {
     const query = input.query.trim();
     if (query === "") throw new RangeError("Semantic memory query must not be empty.");
@@ -124,4 +186,10 @@ function cosineSimilarity(left: readonly number[], right: readonly number[]): nu
 
   if (leftMagnitude === 0 || rightMagnitude === 0) return 0;
   return dot / Math.sqrt(leftMagnitude * rightMagnitude);
+}
+
+function assertBound(value: number, minimum: number, maximum: number, field: string): void {
+  if (!Number.isInteger(value) || value < minimum || value > maximum) {
+    throw new RangeError(`${field} must be an integer between ${minimum} and ${maximum}.`);
+  }
 }
