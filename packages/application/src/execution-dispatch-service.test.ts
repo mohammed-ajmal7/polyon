@@ -40,6 +40,7 @@ const input = {
   task,
   dependencies: [],
   actorId: "agent-1",
+  agentId: "agent-1",
   executionId: "execution-1",
   attempt: 1,
   policy: basePolicy,
