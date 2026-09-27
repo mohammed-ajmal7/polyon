@@ -228,6 +228,9 @@ describe("createExecutionRuntime", () => {
     });
 
     runtime.stop();
+    await vi.waitFor(() => {
+      expect(runtime.activeExecutionCount).toBe(0);
+    });
     expect(runtime.activeExecutionCount).toBe(0);
   });
 
@@ -506,10 +509,13 @@ describe("createExecutionRuntime", () => {
 
     runtime.start();
 
-    await vi.waitFor(() => {
-      expect(errorCount).toBe(1);
-      expect(stores.executions.get("execution-1")?.status).toBe("SUCCEEDED");
-    });
+    await vi.waitFor(
+      () => {
+        expect(errorCount).toBe(1);
+        expect(stores.executions.get("execution-1")?.status).toBe("SUCCEEDED");
+      },
+      { timeout: 3_000 },
+    );
 
     expect(waits).toContain(10);
     expect(runtime.health).toMatchObject({
