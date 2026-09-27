@@ -228,6 +228,7 @@ export function createExecutionRuntime(
   let recoveredExecutionCount = 0;
   let consecutiveErrorCount = 0;
   let retryBackoffMs = 0;
+  let retryBackoffPending = false;
   let lastError: string | undefined;
   let lastActivityAt: string | undefined;
   let lastRecoveryAt: string | undefined;
@@ -263,6 +264,7 @@ export function createExecutionRuntime(
       retryBackoffMs === 0
         ? retryBackoffInitialMs
         : Math.min(retryBackoffMs * 2, retryBackoffMaxMs);
+    retryBackoffPending = true;
     lastError = error instanceof Error ? error.message : String(error);
     lastActivityAt = dependencies.clock.now();
   };
@@ -270,6 +272,7 @@ export function createExecutionRuntime(
   const resetErrorState = (): void => {
     consecutiveErrorCount = 0;
     retryBackoffMs = 0;
+    retryBackoffPending = false;
     lastError = undefined;
     lastActivityAt = dependencies.clock.now();
   };
@@ -330,8 +333,9 @@ export function createExecutionRuntime(
       runtimeStatus === "RUNNING" &&
       runtimeGeneration === generation
     ) {
-      if (consecutiveErrorCount > 0) {
+      if (retryBackoffPending) {
         await waitForLoop(retryBackoffMs);
+        retryBackoffPending = false;
         continue;
       }
 
