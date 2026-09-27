@@ -116,7 +116,15 @@ describe("BoundedHttpClient", () => {
   });
 
   it("allows GET, HEAD, and bounded POST bodies", async () => {
-    const fetchMock = vi.fn(async () => response("ok"));
+    let postInput: RequestInfo | URL | undefined;
+    let postInit: RequestInit | undefined;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        postInput = input;
+        postInit = init;
+      }
+      return response("ok");
+    });
     vi.stubGlobal("fetch", fetchMock);
 
     const client = new BoundedHttpClient({
