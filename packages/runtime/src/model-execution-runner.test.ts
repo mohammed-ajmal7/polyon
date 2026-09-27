@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { ModelExecutionRunner } from "./model-execution-runner";
 import type { ModelGateway } from "@polyon/providers";
+import type { TaskStore } from "@polyon/storage";
 
 const execution: Execution = {
   id: "execution-1",
@@ -30,6 +31,15 @@ const task: Task = {
   createdAt: "2026-09-27T01:00:00.000Z",
   updatedAt: "2026-09-27T01:05:00.000Z",
 };
+
+function createTaskStore(get: TaskStore["get"]): TaskStore {
+  return {
+    get,
+    save: vi.fn(),
+    delete: vi.fn(),
+    list: vi.fn(() => []),
+  };
+}
 
 describe("ModelExecutionRunner", () => {
   it("builds a structured text request from the persisted task and returns model text", async () => {
@@ -61,9 +71,7 @@ describe("ModelExecutionRunner", () => {
 
     const runner = new ModelExecutionRunner({
       modelGateway: { invokeText } as unknown as ModelGateway,
-      tasks: {
-        get: (taskId) => (taskId === task.id ? task : undefined),
-      },
+      tasks: createTaskStore((taskId) => (taskId === task.id ? task : undefined)),
       systemPrompt: "You are the POLYON execution agent.",
     });
 
@@ -91,9 +99,7 @@ describe("ModelExecutionRunner", () => {
   it("fails without a bound model", async () => {
     const runner = new ModelExecutionRunner({
       modelGateway: {} as ModelGateway,
-      tasks: {
-        get: () => task,
-      },
+      tasks: createTaskStore(() => task),
     });
 
     await expect(
@@ -110,9 +116,7 @@ describe("ModelExecutionRunner", () => {
   it("fails when the task cannot be recovered", async () => {
     const runner = new ModelExecutionRunner({
       modelGateway: {} as ModelGateway,
-      tasks: {
-        get: () => undefined,
-      },
+      tasks: createTaskStore(() => undefined),
     });
 
     await expect(runner.run(execution)).resolves.toEqual({
@@ -128,9 +132,7 @@ describe("ModelExecutionRunner", () => {
           throw new Error("Provider unavailable.");
         }),
       } as unknown as ModelGateway,
-      tasks: {
-        get: () => task,
-      },
+      tasks: createTaskStore(() => task),
     });
 
     await expect(runner.run(execution)).resolves.toEqual({
