@@ -54,6 +54,17 @@ describe("applyMissionPlanProposal", () => {
     expect(result.createdAt).toBe(mission.createdAt);
   });
 
+  it("uses the supplied application timestamp", () => {
+    const result = applyMissionPlanProposal(
+      proposal,
+      mission,
+      [createTask("task-1"), createTask("task-2")],
+      "2026-09-27T01:15:00.000Z",
+    );
+
+    expect(result.updatedAt).toBe("2026-09-27T01:15:00.000Z");
+  });
+
   it("does not mutate the original mission", () => {
     applyMissionPlanProposal(proposal, mission, [createTask("task-1"), createTask("task-2")]);
 
