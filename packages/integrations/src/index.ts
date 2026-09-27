@@ -1,3 +1,12 @@
+export {
+  BoundedHttpClient,
+  BoundedHttpClientError,
+  type BoundedHttpClientErrorKind,
+  type BoundedHttpClientOptions,
+  type BoundedHttpRequest,
+  type BoundedHttpResponse,
+} from "./bounded-http-client";
+
 export type {
   IntegrationAdapter,
   IntegrationId,
