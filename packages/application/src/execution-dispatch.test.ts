@@ -91,8 +91,8 @@ describe("prepareExecutionDispatch", () => {
     });
   });
 
-  it("propagates policy denial", () => {
-    expect(() =>
+  it("represents policy denial as a rejected execution", () => {
+    expect(
       prepareExecutionDispatch({
         ...baseInput,
         policy: {
@@ -100,7 +100,28 @@ describe("prepareExecutionDispatch", () => {
           defaultEffect: "DENY",
         },
       }),
-    ).toThrow();
+    ).toEqual({
+      execution: {
+        id: "execution-1",
+        missionId: "mission-1",
+        taskId: "task-1",
+        actorId: "agent-1",
+        attempt: 1,
+        status: "REJECTED",
+        createdAt: "2026-09-27T01:01:00.000Z",
+        updatedAt: "2026-09-27T01:02:00.000Z",
+      },
+      policyDecision: {
+        id: "decision-1",
+        policyId: "policy-1",
+        action: "EXECUTION_RUN",
+        riskLevel: "MEDIUM",
+        effect: "DENY",
+        reason: "No policy rule matched; using the policy default effect.",
+        evaluatedAt: "2026-09-27T01:02:00.000Z",
+      },
+      nextStep: "REJECTED",
+    });
   });
 
   it("propagates task readiness failures", () => {
