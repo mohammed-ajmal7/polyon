@@ -50,7 +50,12 @@ function appendRecoveryEvent(
   executions: ExecutionStore,
   executionId: ExecutionId,
   reason:
-    "PROCESS_STARTUP" | "RESUMABLE_TOOL_CONTINUATION_RESTART" | "PENDING_TOOL_APPROVAL_RESTART",
+    | "PROCESS_STARTUP"
+    | "RESUMABLE_TOOL_CONTINUATION_RESTART"
+    | "PENDING_TOOL_APPROVAL_RESTART"
+    | "RESUMABLE_INTEGRATION_CONTINUATION_RESTART"
+    | "PENDING_INTEGRATION_APPROVAL_RESTART"
+    | "NON_IDEMPOTENT_INTEGRATION_RECONCILIATION",
 ): void {
   const execution = executions.get(executionId);
 
@@ -114,7 +119,13 @@ export class InMemoryExecutionWorker implements ExecutionWorker {
           ? "RESUMABLE_TOOL_CONTINUATION_RESTART"
           : recovery.kind === "PENDING_TOOL_APPROVAL_RESTART"
             ? "PENDING_TOOL_APPROVAL_RESTART"
-            : "PROCESS_STARTUP",
+            : recovery.kind === "INTERRUPTED_INTEGRATION_CONTINUATION"
+              ? "RESUMABLE_INTEGRATION_CONTINUATION_RESTART"
+              : recovery.kind === "PENDING_INTEGRATION_APPROVAL_RESTART"
+                ? "PENDING_INTEGRATION_APPROVAL_RESTART"
+                : recovery.kind === "NON_IDEMPOTENT_INTEGRATION_RECONCILIATION"
+                  ? "NON_IDEMPOTENT_INTEGRATION_RECONCILIATION"
+                  : "PROCESS_STARTUP",
       );
     }
 
