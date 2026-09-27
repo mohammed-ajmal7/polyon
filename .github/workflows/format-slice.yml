@@ -4,9 +4,28 @@ on:
   push:
     branches:
       - feature/core-architecture
+    paths:
+      - packages/application/src/builtin-filesystem-tool.integration.test.ts
+      - packages/application/src/durable-execution-restart.integration.test.ts
+      - packages/application/src/index.ts
+      - packages/application/src/tool-invocation-service.test.ts
+      - packages/application/src/tool-invocation-service.ts
+      - packages/contracts/src/policy/approval.ts
+      - packages/core/src/policy/approval-request.ts
+      - packages/tools/src/builtin-tools.test.ts
+      - packages/tools/src/builtin-tools.ts
+      - packages/tools/src/index.ts
+      - packages/tools/src/node-runtime.d.ts
+      - packages/tools/src/scoped-filesystem-read-adapter.test.ts
+      - packages/tools/src/scoped-filesystem-read-adapter.ts
+      - packages/tools/src/tool-authorization.ts
+
+permissions:
+  contents: write
 
 jobs:
   format-slice:
+    if: ${{ !contains(github.event.head_commit.message, 'style(tools): format governed tool slice') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -42,9 +61,16 @@ jobs:
             packages/tools/src/scoped-filesystem-read-adapter.ts \
             packages/tools/src/tool-authorization.ts
 
-      - name: Package formatted files
+      - name: Commit formatting
         run: |
-          tar -czf formatted-polyon-slice.tar.gz \
+          if git diff --quiet; then
+            echo "No formatting changes required."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
             packages/application/src/builtin-filesystem-tool.integration.test.ts \
             packages/application/src/durable-execution-restart.integration.test.ts \
             packages/application/src/index.ts \
@@ -59,10 +85,5 @@ jobs:
             packages/tools/src/scoped-filesystem-read-adapter.test.ts \
             packages/tools/src/scoped-filesystem-read-adapter.ts \
             packages/tools/src/tool-authorization.ts
-
-      - name: Upload formatted slice
-        uses: actions/upload-artifact@v4
-        with:
-          name: formatted-polyon-slice
-          path: formatted-polyon-slice.tar.gz
-          if-no-files-found: error
+          git commit -m "style(tools): format governed tool slice"
+          git push
