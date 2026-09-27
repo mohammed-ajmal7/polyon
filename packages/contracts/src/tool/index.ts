@@ -1,2 +1,2 @@
 export type { ToolId } from "./ids";
-export type { Tool, ToolKind } from "./tool";
+export type { Tool, ToolInputSchema, ToolKind } from "./tool";
