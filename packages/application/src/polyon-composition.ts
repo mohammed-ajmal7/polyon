@@ -634,7 +634,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     stores,
   );
 
-  const missionGraphExecution = new MissionGraphExecutionService(stores.missions, stores.tasks, missionExecution, stores);
+  const missionGraphExecution = new MissionGraphExecutionService(stores.missions, stores.tasks, missionExecution);
   const missionWorkflow = new MissionWorkflowService(
     new MissionCreationService({ conversations: stores.conversations, missions: stores.missions, events: stores.events, unitOfWork: stores }),
     new MissionLifecycleService({ missions: stores.missions, tasks: stores.tasks, events: stores.events, unitOfWork: stores }),

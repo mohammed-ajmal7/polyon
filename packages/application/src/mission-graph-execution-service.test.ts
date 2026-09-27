@@ -49,7 +49,6 @@ describe("MissionGraphExecutionService", () => {
       stores.missions,
       stores.tasks,
       { dispatchReadyTasks } as never,
-      stores,
     );
 
     const policy = {
