@@ -223,6 +223,7 @@ export function createExecutionRuntime(
     coordinator,
     executions: dependencies.executions,
     approvals: dependencies.approvals,
+    tasks: dependencies.tasks,
     events: dependencies.events,
     clock: dependencies.clock,
   });
