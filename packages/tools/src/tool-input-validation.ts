@@ -1,18 +1,12 @@
 import type { Tool, ToolInputSchema } from "@polyon/contracts";
 
-export type ToolInputValidationErrorKind =
-  | "INVALID_INPUT"
-  | "INVALID_SCHEMA";
+export type ToolInputValidationErrorKind = "INVALID_INPUT" | "INVALID_SCHEMA";
 
 export class ToolInputValidationError extends Error {
   readonly kind: ToolInputValidationErrorKind;
   readonly path: string;
 
-  constructor(
-    kind: ToolInputValidationErrorKind,
-    path: string,
-    message: string,
-  ) {
+  constructor(kind: ToolInputValidationErrorKind, path: string, message: string) {
     super(message);
     this.name = "ToolInputValidationError";
     this.kind = kind;
@@ -28,11 +22,7 @@ export function validateToolInput(tool: Tool, input: unknown): void {
   validateSchema(tool.inputSchema, input, "$");
 }
 
-function validateSchema(
-  schema: ToolInputSchema,
-  value: unknown,
-  path: string,
-): void {
+function validateSchema(schema: ToolInputSchema, value: unknown, path: string): void {
   if (schema.enum !== undefined && !schema.enum.some((candidate) => deepEqual(candidate, value))) {
     throw new ToolInputValidationError(
       "INVALID_INPUT",
@@ -156,7 +146,11 @@ function validateNumber(
   schema: ToolInputSchema,
   integer: boolean,
 ): void {
-  if (typeof value !== "number" || !Number.isFinite(value) || (integer && !Number.isInteger(value))) {
+  if (
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    (integer && !Number.isInteger(value))
+  ) {
     throw invalidType(path, integer ? "integer" : "number");
   }
   if (schema.minimum !== undefined && value < schema.minimum) {
@@ -176,11 +170,7 @@ function validateNumber(
 }
 
 function invalidType(path: string, expected: string): ToolInputValidationError {
-  return new ToolInputValidationError(
-    "INVALID_INPUT",
-    path,
-    `Expected ${expected} at ${path}.`,
-  );
+  return new ToolInputValidationError("INVALID_INPUT", path, `Expected ${expected} at ${path}.`);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -194,8 +184,7 @@ function deepEqual(left: unknown, right: unknown): boolean {
 
   if (Array.isArray(left) && Array.isArray(right)) {
     return (
-      left.length === right.length &&
-      left.every((value, index) => deepEqual(value, right[index]))
+      left.length === right.length && left.every((value, index) => deepEqual(value, right[index]))
     );
   }
 
@@ -206,8 +195,7 @@ function deepEqual(left: unknown, right: unknown): boolean {
       leftKeys.length === rightKeys.length &&
       leftKeys.every(
         (key) =>
-          Object.prototype.hasOwnProperty.call(right, key) &&
-          deepEqual(left[key], right[key]),
+          Object.prototype.hasOwnProperty.call(right, key) && deepEqual(left[key], right[key]),
       )
     );
   }

@@ -90,17 +90,11 @@ export class ExecutionResultServiceError extends Error {
 
 function isTerminalExecution(status: Execution["status"]): boolean {
   return (
-    status === "SUCCEEDED" ||
-    status === "FAILED" ||
-    status === "CANCELLED" ||
-    status === "REJECTED"
+    status === "SUCCEEDED" || status === "FAILED" || status === "CANCELLED" || status === "REJECTED"
   );
 }
 
-function createResultMessage(
-  input: PersistExecutionResultInput,
-  execution: Execution,
-): Message {
+function createResultMessage(input: PersistExecutionResultInput, execution: Execution): Message {
   return {
     id: input.messageId,
     conversationId: input.conversationId,
@@ -112,10 +106,7 @@ function createResultMessage(
   };
 }
 
-function createArtifact(
-  input: PersistExecutionArtifactInput,
-  execution: Execution,
-): Artifact {
+function createArtifact(input: PersistExecutionArtifactInput, execution: Execution): Artifact {
   return {
     id: input.id,
     kind: input.kind,
@@ -157,10 +148,7 @@ function appendMessageCreatedEvent(
   return event;
 }
 
-function areArtifactsEqual(
-  actual: Artifact,
-  expected: Artifact,
-): boolean {
+function areArtifactsEqual(actual: Artifact, expected: Artifact): boolean {
   return (
     actual.id === expected.id &&
     actual.kind === expected.kind &&
@@ -270,8 +258,7 @@ export class ExecutionResultService {
   constructor(private readonly dependencies: ExecutionResultServiceDependencies) {}
 
   persist(input: PersistExecutionResultInput): PersistedExecutionResult {
-    const operation = (stores: ExecutionResultStores) =>
-      this.persistWithStores(stores, input);
+    const operation = (stores: ExecutionResultStores) => this.persistWithStores(stores, input);
 
     const result =
       this.dependencies.unitOfWork === undefined
@@ -308,11 +295,7 @@ export class ExecutionResultService {
     if (!isTerminalExecution(execution.status)) {
       throw new ExecutionResultServiceError(
         "EXECUTION_NOT_TERMINAL",
-        "Cannot persist a result while execution " +
-          execution.id +
-          " is " +
-          execution.status +
-          ".",
+        "Cannot persist a result while execution " + execution.id + " is " + execution.status + ".",
       );
     }
 
@@ -339,11 +322,7 @@ export class ExecutionResultService {
     if (conversation.kind !== "MISSION") {
       throw new ExecutionResultServiceError(
         "CONVERSATION_KIND_MISMATCH",
-        "Conversation " +
-          conversation.id +
-          " is " +
-          conversation.kind +
-          ", not MISSION.",
+        "Conversation " + conversation.id + " is " + conversation.kind + ", not MISSION.",
       );
     }
 
@@ -365,12 +344,7 @@ export class ExecutionResultService {
       );
     }
 
-    const idempotentResult = getIdempotentResult(
-      stores,
-      input,
-      execution,
-      conversation,
-    );
+    const idempotentResult = getIdempotentResult(stores, input, execution, conversation);
 
     if (idempotentResult !== undefined) {
       return idempotentResult;
@@ -422,9 +396,7 @@ export class ExecutionResultService {
     const events: DomainEvent[] = [];
     events.push(appendMessageCreatedEvent(stores.events, message, execution));
     for (const artifact of artifacts) {
-      events.push(
-        appendArtifactCreatedEvent(stores.events, artifact, conversation.id),
-      );
+      events.push(appendArtifactCreatedEvent(stores.events, artifact, conversation.id));
     }
 
     return {
@@ -434,6 +406,5 @@ export class ExecutionResultService {
       artifacts,
       events,
     };
-  
   }
 }

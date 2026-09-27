@@ -52,10 +52,7 @@ export interface MissionLifecycleServiceDependencies {
 }
 
 export type MissionLifecycleServiceErrorKind =
-  | "MISSION_NOT_FOUND"
-  | "EVENT_EXISTS"
-  | "TASK_NOT_FOUND"
-  | "TASK_MISSION_MISMATCH";
+  "MISSION_NOT_FOUND" | "EVENT_EXISTS" | "TASK_NOT_FOUND" | "TASK_MISSION_MISMATCH";
 
 export class MissionLifecycleServiceError extends Error {
   readonly kind: MissionLifecycleServiceErrorKind;
@@ -142,10 +139,7 @@ function appendMissionStatusChangedEvent(
   return event;
 }
 
-function loadMissionTasks(
-  mission: Mission,
-  taskStore: TaskStore,
-): readonly Task[] {
+function loadMissionTasks(mission: Mission, taskStore: TaskStore): readonly Task[] {
   return mission.taskIds.map((taskId) => {
     const task = taskStore.get(taskId);
 
@@ -167,17 +161,13 @@ function loadMissionTasks(
   });
 }
 
-type MissionLifecycleStores = Pick<
-  DomainStoreTransactionContext,
-  "missions" | "tasks" | "events"
->;
+type MissionLifecycleStores = Pick<DomainStoreTransactionContext, "missions" | "tasks" | "events">;
 
 export class MissionLifecycleService {
   constructor(private readonly dependencies: MissionLifecycleServiceDependencies) {}
 
   transition(input: TransitionMissionStatusInput): MissionStatusTransitionResult {
-    const operation = (stores: MissionLifecycleStores) =>
-      this.transitionWithStores(stores, input);
+    const operation = (stores: MissionLifecycleStores) => this.transitionWithStores(stores, input);
 
     return this.dependencies.unitOfWork === undefined
       ? operation(this.dependencies)

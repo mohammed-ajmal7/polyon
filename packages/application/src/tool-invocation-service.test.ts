@@ -184,9 +184,7 @@ describe("ToolInvocationService", () => {
     expect(result.status).toBe("FAILED");
     expect(invoke).not.toHaveBeenCalled();
     expect(stores.policyDecisions.get("decision-1")?.effect).toBe("ALLOW");
-    expect(
-      events.get("TOOL_INVOKED:invocation-1:FAILED")?.data,
-    ).toMatchObject({
+    expect(events.get("TOOL_INVOKED:invocation-1:FAILED")?.data).toMatchObject({
       status: "FAILED",
       toolId: "tool-1",
     });
@@ -237,7 +235,6 @@ describe("ToolInvocationService", () => {
       "TOOL_INVOKED",
     ]);
   });
-
 
   it("durably records model continuation state with a pending approval", async () => {
     const { stores, service } = createService({

@@ -24,13 +24,9 @@ function cloneEvent(event: DomainEvent): DomainEvent {
 }
 
 class EntityBackedEventStore implements EventStore {
-  protected readonly store:
-    | InMemoryEntityStore<DomainEvent>
-    | FileEntityStore<DomainEvent>;
+  protected readonly store: InMemoryEntityStore<DomainEvent> | FileEntityStore<DomainEvent>;
 
-  constructor(
-    store: InMemoryEntityStore<DomainEvent> | FileEntityStore<DomainEvent>,
-  ) {
+  constructor(store: InMemoryEntityStore<DomainEvent> | FileEntityStore<DomainEvent>) {
     this.store = store;
   }
 

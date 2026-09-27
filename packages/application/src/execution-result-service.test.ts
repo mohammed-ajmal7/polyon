@@ -7,10 +7,7 @@ import { ExecutionDispatchService } from "./execution-dispatch-service";
 import { MissionExecutionService } from "./mission-execution-service";
 import { MissionTaskOrchestrationService } from "./mission-task-orchestration-service";
 
-import {
-  ExecutionResultService,
-  ExecutionResultServiceError,
-} from "./execution-result-service";
+import { ExecutionResultService, ExecutionResultServiceError } from "./execution-result-service";
 
 const execution: Execution = {
   id: "execution-1",
@@ -74,9 +71,7 @@ describe("ExecutionResultService", () => {
 
     let transactionCalls = 0;
     const unitOfWork = {
-      transaction<T>(
-        work: Parameters<InMemoryDomainStores["transaction"]>[0],
-      ): T {
+      transaction<T>(work: Parameters<InMemoryDomainStores["transaction"]>[0]): T {
         transactionCalls += 1;
         return stores.transaction(work) as T;
       },
@@ -106,12 +101,8 @@ describe("ExecutionResultService", () => {
 
     expect(transactionCalls).toBe(1);
     expect(stores.messages.get("message-2")).toEqual(result.message);
-    expect(stores.artifacts.get("artifact-transaction-1")).toEqual(
-      result.artifacts[0],
-    );
-    expect(stores.conversations.get("conversation-1")).toEqual(
-      result.conversation,
-    );
+    expect(stores.artifacts.get("artifact-transaction-1")).toEqual(result.artifacts[0]);
+    expect(stores.conversations.get("conversation-1")).toEqual(result.conversation);
     expect(stores.events.list().map((event) => event.kind)).toEqual([
       "MESSAGE_CREATED",
       "ARTIFACT_CREATED",
@@ -183,8 +174,7 @@ describe("ExecutionResultService", () => {
       events,
     );
     const identities = {
-      executionId: (taskId: string, attempt: number) =>
-        `execution-${taskId}-${attempt}`,
+      executionId: (taskId: string, attempt: number) => `execution-${taskId}-${attempt}`,
       policyDecisionId: (taskId: string, executionId: string) =>
         `decision-${taskId}-${executionId}`,
       approvalRequestId: (taskId: string, executionId: string) =>
@@ -226,7 +216,9 @@ describe("ExecutionResultService", () => {
       attempt: 1,
     });
     expect(stores.policyDecisions.get("decision-task-2-execution-task-2-1")).toBeDefined();
-    expect(events.listByMission("mission-1").map((event) => event.kind)).toContain("EXECUTION_CREATED");
+    expect(events.listByMission("mission-1").map((event) => event.kind)).toContain(
+      "EXECUTION_CREATED",
+    );
   });
 
   it("persists the result message, artifacts, conversation update, and trace events", () => {

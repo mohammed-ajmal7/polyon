@@ -27,9 +27,9 @@ function publishState(target: DurableDomainState, source: DurableDomainState): v
   Object.assign(target, source);
 }
 
-export class StateEntityStore<TEntity extends { readonly id: string }>
-  implements EntityStore<TEntity>
-{
+export class StateEntityStore<
+  TEntity extends { readonly id: string },
+> implements EntityStore<TEntity> {
   constructor(
     private readonly getState: StateGetter,
     private readonly persist: StatePersister,
@@ -37,9 +37,7 @@ export class StateEntityStore<TEntity extends { readonly id: string }>
   ) {}
 
   get(id: string): TEntity | undefined {
-    const entity = this.collectionItems(this.getState()).find(
-      (candidate) => candidate.id === id,
-    );
+    const entity = this.collectionItems(this.getState()).find((candidate) => candidate.id === id);
 
     return entity === undefined ? undefined : (structuredClone(entity) as TEntity);
   }
@@ -77,9 +75,7 @@ export class StateEntityStore<TEntity extends { readonly id: string }>
   }
 
   list(): readonly TEntity[] {
-    return this.collectionItems(this.getState()).map(
-      (item) => structuredClone(item) as TEntity,
-    );
+    return this.collectionItems(this.getState()).map((item) => structuredClone(item) as TEntity);
   }
 
   private collectionItems(state: DurableDomainState): { id: string }[] {
@@ -115,7 +111,9 @@ export class StateEventStore implements EventStore {
     return this.getState().events.map((event) => structuredClone(event));
   }
 
-  listByConversation(conversationId: NonNullable<DomainEvent["conversationId"]>): readonly DomainEvent[] {
+  listByConversation(
+    conversationId: NonNullable<DomainEvent["conversationId"]>,
+  ): readonly DomainEvent[] {
     return this.list().filter((event) => event.conversationId === conversationId);
   }
 
@@ -141,11 +139,7 @@ export function createStateContext(
   return {
     approvals: new StateEntityStore<ApprovalRequest>(getState, persist, "approvals"),
     artifacts: new StateEntityStore<Artifact>(getState, persist, "artifacts"),
-    conversations: new StateEntityStore<Conversation>(
-      getState,
-      persist,
-      "conversations",
-    ),
+    conversations: new StateEntityStore<Conversation>(getState, persist, "conversations"),
     executions: new StateEntityStore<Execution>(getState, persist, "executions"),
     messages: new StateEntityStore<Message>(getState, persist, "messages"),
     missions: new StateEntityStore<Mission>(getState, persist, "missions"),
@@ -154,11 +148,7 @@ export function createStateContext(
       persist,
       "missionPlanProposals",
     ),
-    policyDecisions: new StateEntityStore<PolicyDecision>(
-      getState,
-      persist,
-      "policyDecisions",
-    ),
+    policyDecisions: new StateEntityStore<PolicyDecision>(getState, persist, "policyDecisions"),
     tasks: new StateEntityStore<Task>(getState, persist, "tasks"),
     events: new StateEventStore(getState, persist),
   };

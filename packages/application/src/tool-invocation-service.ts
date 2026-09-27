@@ -195,21 +195,19 @@ function appendApprovalResolvedEvent(
   });
 }
 
-function areArtifactMetadataEqual(
-  actual: Artifact,
-  expected: Artifact,
-): boolean {
-  return JSON.stringify({
-    id: actual.id,
-    kind: actual.kind,
-    name: actual.name,
-    mimeType: actual.mimeType,
-    location: actual.location,
-    status: actual.status,
-    missionId: actual.missionId,
-    taskId: actual.taskId,
-    executionId: actual.executionId,
-  }) ===
+function areArtifactMetadataEqual(actual: Artifact, expected: Artifact): boolean {
+  return (
+    JSON.stringify({
+      id: actual.id,
+      kind: actual.kind,
+      name: actual.name,
+      mimeType: actual.mimeType,
+      location: actual.location,
+      status: actual.status,
+      missionId: actual.missionId,
+      taskId: actual.taskId,
+      executionId: actual.executionId,
+    }) ===
     JSON.stringify({
       id: expected.id,
       kind: expected.kind,
@@ -220,16 +218,14 @@ function areArtifactMetadataEqual(
       missionId: expected.missionId,
       taskId: expected.taskId,
       executionId: expected.executionId,
-    });
+    })
+  );
 }
 
 function appendArtifactCreatedEvent(
   events: EventStore,
   artifact: Artifact,
-  input: Pick<
-    InvokeToolInput,
-    "actorId" | "missionId" | "taskId" | "executionId"
-  >,
+  input: Pick<InvokeToolInput, "actorId" | "missionId" | "taskId" | "executionId">,
 ): void {
   events.append({
     id: `ARTIFACT_CREATED:${artifact.id}`,
@@ -237,9 +233,7 @@ function appendArtifactCreatedEvent(
     ...(input.actorId === undefined ? {} : { actorId: input.actorId }),
     ...(input.missionId === undefined ? {} : { missionId: input.missionId }),
     ...(input.taskId === undefined ? {} : { taskId: input.taskId }),
-    ...(input.executionId === undefined
-      ? {}
-      : { executionId: input.executionId }),
+    ...(input.executionId === undefined ? {} : { executionId: input.executionId }),
     occurredAt: artifact.createdAt,
     data: {
       artifactId: artifact.id,
@@ -247,13 +241,9 @@ function appendArtifactCreatedEvent(
       kind: artifact.kind,
       location: artifact.location,
       status: artifact.status,
-      ...(input.missionId === undefined
-        ? {}
-        : { missionId: input.missionId }),
+      ...(input.missionId === undefined ? {} : { missionId: input.missionId }),
       ...(input.taskId === undefined ? {} : { taskId: input.taskId }),
-      ...(input.executionId === undefined
-        ? {}
-        : { executionId: input.executionId }),
+      ...(input.executionId === undefined ? {} : { executionId: input.executionId }),
     },
   });
 }
@@ -601,15 +591,7 @@ export class ToolInvocationService {
       }
 
       const message = `Tool input validation failed at ${error.path}: ${error.message}`;
-      return this.failInvocation(
-        input,
-        tool,
-        policyDecision,
-        action,
-        riskLevel,
-        context,
-        message,
-      );
+      return this.failInvocation(input, tool, policyDecision, action, riskLevel, context, message);
     }
 
     const adapter = this.dependencies.adapters.get(tool.id);
@@ -651,20 +633,12 @@ export class ToolInvocationService {
             id: artifactResult.id,
             kind: artifactResult.kind,
             name: artifactResult.name,
-            ...(artifactResult.mimeType === undefined
-              ? {}
-              : { mimeType: artifactResult.mimeType }),
+            ...(artifactResult.mimeType === undefined ? {} : { mimeType: artifactResult.mimeType }),
             location: artifactResult.location,
             status: artifactResult.status,
-            ...(context.missionId === undefined
-              ? {}
-              : { missionId: context.missionId }),
-            ...(context.taskId === undefined
-              ? {}
-              : { taskId: context.taskId }),
-            ...(context.executionId === undefined
-              ? {}
-              : { executionId: context.executionId }),
+            ...(context.missionId === undefined ? {} : { missionId: context.missionId }),
+            ...(context.taskId === undefined ? {} : { taskId: context.taskId }),
+            ...(context.executionId === undefined ? {} : { executionId: context.executionId }),
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           };
@@ -673,9 +647,7 @@ export class ToolInvocationService {
 
           if (existing !== undefined) {
             if (!areArtifactMetadataEqual(existing, artifact)) {
-              throw new Error(
-                `Artifact already exists with conflicting metadata: ${artifact.id}.`,
-              );
+              throw new Error(`Artifact already exists with conflicting metadata: ${artifact.id}.`);
             }
 
             continue;
@@ -702,9 +674,7 @@ export class ToolInvocationService {
             },
           });
         } else if (continuationCheckpoint !== undefined) {
-          const checkpointApproval = stores.approvals.get(
-            continuationCheckpoint.approvalId,
-          );
+          const checkpointApproval = stores.approvals.get(continuationCheckpoint.approvalId);
           if (checkpointApproval === undefined) {
             throw new Error(
               `Continuation checkpoint approval not found: ${continuationCheckpoint.approvalId}.`,

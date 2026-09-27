@@ -62,7 +62,6 @@ function createGateway(adapter: ModelProviderAdapter) {
 }
 
 describe("AgentGateway", () => {
-
   it("supports typed text model invocations through the agent boundary", async () => {
     const gateway = createGateway({
       providerId: "provider-1",
@@ -116,7 +115,11 @@ describe("AgentGateway", () => {
       },
     });
 
-    const modelGateway = (gateway as unknown as { dependencies: { modelGateway: { invoke: typeof ModelGateway.prototype.invoke } } }).dependencies.modelGateway;
+    const modelGateway = (
+      gateway as unknown as {
+        dependencies: { modelGateway: { invoke: typeof ModelGateway.prototype.invoke } };
+      }
+    ).dependencies.modelGateway;
     const originalInvoke = modelGateway.invoke.bind(modelGateway);
     modelGateway.invoke = async (...args) => {
       timeoutMs = args[2]?.timeoutMs;

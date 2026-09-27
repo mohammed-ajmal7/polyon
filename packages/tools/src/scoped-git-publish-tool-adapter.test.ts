@@ -26,39 +26,12 @@ function createRepositoryPair(): {
 
   const worktree = join(base, "work");
   execFileSync("git", ["init", "-q", worktree]);
-  execFileSync("git", [
-    "-C",
-    worktree,
-    "config",
-    "user.email",
-    "polyon@example.invalid",
-  ]);
-  execFileSync("git", [
-    "-C",
-    worktree,
-    "config",
-    "user.name",
-    "POLYON Test",
-  ]);
-  execFileSync("git", [
-    "-C",
-    worktree,
-    "remote",
-    "add",
-    "origin",
-    remote,
-  ]);
+  execFileSync("git", ["-C", worktree, "config", "user.email", "polyon@example.invalid"]);
+  execFileSync("git", ["-C", worktree, "config", "user.name", "POLYON Test"]);
+  execFileSync("git", ["-C", worktree, "remote", "add", "origin", remote]);
 
   execFileSync("git", ["-C", worktree, "switch", "-c", "main"]);
-  execFileSync("git", [
-    "-C",
-    worktree,
-    "commit",
-    "--allow-empty",
-    "-q",
-    "-m",
-    "chore: initialize",
-  ]);
+  execFileSync("git", ["-C", worktree, "commit", "--allow-empty", "-q", "-m", "chore: initialize"]);
   return { base, root: worktree, remote };
 }
 
@@ -87,11 +60,9 @@ describe("ScopedGitPublishToolAdapter", () => {
         ["--git-dir", pair.remote, "rev-parse", "refs/heads/main"],
         { encoding: "utf8" },
       ).trim();
-      const localHead = execFileSync(
-        "git",
-        ["-C", pair.root, "rev-parse", "HEAD"],
-        { encoding: "utf8" },
-      ).trim();
+      const localHead = execFileSync("git", ["-C", pair.root, "rev-parse", "HEAD"], {
+        encoding: "utf8",
+      }).trim();
 
       expect(remoteHead).toBe(localHead);
     } finally {

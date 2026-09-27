@@ -37,44 +37,11 @@ function createRepositories(): {
 
   execFileSync("git", ["init", "--bare", "-q", remote]);
   execFileSync("git", ["init", "-q", worktree]);
-  execFileSync("git", [
-    "-C",
-    worktree,
-    "config",
-    "user.email",
-    "polyon@example.invalid",
-  ]);
-  execFileSync("git", [
-    "-C",
-    worktree,
-    "config",
-    "user.name",
-    "POLYON Test",
-  ]);
-  execFileSync("git", [
-    "-C",
-    worktree,
-    "remote",
-    "add",
-    "origin",
-    remote,
-  ]);
-  execFileSync("git", [
-    "-C",
-    worktree,
-    "switch",
-    "-c",
-    "main",
-  ]);
-  execFileSync("git", [
-    "-C",
-    worktree,
-    "commit",
-    "--allow-empty",
-    "-q",
-    "-m",
-    "chore: initialize",
-  ]);
+  execFileSync("git", ["-C", worktree, "config", "user.email", "polyon@example.invalid"]);
+  execFileSync("git", ["-C", worktree, "config", "user.name", "POLYON Test"]);
+  execFileSync("git", ["-C", worktree, "remote", "add", "origin", remote]);
+  execFileSync("git", ["-C", worktree, "switch", "-c", "main"]);
+  execFileSync("git", ["-C", worktree, "commit", "--allow-empty", "-q", "-m", "chore: initialize"]);
 
   return { base, worktree, remote };
 }
@@ -155,16 +122,12 @@ describe("governed Git publish integration", () => {
         ["--git-dir", repositories.remote, "rev-parse", "refs/heads/main"],
         { encoding: "utf8" },
       ).trim();
-      const localHead = execFileSync(
-        "git",
-        ["-C", repositories.worktree, "rev-parse", "HEAD"],
-        { encoding: "utf8" },
-      ).trim();
+      const localHead = execFileSync("git", ["-C", repositories.worktree, "rev-parse", "HEAD"], {
+        encoding: "utf8",
+      }).trim();
 
       expect(remoteHead).toBe(localHead);
-      expect(
-        stores.events.get("TOOL_INVOKED:publish-invocation-1:SUCCEEDED")?.data,
-      ).toMatchObject({
+      expect(stores.events.get("TOOL_INVOKED:publish-invocation-1:SUCCEEDED")?.data).toMatchObject({
         action: "PUBLISH",
         riskLevel: "HIGH",
       });

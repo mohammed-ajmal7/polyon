@@ -25,9 +25,7 @@ export class StorageConcurrencyError extends Error {
   readonly code = "CONCURRENT_MODIFICATION";
 
   constructor(path: string) {
-    super(
-      `Durable storage changed while the write was in progress: ${path}.`,
-    );
+    super(`Durable storage changed while the write was in progress: ${path}.`);
     this.name = "StorageConcurrencyError";
   }
 }

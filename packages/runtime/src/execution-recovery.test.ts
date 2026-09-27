@@ -7,10 +7,7 @@ import { tmpdir } from "node:os";
 import type { Execution, Task } from "@polyon/contracts";
 import { InMemoryExecutionCoordinator } from "./execution-coordinator";
 import { InMemoryExecutionQueue } from "./execution-queue";
-import {
-  recoverExecutions,
-  recoverQueuedExecutions,
-} from "./execution-recovery";
+import { recoverExecutions, recoverQueuedExecutions } from "./execution-recovery";
 import { describe, expect, it } from "vitest";
 
 import { FileDomainStores, InMemoryDomainStores } from "@polyon/storage";
@@ -53,9 +50,7 @@ describe("recoverQueuedExecutions", () => {
     expect(queue.peek()?.id).toBe("execution-1");
   });
 
-  it(
-    "requeues an interrupted running execution with an approved resumable tool continuation",
-    () => {
+  it("requeues an interrupted running execution with an approved resumable tool continuation", () => {
     const stores = new InMemoryDomainStores();
     const queue = new InMemoryExecutionQueue();
 
@@ -133,86 +128,80 @@ describe("recoverQueuedExecutions", () => {
     ]);
     expect(stores.executions.get("execution-2")?.status).toBe("QUEUED");
     expect(queue.peek()?.id).toBe("execution-2");
-    expect(stores.executions.get("execution-2")?.updatedAt).toBe(
-      "2026-09-27T01:05:00.000Z",
-    );
-    },
-  );
+    expect(stores.executions.get("execution-2")?.updatedAt).toBe("2026-09-27T01:05:00.000Z");
+  });
 
-  it(
-    "pauses an interrupted execution when a tool approval is still pending",
-    () => {
-      const stores = new InMemoryDomainStores();
-      const queue = new InMemoryExecutionQueue();
+  it("pauses an interrupted execution when a tool approval is still pending", () => {
+    const stores = new InMemoryDomainStores();
+    const queue = new InMemoryExecutionQueue();
 
-      stores.tasks.save({
-        ...approvedTask,
-        status: "RUNNING",
-      });
-      stores.executions.save({
-        ...queued("execution-3"),
-        status: "RUNNING",
-        taskId: "task-1",
-      });
-      stores.approvals.save({
-        id: "approval-3",
-        policyId: "policy-1",
-        policyDecisionId: "decision-3",
+    stores.tasks.save({
+      ...approvedTask,
+      status: "RUNNING",
+    });
+    stores.executions.save({
+      ...queued("execution-3"),
+      status: "RUNNING",
+      taskId: "task-1",
+    });
+    stores.approvals.save({
+      id: "approval-3",
+      policyId: "policy-1",
+      policyDecisionId: "decision-3",
+      executionId: "execution-3",
+      toolId: "tool-1",
+      invocationId: "tool-call:3",
+      action: "TERMINAL",
+      riskLevel: "MEDIUM",
+      requestedBy: "agent-1",
+      reason: "Human approval required.",
+      status: "PENDING",
+      requestedAt: "2026-09-27T01:00:00.000Z",
+      toolContinuation: {
+        agentId: "agent-1",
+        requiredCapabilityIds: ["text.generate"],
+        request: {
+          messages: [{ role: "USER", content: "Run the tool." }],
+        },
+        response: {
+          content: "",
+          finishReason: "TOOL_CALL",
+          toolCalls: [
+            {
+              id: "3",
+              toolId: "tool-1",
+              input: {},
+            },
+          ],
+        },
+        toolCall: {
+          id: "3",
+          toolId: "tool-1",
+          input: {},
+        },
+        rounds: 1,
+        state: "AWAITING_TOOL",
+      },
+    });
+
+    expect(
+      recoverExecutions(
+        stores.executions,
+        queue,
+        stores.approvals,
+        stores.tasks,
+        "2026-09-27T01:05:00.000Z",
+      ),
+    ).toEqual([
+      {
         executionId: "execution-3",
-        toolId: "tool-1",
-        invocationId: "tool-call:3",
-        action: "TERMINAL",
-        riskLevel: "MEDIUM",
-        requestedBy: "agent-1",
-        reason: "Human approval required.",
-        status: "PENDING",
-        requestedAt: "2026-09-27T01:00:00.000Z",
-        toolContinuation: {
-          agentId: "agent-1",
-          requiredCapabilityIds: ["text.generate"],
-          request: {
-            messages: [{ role: "USER", content: "Run the tool." }],
-          },
-          response: {
-            content: "",
-            finishReason: "TOOL_CALL",
-            toolCalls: [
-              {
-                id: "3",
-                toolId: "tool-1",
-                input: {},
-              },
-            ],
-          },
-          toolCall: {
-            id: "3",
-            toolId: "tool-1",
-            input: {},
-          },
-          rounds: 1,
-          state: "AWAITING_TOOL",
-        },
-      });
-
-      expect(
-        recoverExecutions(
-          stores.executions,
-          queue,
-          stores.approvals,
-          stores.tasks,
-          "2026-09-27T01:05:00.000Z",
-        ),
-      ).toEqual([
-        {
-          executionId: "execution-3",
-          kind: "PENDING_TOOL_APPROVAL_RESTART",
-        },
-      ]);
-      expect(stores.executions.get("execution-3")?.status).toBe("PAUSED");
-      expect(stores.tasks.get("task-1")?.status).toBe("PAUSED");
-      expect(queue.size()).toBe(0);
-    },
-  );
+        kind: "PENDING_TOOL_APPROVAL_RESTART",
+      },
+    ]);
+    expect(stores.executions.get("execution-3")?.status).toBe("PAUSED");
+    expect(stores.tasks.get("task-1")?.status).toBe("PAUSED");
+    expect(queue.size()).toBe(0);
+  });
 
   it("does not duplicate executions already present in the queue", () => {
     const stores = new InMemoryDomainStores();

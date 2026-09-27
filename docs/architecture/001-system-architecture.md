@@ -922,12 +922,12 @@ Important plans, decisions, approvals, executions, and failures should remain in
 
 External frameworks and libraries are implementation choices. They must fit the established boundaries rather than redefine them.
 
-
 ### Governed tool boundaries
 
 Tool execution must cross the policy boundary before adapters are invoked.
 
 Built-in local/repository tool surfaces are intentionally structured rather than arbitrary command surfaces:
+
 - filesystem read is root-scoped and byte-bounded;
 - terminal execution requires an explicit command allowlist, root confinement, no shell, timeout/output limits, and explicit environment allowlisting;
 - Git read is limited to fixed inspection operations;
@@ -935,4 +935,4 @@ Built-in local/repository tool surfaces are intentionally structured rather than
 - Git commit accepts only an explicit message;
 - Git publish accepts only an allowlisted remote and safe branch and is classified as PUBLISH/HIGH risk;
 - artifact creation is root-scoped, atomic, idempotent, and durably catalogued.
-Remote publish must remain approval-governed and must never gain force/refspec/credential-manipulation arguments through a generic command interface.
+  Remote publish must remain approval-governed and must never gain force/refspec/credential-manipulation arguments through a generic command interface.

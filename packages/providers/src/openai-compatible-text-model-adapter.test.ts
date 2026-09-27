@@ -7,13 +7,11 @@ import {
 } from ".";
 import type { TextModelRequest } from "@polyon/contracts";
 
-function createFetch(
-  response: {
-    readonly ok: boolean;
-    readonly status: number;
-    readonly payload: unknown;
-  },
-): OpenAICompatibleFetch {
+function createFetch(response: {
+  readonly ok: boolean;
+  readonly status: number;
+  readonly payload: unknown;
+}): OpenAICompatibleFetch {
   return async () => ({
     ok: response.ok,
     status: response.status,
@@ -88,7 +86,6 @@ describe("OpenAICompatibleTextModelAdapter", () => {
     });
   });
 
-
   it("maps provider tool calls into structured POLYON tool calls", async () => {
     const adapter = new OpenAICompatibleTextModelAdapter({
       providerId: "provider-1",
@@ -129,9 +126,7 @@ describe("OpenAICompatibleTextModelAdapter", () => {
       ],
     };
 
-    await expect(
-      adapter.invoke({ modelId: "model-1", input: toolAwareRequest }),
-    ).resolves.toEqual({
+    await expect(adapter.invoke({ modelId: "model-1", input: toolAwareRequest })).resolves.toEqual({
       output: {
         content: "",
         finishReason: "TOOL_CALL",

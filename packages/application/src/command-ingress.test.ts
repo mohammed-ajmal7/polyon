@@ -27,9 +27,7 @@ describe("CommandIngressService", () => {
     let transactionCalls = 0;
 
     const unitOfWork = {
-      transaction<T>(
-        work: Parameters<InMemoryDomainStores["transaction"]>[0],
-      ): T {
+      transaction<T>(work: Parameters<InMemoryDomainStores["transaction"]>[0]): T {
         transactionCalls += 1;
         return stores.transaction(work) as T;
       },
@@ -54,9 +52,7 @@ describe("CommandIngressService", () => {
     });
 
     expect(transactionCalls).toBe(1);
-    expect(stores.conversations.get("conversation-transaction-1")).toEqual(
-      result.conversation,
-    );
+    expect(stores.conversations.get("conversation-transaction-1")).toEqual(result.conversation);
     expect(stores.messages.get("message-transaction-1")).toEqual(result.message);
     expect(stores.events.get("event-transaction-1")).toEqual(result.event);
   });
@@ -142,10 +138,7 @@ describe("CommandIngressService", () => {
     expect(result.conversation.messageIds).toEqual(["message-1", "message-2"]);
     expect(result.conversation.createdAt).toBe(existing.createdAt);
     expect(result.conversation.updatedAt).toBe(createdAt);
-    expect(stores.conversations.get(existing.id)?.messageIds).toEqual([
-      "message-1",
-      "message-2",
-    ]);
+    expect(stores.conversations.get(existing.id)?.messageIds).toEqual(["message-1", "message-2"]);
   });
 
   it("rejects commands from actors outside the conversation", () => {

@@ -376,10 +376,7 @@ describe("createExecutionRuntime", () => {
 
     await new Promise<void>((resolve, reject) => {
       errorReported = resolve;
-      setTimeout(
-        () => reject(new Error("Timed out waiting for runtime error.")),
-        1000,
-      );
+      setTimeout(() => reject(new Error("Timed out waiting for runtime error.")), 1000);
     });
 
     expect(reportedErrors).toHaveLength(1);
@@ -450,9 +447,7 @@ describe("createExecutionRuntime", () => {
       expect(startup.recoveredExecutionIds).toEqual(["execution-1"]);
 
       await vi.waitFor(() => {
-        expect(secondProcessStores.executions.get("execution-1")?.status).toBe(
-          "SUCCEEDED",
-        );
+        expect(secondProcessStores.executions.get("execution-1")?.status).toBe("SUCCEEDED");
       });
 
       expect(runtime.queue.size()).toBe(0);
@@ -517,7 +512,11 @@ describe("createExecutionRuntime", () => {
           nextRequest: {
             messages: [
               { role: "USER", content: "Run the tool." },
-              { role: "ASSISTANT", content: "", toolCalls: [{ id: "1", toolId: "tool-1", input: {} }] },
+              {
+                role: "ASSISTANT",
+                content: "",
+                toolCalls: [{ id: "1", toolId: "tool-1", input: {} }],
+              },
               { role: "TOOL", name: "tool-1", toolCallId: "1", content: "already completed" },
             ],
           },
@@ -543,9 +542,7 @@ describe("createExecutionRuntime", () => {
       expect(startup.recoveredExecutionIds).toEqual(["execution-1"]);
       await vi.waitFor(() => {
         expect(run).toHaveBeenCalledTimes(1);
-        expect(secondProcessStores.executions.get("execution-1")?.status).toBe(
-          "SUCCEEDED",
-        );
+        expect(secondProcessStores.executions.get("execution-1")?.status).toBe("SUCCEEDED");
       });
 
       expect(
@@ -593,18 +590,10 @@ describe("createExecutionRuntime", () => {
 
       const startup = runtime.start();
 
-      expect(startup.recoveredExecutionIds).toEqual([
-        "execution-1",
-        "execution-2",
-        "execution-3",
-      ]);
+      expect(startup.recoveredExecutionIds).toEqual(["execution-1", "execution-2", "execution-3"]);
 
       await vi.waitFor(() => {
-        expect(order).toEqual([
-          "execution-1",
-          "execution-2",
-          "execution-3",
-        ]);
+        expect(order).toEqual(["execution-1", "execution-2", "execution-3"]);
       });
 
       expect(runtime.health).toMatchObject({
@@ -616,18 +605,12 @@ describe("createExecutionRuntime", () => {
       expect(runtime.health.lastRecoveryAt).toBeDefined();
 
       for (const item of work) {
-        expect(
-          secondProcessStores.executions.get(item.execution.id)?.status,
-        ).toBe("SUCCEEDED");
-        expect(secondProcessStores.tasks.get(item.task.id)?.status).toBe(
-          "SUCCEEDED",
-        );
+        expect(secondProcessStores.executions.get(item.execution.id)?.status).toBe("SUCCEEDED");
+        expect(secondProcessStores.tasks.get(item.task.id)?.status).toBe("SUCCEEDED");
       }
 
       expect(
-        secondProcessStores.events
-          .list()
-          .filter((event) => event.kind === "EXECUTION_RECOVERED"),
+        secondProcessStores.events.list().filter((event) => event.kind === "EXECUTION_RECOVERED"),
       ).toHaveLength(3);
 
       runtime.stop();
@@ -796,8 +779,6 @@ describe("createExecutionRuntime", () => {
         retryBackoffInitialMs: 20,
         retryBackoffMaxMs: 10,
       }),
-    ).toThrow(
-      "retry backoff maximum delay must be greater than or equal to the initial delay",
-    );
+    ).toThrow("retry backoff maximum delay must be greater than or equal to the initial delay");
   });
 });

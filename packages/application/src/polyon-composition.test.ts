@@ -2,14 +2,19 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import type { Agent, Conversation, Mission, Model, Policy, Provider, Task } from "@polyon/contracts";
+import type {
+  Agent,
+  Conversation,
+  Mission,
+  Model,
+  Policy,
+  Provider,
+  Task,
+} from "@polyon/contracts";
 import { BUILTIN_TOOL_IDS } from "@polyon/tools";
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  createPolyonComposition,
-  type PolyonProviderRegistration,
-} from "./polyon-composition";
+import { createPolyonComposition, type PolyonProviderRegistration } from "./polyon-composition";
 
 const now = "2026-09-27T12:00:00.000Z";
 
@@ -98,10 +103,8 @@ const task: Task = {
 
 const identities = {
   executionId: (taskId: string, attempt: number) => `execution:${taskId}:${attempt}`,
-  policyDecisionId: (taskId: string, executionId: string) =>
-    `policy:${taskId}:${executionId}`,
-  approvalRequestId: (taskId: string, executionId: string) =>
-    `approval:${taskId}:${executionId}`,
+  policyDecisionId: (taskId: string, executionId: string) => `policy:${taskId}:${executionId}`,
+  approvalRequestId: (taskId: string, executionId: string) => `approval:${taskId}:${executionId}`,
 };
 
 describe("createPolyonComposition", () => {
@@ -188,9 +191,9 @@ describe("createPolyonComposition", () => {
       });
 
       expect(composition.stores.tasks.get(task.id)?.status).toBe("SUCCEEDED");
-      expect(composition.stores.messages.get("execution-result:execution:task.test:1")?.content).toBe(
-        "composition works",
-      );
+      expect(
+        composition.stores.messages.get("execution-result:execution:task.test:1")?.content,
+      ).toBe("composition works");
       expect(composition.stores.conversations.get(conversation.id)?.messageIds).toEqual([
         "execution-result:execution:task.test:1",
       ]);
@@ -199,9 +202,11 @@ describe("createPolyonComposition", () => {
           .listByExecution("execution:task.test:1")
           .map((event) => event.kind),
       ).toContain("MESSAGE_CREATED");
-      expect(composition.stores.events.listByExecution("execution:task.test:1").map((event) => event.kind)).toContain(
-        "EXECUTION_ROUTED",
-      );
+      expect(
+        composition.stores.events
+          .listByExecution("execution:task.test:1")
+          .map((event) => event.kind),
+      ).toContain("EXECUTION_ROUTED");
       expect(composition.runtime.queue.size()).toBe(0);
       composition.runtime.stop();
 
@@ -209,20 +214,17 @@ describe("createPolyonComposition", () => {
         storageRoot: root,
       });
 
-      expect(reopened.stores.executions.get("execution:task.test:1")?.status).toBe(
-        "SUCCEEDED",
+      expect(reopened.stores.executions.get("execution:task.test:1")?.status).toBe("SUCCEEDED");
+      expect(reopened.stores.messages.get("execution-result:execution:task.test:1")?.content).toBe(
+        "composition works",
       );
-      expect(
-        reopened.stores.messages.get("execution-result:execution:task.test:1")?.content,
-      ).toBe("composition works");
-      expect(
-        reopened.stores.conversations.get(conversation.id)?.messageIds,
-      ).toEqual(["execution-result:execution:task.test:1"]);
+      expect(reopened.stores.conversations.get(conversation.id)?.messageIds).toEqual([
+        "execution-result:execution:task.test:1",
+      ]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
   });
-
 
   it("runs a model tool call through policy, the filesystem adapter, and back to the model", async () => {
     const root = mkdtempSync(join(tmpdir(), "polyon-tool-loop-"));
@@ -259,10 +261,13 @@ describe("createPolyonComposition", () => {
             };
           }
 
-          const messages = (input as { messages: readonly { role: string; content: string }[] }).messages;
-          expect(messages.some((message) => message.role === "TOOL" && message.content.includes("tool loop content"))).toBe(
-            true,
-          );
+          const messages = (input as { messages: readonly { role: string; content: string }[] })
+            .messages;
+          expect(
+            messages.some(
+              (message) => message.role === "TOOL" && message.content.includes("tool loop content"),
+            ),
+          ).toBe(true);
 
           return {
             output: {
@@ -304,9 +309,7 @@ describe("createPolyonComposition", () => {
       }
       expect(calls).toBe(2);
       expect(
-        composition.stores.events
-          .listByExecution("execution:tool-loop")
-          .map((event) => event.kind),
+        composition.stores.events.listByExecution("execution:tool-loop").map((event) => event.kind),
       ).toContain("TOOL_INVOKED");
       expect(
         composition.stores.events
@@ -322,5 +325,4 @@ describe("createPolyonComposition", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
-
 });

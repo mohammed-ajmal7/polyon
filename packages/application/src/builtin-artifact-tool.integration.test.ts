@@ -153,11 +153,7 @@ describe("built-in artifact tool integration", () => {
         executionId: "execution-1",
       });
 
-      expect(
-        stores.events.get(
-          "ARTIFACT_CREATED:" + artifacts[0]!.id,
-        )?.data,
-      ).toMatchObject({
+      expect(stores.events.get("ARTIFACT_CREATED:" + artifacts[0]!.id)?.data).toMatchObject({
         artifactId: artifacts[0]!.id,
         name: "mission-report.txt",
         kind: "REPORT",

@@ -23,9 +23,7 @@ function createArtifact(location: string, overrides: Partial<Artifact> = {}): Ar
     ...(overrides.mimeType === undefined ? {} : { mimeType: overrides.mimeType }),
     ...(overrides.missionId === undefined ? {} : { missionId: overrides.missionId }),
     ...(overrides.taskId === undefined ? {} : { taskId: overrides.taskId }),
-    ...(overrides.executionId === undefined
-      ? {}
-      : { executionId: overrides.executionId }),
+    ...(overrides.executionId === undefined ? {} : { executionId: overrides.executionId }),
   };
 }
 
@@ -66,7 +64,14 @@ describe("LocalArtifactContentService", () => {
 
       const stores = new InMemoryDomainStores();
       stores.artifacts.save(
-        createArtifact(join(root, "..", "polyon-artifact-outside-" + outside.split("polyon-artifact-outside-")[1], "secret.txt")),
+        createArtifact(
+          join(
+            root,
+            "..",
+            "polyon-artifact-outside-" + outside.split("polyon-artifact-outside-")[1],
+            "secret.txt",
+          ),
+        ),
       );
 
       const service = new LocalArtifactContentService({
@@ -74,9 +79,7 @@ describe("LocalArtifactContentService", () => {
         options: { rootDir: root },
       });
 
-      expect(() => service.read("artifact-1")).toThrow(
-        LocalArtifactContentServiceError,
-      );
+      expect(() => service.read("artifact-1")).toThrow(LocalArtifactContentServiceError);
     } finally {
       rmSync(root, { recursive: true, force: true });
       rmSync(outside, { recursive: true, force: true });
@@ -95,15 +98,11 @@ describe("LocalArtifactContentService", () => {
         options: { rootDir: root, maxBytes: 5 },
       });
 
-      expect(() => service.read("artifact-1")).toThrowError(
-        /Artifact file does not exist/,
-      );
+      expect(() => service.read("artifact-1")).toThrowError(/Artifact file does not exist/);
 
       const file = join(root, "large.txt");
       writeFileSync(file, "123456");
-      stores.artifacts.save(
-        createArtifact(file, { id: "artifact-2", name: "large.txt" }),
-      );
+      stores.artifacts.save(createArtifact(file, { id: "artifact-2", name: "large.txt" }));
 
       expect(() => service.read("artifact-2")).toThrowError(
         /FILE_TOO_LARGE|exceeds the 5-byte read limit/,

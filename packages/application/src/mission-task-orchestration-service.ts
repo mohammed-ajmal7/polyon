@@ -2,7 +2,12 @@ import type { ActorId, DomainEvent, Task, TaskStatus } from "@polyon/contracts";
 
 import { getReadyTaskIds, markTaskReady } from "@polyon/core";
 
-import type { DomainStoreTransactionContext, DomainUnitOfWork, EventStore, TaskStore } from "@polyon/storage";
+import type {
+  DomainStoreTransactionContext,
+  DomainUnitOfWork,
+  EventStore,
+  TaskStore,
+} from "@polyon/storage";
 
 export interface AdvanceMissionTasksInput {
   readonly missionId: string;
@@ -83,8 +88,7 @@ export class MissionTaskOrchestrationService {
         changed,
         blocked: missionTasks.filter(
           (task) =>
-            (task.status === "PENDING" || task.status === "BLOCKED") &&
-            !readyIds.has(task.id),
+            (task.status === "PENDING" || task.status === "BLOCKED") && !readyIds.has(task.id),
         ),
       };
     };

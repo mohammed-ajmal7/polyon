@@ -66,9 +66,7 @@ describe("InMemoryExecutionWorker", () => {
 
     expect(result?.execution.status).toBe("SUCCEEDED");
     expect(queue.size()).toBe(0);
-    expect(
-      stores.events.list().some((event) => event.kind === "EXECUTION_RECOVERED"),
-    ).toBe(true);
+    expect(stores.events.list().some((event) => event.kind === "EXECUTION_RECOVERED")).toBe(true);
   });
 
   it("is safe to start twice without duplicating recovered work or trace events", () => {

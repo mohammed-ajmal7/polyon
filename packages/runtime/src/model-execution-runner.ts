@@ -1,19 +1,8 @@
-import type {
-  Execution,
-  ModelToolDefinition,
-  TextModelRequest,
-} from "@polyon/contracts";
-import {
-  ModelGateway,
-  type ModelInvocationOptions,
-} from "@polyon/providers";
+import type { Execution, ModelToolDefinition, TextModelRequest } from "@polyon/contracts";
+import { ModelGateway, type ModelInvocationOptions } from "@polyon/providers";
 import type { TaskStore } from "@polyon/storage";
 
-import type {
-  ExecutionRunContext,
-  ExecutionRunResult,
-  ExecutionRunner,
-} from "./execution-runner";
+import type { ExecutionRunContext, ExecutionRunResult, ExecutionRunner } from "./execution-runner";
 
 export interface ModelExecutionToolOrchestrator {
   continueFromResponse(input: {
@@ -46,10 +35,7 @@ export interface ModelExecutionRunnerDependencies {
 export class ModelExecutionRunner implements ExecutionRunner {
   constructor(private readonly dependencies: ModelExecutionRunnerDependencies) {}
 
-  async run(
-    execution: Execution,
-    context?: ExecutionRunContext,
-  ): Promise<ExecutionRunResult> {
+  async run(execution: Execution, context?: ExecutionRunContext): Promise<ExecutionRunResult> {
     if (execution.modelId === undefined) {
       return {
         status: "FAILED",
@@ -76,8 +62,7 @@ export class ModelExecutionRunner implements ExecutionRunner {
           error: resumed.error ?? "Approved tool continuation failed.",
           ...(resumed.output === undefined ? {} : { output: resumed.output }),
         };
-      }
-      else {
+      } else {
         return {
           status: "SUCCEEDED",
           output: resumed.output ?? "",
@@ -136,7 +121,8 @@ ${task.description}`,
         if (this.dependencies.toolOrchestrator === undefined) {
           return {
             status: "FAILED",
-            error: "Model requested tool execution, but governed tool orchestration is not configured.",
+            error:
+              "Model requested tool execution, but governed tool orchestration is not configured.",
             output: result.output.content,
           };
         }

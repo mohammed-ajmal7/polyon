@@ -2,10 +2,7 @@ import type { Mission, Policy, Task } from "@polyon/contracts";
 import { InMemoryDomainStores, InMemoryEventStore } from "@polyon/storage";
 import { describe, expect, it } from "vitest";
 
-import {
-  MissionPlanService,
-  MissionPlanServiceError,
-} from "./mission-plan-service";
+import { MissionPlanService, MissionPlanServiceError } from "./mission-plan-service";
 
 const mission: Mission = {
   id: "mission-1",
@@ -105,9 +102,7 @@ describe("MissionPlanService", () => {
 
     let transactionCalls = 0;
     const unitOfWork = {
-      transaction<T>(
-        work: Parameters<InMemoryDomainStores["transaction"]>[0],
-      ): T {
+      transaction<T>(work: Parameters<InMemoryDomainStores["transaction"]>[0]): T {
         transactionCalls += 1;
         return stores.transaction(work) as T;
       },
@@ -133,10 +128,7 @@ describe("MissionPlanService", () => {
     expect(result.status).toBe("APPLIED");
     expect(stores.missionPlanProposals.get("proposal-1")).toBeDefined();
     expect(stores.policyDecisions.get("decision-1")).toBeDefined();
-    expect(stores.missions.get("mission-1")?.taskIds).toEqual([
-      "task-1",
-      "task-2",
-    ]);
+    expect(stores.missions.get("mission-1")?.taskIds).toEqual(["task-1", "task-2"]);
     expect(stores.events.list().map((event) => event.kind)).toEqual([
       "MISSION_PLAN_PROPOSED",
       "POLICY_DECIDED",
@@ -168,9 +160,7 @@ describe("MissionPlanService", () => {
     expect(events.listByMission("mission-1")[1]?.causedByEventId).toBe(
       "MISSION_PLAN_PROPOSED:proposal-1",
     );
-    expect(events.listByMission("mission-1")[2]?.causedByEventId).toBe(
-      "POLICY_DECIDED:decision-1",
-    );
+    expect(events.listByMission("mission-1")[2]?.causedByEventId).toBe("POLICY_DECIDED:decision-1");
   });
 
   it("persists an approval request without applying the plan", () => {

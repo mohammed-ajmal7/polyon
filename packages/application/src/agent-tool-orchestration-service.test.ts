@@ -2,20 +2,9 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import type {
-  Agent,
-  AgentId,
-  Model,
-  Policy,
-  Provider,
-  Tool,
-} from "@polyon/contracts";
+import type { Agent, AgentId, Model, Policy, Provider, Tool } from "@polyon/contracts";
 import type { AgentGateway } from "@polyon/agents";
-import {
-  InMemoryToolAdapterRegistry,
-  InMemoryToolRegistry,
-  type ToolAdapter,
-} from "@polyon/tools";
+import { InMemoryToolAdapterRegistry, InMemoryToolRegistry, type ToolAdapter } from "@polyon/tools";
 import { FileDomainStores } from "@polyon/storage";
 import { describe, expect, it, vi } from "vitest";
 
@@ -116,9 +105,7 @@ function createOrchestrator(
 }
 
 describe("AgentToolOrchestrationService", () => {
-  it(
-    "recovers an approved continuation without re-running a completed tool after restart",
-    async () => {
+  it("recovers an approved continuation without re-running a completed tool after restart", async () => {
     const root = mkdtempSync(join(tmpdir(), "polyon-tool-continuation-"));
     let toolCalls = 0;
 
@@ -193,9 +180,7 @@ describe("AgentToolOrchestrationService", () => {
       ).rejects.toThrow("simulated process crash after tool checkpoint");
 
       expect(toolCalls).toBe(1);
-      expect(
-        firstStores.approvals.get("approval:call-1")?.toolContinuation,
-      ).toMatchObject({
+      expect(firstStores.approvals.get("approval:call-1")?.toolContinuation).toMatchObject({
         state: "AWAITING_MODEL",
         toolOutput: "tool result",
         nextRequest: {
@@ -228,19 +213,14 @@ describe("AgentToolOrchestrationService", () => {
         }),
       );
 
-      const result = await second.orchestrator.resumeApprovedExecution(
-        "execution.test",
-        policy,
-      );
+      const result = await second.orchestrator.resumeApprovedExecution("execution.test", policy);
 
       expect(result.status).toBe("SUCCEEDED");
       if (result.status === "SUCCEEDED") {
         expect(result.response.content).toBe("Recovered final answer.");
       }
       expect(toolCalls).toBe(1);
-      expect(
-        secondStores.approvals.get("approval:call-1")?.toolContinuation,
-      ).toMatchObject({
+      expect(secondStores.approvals.get("approval:call-1")?.toolContinuation).toMatchObject({
         state: "COMPLETED",
         response: {
           content: "Recovered final answer.",

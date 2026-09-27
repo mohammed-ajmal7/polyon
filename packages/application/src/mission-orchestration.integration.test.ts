@@ -275,7 +275,7 @@ describe("mission orchestration", () => {
       conversationId: "conversation-1",
       messageId: "message-agent-1",
       actorId: "agent-1",
-      output: completed!.result.status === "SUCCEEDED" ? completed!.result.output ?? "" : "",
+      output: completed!.result.status === "SUCCEEDED" ? (completed!.result.output ?? "") : "",
       artifacts: [
         {
           id: "artifact-1",

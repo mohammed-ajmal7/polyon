@@ -74,9 +74,10 @@ export class OpenAICompatibleTextModelAdapter implements TextModelProviderAdapte
     this.fetchImpl =
       options.fetch ??
       ((input, init) =>
-        globalThis.fetch(input, init as unknown as RequestInit) as Promise<
-          OpenAICompatibleResponse
-        >);
+        globalThis.fetch(
+          input,
+          init as unknown as RequestInit,
+        ) as Promise<OpenAICompatibleResponse>);
   }
 
   async invoke({
@@ -132,9 +133,7 @@ export class OpenAICompatibleTextModelAdapter implements TextModelProviderAdapte
               })),
             }),
         ...(input.temperature === undefined ? {} : { temperature: input.temperature }),
-        ...(input.maxOutputTokens === undefined
-          ? {}
-          : { max_tokens: input.maxOutputTokens }),
+        ...(input.maxOutputTokens === undefined ? {} : { max_tokens: input.maxOutputTokens }),
       }),
       signal,
     });
@@ -158,9 +157,7 @@ export class OpenAICompatibleTextModelAdapter implements TextModelProviderAdapte
     const body = payload as OpenAIChatResponse;
     const choice = body.choices?.[0];
     const content = choice?.message?.content;
-    const toolNames = new Map(
-      (request.tools ?? []).map((tool) => [tool.name, tool.toolId]),
-    );
+    const toolNames = new Map((request.tools ?? []).map((tool) => [tool.name, tool.toolId]));
     const toolCalls = parseToolCalls(choice?.message?.tool_calls, toolNames);
 
     if (typeof content !== "string" && toolCalls === undefined) {
@@ -191,23 +188,11 @@ export class OpenAICompatibleTextModelAdapter implements TextModelProviderAdapte
     const message = extractErrorMessage(payload) ?? `Provider request failed with HTTP ${status}.`;
 
     if (status === 408) {
-      return new ProviderInvocationError(
-        "TIMEOUT",
-        this.providerId,
-        modelId,
-        message,
-        true,
-      );
+      return new ProviderInvocationError("TIMEOUT", this.providerId, modelId, message, true);
     }
 
     if (status === 429) {
-      return new ProviderInvocationError(
-        "RATE_LIMITED",
-        this.providerId,
-        modelId,
-        message,
-        true,
-      );
+      return new ProviderInvocationError("RATE_LIMITED", this.providerId, modelId, message, true);
     }
 
     if (status === 401 || status === 403) {
@@ -231,22 +216,10 @@ export class OpenAICompatibleTextModelAdapter implements TextModelProviderAdapte
     }
 
     if (status >= 500) {
-      return new ProviderInvocationError(
-        "UNAVAILABLE",
-        this.providerId,
-        modelId,
-        message,
-        true,
-      );
+      return new ProviderInvocationError("UNAVAILABLE", this.providerId, modelId, message, true);
     }
 
-    return new ProviderInvocationError(
-      "UNKNOWN",
-      this.providerId,
-      modelId,
-      message,
-      false,
-    );
+    return new ProviderInvocationError("UNKNOWN", this.providerId, modelId, message, false);
   }
 }
 
@@ -290,9 +263,7 @@ function mapUsage(value: OpenAIChatResponse["usage"]): TextModelUsage | undefine
   }
 
   const usage: TextModelUsage = {
-    ...(typeof value.prompt_tokens === "number"
-      ? { inputTokens: value.prompt_tokens }
-      : {}),
+    ...(typeof value.prompt_tokens === "number" ? { inputTokens: value.prompt_tokens } : {}),
     ...(typeof value.completion_tokens === "number"
       ? { outputTokens: value.completion_tokens }
       : {}),
@@ -301,7 +272,6 @@ function mapUsage(value: OpenAIChatResponse["usage"]): TextModelUsage | undefine
 
   return Object.keys(usage).length === 0 ? undefined : usage;
 }
-
 
 function parseToolCalls(
   value: unknown,

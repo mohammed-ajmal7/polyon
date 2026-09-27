@@ -78,15 +78,11 @@ function parseSnapshot<TEntity extends EntityWithId>(
       !("id" in entity) ||
       typeof entity.id !== "string"
     ) {
-      throw new StorageFileFormatError(
-        `Invalid entity record in storage snapshot: ${filePath}.`,
-      );
+      throw new StorageFileFormatError(`Invalid entity record in storage snapshot: ${filePath}.`);
     }
 
     if (ids.has(entity.id)) {
-      throw new StorageFileFormatError(
-        `Duplicate entity ID in storage snapshot: ${entity.id}.`,
-      );
+      throw new StorageFileFormatError(`Duplicate entity ID in storage snapshot: ${entity.id}.`);
     }
 
     ids.add(entity.id);
@@ -95,9 +91,7 @@ function parseSnapshot<TEntity extends EntityWithId>(
   return parsed.entities as TEntity[];
 }
 
-function readSnapshot<TEntity extends EntityWithId>(
-  filePath: string,
-): Map<TEntity["id"], TEntity> {
+function readSnapshot<TEntity extends EntityWithId>(filePath: string): Map<TEntity["id"], TEntity> {
   if (!existsSync(filePath)) {
     return new Map();
   }
@@ -143,9 +137,7 @@ function writeSnapshot<TEntity extends EntityWithId>(
   }
 }
 
-export class InMemoryEntityStore<TEntity extends EntityWithId>
-  implements EntityStore<TEntity>
-{
+export class InMemoryEntityStore<TEntity extends EntityWithId> implements EntityStore<TEntity> {
   private readonly entities = new Map<TEntity["id"], TEntity>();
 
   get(id: TEntity["id"]): TEntity | undefined {
@@ -167,9 +159,7 @@ export class InMemoryEntityStore<TEntity extends EntityWithId>
   }
 }
 
-export class FileEntityStore<TEntity extends EntityWithId>
-  implements EntityStore<TEntity>
-{
+export class FileEntityStore<TEntity extends EntityWithId> implements EntityStore<TEntity> {
   private readonly entities: Map<TEntity["id"], TEntity>;
 
   constructor(private readonly filePath: string) {

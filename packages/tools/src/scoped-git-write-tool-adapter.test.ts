@@ -1,9 +1,5 @@
 import { execFileSync } from "node:child_process";
-import {
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -14,24 +10,11 @@ import { ScopedGitWriteToolAdapter } from "./scoped-git-write-tool-adapter";
 function createRepository(): string {
   const root = mkdtempSync(join(tmpdir(), "polyon-git-write-"));
   execFileSync("git", ["init", "-q", root]);
-  execFileSync("git", [
-    "-C",
-    root,
-    "config",
-    "user.email",
-    "polyon@example.invalid",
-  ]);
+  execFileSync("git", ["-C", root, "config", "user.email", "polyon@example.invalid"]);
   execFileSync("git", ["-C", root, "config", "user.name", "POLYON Test"]);
   writeFileSync(join(root, "initial.txt"), "initial");
   execFileSync("git", ["-C", root, "add", "--", "initial.txt"]);
-  execFileSync("git", [
-    "-C",
-    root,
-    "commit",
-    "-q",
-    "-m",
-    "chore: initialize test repository",
-  ]);
+  execFileSync("git", ["-C", root, "commit", "-q", "-m", "chore: initialize test repository"]);
   return root;
 }
 
@@ -65,11 +48,9 @@ describe("ScopedGitWriteToolAdapter", () => {
         },
       });
 
-      const branches = execFileSync(
-        "git",
-        ["-C", root, "branch", "--list", "polyon/test-branch"],
-        { encoding: "utf8" },
-      );
+      const branches = execFileSync("git", ["-C", root, "branch", "--list", "polyon/test-branch"], {
+        encoding: "utf8",
+      });
       expect(branches).toContain("polyon/test-branch");
     } finally {
       cleanup(root);
@@ -102,11 +83,9 @@ describe("ScopedGitWriteToolAdapter", () => {
         },
       });
 
-      const staged = execFileSync(
-        "git",
-        ["-C", root, "diff", "--cached", "--name-only"],
-        { encoding: "utf8" },
-      );
+      const staged = execFileSync("git", ["-C", root, "diff", "--cached", "--name-only"], {
+        encoding: "utf8",
+      });
       expect(staged.trim()).toBe("notes.txt");
 
       await expect(
@@ -125,11 +104,9 @@ describe("ScopedGitWriteToolAdapter", () => {
         },
       });
 
-      const unstaged = execFileSync(
-        "git",
-        ["-C", root, "diff", "--cached", "--name-only"],
-        { encoding: "utf8" },
-      );
+      const unstaged = execFileSync("git", ["-C", root, "diff", "--cached", "--name-only"], {
+        encoding: "utf8",
+      });
       expect(unstaged.trim()).toBe("");
     } finally {
       cleanup(root);

@@ -82,8 +82,7 @@ export class CommandIngressService {
   constructor(private readonly dependencies: CommandIngressDependencies) {}
 
   submit(input: CommandIngressInput): CommandIngressResult {
-    const operation = (stores: CommandIngressStores) =>
-      this.submitWithStores(stores, input);
+    const operation = (stores: CommandIngressStores) => this.submitWithStores(stores, input);
 
     return this.dependencies.unitOfWork === undefined
       ? operation(this.dependencies)
@@ -163,7 +162,6 @@ export class CommandIngressService {
     }
 
     return this.persistSubmissionWithStores(stores, existing, command, input);
-  
   }
 
   private persistSubmissionWithStores(
@@ -180,10 +178,7 @@ export class CommandIngressService {
     }
 
     if (stores.events.get(input.eventId) !== undefined) {
-      throw new CommandIngressError(
-        "DUPLICATE_EVENT",
-        `Event already exists: ${input.eventId}.`,
-      );
+      throw new CommandIngressError("DUPLICATE_EVENT", `Event already exists: ${input.eventId}.`);
     }
 
     const message: Message = {
@@ -227,6 +222,5 @@ export class CommandIngressService {
       message,
       event,
     };
-  
   }
 }

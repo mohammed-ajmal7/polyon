@@ -68,7 +68,8 @@ export interface BuiltinToolOptions {
   readonly gitPublishEnvironmentKeys?: readonly string[];
   readonly gitPublishEnabled?: boolean;
   readonly artifactRoot?: string;
-  readonly artifactDefaultKind?: "DOCUMENT" | "IMAGE" | "VIDEO" | "AUDIO" | "CODE" | "DATASET" | "REPORT" | "OTHER";
+  readonly artifactDefaultKind?:
+    "DOCUMENT" | "IMAGE" | "VIDEO" | "AUDIO" | "CODE" | "DATASET" | "REPORT" | "OTHER";
   readonly artifactWriteEnabled?: boolean;
 }
 
@@ -87,8 +88,7 @@ export function registerBuiltinTools(
     const filesystemReadTool: Tool = {
       id: BUILTIN_TOOL_IDS.filesystemRead,
       name: "Scoped filesystem read",
-      description:
-        "Reads a bounded file from the configured POLYON filesystem root.",
+      description: "Reads a bounded file from the configured POLYON filesystem root.",
       kind: "FILESYSTEM",
       actionKinds: ["READ"],
       inputSchema: {
@@ -124,10 +124,7 @@ export function registerBuiltinTools(
     });
   }
 
-  if (
-    options.terminalRoot !== undefined &&
-    options.terminalAllowedCommands !== undefined
-  ) {
+  if (options.terminalRoot !== undefined && options.terminalAllowedCommands !== undefined) {
     const terminalTool: Tool = {
       id: BUILTIN_TOOL_IDS.terminalExecute,
       name: "Scoped terminal execution",
@@ -185,8 +182,7 @@ export function registerBuiltinTools(
     const gitTool: Tool = {
       id: BUILTIN_TOOL_IDS.gitRead,
       name: "Scoped Git read",
-      description:
-        "Inspects repository state without modifying Git history or the working tree.",
+      description: "Inspects repository state without modifying Git history or the working tree.",
       kind: "GIT",
       actionKinds: ["READ"],
       inputSchema: {
@@ -304,16 +300,7 @@ export function registerBuiltinTools(
           },
           kind: {
             type: "string",
-            enum: [
-              "DOCUMENT",
-              "IMAGE",
-              "VIDEO",
-              "AUDIO",
-              "CODE",
-              "DATASET",
-              "REPORT",
-              "OTHER",
-            ],
+            enum: ["DOCUMENT", "IMAGE", "VIDEO", "AUDIO", "CODE", "DATASET", "REPORT", "OTHER"],
           },
           mimeType: {
             type: "string",
@@ -338,8 +325,7 @@ export function registerBuiltinTools(
     const gitCommitTool: Tool = {
       id: BUILTIN_TOOL_IDS.gitCommit,
       name: "Scoped Git commit",
-      description:
-        "Creates a commit from the existing Git index with an explicit commit message.",
+      description: "Creates a commit from the existing Git index with an explicit commit message.",
       kind: "GIT",
       actionKinds: ["WRITE"],
       inputSchema: {
@@ -379,15 +365,11 @@ export function registerBuiltinTools(
     registries.adapters.register(gitCommitAdapter);
   }
 
-  if (
-    options.gitPublishRoot !== undefined &&
-    options.gitPublishAllowedRemotes !== undefined
-  ) {
+  if (options.gitPublishRoot !== undefined && options.gitPublishAllowedRemotes !== undefined) {
     const gitPublishTool: Tool = {
       id: BUILTIN_TOOL_IDS.gitPublish,
       name: "Scoped Git publish",
-      description:
-        "Publishes the current HEAD to an explicitly allowlisted Git remote and branch.",
+      description: "Publishes the current HEAD to an explicitly allowlisted Git remote and branch.",
       kind: "GIT",
       actionKinds: ["PUBLISH"],
       inputSchema: {

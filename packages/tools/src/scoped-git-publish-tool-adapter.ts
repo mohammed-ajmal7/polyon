@@ -18,18 +18,12 @@ export interface ScopedGitPublishToolOutput {
 }
 
 export type ScopedGitPublishToolErrorKind =
-  | "INVALID_INPUT"
-  | "REMOTE_NOT_ALLOWED"
-  | "INVALID_BRANCH"
-  | "COMMAND_FAILED";
+  "INVALID_INPUT" | "REMOTE_NOT_ALLOWED" | "INVALID_BRANCH" | "COMMAND_FAILED";
 
 export class ScopedGitPublishToolError extends Error {
   readonly kind: ScopedGitPublishToolErrorKind;
 
-  constructor(
-    kind: ScopedGitPublishToolErrorKind,
-    message: string,
-  ) {
+  constructor(kind: ScopedGitPublishToolErrorKind, message: string) {
     super(message);
     this.name = "ScopedGitPublishToolError";
     this.kind = kind;
@@ -61,9 +55,10 @@ function isSafeBranch(value: string): boolean {
   );
 }
 
-export class ScopedGitPublishToolAdapter
-  implements ToolAdapter<ScopedGitPublishToolInput, ScopedGitPublishToolOutput>
-{
+export class ScopedGitPublishToolAdapter implements ToolAdapter<
+  ScopedGitPublishToolInput,
+  ScopedGitPublishToolOutput
+> {
   readonly toolId: string;
 
   private readonly allowedRemotes: ReadonlySet<string>;

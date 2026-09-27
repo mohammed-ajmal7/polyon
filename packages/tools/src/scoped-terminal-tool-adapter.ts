@@ -41,11 +41,7 @@ export class ScopedTerminalToolError extends Error {
   readonly kind: ScopedTerminalToolErrorKind;
   readonly command: string;
 
-  constructor(
-    kind: ScopedTerminalToolErrorKind,
-    command: string,
-    message: string,
-  ) {
+  constructor(kind: ScopedTerminalToolErrorKind, command: string, message: string) {
     super(message);
     this.name = "ScopedTerminalToolError";
     this.kind = kind;
@@ -92,10 +88,7 @@ function assertCommandName(command: string): void {
 
 function isPathInsideRoot(rootDir: string, candidatePath: string): boolean {
   const rel = relative(rootDir, candidatePath);
-  return (
-    rel === "" ||
-    (!isAbsolute(rel) && rel !== ".." && !rel.startsWith(".." + sep))
-  );
+  return rel === "" || (!isAbsolute(rel) && rel !== ".." && !rel.startsWith(".." + sep));
 }
 
 function normalizeAllowedCommands(commands: readonly string[]): ReadonlySet<string> {
@@ -111,9 +104,7 @@ function normalizeAllowedCommands(commands: readonly string[]): ReadonlySet<stri
   return normalized;
 }
 
-function pickEnvironment(
-  keys: readonly string[],
-): Record<string, string | undefined> {
+function pickEnvironment(keys: readonly string[]): Record<string, string | undefined> {
   const environment: Record<string, string | undefined> = {};
   const runtime = (
     globalThis as unknown as {
@@ -146,9 +137,10 @@ function decodeChunks(chunks: readonly Uint8Array[]): string {
   return new TextDecoder().decode(combined);
 }
 
-export class ScopedTerminalToolAdapter
-  implements ToolAdapter<ScopedTerminalToolInput, ScopedTerminalToolOutput>
-{
+export class ScopedTerminalToolAdapter implements ToolAdapter<
+  ScopedTerminalToolInput,
+  ScopedTerminalToolOutput
+> {
   readonly toolId: string;
 
   private readonly rootDir: string;
@@ -165,17 +157,14 @@ export class ScopedTerminalToolAdapter
 
     const defaultTimeoutMs = options.defaultTimeoutMs ?? DEFAULT_TIMEOUT_MS;
     const maxTimeoutMs = options.maxTimeoutMs ?? DEFAULT_MAX_TIMEOUT_MS;
-    const defaultMaxOutputBytes =
-      options.defaultMaxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES;
+    const defaultMaxOutputBytes = options.defaultMaxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES;
 
     assertPositiveInteger(defaultTimeoutMs, "defaultTimeoutMs");
     assertPositiveInteger(maxTimeoutMs, "maxTimeoutMs");
     assertPositiveInteger(defaultMaxOutputBytes, "defaultMaxOutputBytes");
 
     if (maxTimeoutMs < defaultTimeoutMs) {
-      throw new RangeError(
-        "maxTimeoutMs must be greater than or equal to defaultTimeoutMs.",
-      );
+      throw new RangeError("maxTimeoutMs must be greater than or equal to defaultTimeoutMs.");
     }
 
     const absoluteRoot = resolve(options.rootDir);
@@ -224,10 +213,7 @@ export class ScopedTerminalToolAdapter
     }
 
     const args = input.args ?? [];
-    if (
-      !Array.isArray(args) ||
-      args.some((arg) => typeof arg !== "string")
-    ) {
+    if (!Array.isArray(args) || args.some((arg) => typeof arg !== "string")) {
       throw new ScopedTerminalToolError(
         "INVALID_INPUT",
         input.command,
@@ -244,8 +230,7 @@ export class ScopedTerminalToolAdapter
     }
 
     const timeoutMs = input.timeoutMs ?? this.defaultTimeoutMs;
-    const maxOutputBytes =
-      input.maxOutputBytes ?? this.defaultMaxOutputBytes;
+    const maxOutputBytes = input.maxOutputBytes ?? this.defaultMaxOutputBytes;
 
     assertPositiveInteger(timeoutMs, "timeoutMs");
     assertPositiveInteger(maxOutputBytes, "maxOutputBytes");
@@ -268,13 +253,7 @@ export class ScopedTerminalToolAdapter
 
     const cwd = await this.resolveWorkingDirectory(input.cwd);
 
-    return this.execute(
-      input.command,
-      args,
-      cwd,
-      timeoutMs,
-      maxOutputBytes,
-    );
+    return this.execute(input.command, args, cwd, timeoutMs, maxOutputBytes);
   }
 
   private async resolveWorkingDirectory(cwdInput: string | undefined): Promise<string> {
@@ -371,12 +350,8 @@ export class ScopedTerminalToolAdapter
         );
       };
 
-      child.stdout.on("data", (chunk: Uint8Array) =>
-        onData(stdoutChunks, chunk),
-      );
-      child.stderr.on("data", (chunk: Uint8Array) =>
-        onData(stderrChunks, chunk),
-      );
+      child.stdout.on("data", (chunk: Uint8Array) => onData(stdoutChunks, chunk));
+      child.stderr.on("data", (chunk: Uint8Array) => onData(stderrChunks, chunk));
 
       child.on("error", (error) => {
         rejectOnce(

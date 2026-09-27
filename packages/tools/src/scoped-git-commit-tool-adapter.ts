@@ -15,17 +15,12 @@ export interface ScopedGitCommitToolOutput {
   readonly commandOutput: ScopedTerminalToolOutput;
 }
 
-export type ScopedGitCommitToolErrorKind =
-  | "INVALID_INPUT"
-  | "COMMAND_FAILED";
+export type ScopedGitCommitToolErrorKind = "INVALID_INPUT" | "COMMAND_FAILED";
 
 export class ScopedGitCommitToolError extends Error {
   readonly kind: ScopedGitCommitToolErrorKind;
 
-  constructor(
-    kind: ScopedGitCommitToolErrorKind,
-    message: string,
-  ) {
+  constructor(kind: ScopedGitCommitToolErrorKind, message: string) {
     super(message);
     this.name = "ScopedGitCommitToolError";
     this.kind = kind;
@@ -42,9 +37,10 @@ export interface ScopedGitCommitToolAdapterOptions {
   readonly environmentKeys?: readonly string[];
 }
 
-export class ScopedGitCommitToolAdapter
-  implements ToolAdapter<ScopedGitCommitToolInput, ScopedGitCommitToolOutput>
-{
+export class ScopedGitCommitToolAdapter implements ToolAdapter<
+  ScopedGitCommitToolInput,
+  ScopedGitCommitToolOutput
+> {
   readonly toolId: string;
 
   private readonly gitExecutablePath: string;

@@ -1,10 +1,44 @@
 import type { Agent, Model, Policy, Provider } from "@polyon/contracts";
-import { AgentGateway, InMemoryAgentRegistry, InMemoryModelRegistry, InMemoryProviderRegistry } from "@polyon/agents";
-import { ArtifactCatalogService, LocalArtifactContentService, ExecutionApprovalService, ExecutionDispatchService, ExecutionResultService, AgentToolOrchestrationService, ExecutionRetryService, MissionExecutionService, MissionTaskOrchestrationService, ToolInvocationService, type ReadyTaskHandler } from "@polyon/application";
-import { InMemoryProviderAdapterRegistry, ModelGateway, type ModelProviderAdapter } from "@polyon/providers";
+import {
+  AgentGateway,
+  InMemoryAgentRegistry,
+  InMemoryModelRegistry,
+  InMemoryProviderRegistry,
+} from "@polyon/agents";
+import {
+  ArtifactCatalogService,
+  LocalArtifactContentService,
+  ExecutionApprovalService,
+  ExecutionDispatchService,
+  ExecutionResultService,
+  AgentToolOrchestrationService,
+  ExecutionRetryService,
+  MissionExecutionService,
+  MissionTaskOrchestrationService,
+  ToolInvocationService,
+  type ReadyTaskHandler,
+} from "@polyon/application";
+import {
+  InMemoryProviderAdapterRegistry,
+  ModelGateway,
+  type ModelProviderAdapter,
+} from "@polyon/providers";
 import { FileDomainStores } from "@polyon/storage";
-import { createExecutionRuntime, ModelExecutionRunner, type ExecutionRunOutcome, type ExecutionRuntime, type ExecutionRuntimeCompletionHandler, type ExecutionRuntimeWait, type ExecutionWorkerClock } from "@polyon/runtime";
-import { createInMemoryBuiltinToolRegistries, registerBuiltinTools, type ToolAdapterRegistry, type ToolRegistry } from "@polyon/tools";
+import {
+  createExecutionRuntime,
+  ModelExecutionRunner,
+  type ExecutionRunOutcome,
+  type ExecutionRuntime,
+  type ExecutionRuntimeCompletionHandler,
+  type ExecutionRuntimeWait,
+  type ExecutionWorkerClock,
+} from "@polyon/runtime";
+import {
+  createInMemoryBuiltinToolRegistries,
+  registerBuiltinTools,
+  type ToolAdapterRegistry,
+  type ToolRegistry,
+} from "@polyon/tools";
 
 export interface PolyonProviderRegistration {
   readonly provider: Provider;
@@ -57,14 +91,7 @@ export interface PolyonCompositionOptions {
   readonly gitPublishEnabled?: boolean;
   readonly artifactRoot?: string;
   readonly artifactDefaultKind?:
-    | "DOCUMENT"
-    | "IMAGE"
-    | "VIDEO"
-    | "AUDIO"
-    | "CODE"
-    | "DATASET"
-    | "REPORT"
-    | "OTHER";
+    "DOCUMENT" | "IMAGE" | "VIDEO" | "AUDIO" | "CODE" | "DATASET" | "REPORT" | "OTHER";
   readonly artifactWriteEnabled?: boolean;
   readonly toolPolicy?: Policy;
   readonly toolRequiredCapabilityIds?: readonly string[];
@@ -130,13 +157,11 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
 
   if (
     options.filesystemRoot !== undefined ||
-    (options.terminalRoot !== undefined &&
-      options.terminalAllowedCommands !== undefined) ||
+    (options.terminalRoot !== undefined && options.terminalAllowedCommands !== undefined) ||
     options.gitRoot !== undefined ||
     options.gitWriteRoot !== undefined ||
     options.gitCommitRoot !== undefined ||
-    (options.gitPublishRoot !== undefined &&
-      options.gitPublishAllowedRemotes !== undefined) ||
+    (options.gitPublishRoot !== undefined && options.gitPublishAllowedRemotes !== undefined) ||
     options.artifactRoot !== undefined
   ) {
     registerBuiltinTools(builtinTools, {
@@ -187,9 +212,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
 
   let executionResults: ExecutionResultService | undefined;
 
-  const publishExecutionCompletion = async (
-    outcome: ExecutionRunOutcome,
-  ): Promise<void> => {
+  const publishExecutionCompletion = async (outcome: ExecutionRunOutcome): Promise<void> => {
     const externalHandler = options.onExecutionCompleted;
 
     if (executionResults !== undefined) {
@@ -205,8 +228,8 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
       if (conversation !== undefined) {
         const output =
           outcome.result.status === "SUCCEEDED"
-            ? outcome.result.output ?? ""
-            : outcome.result.error ?? "Execution did not produce a result.";
+            ? (outcome.result.output ?? "")
+            : (outcome.result.error ?? "Execution did not produce a result.");
 
         executionResults.persist({
           executionId: outcome.execution.id,
@@ -214,9 +237,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
           messageId: `execution-result:${outcome.execution.id}`,
           actorId: outcome.execution.actorId,
           output,
-          createdAt:
-            outcome.execution.completedAt ??
-            outcome.execution.updatedAt,
+          createdAt: outcome.execution.completedAt ?? outcome.execution.updatedAt,
         });
       }
     }
@@ -277,27 +298,27 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
                 return { status: "NO_CONTINUATION" as const };
               }
               return {
-                status: result.status === "SUCCEEDED"
-                  ? "SUCCEEDED" as const
-                  : result.status === "APPROVAL_REQUIRED"
-                    ? "PAUSED" as const
-                    : result.status === "REJECTED"
-                      ? "REJECTED" as const
-                      : "FAILED" as const,
+                status:
+                  result.status === "SUCCEEDED"
+                    ? ("SUCCEEDED" as const)
+                    : result.status === "APPROVAL_REQUIRED"
+                      ? ("PAUSED" as const)
+                      : result.status === "REJECTED"
+                        ? ("REJECTED" as const)
+                        : ("FAILED" as const),
                 ...(result.status === "SUCCEEDED"
                   ? { output: result.response.content }
                   : { error: "Approved tool continuation failed." }),
               };
             },
-            toolDefinitions: builtinTools.tools.list()
+            toolDefinitions: builtinTools.tools
+              .list()
               .filter((tool) => tool.enabled)
               .map((tool) => ({
                 toolId: tool.id,
                 name: tool.id.replace(/[^A-Za-z0-9_-]/g, "_") || "polyon_tool",
                 description: tool.description,
-                ...(tool.inputSchema === undefined
-                  ? {}
-                  : { inputSchema: tool.inputSchema }),
+                ...(tool.inputSchema === undefined ? {} : { inputSchema: tool.inputSchema }),
               })),
             toolOrchestrator: {
               continueFromResponse: async ({ execution, request, response }) => {
@@ -374,7 +395,10 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     executionDispatch,
     (task) => stores.tasks.save(task),
     (taskId) => stores.tasks.get(taskId),
-    () => stores.executions.list().map((execution) => ({ taskId: execution.taskId, attempt: execution.attempt })),
+    () =>
+      stores.executions
+        .list()
+        .map((execution) => ({ taskId: execution.taskId, attempt: execution.attempt })),
     stores.events,
   );
 
@@ -424,9 +448,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     executionRetry,
     toolInvocation,
     artifactCatalog,
-    ...(localArtifactContent === undefined
-      ? {}
-      : { localArtifactContent }),
+    ...(localArtifactContent === undefined ? {} : { localArtifactContent }),
     agentToolOrchestration,
     runtime,
   };

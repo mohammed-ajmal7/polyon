@@ -11,13 +11,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { createHash } from "node:crypto";
-import {
-  dirname,
-  isAbsolute,
-  relative,
-  resolve,
-  sep,
-} from "node:path";
+import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 
 import type { ArtifactKind, ArtifactStatus } from "@polyon/contracts";
 import type {
@@ -47,18 +41,12 @@ export interface ScopedArtifactWriteToolOutput {
 }
 
 export type ScopedArtifactWriteToolErrorKind =
-  | "INVALID_INPUT"
-  | "OUTSIDE_ROOT"
-  | "PATH_CONFLICT"
-  | "WRITE_FAILED";
+  "INVALID_INPUT" | "OUTSIDE_ROOT" | "PATH_CONFLICT" | "WRITE_FAILED";
 
 export class ScopedArtifactWriteToolError extends Error {
   readonly kind: ScopedArtifactWriteToolErrorKind;
 
-  constructor(
-    kind: ScopedArtifactWriteToolErrorKind,
-    message: string,
-  ) {
+  constructor(kind: ScopedArtifactWriteToolErrorKind, message: string) {
     super(message);
     this.name = "ScopedArtifactWriteToolError";
     this.kind = kind;
@@ -71,13 +59,10 @@ export interface ScopedArtifactWriteToolAdapterOptions {
   readonly defaultKind?: ArtifactKind;
 }
 
-export class ScopedArtifactWriteToolAdapter
-  implements
-    ToolAdapter<
-      ScopedArtifactWriteToolInput,
-      ScopedArtifactWriteToolOutput
-    >
-{
+export class ScopedArtifactWriteToolAdapter implements ToolAdapter<
+  ScopedArtifactWriteToolInput,
+  ScopedArtifactWriteToolOutput
+> {
   readonly toolId: string;
 
   private readonly rootDir: string;
@@ -125,15 +110,7 @@ export class ScopedArtifactWriteToolAdapter
     const artifactId =
       "artifact:" +
       createHash("sha256")
-        .update(
-          target +
-            "\n" +
-            input.content +
-            "\n" +
-            kind +
-            "\n" +
-            (input.mimeType ?? ""),
-        )
+        .update(target + "\n" + input.content + "\n" + kind + "\n" + (input.mimeType ?? ""))
         .digest("hex");
 
     const existing = readExisting(target);
@@ -146,9 +123,7 @@ export class ScopedArtifactWriteToolAdapter
           artifactId,
           name: input.name,
           kind,
-          ...(input.mimeType === undefined
-            ? {}
-            : { mimeType: input.mimeType }),
+          ...(input.mimeType === undefined ? {} : { mimeType: input.mimeType }),
           location: target,
           status: "AVAILABLE" as const,
           sizeBytes: byteLength(existing),
@@ -177,8 +152,7 @@ export class ScopedArtifactWriteToolAdapter
       );
     }
 
-    const tempPath =
-      `${target}.${sha256(input.content).slice(0, 16)}.tmp`;
+    const tempPath = `${target}.${sha256(input.content).slice(0, 16)}.tmp`;
 
     try {
       writeFileSync(tempPath, input.content, "utf8");
@@ -210,9 +184,7 @@ export class ScopedArtifactWriteToolAdapter
       artifactId,
       name: input.name,
       kind,
-      ...(input.mimeType === undefined
-        ? {}
-        : { mimeType: input.mimeType }),
+      ...(input.mimeType === undefined ? {} : { mimeType: input.mimeType }),
       location: target,
       status: "AVAILABLE" as const,
       sizeBytes: byteLength(persisted),
@@ -227,10 +199,7 @@ export class ScopedArtifactWriteToolAdapter
   }
 
   private resolveArtifactPath(name: string): string {
-    if (
-      isAbsolute(name) ||
-      name.split(/[\\/]/).some((segment) => segment === "..")
-    ) {
+    if (isAbsolute(name) || name.split(/[\\/]/).some((segment) => segment === "..")) {
       throw new ScopedArtifactWriteToolError(
         "OUTSIDE_ROOT",
         `Artifact path must remain inside the configured root: ${name}.`,
@@ -238,9 +207,7 @@ export class ScopedArtifactWriteToolAdapter
     }
 
     const candidate = resolve(this.rootDir, name);
-    const existing = existsSync(candidate)
-      ? realpathSync(candidate)
-      : candidate;
+    const existing = existsSync(candidate) ? realpathSync(candidate) : candidate;
 
     if (!isInsideRoot(this.rootDir, existing)) {
       throw new ScopedArtifactWriteToolError(
@@ -250,9 +217,7 @@ export class ScopedArtifactWriteToolAdapter
     }
 
     const parent = dirname(candidate);
-    const parentRealPath = existsSync(parent)
-      ? realpathSync(parent)
-      : this.rootDir;
+    const parentRealPath = existsSync(parent) ? realpathSync(parent) : this.rootDir;
 
     if (!isInsideRoot(this.rootDir, parentRealPath)) {
       throw new ScopedArtifactWriteToolError(
@@ -291,23 +256,17 @@ function byteLength(value: string): number {
 function isInsideRoot(rootDir: string, candidate: string): boolean {
   const rel = relative(rootDir, candidate);
 
-  return (
-    rel === "" ||
-    (!isAbsolute(rel) && rel !== ".." && !rel.startsWith(".." + sep))
-  );
+  return rel === "" || (!isAbsolute(rel) && rel !== ".." && !rel.startsWith(".." + sep));
 }
 
-
-function toArtifactResult(
-  output: {
-    readonly artifactId: string;
-    readonly name: string;
-    readonly kind: import("@polyon/contracts").ArtifactKind;
-    readonly mimeType?: string;
-    readonly location: string;
-    readonly status: import("@polyon/contracts").ArtifactStatus;
-  },
-): ToolArtifactResult {
+function toArtifactResult(output: {
+  readonly artifactId: string;
+  readonly name: string;
+  readonly kind: import("@polyon/contracts").ArtifactKind;
+  readonly mimeType?: string;
+  readonly location: string;
+  readonly status: import("@polyon/contracts").ArtifactStatus;
+}): ToolArtifactResult {
   return {
     id: output.artifactId,
     kind: output.kind,

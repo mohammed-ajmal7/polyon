@@ -111,9 +111,7 @@ function validateState(filePath: string, value: unknown): DurableDomainState {
 
   for (const collection of collectionNames) {
     if (!Array.isArray(record[collection])) {
-      throw new Error(
-        `Invalid durable domain collection "${collection}" in ${filePath}.`,
-      );
+      throw new Error(`Invalid durable domain collection "${collection}" in ${filePath}.`);
     }
   }
 
@@ -158,11 +156,7 @@ function acquireCommitLock(filePath: string): string {
     closeSync(descriptor);
     return lockPath;
   } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !("code" in error) ||
-      error.code !== "EEXIST"
-    ) {
+    if (!(error instanceof Error) || !("code" in error) || error.code !== "EEXIST") {
       throw error;
     }
   }
@@ -177,11 +171,7 @@ function acquireCommitLock(filePath: string): string {
       return lockPath;
     }
   } catch (error) {
-    if (
-      error instanceof Error &&
-      "code" in error &&
-      error.code === "ENOENT"
-    ) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
       const descriptor = openSync(lockPath, "wx");
       closeSync(descriptor);
       return lockPath;
@@ -239,10 +229,7 @@ export class FileDomainDatabase {
     return this.replaceIfRevision(state, this.revision);
   }
 
-  replaceIfRevision(
-    state: DurableDomainState,
-    expectedRevision: string,
-  ): string {
+  replaceIfRevision(state: DurableDomainState, expectedRevision: string): string {
     const next = validateState(this.filePath, state);
 
     return withCommitLock(this.filePath, () => {
@@ -287,17 +274,12 @@ export class FileDomainDatabase {
 
     let migration;
     try {
-      migration = migrateDurableSnapshot(
-        value,
-        CURRENT_DURABLE_DOMAIN_VERSION,
-        this.migrations,
-      );
+      migration = migrateDurableSnapshot(value, CURRENT_DURABLE_DOMAIN_VERSION, this.migrations);
     } catch (error) {
       if (error instanceof DurableMigrationError) {
-        throw new Error(
-          `Cannot open durable domain snapshot ${this.filePath}: ${error.message}`,
-          { cause: error },
-        );
+        throw new Error(`Cannot open durable domain snapshot ${this.filePath}: ${error.message}`, {
+          cause: error,
+        });
       }
 
       throw error;

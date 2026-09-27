@@ -90,9 +90,7 @@ describe("InMemoryEventStore", () => {
     const event = store.get("event-1")!;
     (event.data.details as { values: string[] }).values.push("two");
 
-    expect(
-      (store.get("event-1")?.data.details as { values: string[] }).values,
-    ).toEqual(["one"]);
+    expect((store.get("event-1")?.data.details as { values: string[] }).values).toEqual(["one"]);
   });
 
   it("persists events across store instances", () => {
@@ -122,9 +120,7 @@ describe("InMemoryEventStore", () => {
 
       const reopened = new FileEventStore(path);
 
-      expect(() => reopened.append(baseEvent)).toThrow(
-        "Event already exists: event-1.",
-      );
+      expect(() => reopened.append(baseEvent)).toThrow("Event already exists: event-1.");
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

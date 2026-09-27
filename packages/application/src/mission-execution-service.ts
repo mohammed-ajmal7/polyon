@@ -147,9 +147,7 @@ export class MissionExecutionService {
 
     const readyTaskIds = new Set([
       ...getReadyTaskIds(currentTasks),
-      ...currentTasks
-        .filter((task) => task.status === "READY")
-        .map((task) => task.id),
+      ...currentTasks.filter((task) => task.status === "READY").map((task) => task.id),
     ]);
     const currentExecutions = this.listExecutions();
     const plans: ExecutionDispatchPlan[] = [];
@@ -162,9 +160,7 @@ export class MissionExecutionService {
       }
 
       const readyTask =
-        task.status === "READY"
-          ? task
-          : markTaskReady(task, dependencies, input.now);
+        task.status === "READY" ? task : markTaskReady(task, dependencies, input.now);
 
       const attempt =
         currentExecutions

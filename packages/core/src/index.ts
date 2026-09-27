@@ -49,11 +49,7 @@ export {
   validateTaskGraph,
 } from "./work/index";
 
-export type {
-  CreateMissionInput,
-  MissionCreationErrorKind,
-  TaskDependency,
-} from "./work/index";
+export type { CreateMissionInput, MissionCreationErrorKind, TaskDependency } from "./work/index";
 
 export type { CreateApprovalRequestInput, PolicyEvaluationInput } from "./policy/index";
 

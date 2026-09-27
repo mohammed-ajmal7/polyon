@@ -22,10 +22,7 @@ import type {
   TaskStore,
 } from "@polyon/storage";
 
-import type {
-  ToolInvocationOutcome,
-  ToolInvocationService,
-} from "./tool-invocation-service";
+import type { ToolInvocationOutcome, ToolInvocationService } from "./tool-invocation-service";
 
 export interface AgentToolOrchestrationInput {
   readonly agentId: string;
@@ -84,13 +81,9 @@ export interface AgentToolOrchestrationDependencies {
 }
 
 export class AgentToolOrchestrationService {
-  constructor(
-    private readonly dependencies: AgentToolOrchestrationDependencies,
-  ) {}
+  constructor(private readonly dependencies: AgentToolOrchestrationDependencies) {}
 
-  async invoke(
-    input: AgentToolOrchestrationInput,
-  ): Promise<AgentToolOrchestrationResult> {
+  async invoke(input: AgentToolOrchestrationInput): Promise<AgentToolOrchestrationResult> {
     const request = this.withToolDefinitions(input.request);
     const initial = await this.dependencies.agentGateway.invokeText({
       agentId: input.agentId,
@@ -115,10 +108,7 @@ export class AgentToolOrchestrationService {
     let currentResponse = response;
     let rounds = 0;
 
-    while (
-      currentResponse.toolCalls !== undefined &&
-      currentResponse.toolCalls.length > 0
-    ) {
+    while (currentResponse.toolCalls !== undefined && currentResponse.toolCalls.length > 0) {
       rounds += 1;
 
       if (rounds > maxRounds) {
@@ -173,11 +163,7 @@ export class AgentToolOrchestrationService {
 
       currentRequest = {
         ...currentRequest,
-        messages: [
-          ...currentRequest.messages,
-          assistantMessage,
-          ...toolMessages,
-        ],
+        messages: [...currentRequest.messages, assistantMessage, ...toolMessages],
       };
 
       const next = await this.dependencies.agentGateway.invokeText({
@@ -227,23 +213,12 @@ export class AgentToolOrchestrationService {
       if (executionId !== undefined) {
         const execution = this.dependencies.executions.get(executionId);
         const task =
-          execution === undefined
-            ? undefined
-            : this.dependencies.tasks.get(execution.taskId);
+          execution === undefined ? undefined : this.dependencies.tasks.get(execution.taskId);
 
         if (execution !== undefined && task !== undefined) {
-          const target =
-            input.status === "CANCELLED" ? "CANCELLED" : "REJECTED";
-          const updatedExecution = transitionExecutionStatus(
-            execution,
-            target,
-            input.resolvedAt,
-          );
-          const updatedTask = transitionTaskStatus(
-            task,
-            target,
-            input.resolvedAt,
-          );
+          const target = input.status === "CANCELLED" ? "CANCELLED" : "REJECTED";
+          const updatedExecution = transitionExecutionStatus(execution, target, input.resolvedAt);
+          const updatedTask = transitionTaskStatus(task, target, input.resolvedAt);
           this.dependencies.executions.save(updatedExecution);
           this.dependencies.tasks.save(updatedTask);
         }
@@ -256,35 +231,21 @@ export class AgentToolOrchestrationService {
     }
 
     if (approval.executionId === undefined) {
-      throw new Error(
-        `Approved tool approval ${approval.id} has no execution binding.`,
-      );
+      throw new Error(`Approved tool approval ${approval.id} has no execution binding.`);
     }
 
     const execution = this.dependencies.executions.get(approval.executionId);
     if (execution === undefined || execution.status !== "PAUSED") {
-      throw new Error(
-        `Execution ${approval.executionId} is not paused for tool approval.`,
-      );
+      throw new Error(`Execution ${approval.executionId} is not paused for tool approval.`);
     }
 
     const task = this.dependencies.tasks.get(execution.taskId);
     if (task === undefined || task.status !== "PAUSED") {
-      throw new Error(
-        `Task ${execution.taskId} is not paused for tool approval.`,
-      );
+      throw new Error(`Task ${execution.taskId} is not paused for tool approval.`);
     }
 
-    const queuedExecution = transitionExecutionStatus(
-      execution,
-      "QUEUED",
-      input.resolvedAt,
-    );
-    const queuedTask = transitionTaskStatus(
-      task,
-      "RUNNING",
-      input.resolvedAt,
-    );
+    const queuedExecution = transitionExecutionStatus(execution, "QUEUED", input.resolvedAt);
+    const queuedTask = transitionTaskStatus(task, "RUNNING", input.resolvedAt);
 
     const operation = (stores: {
       executions: ExecutionStore;
@@ -296,7 +257,7 @@ export class AgentToolOrchestrationService {
       stores.events.append({
         id:
           `EXECUTION_STATUS_CHANGED:${execution.id}:PAUSED:QUEUED:${input.resolvedAt}:TOOL_` +
-            "APPROVAL",
+          "APPROVAL",
         kind: "EXECUTION_STATUS_CHANGED",
         actorId: execution.actorId,
         missionId: execution.missionId,
@@ -348,15 +309,12 @@ export class AgentToolOrchestrationService {
           candidate.toolContinuation !== undefined,
       )
       .sort((left, right) =>
-        (right.resolvedAt ?? right.requestedAt).localeCompare(
-          left.resolvedAt ?? left.requestedAt,
-        ),
+        (right.resolvedAt ?? right.requestedAt).localeCompare(left.resolvedAt ?? left.requestedAt),
       );
 
     const approval =
-      candidates.find(
-        (candidate) => candidate.toolContinuation?.state !== "COMPLETED",
-      ) ?? candidates[0];
+      candidates.find((candidate) => candidate.toolContinuation?.state !== "COMPLETED") ??
+      candidates[0];
 
     if (approval === undefined || approval.toolContinuation === undefined) {
       return { status: "NO_CONTINUATION", rounds: 0 };
@@ -390,9 +348,7 @@ export class AgentToolOrchestrationService {
             outcome.status === "APPROVAL_REQUIRED"
               ? "Tool approval unexpectedly remained required."
               : outcome.error,
-          ...(outcome.status === "APPROVAL_REQUIRED"
-            ? { approval: outcome.approvalRequest }
-            : {}),
+          ...(outcome.status === "APPROVAL_REQUIRED" ? { approval: outcome.approvalRequest } : {}),
           rounds: continuation.rounds,
         } as AgentToolOrchestrationResult;
       }
@@ -415,9 +371,7 @@ export class AgentToolOrchestrationService {
 
     if (continuation.state === "AWAITING_MODEL") {
       if (continuation.nextRequest === undefined) {
-        throw new Error(
-          `Approval ${approval.id} is missing its next model request checkpoint.`,
-        );
+        throw new Error(`Approval ${approval.id} is missing its next model request checkpoint.`);
       }
 
       const next = await this.dependencies.agentGateway.invokeText({
@@ -472,9 +426,7 @@ export class AgentToolOrchestrationService {
 
   private saveContinuation(
     approvalId: string,
-    toolContinuation: NonNullable<
-      import("@polyon/contracts").ApprovalRequest["toolContinuation"]
-    >,
+    toolContinuation: NonNullable<import("@polyon/contracts").ApprovalRequest["toolContinuation"]>,
   ): void {
     const approval = this.dependencies.approvals.get(approvalId);
     if (approval === undefined) {
@@ -538,9 +490,7 @@ export class AgentToolOrchestrationService {
       actorId: input.actorId,
       ...(input.missionId === undefined ? {} : { missionId: input.missionId }),
       ...(input.taskId === undefined ? {} : { taskId: input.taskId }),
-      ...(input.executionId === undefined
-        ? {}
-        : { executionId: input.executionId }),
+      ...(input.executionId === undefined ? {} : { executionId: input.executionId }),
       agentId: input.agentId,
       toolContinuation: {
         agentId: input.agentId,
@@ -582,9 +532,7 @@ export class AgentToolOrchestrationService {
         toolId: tool.id,
         name: toModelToolName(tool.id),
         description: tool.description,
-        ...(tool.inputSchema === undefined
-          ? {}
-          : { inputSchema: tool.inputSchema }),
+        ...(tool.inputSchema === undefined ? {} : { inputSchema: tool.inputSchema }),
       }));
 
     return tools.length === 0 ? request : { ...request, tools };

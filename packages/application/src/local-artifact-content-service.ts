@@ -1,15 +1,5 @@
-import {
-  existsSync,
-  readFileSync,
-  realpathSync,
-  statSync,
-} from "node:fs";
-import {
-  isAbsolute,
-  relative,
-  resolve,
-  sep,
-} from "node:path";
+import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 import { createHash } from "node:crypto";
 
 import type { Artifact, ArtifactId } from "@polyon/contracts";
@@ -39,10 +29,7 @@ export type LocalArtifactContentServiceErrorKind =
 export class LocalArtifactContentServiceError extends Error {
   readonly kind: LocalArtifactContentServiceErrorKind;
 
-  constructor(
-    kind: LocalArtifactContentServiceErrorKind,
-    message: string,
-  ) {
+  constructor(kind: LocalArtifactContentServiceErrorKind, message: string) {
     super(message);
     this.name = "LocalArtifactContentServiceError";
     this.kind = kind;
@@ -58,9 +45,7 @@ export class LocalArtifactContentService {
   private readonly rootDir: string;
   private readonly maxBytes: number;
 
-  constructor(
-    private readonly dependencies: LocalArtifactContentServiceDependencies,
-  ) {
+  constructor(private readonly dependencies: LocalArtifactContentServiceDependencies) {
     const root = resolve(dependencies.options.rootDir);
     const maxBytes = dependencies.options.maxBytes ?? 1_048_576;
 
@@ -97,12 +82,8 @@ export class LocalArtifactContentService {
     }
 
     const location = artifact.location;
-    const candidate = isAbsolute(location)
-      ? location
-      : resolve(this.rootDir, location);
-    const resolved = existsSync(candidate)
-      ? realpathSync(candidate)
-      : candidate;
+    const candidate = isAbsolute(location) ? location : resolve(this.rootDir, location);
+    const resolved = existsSync(candidate) ? realpathSync(candidate) : candidate;
 
     if (!isInsideRoot(this.rootDir, resolved)) {
       throw new LocalArtifactContentServiceError(
@@ -163,8 +144,5 @@ function sha256(value: string): string {
 function isInsideRoot(rootDir: string, candidate: string): boolean {
   const rel = relative(rootDir, candidate);
 
-  return (
-    rel === "" ||
-    (!isAbsolute(rel) && rel !== ".." && !rel.startsWith(".." + sep))
-  );
+  return rel === "" || (!isAbsolute(rel) && rel !== ".." && !rel.startsWith(".." + sep));
 }

@@ -51,16 +51,12 @@ describe("registerBuiltinTools", () => {
     });
 
     expect(registries.tools.get(BUILTIN_TOOL_IDS.filesystemRead)).toBeUndefined();
-    expect(
-      registries.tools.get(BUILTIN_TOOL_IDS.terminalExecute),
-    ).toMatchObject({
+    expect(registries.tools.get(BUILTIN_TOOL_IDS.terminalExecute)).toMatchObject({
       kind: "TERMINAL",
       actionKinds: ["TERMINAL"],
       enabled: true,
     });
-    expect(
-      registries.adapters.get(BUILTIN_TOOL_IDS.terminalExecute),
-    ).toBeDefined();
+    expect(registries.adapters.get(BUILTIN_TOOL_IDS.terminalExecute)).toBeDefined();
   });
 
   it("registers scoped Git publish independently", () => {
@@ -76,9 +72,7 @@ describe("registerBuiltinTools", () => {
       actionKinds: ["PUBLISH"],
       enabled: true,
     });
-    expect(
-      registries.adapters.get(BUILTIN_TOOL_IDS.gitPublish),
-    ).toBeDefined();
+    expect(registries.adapters.get(BUILTIN_TOOL_IDS.gitPublish)).toBeDefined();
   });
 
   it("registers scoped Git read independently", () => {
@@ -93,9 +87,7 @@ describe("registerBuiltinTools", () => {
       actionKinds: ["READ"],
       enabled: true,
     });
-    expect(
-      registries.adapters.get(BUILTIN_TOOL_IDS.gitRead),
-    ).toBeDefined();
+    expect(registries.adapters.get(BUILTIN_TOOL_IDS.gitRead)).toBeDefined();
   });
 
   it("can disable the built-in tool without removing its adapter boundary", () => {

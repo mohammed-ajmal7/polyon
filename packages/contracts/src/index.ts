@@ -40,12 +40,7 @@ export type {
   RiskLevel,
 } from "./policy/index";
 
-export type {
-  Tool,
-  ToolId,
-  ToolInputSchema,
-  ToolKind,
-} from "./tool/index";
+export type { Tool, ToolId, ToolInputSchema, ToolKind } from "./tool/index";
 
 export type {
   Artifact,

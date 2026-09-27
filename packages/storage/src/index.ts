@@ -20,28 +20,17 @@ export {
   type TaskStore,
 } from "./domain-stores";
 
-export {
-  FileDomainStores,
-  type DurableDomainStores,
-} from "./file-domain-stores";
+export { FileDomainStores, type DurableDomainStores } from "./file-domain-stores";
 
-export {
-  FileEventStore,
-  InMemoryEventStore,
-  type EventStore,
-} from "./event-store";
+export { FileEventStore, InMemoryEventStore, type EventStore } from "./event-store";
 
-export {
-  FileDomainDatabase,
-  type DurableDomainState,
-} from "./file-database";
+export { FileDomainDatabase, type DurableDomainState } from "./file-database";
 
 export {
   DomainTransactionError,
   type DomainStoreTransactionContext,
   type DomainUnitOfWork,
 } from "./transaction";
-
 
 export {
   CURRENT_DURABLE_DOMAIN_VERSION,

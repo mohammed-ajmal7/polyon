@@ -136,13 +136,7 @@ export class ModelGateway {
       throw new RangeError("Model invocation retries must be a non-negative integer.");
     }
 
-    return this.invokeWithRetry<TInput, TOutput>(
-      adapter,
-      provider.id,
-      modelId,
-      input,
-      options,
-    );
+    return this.invokeWithRetry<TInput, TOutput>(adapter, provider.id, modelId, input, options);
   }
 
   private async invokeWithRetry<TInput, TOutput>(
@@ -227,8 +221,7 @@ export class ModelGateway {
             };
 
             options.signal?.addEventListener("abort", onAbort, { once: true });
-            removeAbortListener = () =>
-              options.signal?.removeEventListener("abort", onAbort);
+            removeAbortListener = () => options.signal?.removeEventListener("abort", onAbort);
           });
 
     const timeoutPromise =
@@ -250,9 +243,9 @@ export class ModelGateway {
           });
 
     try {
-      const races: Promise<
-        ProviderInvocationResult<TOutput> | never
-      >[] = [providerPromise as Promise<ProviderInvocationResult<TOutput>>];
+      const races: Promise<ProviderInvocationResult<TOutput> | never>[] = [
+        providerPromise as Promise<ProviderInvocationResult<TOutput>>,
+      ];
 
       if (cancellationPromise !== undefined) {
         races.push(cancellationPromise);

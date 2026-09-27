@@ -90,10 +90,7 @@ export class FileDomainStores implements DurableDomainStores {
       const stagedContext = createStateContext(stagedState);
       const result = work(stagedContext);
 
-      const nextRevision = this.database.replaceIfRevision(
-        stagedState,
-        snapshot.revision,
-      );
+      const nextRevision = this.database.replaceIfRevision(stagedState, snapshot.revision);
       Object.assign(this.state, stagedState);
       this.revision = nextRevision;
 

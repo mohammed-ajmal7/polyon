@@ -96,9 +96,7 @@ describe("ExecutionApprovalService", () => {
     let transactionCalls = 0;
 
     const unitOfWork = {
-      transaction<T>(
-        work: Parameters<InMemoryDomainStores["transaction"]>[0],
-      ): T {
+      transaction<T>(work: Parameters<InMemoryDomainStores["transaction"]>[0]): T {
         transactionCalls += 1;
         return stores.transaction(work) as T;
       },

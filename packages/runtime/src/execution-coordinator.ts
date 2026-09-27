@@ -1,21 +1,11 @@
-import type {
-  DomainEvent,
-  Execution,
-  ExecutionStatus,
-  Task,
-  TaskStatus,
-} from "@polyon/contracts";
+import type { DomainEvent, Execution, ExecutionStatus, Task, TaskStatus } from "@polyon/contracts";
 
 import { completeExecution, startExecution, transitionTaskStatus } from "@polyon/core";
 
 import type { EventStore, ExecutionStore, TaskStore } from "@polyon/storage";
 
 import type { ExecutionQueue } from "./execution-queue";
-import type {
-  ExecutionRunContext,
-  ExecutionRunResult,
-  ExecutionRunner,
-} from "./execution-runner";
+import type { ExecutionRunContext, ExecutionRunResult, ExecutionRunner } from "./execution-runner";
 
 export interface ExecutionRunOutcome {
   readonly execution: Execution;
@@ -328,11 +318,7 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
           status: "CANCELLED",
           completedAt: completionAt,
         });
-        const cancelledTask = transitionTaskStatus(
-          runningTask,
-          "CANCELLED",
-          completionAt,
-        );
+        const cancelledTask = transitionTaskStatus(runningTask, "CANCELLED", completionAt);
         this.dependencies.executions.save(cancelled);
         this.dependencies.tasks.save(cancelledTask);
         appendExecutionStatusChangedEvent(

@@ -3,9 +3,7 @@ export const CURRENT_DURABLE_DOMAIN_VERSION = 1;
 export interface DurableMigration {
   readonly fromVersion: number;
   readonly toVersion: number;
-  migrate(
-    state: Readonly<Record<string, unknown>>,
-  ): Readonly<Record<string, unknown>>;
+  migrate(state: Readonly<Record<string, unknown>>): Readonly<Record<string, unknown>>;
 }
 
 export type DurableMigrationErrorKind =
@@ -81,9 +79,7 @@ export function migrateDurableSnapshot(
   let version = fromVersion;
 
   while (version < currentVersion) {
-    const candidates = migrations.filter(
-      (migration) => migration.fromVersion === version,
-    );
+    const candidates = migrations.filter((migration) => migration.fromVersion === version);
 
     if (candidates.length === 0) {
       throw new DurableMigrationError(
@@ -101,10 +97,7 @@ export function migrateDurableSnapshot(
 
     const migration = candidates[0]!;
 
-    if (
-      migration.toVersion <= migration.fromVersion ||
-      migration.toVersion > currentVersion
-    ) {
+    if (migration.toVersion <= migration.fromVersion || migration.toVersion > currentVersion) {
       throw new DurableMigrationError(
         "MIGRATION_INVALID_TARGET",
         `Durable migration ${migration.fromVersion} -> ${migration.toVersion} does not lead toward supported version ${currentVersion}.`,

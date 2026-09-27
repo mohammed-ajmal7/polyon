@@ -85,11 +85,7 @@ export interface ResolveMissionPlanApprovalInput {
   readonly resolvedBy?: ActorId;
 }
 
-export type MissionPlanApprovalResolutionStatus =
-  | "APPLIED"
-  | "REJECTED"
-  | "EXPIRED"
-  | "CANCELLED";
+export type MissionPlanApprovalResolutionStatus = "APPLIED" | "REJECTED" | "EXPIRED" | "CANCELLED";
 
 export interface MissionPlanApprovalResolution {
   readonly status: MissionPlanApprovalResolutionStatus;
@@ -127,10 +123,7 @@ function loadTasks(taskStore: TaskStore, taskIds: readonly string[]): readonly T
     .filter((task): task is Task => task !== undefined);
 }
 
-function appendPlanProposedEvent(
-  events: EventStore,
-  proposal: MissionPlanProposal,
-): DomainEvent {
+function appendPlanProposedEvent(events: EventStore, proposal: MissionPlanProposal): DomainEvent {
   const event: DomainEvent = {
     id: `MISSION_PLAN_PROPOSED:${proposal.id}`,
     kind: "MISSION_PLAN_PROPOSED",
@@ -419,15 +412,10 @@ export class MissionPlanService {
       policyDecision: authorization.policyDecision,
       events: [proposedEvent, policyEvent, appliedEvent],
     };
-  
   }
 
-  resolveApproval(
-    input: ResolveMissionPlanApprovalInput,
-  ): MissionPlanApprovalResolution {
-    return this.runInTransaction((stores) =>
-      this.resolveApprovalWithStores(stores, input),
-    );
+  resolveApproval(input: ResolveMissionPlanApprovalInput): MissionPlanApprovalResolution {
+    return this.runInTransaction((stores) => this.resolveApprovalWithStores(stores, input));
   }
 
   private resolveApprovalWithStores(
@@ -454,8 +442,7 @@ export class MissionPlanService {
     const proposalId = approval.proposalId;
 
     const mission = missionId === undefined ? undefined : stores.missions.get(missionId);
-    const proposal =
-      proposalId === undefined ? undefined : stores.proposals.get(proposalId);
+    const proposal = proposalId === undefined ? undefined : stores.proposals.get(proposalId);
 
     if (mission === undefined) {
       throw new MissionPlanServiceError(
@@ -550,6 +537,5 @@ export class MissionPlanService {
       proposal,
       events,
     };
-  
   }
 }

@@ -1,13 +1,6 @@
 /// <reference path="./node-runtime.d.ts" />
 
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
@@ -78,10 +71,7 @@ describe("FileEntityStore", () => {
       first.save({ id: "entity-1", nested: { values: ["two"] } });
       first.save({ id: "entity-2", nested: { values: ["three"] } });
 
-      expect(first.list().map((entity) => entity.id)).toEqual([
-        "entity-1",
-        "entity-2",
-      ]);
+      expect(first.list().map((entity) => entity.id)).toEqual(["entity-1", "entity-2"]);
       expect(first.get("entity-1")?.nested.values).toEqual(["two"]);
       expect(first.delete("entity-2")).toBe(true);
       expect(first.delete("entity-2")).toBe(false);
@@ -141,9 +131,7 @@ describe("FileEntityStore", () => {
       mkdirSync(directory, { recursive: true });
       writeFileSync(path, "{invalid", "utf8");
 
-      expect(() => new FileEntityStore<TestEntity>(path)).toThrowError(
-        StorageFileFormatError,
-      );
+      expect(() => new FileEntityStore<TestEntity>(path)).toThrowError(StorageFileFormatError);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
@@ -163,9 +151,7 @@ describe("FileEntityStore", () => {
         "utf8",
       );
 
-      expect(() => new FileEntityStore<TestEntity>(path)).toThrowError(
-        StorageFileFormatError,
-      );
+      expect(() => new FileEntityStore<TestEntity>(path)).toThrowError(StorageFileFormatError);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

@@ -5,10 +5,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import {
-  ScopedTerminalToolAdapter,
-  ScopedTerminalToolError,
-} from "./scoped-terminal-tool-adapter";
+import { ScopedTerminalToolAdapter, ScopedTerminalToolError } from "./scoped-terminal-tool-adapter";
 
 function createRoot(): string {
   return mkdtempSync(join(process.cwd(), ".tmp-polyon-terminal-"));
@@ -119,9 +116,7 @@ describe("ScopedTerminalToolAdapter", () => {
       });
 
       const script =
-        process.platform === "win32"
-          ? "setTimeout(() => {}, 500)"
-          : "setTimeout(() => {}, 500)";
+        process.platform === "win32" ? "setTimeout(() => {}, 500)" : "setTimeout(() => {}, 500)";
 
       await expect(
         adapter.invoke({
@@ -178,10 +173,7 @@ describe("ScopedTerminalToolAdapter", () => {
         adapter.invoke({
           input: {
             command: command.executable,
-            args: [
-              ...command.args,
-              "process.stderr.write('failed'); process.exit(7)",
-            ],
+            args: [...command.args, "process.stderr.write('failed'); process.exit(7)"],
           },
         }),
       ).rejects.toMatchObject({

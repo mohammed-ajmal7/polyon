@@ -43,10 +43,8 @@ const policy: Policy = {
 
 const identities = {
   executionId: (taskId: string, attempt: number) => `execution-${taskId}-${attempt}`,
-  policyDecisionId: (taskId: string, executionId: string) =>
-    `decision-${taskId}-${executionId}`,
-  approvalRequestId: (taskId: string, executionId: string) =>
-    `approval-${taskId}-${executionId}`,
+  policyDecisionId: (taskId: string, executionId: string) => `decision-${taskId}-${executionId}`,
+  approvalRequestId: (taskId: string, executionId: string) => `approval-${taskId}-${executionId}`,
 };
 
 function createService() {
@@ -87,11 +85,7 @@ function createService() {
     stores,
     queue,
     events,
-    service: new ExecutionRetryService(
-      stores.tasks,
-      events,
-      executionService,
-    ),
+    service: new ExecutionRetryService(stores.tasks, events, executionService),
   };
 }
 

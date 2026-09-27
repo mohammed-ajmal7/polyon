@@ -1,10 +1,7 @@
 import type { Tool } from "@polyon/contracts";
 import { describe, expect, it } from "vitest";
 
-import {
-  ToolInputValidationError,
-  validateToolInput,
-} from "./tool-input-validation";
+import { ToolInputValidationError, validateToolInput } from "./tool-input-validation";
 
 const tool: Tool = {
   id: "filesystem.read.scoped",

@@ -312,6 +312,5 @@ export class ExecutionApprovalService {
       execution: updatedExecution,
       nextStep: input.status === "CANCELLED" ? "CANCELLED" : "REJECTED",
     };
-  
   }
 }

@@ -6,11 +6,7 @@ declare module "node:fs" {
   export function readFileSync(path: string, encoding: "utf8"): string;
   export function renameSync(oldPath: string, newPath: string): void;
   export function unlinkSync(path: string): void;
-  export function writeFileSync(
-    path: string,
-    data: string,
-    encoding?: "utf8",
-  ): void;
+  export function writeFileSync(path: string, data: string, encoding?: "utf8"): void;
   export function readSync(
     fileDescriptor: number,
     buffer: Uint8Array,
@@ -34,8 +30,6 @@ declare module "node:path" {
   export function resolve(...paths: string[]): string;
 }
 
-
-
 declare module "node:child_process" {
   export interface SpawnedChildProcess {
     readonly stdout: {
@@ -45,10 +39,7 @@ declare module "node:child_process" {
       on(event: "data", listener: (chunk: Uint8Array) => void): void;
     };
     on(event: "error", listener: (error: unknown) => void): void;
-    on(
-      event: "close",
-      listener: (exitCode: number | null, signal: string | null) => void,
-    ): void;
+    on(event: "close", listener: (exitCode: number | null, signal: string | null) => void): void;
     kill(): boolean;
   }
 
@@ -73,7 +64,6 @@ declare module "node:child_process" {
   ): string;
 }
 
-
 declare const process: {
   readonly env: Readonly<Record<string, string | undefined>>;
   readonly execPath: string;
@@ -83,7 +73,10 @@ declare const process: {
 
 declare module "node:crypto" {
   export function createHash(algorithm: "sha256"): {
-    update(data: string, encoding?: "utf8"): {
+    update(
+      data: string,
+      encoding?: "utf8",
+    ): {
       digest(encoding: "hex"): string;
     };
   };

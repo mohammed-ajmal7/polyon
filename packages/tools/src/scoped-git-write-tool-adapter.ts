@@ -7,10 +7,7 @@ import {
   type ScopedTerminalToolOutput,
 } from "./scoped-terminal-tool-adapter";
 
-export type ScopedGitWriteOperation =
-  | "CREATE_BRANCH"
-  | "STAGE_PATHS"
-  | "UNSTAGE_PATHS";
+export type ScopedGitWriteOperation = "CREATE_BRANCH" | "STAGE_PATHS" | "UNSTAGE_PATHS";
 
 export interface ScopedGitWriteToolInput {
   readonly operation: ScopedGitWriteOperation;
@@ -26,18 +23,12 @@ export interface ScopedGitWriteToolOutput {
 }
 
 export type ScopedGitWriteToolErrorKind =
-  | "INVALID_INPUT"
-  | "OUTSIDE_ROOT"
-  | "INVALID_BRANCH"
-  | "COMMAND_FAILED";
+  "INVALID_INPUT" | "OUTSIDE_ROOT" | "INVALID_BRANCH" | "COMMAND_FAILED";
 
 export class ScopedGitWriteToolError extends Error {
   readonly kind: ScopedGitWriteToolErrorKind;
 
-  constructor(
-    kind: ScopedGitWriteToolErrorKind,
-    message: string,
-  ) {
+  constructor(kind: ScopedGitWriteToolErrorKind, message: string) {
     super(message);
     this.name = "ScopedGitWriteToolError";
     this.kind = kind;
@@ -60,9 +51,10 @@ const OPERATIONS: ReadonlySet<ScopedGitWriteOperation> = new Set([
   "UNSTAGE_PATHS",
 ]);
 
-export class ScopedGitWriteToolAdapter
-  implements ToolAdapter<ScopedGitWriteToolInput, ScopedGitWriteToolOutput>
-{
+export class ScopedGitWriteToolAdapter implements ToolAdapter<
+  ScopedGitWriteToolInput,
+  ScopedGitWriteToolOutput
+> {
   readonly toolId: string;
 
   private readonly rootDir: string;
@@ -109,11 +101,7 @@ export class ScopedGitWriteToolAdapter
   ): Promise<{ output: ScopedGitWriteToolOutput }> {
     const input = request.input;
 
-    if (
-      input === null ||
-      typeof input !== "object" ||
-      !OPERATIONS.has(input.operation)
-    ) {
+    if (input === null || typeof input !== "object" || !OPERATIONS.has(input.operation)) {
       throw new ScopedGitWriteToolError(
         "INVALID_INPUT",
         "Git write requires CREATE_BRANCH, STAGE_PATHS, or UNSTAGE_PATHS.",
@@ -121,10 +109,7 @@ export class ScopedGitWriteToolAdapter
     }
 
     if (input.operation === "CREATE_BRANCH") {
-      if (
-        typeof input.branchName !== "string" ||
-        !isSafeBranchName(input.branchName)
-      ) {
+      if (typeof input.branchName !== "string" || !isSafeBranchName(input.branchName)) {
         throw new ScopedGitWriteToolError(
           "INVALID_BRANCH",
           "Git branch names must use a restricted safe format.",
@@ -166,19 +151,11 @@ function buildArgs(input: ScopedGitWriteToolInput): readonly string[] {
     case "STAGE_PATHS":
       return ["add", "--", ...input.paths!.map(normalizeRelativePath)];
     case "UNSTAGE_PATHS":
-      return [
-        "restore",
-        "--staged",
-        "--",
-        ...input.paths!.map(normalizeRelativePath),
-      ];
+      return ["restore", "--staged", "--", ...input.paths!.map(normalizeRelativePath)];
   }
 }
 
-function validatePaths(
-  rootDir: string,
-  paths: readonly string[] | undefined,
-): void {
+function validatePaths(rootDir: string, paths: readonly string[] | undefined): void {
   if (
     paths === undefined ||
     paths.length === 0 ||
@@ -213,10 +190,7 @@ function realpathIfExists(candidate: string): string {
 
 function isInsideRoot(rootDir: string, candidate: string): boolean {
   const rel = relative(rootDir, candidate);
-  return (
-    rel === "" ||
-    (!isAbsolute(rel) && rel !== ".." && !rel.startsWith(".." + sep))
-  );
+  return rel === "" || (!isAbsolute(rel) && rel !== ".." && !rel.startsWith(".." + sep));
 }
 
 function isSafeBranchName(value: string): boolean {

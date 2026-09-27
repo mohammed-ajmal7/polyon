@@ -10,13 +10,7 @@ import { ScopedGitCommitToolAdapter } from "./scoped-git-commit-tool-adapter";
 function createRepository(): string {
   const root = mkdtempSync(join(tmpdir(), "polyon-git-commit-"));
   execFileSync("git", ["init", "-q", root]);
-  execFileSync("git", [
-    "-C",
-    root,
-    "config",
-    "user.email",
-    "polyon@example.invalid",
-  ]);
+  execFileSync("git", ["-C", root, "config", "user.email", "polyon@example.invalid"]);
   execFileSync("git", ["-C", root, "config", "user.name", "POLYON Test"]);
   return root;
 }
@@ -53,11 +47,9 @@ describe("ScopedGitCommitToolAdapter", () => {
         },
       });
 
-      const subject = execFileSync(
-        "git",
-        ["-C", root, "log", "-1", "--format=%s"],
-        { encoding: "utf8" },
-      ).trim();
+      const subject = execFileSync("git", ["-C", root, "log", "-1", "--format=%s"], {
+        encoding: "utf8",
+      }).trim();
       expect(subject).toBe("feat: add notes");
     } finally {
       cleanup(root);

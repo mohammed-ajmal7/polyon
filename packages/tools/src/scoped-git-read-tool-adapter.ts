@@ -7,11 +7,7 @@ import {
   type ScopedTerminalToolOutput,
 } from "./scoped-terminal-tool-adapter";
 
-export type ScopedGitReadOperation =
-  | "STATUS"
-  | "DIFF"
-  | "LOG"
-  | "SHOW";
+export type ScopedGitReadOperation = "STATUS" | "DIFF" | "LOG" | "SHOW";
 
 export interface ScopedGitReadToolInput {
   readonly operation: ScopedGitReadOperation;
@@ -24,18 +20,12 @@ export interface ScopedGitReadToolOutput {
   readonly commandOutput: ScopedTerminalToolOutput;
 }
 
-export type ScopedGitReadToolErrorKind =
-  | "INVALID_INPUT"
-  | "OUTSIDE_ROOT"
-  | "COMMAND_FAILED";
+export type ScopedGitReadToolErrorKind = "INVALID_INPUT" | "OUTSIDE_ROOT" | "COMMAND_FAILED";
 
 export class ScopedGitReadToolError extends Error {
   readonly kind: ScopedGitReadToolErrorKind;
 
-  constructor(
-    kind: ScopedGitReadToolErrorKind,
-    message: string,
-  ) {
+  constructor(kind: ScopedGitReadToolErrorKind, message: string) {
     super(message);
     this.name = "ScopedGitReadToolError";
     this.kind = kind;
@@ -52,18 +42,17 @@ export interface ScopedGitReadToolAdapterOptions {
   readonly environmentKeys?: readonly string[];
 }
 
-const OPERATION_ARGS: Readonly<
-  Record<ScopedGitReadOperation, readonly string[]>
-> = {
+const OPERATION_ARGS: Readonly<Record<ScopedGitReadOperation, readonly string[]>> = {
   STATUS: ["status", "--short", "--branch"],
   DIFF: ["diff", "--no-ext-diff", "--no-color"],
   LOG: ["log", "--oneline", "-20"],
   SHOW: ["show", "--stat", "--oneline", "HEAD"],
 };
 
-export class ScopedGitReadToolAdapter
-  implements ToolAdapter<ScopedGitReadToolInput, ScopedGitReadToolOutput>
-{
+export class ScopedGitReadToolAdapter implements ToolAdapter<
+  ScopedGitReadToolInput,
+  ScopedGitReadToolOutput
+> {
   readonly toolId: string;
 
   private readonly terminal: ScopedTerminalToolAdapter;
@@ -77,17 +66,11 @@ export class ScopedGitReadToolAdapter
     const root = resolve(options.rootDir);
 
     if (!existsSync(root)) {
-      throw new ScopedGitReadToolError(
-        "COMMAND_FAILED",
-        `Git root does not exist: ${root}.`,
-      );
+      throw new ScopedGitReadToolError("COMMAND_FAILED", `Git root does not exist: ${root}.`);
     }
 
     if (!statSync(root).isDirectory()) {
-      throw new ScopedGitReadToolError(
-        "COMMAND_FAILED",
-        `Git root is not a directory: ${root}.`,
-      );
+      throw new ScopedGitReadToolError("COMMAND_FAILED", `Git root is not a directory: ${root}.`);
     }
 
     this.toolId = options.toolId;
@@ -108,11 +91,7 @@ export class ScopedGitReadToolAdapter
   ): Promise<{ output: ScopedGitReadToolOutput }> {
     const input = request.input;
 
-    if (
-      input === null ||
-      typeof input !== "object" ||
-      !isGitOperation(input.operation)
-    ) {
+    if (input === null || typeof input !== "object" || !isGitOperation(input.operation)) {
       throw new ScopedGitReadToolError(
         "INVALID_INPUT",
         "Git read requires one of: STATUS, DIFF, LOG, SHOW.",
@@ -144,10 +123,7 @@ export class ScopedGitReadToolAdapter
         typeof error.kind === "string" &&
         error.kind === "OUTSIDE_ROOT"
       ) {
-        throw new ScopedGitReadToolError(
-          "OUTSIDE_ROOT",
-          error.message,
-        );
+        throw new ScopedGitReadToolError("OUTSIDE_ROOT", error.message);
       }
 
       throw new ScopedGitReadToolError(
@@ -156,16 +132,8 @@ export class ScopedGitReadToolAdapter
       );
     }
   }
-
-
 }
 
 function isGitOperation(value: unknown): value is ScopedGitReadOperation {
-  return (
-    value === "STATUS" ||
-    value === "DIFF" ||
-    value === "LOG" ||
-    value === "SHOW"
-  );
+  return value === "STATUS" || value === "DIFF" || value === "LOG" || value === "SHOW";
 }
-

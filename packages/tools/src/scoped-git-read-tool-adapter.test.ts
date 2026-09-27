@@ -5,10 +5,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import {
-  ScopedGitReadToolAdapter,
-  ScopedGitReadToolError,
-} from "./scoped-git-read-tool-adapter";
+import { ScopedGitReadToolAdapter, ScopedGitReadToolError } from "./scoped-git-read-tool-adapter";
 
 function createRepository(): string {
   const root = mkdtempSync(join(tmpdir(), "polyon-git-read-"));

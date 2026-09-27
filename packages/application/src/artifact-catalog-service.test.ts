@@ -2,10 +2,7 @@ import type { Artifact } from "@polyon/contracts";
 import { InMemoryDomainStores } from "@polyon/storage";
 import { describe, expect, it } from "vitest";
 
-import {
-  ArtifactCatalogService,
-  ArtifactCatalogServiceError,
-} from "./artifact-catalog-service";
+import { ArtifactCatalogService, ArtifactCatalogServiceError } from "./artifact-catalog-service";
 
 function artifact(overrides: Partial<Artifact> & Pick<Artifact, "id">): Artifact {
   return {
@@ -19,9 +16,7 @@ function artifact(overrides: Partial<Artifact> & Pick<Artifact, "id">): Artifact
     ...(overrides.mimeType === undefined ? {} : { mimeType: overrides.mimeType }),
     ...(overrides.missionId === undefined ? {} : { missionId: overrides.missionId }),
     ...(overrides.taskId === undefined ? {} : { taskId: overrides.taskId }),
-    ...(overrides.executionId === undefined
-      ? {}
-      : { executionId: overrides.executionId }),
+    ...(overrides.executionId === undefined ? {} : { executionId: overrides.executionId }),
   };
 }
 
@@ -71,15 +66,19 @@ describe("ArtifactCatalogService", () => {
     });
 
     expect(
-      service.list({
-        missionId: "mission-1",
-      }).map((item) => item.id),
+      service
+        .list({
+          missionId: "mission-1",
+        })
+        .map((item) => item.id),
     ).toEqual(["artifact-1", "artifact-2"]);
 
     expect(
-      service.list({
-        kind: "DOCUMENT",
-      }).map((item) => item.id),
+      service
+        .list({
+          kind: "DOCUMENT",
+        })
+        .map((item) => item.id),
     ).toEqual(["artifact-2"]);
   });
 });

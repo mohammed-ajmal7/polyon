@@ -1,10 +1,4 @@
-import {
-  existsSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -70,9 +64,9 @@ describe("ScopedArtifactWriteToolAdapter", () => {
       expect(first.output.artifactId).toBe(second.output.artifactId);
       expect(first.output.created).toBe(true);
       expect(second.output.created).toBe(false);
-      expect(
-        existsSync(join(root, "same.txt." + first.output.sha256.slice(0, 16) + ".tmp")),
-      ).toBe(false);
+      expect(existsSync(join(root, "same.txt." + first.output.sha256.slice(0, 16) + ".tmp"))).toBe(
+        false,
+      );
     } finally {
       cleanup(root);
     }

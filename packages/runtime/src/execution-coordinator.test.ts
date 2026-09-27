@@ -116,10 +116,7 @@ describe("InMemoryExecutionCoordinator", () => {
     });
 
     await expect(
-      coordinator.runNextWithResult(
-        "2026-09-27T01:02:00.000Z",
-        "2026-09-27T01:05:00.000Z",
-      ),
+      coordinator.runNextWithResult("2026-09-27T01:02:00.000Z", "2026-09-27T01:05:00.000Z"),
     ).resolves.toEqual({
       execution: {
         ...execution,
@@ -138,10 +135,7 @@ describe("InMemoryExecutionCoordinator", () => {
   it("records execution and task lifecycle events", async () => {
     const { events, coordinator } = createCoordinator(runningTask);
 
-    await coordinator.runNext(
-      "2026-09-27T01:02:00.000Z",
-      "2026-09-27T01:05:00.000Z",
-    );
+    await coordinator.runNext("2026-09-27T01:02:00.000Z", "2026-09-27T01:05:00.000Z");
 
     expect(events.list().map((event) => event.kind)).toEqual([
       "EXECUTION_STATUS_CHANGED",
@@ -165,10 +159,7 @@ describe("InMemoryExecutionCoordinator", () => {
   it("records the task approval-to-running transition", async () => {
     const { events, coordinator } = createCoordinator(approvedTask);
 
-    await coordinator.runNext(
-      "2026-09-27T01:02:00.000Z",
-      "2026-09-27T01:05:00.000Z",
-    );
+    await coordinator.runNext("2026-09-27T01:02:00.000Z", "2026-09-27T01:05:00.000Z");
 
     expect(events.list().map((event) => event.kind)).toEqual([
       "TASK_STATUS_CHANGED",

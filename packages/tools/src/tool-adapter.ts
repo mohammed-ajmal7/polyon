@@ -1,8 +1,4 @@
-import type {
-  ArtifactKind,
-  ArtifactStatus,
-  ToolId,
-} from "@polyon/contracts";
+import type { ArtifactKind, ArtifactStatus, ToolId } from "@polyon/contracts";
 
 export interface ToolInvocationRequest<TInput = unknown> {
   readonly input: TInput;

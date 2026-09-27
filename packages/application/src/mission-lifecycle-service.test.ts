@@ -2,10 +2,7 @@ import type { Mission, Task } from "@polyon/contracts";
 import { InMemoryDomainStores, InMemoryEventStore } from "@polyon/storage";
 import { describe, expect, it } from "vitest";
 
-import {
-  MissionLifecycleService,
-  MissionLifecycleServiceError,
-} from "./mission-lifecycle-service";
+import { MissionLifecycleService, MissionLifecycleServiceError } from "./mission-lifecycle-service";
 
 const baseMission: Mission = {
   id: "mission-1",
@@ -65,9 +62,7 @@ describe("MissionLifecycleService", () => {
     let transactionCalls = 0;
 
     const unitOfWork = {
-      transaction<T>(
-        work: Parameters<InMemoryDomainStores["transaction"]>[0],
-      ): T {
+      transaction<T>(work: Parameters<InMemoryDomainStores["transaction"]>[0]): T {
         transactionCalls += 1;
         return stores.transaction(work) as T;
       },

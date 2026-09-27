@@ -27,11 +27,7 @@ declare module "node:fs" {
   ): void;
   export function unlinkSync(path: string): void;
   export function utimesSync(path: string, atime: Date, mtime: Date): void;
-  export function writeFileSync(
-    path: string,
-    data: string,
-    encoding?: "utf8",
-  ): void;
+  export function writeFileSync(path: string, data: string, encoding?: "utf8"): void;
 }
 
 declare module "node:os" {
@@ -45,7 +41,10 @@ declare module "node:path" {
 
 declare module "node:crypto" {
   export function createHash(algorithm: "sha256"): {
-    update(data: string, encoding?: "utf8"): {
+    update(
+      data: string,
+      encoding?: "utf8",
+    ): {
       digest(encoding: "hex"): string;
     };
   };

@@ -134,11 +134,13 @@ describe("MissionExecutionService", () => {
       identities,
     });
 
-    expect(events.listByTask("task-1").map((event) => ({
-      kind: event.kind,
-      actorId: event.actorId,
-      data: event.data,
-    }))).toEqual([
+    expect(
+      events.listByTask("task-1").map((event) => ({
+        kind: event.kind,
+        actorId: event.actorId,
+        data: event.data,
+      })),
+    ).toEqual([
       {
         kind: "TASK_STATUS_CHANGED",
         actorId: "agent-1",

@@ -37,9 +37,7 @@ export class ExecutionRetryService {
     }
 
     if (task.missionId !== input.mission.id) {
-      throw new Error(
-        `Task ${input.taskId} does not belong to mission ${input.mission.id}.`,
-      );
+      throw new Error(`Task ${input.taskId} does not belong to mission ${input.mission.id}.`);
     }
 
     if (task.status !== "FAILED") {
@@ -73,9 +71,7 @@ export class ExecutionRetryService {
 
     return this.executionService.dispatchReadyTasks({
       mission: input.mission,
-      tasks: missionTasks.map((candidate) =>
-        candidate.id === retried.id ? retried : candidate,
-      ),
+      tasks: missionTasks.map((candidate) => (candidate.id === retried.id ? retried : candidate)),
       actorId: input.actorId,
       agentId: input.agentId,
       policy: input.policy,

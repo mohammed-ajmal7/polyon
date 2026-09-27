@@ -12,9 +12,9 @@ describe("InMemoryDomainStores", () => {
   it("rejects nested transactions", () => {
     const stores = new InMemoryDomainStores();
 
-    expect(() =>
-      stores.transaction(() => stores.transaction(() => undefined)),
-    ).toThrow("A storage transaction is already in progress.");
+    expect(() => stores.transaction(() => stores.transaction(() => undefined))).toThrow(
+      "A storage transaction is already in progress.",
+    );
   });
 
   it("rolls back all domain collections and events when a transaction throws", () => {
@@ -54,9 +54,9 @@ describe("FileDomainStores", () => {
     try {
       const stores = new FileDomainStores(directory);
 
-      expect(() =>
-        stores.transaction(() => stores.transaction(() => undefined)),
-      ).toThrow("A storage transaction is already in progress.");
+      expect(() => stores.transaction(() => stores.transaction(() => undefined))).toThrow(
+        "A storage transaction is already in progress.",
+      );
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
@@ -120,9 +120,7 @@ describe("FileDomainStores", () => {
 
       const reopened = new FileDomainStores(directory);
 
-      expect(reopened.missions.get("mission-1")?.objective).toBe(
-        "Newer state.",
-      );
+      expect(reopened.missions.get("mission-1")?.objective).toBe("Newer state.");
       expect(reopened.missions.get("mission-2")).toBeUndefined();
     } finally {
       rmSync(directory, { recursive: true, force: true });
@@ -163,9 +161,7 @@ describe("FileDomainStores", () => {
       const reopened = new FileDomainStores(directory);
 
       expect(reopened.missions.get("mission-transaction-1")).toBeUndefined();
-      expect(reopened.missions.get("mission-concurrent-1")?.objective).toBe(
-        "Concurrent write.",
-      );
+      expect(reopened.missions.get("mission-concurrent-1")?.objective).toBe("Concurrent write.");
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
@@ -231,9 +227,7 @@ describe("FileDomainStores", () => {
 
       const reopened = new FileDomainStores(directory);
 
-      expect(reopened.missions.get("mission-1")?.objective).toBe(
-        "Commit atomically.",
-      );
+      expect(reopened.missions.get("mission-1")?.objective).toBe("Commit atomically.");
       expect(reopened.events.get("event-1")?.kind).toBe("MISSION_CREATED");
     } finally {
       rmSync(directory, { recursive: true, force: true });
@@ -299,4 +293,3 @@ describe("FileDomainStores", () => {
     }
   });
 });
-

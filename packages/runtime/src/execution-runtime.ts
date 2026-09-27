@@ -120,10 +120,7 @@ function validateMaxConcurrency(maxConcurrency: number): void {
 }
 
 function validateExecutionTimeout(timeoutMs: number | undefined): void {
-  if (
-    timeoutMs !== undefined &&
-    (!Number.isFinite(timeoutMs) || timeoutMs <= 0)
-  ) {
+  if (timeoutMs !== undefined && (!Number.isFinite(timeoutMs) || timeoutMs <= 0)) {
     throw new Error("Execution runtime timeout must be a positive finite number.");
   }
 }
@@ -174,11 +171,7 @@ function appendExecutionCancellationEvent(
   });
 }
 
-function appendTaskCancellationEvent(
-  events: EventStore,
-  task: Task,
-  from: Task["status"],
-): void {
+function appendTaskCancellationEvent(events: EventStore, task: Task, from: Task["status"]): void {
   events.append({
     id: `TASK_STATUS_CHANGED:${task.id}:${from}:CANCELLED:${task.updatedAt}:RUNTIME`,
     kind: "TASK_STATUS_CHANGED",
@@ -197,12 +190,10 @@ export function createExecutionRuntime(
   dependencies: ExecutionRuntimeDependencies,
 ): ExecutionRuntime {
   const pollIntervalMs = dependencies.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
-  const maxConcurrency =
-    dependencies.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY;
+  const maxConcurrency = dependencies.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY;
   const retryBackoffInitialMs =
     dependencies.retryBackoffInitialMs ?? DEFAULT_RETRY_BACKOFF_INITIAL_MS;
-  const retryBackoffMaxMs =
-    dependencies.retryBackoffMaxMs ?? DEFAULT_RETRY_BACKOFF_MAX_MS;
+  const retryBackoffMaxMs = dependencies.retryBackoffMaxMs ?? DEFAULT_RETRY_BACKOFF_MAX_MS;
   const wait = dependencies.wait ?? defaultWait;
 
   validatePollInterval(pollIntervalMs);
@@ -351,10 +342,7 @@ export function createExecutionRuntime(
   };
 
   const runLoop = async (generation: number): Promise<void> => {
-    while (
-      runtimeStatus === "RUNNING" &&
-      runtimeGeneration === generation
-    ) {
+    while (runtimeStatus === "RUNNING" && runtimeGeneration === generation) {
       if (retryBackoffPending) {
         await waitForLoop(retryBackoffMs);
         retryBackoffPending = false;
@@ -411,9 +399,7 @@ export function createExecutionRuntime(
     signalLoop();
   };
 
-  const cancel = (
-    executionId: ExecutionId,
-  ): ExecutionRuntimeCancellationResult => {
+  const cancel = (executionId: ExecutionId): ExecutionRuntimeCancellationResult => {
     const execution = dependencies.executions.get(executionId);
 
     if (execution === undefined) {
@@ -433,28 +419,13 @@ export function createExecutionRuntime(
     }
 
     const operation = (stores: RuntimeCancellationStores): Execution => {
-      const updatedExecution = cancelExecution(
-        execution,
-        dependencies.clock.now(),
-      );
-      const updatedTask = transitionTaskStatus(
-        task,
-        "CANCELLED",
-        updatedExecution.updatedAt,
-      );
+      const updatedExecution = cancelExecution(execution, dependencies.clock.now());
+      const updatedTask = transitionTaskStatus(task, "CANCELLED", updatedExecution.updatedAt);
 
       stores.executions.save(updatedExecution);
       stores.tasks.save(updatedTask);
-      appendExecutionCancellationEvent(
-        stores.events,
-        updatedExecution,
-        execution.status,
-      );
-      appendTaskCancellationEvent(
-        stores.events,
-        updatedTask,
-        task.status,
-      );
+      appendExecutionCancellationEvent(stores.events, updatedExecution, execution.status);
+      appendTaskCancellationEvent(stores.events, updatedTask, task.status);
 
       return updatedExecution;
     };

@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  DurableMigrationError,
-  migrateDurableSnapshot,
-  type DurableMigration,
-} from "./migrations";
+import { DurableMigrationError, migrateDurableSnapshot, type DurableMigration } from "./migrations";
 
 describe("migrateDurableSnapshot", () => {
   const migrations: readonly DurableMigration[] = [

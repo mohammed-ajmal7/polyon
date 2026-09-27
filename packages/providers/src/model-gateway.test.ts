@@ -71,7 +71,6 @@ describe("ModelGateway", () => {
     });
   });
 
-
   it("supports structured text model invocations", async () => {
     const gateway = createGateway({
       providerId: "provider-1",
@@ -259,13 +258,7 @@ describe("ModelGateway", () => {
     });
 
     await expect(gateway.invoke("model-1", "hello")).rejects.toEqual(
-      new ProviderInvocationError(
-        "UNKNOWN",
-        "provider-1",
-        "model-1",
-        "socket closed",
-        false,
-      ),
+      new ProviderInvocationError("UNKNOWN", "provider-1", "model-1", "socket closed", false),
     );
   });
 

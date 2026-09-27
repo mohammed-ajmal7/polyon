@@ -75,8 +75,7 @@ export class ExecutionDispatchService {
   constructor(private readonly dependencies: ExecutionDispatchServiceDependencies) {}
 
   dispatch(input: PrepareExecutionDispatchInput): PersistedExecutionDispatch {
-    const operation = (stores: ExecutionDispatchStores) =>
-      this.dispatchWithStores(stores, input);
+    const operation = (stores: ExecutionDispatchStores) => this.dispatchWithStores(stores, input);
 
     const result =
       this.dependencies.unitOfWork === undefined
@@ -183,7 +182,6 @@ export class ExecutionDispatchService {
     }
 
     return plan;
-  
   }
 
   queueApproved(
@@ -226,13 +224,7 @@ export class ExecutionDispatchService {
       "APPROVED",
       now,
     );
-    appendExecutionStatusChangedEvent(
-      stores.events,
-      queued,
-      "APPROVED",
-      "QUEUED",
-      now,
-    );return queued;
-  
+    appendExecutionStatusChangedEvent(stores.events, queued, "APPROVED", "QUEUED", now);
+    return queued;
   }
 }

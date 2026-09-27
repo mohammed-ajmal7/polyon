@@ -15,9 +15,7 @@ export interface ConversationSnapshot {
 }
 
 export type ConversationQueryErrorKind =
-  | "CONVERSATION_NOT_FOUND"
-  | "MESSAGE_NOT_PERSISTED"
-  | "MESSAGE_CONVERSATION_MISMATCH";
+  "CONVERSATION_NOT_FOUND" | "MESSAGE_NOT_PERSISTED" | "MESSAGE_CONVERSATION_MISMATCH";
 
 export class ConversationQueryError extends Error {
   readonly kind: ConversationQueryErrorKind;

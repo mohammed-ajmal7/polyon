@@ -29,8 +29,5 @@ export type ExecutionRunResult =
     };
 
 export interface ExecutionRunner {
-  run(
-    execution: Execution,
-    context?: ExecutionRunContext,
-  ): Promise<ExecutionRunResult>;
+  run(execution: Execution, context?: ExecutionRunContext): Promise<ExecutionRunResult>;
 }

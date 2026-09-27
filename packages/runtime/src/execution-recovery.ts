@@ -1,15 +1,7 @@
 import type { ExecutionId } from "@polyon/contracts";
 
-import {
-  pauseExecution,
-  recoverRunningExecution,
-  transitionTaskStatus,
-} from "@polyon/core";
-import type {
-  ApprovalRequestStore,
-  ExecutionStore,
-  TaskStore,
-} from "@polyon/storage";
+import { pauseExecution, recoverRunningExecution, transitionTaskStatus } from "@polyon/core";
+import type { ApprovalRequestStore, ExecutionStore, TaskStore } from "@polyon/storage";
 
 import type { ExecutionQueue } from "./execution-queue";
 
@@ -17,11 +9,7 @@ function findToolContinuation(
   approvals: ApprovalRequestStore,
   executionId: ExecutionId,
   status: "PENDING" | "APPROVED",
-):
-  | NonNullable<
-      import("@polyon/contracts").ApprovalRequest["toolContinuation"]
-    >
-  | undefined {
+): NonNullable<import("@polyon/contracts").ApprovalRequest["toolContinuation"]> | undefined {
   return approvals
     .list()
     .filter(
@@ -31,9 +19,7 @@ function findToolContinuation(
         approval.toolContinuation !== undefined,
     )
     .sort((left, right) =>
-      (right.resolvedAt ?? right.requestedAt).localeCompare(
-        left.resolvedAt ?? left.requestedAt,
-      ),
+      (right.resolvedAt ?? right.requestedAt).localeCompare(left.resolvedAt ?? left.requestedAt),
     )
     .map((approval) => approval.toolContinuation!)
     .at(0);
@@ -72,9 +58,7 @@ export function recoverQueuedExecutions(
 }
 
 export type ExecutionRecoveryKind =
-  | "QUEUED_EXECUTION"
-  | "INTERRUPTED_TOOL_CONTINUATION"
-  | "PENDING_TOOL_APPROVAL_RESTART";
+  "QUEUED_EXECUTION" | "INTERRUPTED_TOOL_CONTINUATION" | "PENDING_TOOL_APPROVAL_RESTART";
 
 export interface ExecutionRecovery {
   readonly executionId: ExecutionId;
@@ -126,10 +110,7 @@ export function recoverExecutions(
       }
 
       if (hasResumableToolContinuation(approvals, execution.id)) {
-        const recoveredExecution = recoverRunningExecution(
-          execution,
-          recoveredAt,
-        );
+        const recoveredExecution = recoverRunningExecution(execution, recoveredAt);
         executions.save(recoveredExecution);
         queue.enqueue(recoveredExecution);
         recovered.push({

@@ -63,8 +63,7 @@ export class MissionCreationService {
   constructor(private readonly dependencies: MissionCreationServiceDependencies) {}
 
   create(input: CreateMissionApplicationInput): CreateMissionApplicationResult {
-    const operation = (stores: MissionCreationStores) =>
-      this.createWithStores(stores, input);
+    const operation = (stores: MissionCreationStores) => this.createWithStores(stores, input);
 
     return this.dependencies.unitOfWork === undefined
       ? operation(this.dependencies)

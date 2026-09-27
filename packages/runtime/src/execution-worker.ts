@@ -1,21 +1,10 @@
 import type { DomainEvent, Execution, ExecutionId } from "@polyon/contracts";
 
-import type {
-  ApprovalRequestStore,
-  EventStore,
-  ExecutionStore,
-  TaskStore,
-} from "@polyon/storage";
+import type { ApprovalRequestStore, EventStore, ExecutionStore, TaskStore } from "@polyon/storage";
 
-import type {
-  ExecutionCoordinator,
-  ExecutionRunOutcome,
-} from "./execution-coordinator";
+import type { ExecutionCoordinator, ExecutionRunOutcome } from "./execution-coordinator";
 import type { ExecutionRunContext } from "./execution-runner";
-import {
-  recoverExecutions,
-  recoverQueuedExecutions,
-} from "./execution-recovery";
+import { recoverExecutions, recoverQueuedExecutions } from "./execution-recovery";
 import type { ExecutionQueue } from "./execution-queue";
 
 export interface ExecutionWorkerClock {
@@ -52,9 +41,7 @@ export interface ExecutionWorker {
   readonly running: boolean;
   start(): ExecutionWorkerStartResult;
   stop(): void;
-  runNext(
-    context?: ExecutionRunContext,
-  ): Promise<ExecutionRunOutcome | undefined>;
+  runNext(context?: ExecutionRunContext): Promise<ExecutionRunOutcome | undefined>;
   drain(): Promise<readonly Execution[]>;
 }
 
@@ -63,9 +50,7 @@ function appendRecoveryEvent(
   executions: ExecutionStore,
   executionId: ExecutionId,
   reason:
-    | "PROCESS_STARTUP"
-    | "RESUMABLE_TOOL_CONTINUATION_RESTART"
-    | "PENDING_TOOL_APPROVAL_RESTART",
+    "PROCESS_STARTUP" | "RESUMABLE_TOOL_CONTINUATION_RESTART" | "PENDING_TOOL_APPROVAL_RESTART",
 ): void {
   const execution = executions.get(executionId);
 
@@ -118,9 +103,7 @@ export class InMemoryExecutionWorker implements ExecutionWorker {
       this.dependencies.tasks,
       this.dependencies.clock.now(),
     );
-    const recoveredExecutionIds = recoveries.map(
-      (recovery) => recovery.executionId,
-    );
+    const recoveredExecutionIds = recoveries.map((recovery) => recovery.executionId);
 
     for (const recovery of recoveries) {
       appendRecoveryEvent(
@@ -144,9 +127,7 @@ export class InMemoryExecutionWorker implements ExecutionWorker {
     this.started = false;
   }
 
-  async runNext(
-    context?: ExecutionRunContext,
-  ): Promise<ExecutionRunOutcome | undefined> {
+  async runNext(context?: ExecutionRunContext): Promise<ExecutionRunOutcome | undefined> {
     this.assertRunning();
 
     try {
@@ -156,10 +137,7 @@ export class InMemoryExecutionWorker implements ExecutionWorker {
         context,
       );
     } catch (error) {
-      recoverQueuedExecutions(
-        this.dependencies.executions,
-        this.dependencies.queue,
-      );
+      recoverQueuedExecutions(this.dependencies.executions, this.dependencies.queue);
       throw error;
     }
   }
