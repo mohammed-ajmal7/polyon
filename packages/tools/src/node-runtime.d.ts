@@ -42,6 +42,8 @@ declare module "node:child_process" {
       on(event: "error", listener: (error: unknown) => void): void;
       end(data?: string): void;
     };
+    on(event: "error", listener: (error: unknown) => void): void;
+    on(event: "close", listener: (exitCode: number | null, signal: string | null) => void): void;
     once(event: "error", listener: (error: unknown) => void): void;
     once(event: "close", listener: (exitCode: number | null, signal: string | null) => void): void;
     kill(signal?: string): boolean;
@@ -55,7 +57,7 @@ declare module "node:child_process" {
       readonly shell: false;
       readonly windowsHide?: boolean;
       readonly env?: Readonly<Record<string, string | undefined>>;
-      readonly stdio: readonly ["pipe", "pipe", "pipe"];
+      readonly stdio: readonly ["ignore" | "pipe", "pipe", "pipe"];
     },
   ): SpawnedChildProcess;
 
