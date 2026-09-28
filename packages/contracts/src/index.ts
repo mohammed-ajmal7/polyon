@@ -62,6 +62,10 @@ export type {
 } from "./evidence/index";
 
 export type {
+  AgentRun,
+  AgentRunId,
+  AgentRunMode,
+  AgentRunStatus,
   Execution,
   ExecutionId,
   ExecutionStatus,
