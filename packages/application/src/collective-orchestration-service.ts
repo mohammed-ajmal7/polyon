@@ -184,7 +184,8 @@ export class CollectiveOrchestrationService {
           researchFailures.push({
             agentId: target.agentId,
             actorId: target.actorId,
-            error: `Research failed: ${error instanceof Error ? error.message : "Unknown research error."}`,
+            error:
+              `Research failed: ${error instanceof Error ? error.message : "Unknown research error."}`,
           });
         }
       }
@@ -521,7 +522,8 @@ export class CollectiveOrchestrationService {
           content:
             `User request: ${command}\n\nYour role: ${role}\nAgent: ${agentName}\n\n` +
             "Analyze the request from your specialist perspective. " +
-            "Return useful findings, important assumptions, and uncertainties for another agent to synthesize." +
+            "Return useful findings, important assumptions, and uncertainties for another agent " +
+            "to synthesize." +
             (sourceContext === "" ? "" : `\n\nRetrieved sources:\n${sourceContext}`) +
             (evidenceContext === "" ? "" : `\n\nRetrieved evidence:\n${evidenceContext}`),
         },
@@ -563,7 +565,8 @@ export class CollectiveOrchestrationService {
           role: "SYSTEM",
           content:
             "You are a critical reviewer inside POLYON's AI collective. " +
-            "Challenge peer reasoning rather than seeking agreement. Identify unsupported claims, " +
+            "Challenge peer reasoning rather than seeking agreement. " +
+            "Identify unsupported claims, " +
             "conflicting evidence, hidden assumptions, and plausible alternative explanations. " +
             "Separate facts from interpretations. Do not invent sources or claim verification " +
             "you did not receive. Do not take external actions.",
@@ -571,9 +574,11 @@ export class CollectiveOrchestrationService {
         {
           role: "USER",
           content:
-            `User request: ${command}\n\nYour role: ${role}\nReviewer: ${agentId}\nRound: ${round}\n\n` +
+            `User request: ${command}\n\nYour role: ${role}\nReviewer: ${agentId}\n` +
+            `Round: ${round}\n\n` +
             (context === ""
-              ? "There are no peer contributions yet. Critically inspect the available evidence and assumptions."
+              ? "There are no peer contributions yet. Critically inspect the available evidence " +
+                "and assumptions."
               : `Peer contributions:\n${context}`) +
             (evidenceContext === "" ? "" : `\n\nShared evidence:\n${evidenceContext}`) +
             "\n\nReturn the strongest challenges and concrete corrections for the synthesis lead.",
@@ -591,7 +596,8 @@ export class CollectiveOrchestrationService {
   ): TextModelRequest {
     const lines = contributions.map(
       (item) =>
-        `[agent=${item.agentId} role=${item.role} model=${item.modelId} provider=${item.providerId}]\n${item.content}`,
+        `[agent=${item.agentId} role=${item.role} model=${item.modelId} ` +
+        `provider=${item.providerId}]\n${item.content}`,
     );
     const challengeLines = challenges.map(
       (item) =>
@@ -705,7 +711,9 @@ export class CollectiveOrchestrationService {
 
       for (const failure of failures) {
         stores.events.append({
-          id: `COLLECTIVE_CONTRIBUTION:${collectiveId}:${failure.agentId}:${stableId(failure.error)}`,
+          id:
+            `COLLECTIVE_CONTRIBUTION:${collectiveId}:${failure.agentId}:` +
+            stableId(failure.error),
           kind: "COLLECTIVE_CONTRIBUTION",
           actorId: failure.actorId,
           conversationId: input.command.conversation.id,
