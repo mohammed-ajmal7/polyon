@@ -18,11 +18,11 @@ describe("DurableBackupService", () => {
       db.replace(db.snapshot());
 
       service.backup(backupPath);
-      expect(readFileSync(backupPath, "utf8")).toContain('"version":2');
+      expect(readFileSync(backupPath, "utf8")).toContain('"version":3');
 
       const reopened = new FileDomainDatabase(dbPath);
       service.restore(backupPath);
-      expect(reopened.snapshot().version).toBe(2);
+      expect(reopened.snapshot().version).toBe(3);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
