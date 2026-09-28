@@ -1,7 +1,7 @@
 import type { AgentId, DomainEvent, Mission, Task, TaskKind } from "@polyon/contracts";
 import { validateTaskGraph } from "@polyon/core";
 import type { AgentGateway } from "@polyon/agents";
-import type { DomainUnitOfWork, EventStore, TaskStore } from "@polyon/storage";
+import type { DomainStoreTransactionContext, DomainUnitOfWork, EventStore, TaskStore } from "@polyon/storage";
 
 const MAX_TASKS = 20;
 const MAX_TITLE = 300;
@@ -100,18 +100,21 @@ export class MissionPlanningService {
       },
     };
 
-    const operation = () => {
+    const operation = (stores: Pick<DomainStoreTransactionContext, "tasks" | "events">) => {
       for (const task of generatedTasks) {
-        if (this.tasks.get(task.id) !== undefined) {
+        if (stores.tasks.get(task.id) !== undefined) {
           throw new Error(`Generated task already exists: ${task.id}.`);
         }
-        this.tasks.save(task);
+        stores.tasks.save(task);
       }
-      this.events.append(event);
+      stores.events.append(event);
     };
 
-    if (this.unitOfWork === undefined) operation();
-    else this.unitOfWork.transaction(operation);
+    if (this.unitOfWork === undefined) {
+      operation({ tasks: this.tasks, events: this.events });
+    } else {
+      this.unitOfWork.transaction(operation);
+    }
 
     return {
       rationale: proposal.rationale,

@@ -1,5 +1,5 @@
 import type { Evidence, EvidenceKind, Source, SourceKind } from "@polyon/contracts";
-import type { DomainUnitOfWork, EventStore, EvidenceStore, SourceStore } from "@polyon/storage";
+import type { DomainStoreTransactionContext, DomainUnitOfWork, EventStore, EvidenceStore, SourceStore } from "@polyon/storage";
 
 export interface ResearchSourceCandidate {
   readonly title: string;
@@ -55,7 +55,9 @@ export class ResearchService {
     }
 
     const candidates = await this.retriever.search(query, { limit, signal: input.signal });
-    const operation = () => {
+    const operation = (
+      stores: Pick<DomainStoreTransactionContext, "sources" | "evidence" | "events">,
+    ) => {
       const createdSources: Source[] = [];
       const createdEvidence: Evidence[] = [];
 
@@ -81,16 +83,16 @@ export class ResearchService {
           capturedAt: input.now,
         };
 
-        if (this.sources.get(source.id) !== undefined) {
+        if (stores.sources.get(source.id) !== undefined) {
           throw new Error(`Source already exists: ${source.id}.`);
         }
-        if (this.evidence.get(evidence.id) !== undefined) {
+        if (stores.evidence.get(evidence.id) !== undefined) {
           throw new Error(`Evidence already exists: ${evidence.id}.`);
         }
 
-        this.sources.save(source);
-        this.evidence.save(evidence);
-        this.events.append({
+        stores.sources.save(source);
+        stores.evidence.save(evidence);
+        stores.events.append({
           id: `SOURCE_RETRIEVED:${source.id}`,
           kind: "SOURCE_RETRIEVED",
           actorId: input.actorId,
@@ -104,7 +106,7 @@ export class ResearchService {
             locator: source.locator,
           },
         });
-        this.events.append({
+        stores.events.append({
           id: `EVIDENCE_CAPTURED:${evidence.id}`,
           kind: "EVIDENCE_CAPTURED",
           actorId: input.actorId,
@@ -120,7 +122,9 @@ export class ResearchService {
       return { sources: createdSources, evidence: createdEvidence };
     };
 
-    return this.unitOfWork === undefined ? operation() : this.unitOfWork.transaction(operation);
+    return this.unitOfWork === undefined
+      ? operation({ sources: this.sources, evidence: this.evidence, events: this.events })
+      : this.unitOfWork.transaction(operation);
   }
 }
 

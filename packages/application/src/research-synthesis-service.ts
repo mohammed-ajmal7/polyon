@@ -2,6 +2,7 @@ import type { AgentId, Evidence, MemoryEntry, Source } from "@polyon/contracts";
 
 import type { AgentGateway } from "@polyon/agents";
 import type {
+  DomainStoreTransactionContext,
   DomainUnitOfWork,
   EventStore,
   EvidenceStore,
@@ -87,13 +88,13 @@ export class ResearchSynthesisService {
       updatedAt: input.now,
     };
 
-    const operation = () => {
-      if (this.memory.get(memory.id) !== undefined) {
+    const operation = (stores: Pick<DomainStoreTransactionContext, "memory" | "events">) => {
+      if (stores.memory.get(memory.id) !== undefined) {
         throw new Error(`Research synthesis memory already exists: ${memory.id}.`);
       }
 
-      this.memory.save(memory);
-      this.events.append({
+      stores.memory.save(memory);
+      stores.events.append({
         id: `RESEARCH_SYNTHESIZED:${memory.id}`,
         kind: "RESEARCH_SYNTHESIZED",
         missionId: input.missionId,
@@ -107,8 +108,11 @@ export class ResearchSynthesisService {
       });
     };
 
-    if (this.unitOfWork === undefined) operation();
-    else this.unitOfWork.transaction(operation);
+    if (this.unitOfWork === undefined) {
+      operation({ memory: this.memory, events: this.events });
+    } else {
+      this.unitOfWork.transaction(operation);
+    }
 
     return {
       report,
