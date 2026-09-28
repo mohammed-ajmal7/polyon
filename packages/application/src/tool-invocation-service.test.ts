@@ -107,6 +107,26 @@ describe("ToolInvocationService", () => {
     ]);
   });
 
+  it("propagates execution provenance to the tool adapter", async () => {
+    const invoke = vi.fn(async ({ context }) => ({ output: { context } }));
+    const { service } = createService({
+      toolId: "tool-1",
+      invoke,
+    });
+
+    await service.invoke(baseInput);
+
+    expect(invoke).toHaveBeenCalledWith({
+      input: { value: "hello" },
+      context: {
+        actorId: "agent-1",
+        missionId: "mission-1",
+        taskId: "task-1",
+        executionId: "execution-1",
+      },
+    });
+  });
+
   it("persists artifacts returned by a tool adapter", async () => {
     const artifact = {
       id: "artifact-1",
