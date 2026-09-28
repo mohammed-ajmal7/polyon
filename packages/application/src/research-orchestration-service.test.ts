@@ -96,7 +96,9 @@ describe("ResearchOrchestrationService", () => {
       stores.events,
       stores,
     );
-    const invokeText = vi.fn(async ({ agentId, request }: { agentId: string; request: TextModelRequest }) => ({
+    const invokeText = vi.fn(async ({ agentId, request }: { agentId: string; request: TextModelRequest }) => {
+      void request;
+      return {
       agentId,
       modelId: agentId + "-model",
       providerId: "provider-" + agentId,
@@ -107,7 +109,8 @@ describe("ResearchOrchestrationService", () => {
             ? "Findings\nTwo independent signals were found.\nEvidence\n[source:research-evidence]"
             : agentId + " found a supported signal and identified uncertainty.",
       },
-    }));
+      };
+    });
 
     const service = new ResearchOrchestrationService({
       agents,
