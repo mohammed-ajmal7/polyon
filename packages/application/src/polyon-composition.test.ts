@@ -301,6 +301,30 @@ describe("createPolyonComposition", () => {
     }
   });
 
+  it("keeps automatic semantic indexing disabled until a scope allowlist is explicitly enabled", () => {
+    const root = mkdtempSync(join(tmpdir(), "polyon-composition-embedding-policy-"));
+
+    try {
+      const baseOptions = {
+        storageRoot: root,
+        embeddingProvider: embeddingRegistration(),
+      };
+
+      const disabled = createPolyonComposition(baseOptions);
+      expect(disabled.semanticMemoryIndexer).toBeUndefined();
+
+      const enabled = createPolyonComposition({
+        ...baseOptions,
+        semanticMemoryIndexingEnabled: true,
+        semanticMemoryIndexAllowedScopes: ["PROJECT"],
+      });
+
+      expect(enabled.semanticMemoryIndexer).toBeDefined();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("registers integrations behind the governed invocation service", async () => {
     const root = mkdtempSync(join(tmpdir(), "polyon-composition-integration-"));
     const invoke = vi.fn(async () => ({ output: { delivered: true } }));
