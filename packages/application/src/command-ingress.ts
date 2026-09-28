@@ -17,12 +17,7 @@ import type {
   MessageStore,
 } from "@polyon/storage";
 
-export type CommandMode =
-  | "Direct"
-  | "Broadcast"
-  | "Collaborative"
-  | "Debate"
-  | "Mission";
+export type CommandMode = "Direct" | "Broadcast" | "Collaborative" | "Debate" | "Mission";
 
 const modeToConversationKind: Record<CommandMode, Conversation["kind"]> = {
   Direct: "DIRECT",
