@@ -1,0 +1,31 @@
+name: Temporary format diagnostic
+
+on:
+  push:
+
+jobs:
+  format-diagnostic:
+    if: startsWith(github.ref_name, 'feature/deep-analysis-pipeline')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24.13.1
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Format changed files and print patch
+        run: |
+          pnpm exec prettier packages/application/src/collective-orchestration-service.ts packages/application/src/command-ingress.ts packages/application/src/debate-orchestration-service.ts packages/application/src/debate-orchestration-service.test.ts packages/application/src/collective-orchestration-service.test.ts --write
+          git diff -- packages/application/src/collective-orchestration-service.ts packages/application/src/command-ingress.ts packages/application/src/debate-orchestration-service.ts packages/application/src/debate-orchestration-service.test.ts packages/application/src/collective-orchestration-service.test.ts
