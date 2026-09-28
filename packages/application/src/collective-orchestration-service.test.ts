@@ -301,7 +301,12 @@ describe("CollectiveOrchestrationService", () => {
       conversations: stores.conversations,
       messages: stores.messages,
       events: stores.events,
-      debates: new DebateOrchestrationService({ invokeText } as never, stores.debates, stores.events, stores),
+      debates: new DebateOrchestrationService(
+        { invokeText: vi.fn() } as never,
+        stores.debates,
+        stores.events,
+        stores,
+      ),
       unitOfWork: stores,
     });
 
