@@ -34,6 +34,8 @@ export async function POST(request: Request): Promise<Response> {
       },
       commandIngress: polyon.commandIngress,
       conversationOrchestration: polyon.conversationOrchestration,
+      executions: polyon.stores.executions,
+      runtime: polyon.runtime,
       tasks: polyon.stores.tasks,
       policy: getPolyonPolicy(),
       actorId: "a2a-client",

@@ -1,4 +1,4 @@
-import type { AgentId, Task } from "@polyon/contracts";
+import type { AgentId, Execution, Task } from "@polyon/contracts";
 
 import type { ConversationAgentOrchestrationService } from "./conversation-agent-orchestration-service";
 import type { CommandIngressService } from "./command-ingress";
@@ -29,6 +29,15 @@ export interface A2AJsonRpcResponse {
   readonly error?: { readonly code: number; readonly message: string };
 }
 
+export interface A2AExecutionRuntime {
+  cancel(
+    executionId: string,
+  ):
+    | { readonly status: "CANCELLED"; readonly execution: Execution }
+    | { readonly status: "NOT_FOUND"; readonly executionId: string }
+    | { readonly status: "NOT_CANCELLABLE"; readonly execution: Execution };
+}
+
 export interface A2AServerDependencies {
   readonly agents: {
     list(): readonly {
@@ -41,6 +50,10 @@ export interface A2AServerDependencies {
   };
   readonly commandIngress: CommandIngressService;
   readonly conversationOrchestration: ConversationAgentOrchestrationService;
+  readonly executions: {
+    list(): readonly Execution[];
+  };
+  readonly runtime: A2AExecutionRuntime;
   readonly tasks: {
     list(): readonly Task[];
     get(taskId: string): Task | undefined;
@@ -64,6 +77,9 @@ export class A2AServerService {
       case "GetTask":
       case "tasks/get":
         return this.getTask(request);
+      case "CancelTask":
+      case "tasks/cancel":
+        return this.cancelTask(request);
       case "ListTasks":
       case "tasks/list":
         return this.listTasks(request);
@@ -113,12 +129,70 @@ export class A2AServerService {
     if (taskId === "") return error(request.id, -32602, "Task id is required.");
 
     const task = this.dependencies.tasks.get(taskId);
-    if (task === undefined) return error(request.id, -32004, "Task not found.");
+    if (
+      task === undefined ||
+      !isTaskVisible(task, this.dependencies.actorId, this.dependencies.executions.list())
+    ) {
+      return error(request.id, -32001, "Task not found.");
+    }
 
     return {
       jsonrpc: "2.0",
       id: request.id,
       result: mapTask(task),
+    };
+  }
+
+  private cancelTask(request: A2AJsonRpcRequest): A2AJsonRpcResponse {
+    const params = request.params ?? {};
+    const taskId =
+      typeof params.id === "string"
+        ? params.id.trim()
+        : typeof params.taskId === "string"
+          ? params.taskId.trim()
+          : "";
+
+    if (taskId === "") return error(request.id, -32602, "Task id is required.");
+
+    const task = this.dependencies.tasks.get(taskId);
+    const executions = this.dependencies.executions.list();
+
+    if (task === undefined || !isTaskVisible(task, this.dependencies.actorId, executions)) {
+      return error(request.id, -32001, "Task not found.");
+    }
+
+    const execution = executions
+      .filter(
+        (candidate) =>
+          candidate.taskId === task.id &&
+          candidate.actorId === this.dependencies.actorId &&
+          (candidate.status === "QUEUED" || candidate.status === "RUNNING"),
+      )
+      .sort(compareExecutions)[0];
+
+    if (execution === undefined) {
+      return error(request.id, -32002, "Task cannot be canceled.");
+    }
+
+    const cancellation = this.dependencies.runtime.cancel(execution.id);
+
+    if (cancellation.status === "NOT_FOUND") {
+      return error(request.id, -32001, "Task not found.");
+    }
+
+    if (cancellation.status === "NOT_CANCELLABLE") {
+      return error(request.id, -32002, "Task cannot be canceled.");
+    }
+
+    const updatedTask = this.dependencies.tasks.get(task.id);
+    if (updatedTask === undefined) {
+      return error(request.id, -32001, "Task not found.");
+    }
+
+    return {
+      jsonrpc: "2.0",
+      id: request.id,
+      result: mapTask(updatedTask),
     };
   }
 
@@ -142,8 +216,10 @@ export class A2AServerService {
       return error(request.id, -32602, pageToken.error);
     }
 
+    const executions = this.dependencies.executions.list();
     const filtered = this.dependencies.tasks
       .list()
+      .filter((task) => isTaskVisible(task, this.dependencies.actorId, executions))
       .filter((task) => contextId === undefined || task.missionId === contextId)
       .filter((task) => status.state === undefined || mapTaskState(task.status) === status.state)
       .sort(compareTasks);
@@ -313,7 +389,22 @@ function parseTaskStateFilter(value: unknown): {
   }
 }
 
+function isTaskVisible(
+  task: Task,
+  actorId: string,
+  executions: readonly Execution[],
+): boolean {
+  return executions.some(
+    (execution) => execution.taskId === task.id && execution.actorId === actorId,
+  );
+}
+
 function compareTasks(left: Task, right: Task): number {
+  const byUpdatedAt = right.updatedAt.localeCompare(left.updatedAt);
+  return byUpdatedAt !== 0 ? byUpdatedAt : right.id.localeCompare(left.id);
+}
+
+function compareExecutions(left: Execution, right: Execution): number {
   const byUpdatedAt = right.updatedAt.localeCompare(left.updatedAt);
   return byUpdatedAt !== 0 ? byUpdatedAt : right.id.localeCompare(left.id);
 }
