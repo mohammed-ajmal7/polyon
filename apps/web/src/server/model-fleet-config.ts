@@ -33,6 +33,7 @@ export function parseModelProfiles(value: string): ModelProfileConfig[] {
   } catch (error) {
     throw new Error(
       `POLYON_MODEL_PROFILES_JSON must contain valid JSON: ${error instanceof Error ? error.message : "invalid JSON"}.`,
+      { cause: error },
     );
   }
 
