@@ -251,7 +251,8 @@ export class CollectiveOrchestrationService {
           role: "SYSTEM",
           content:
             "You are a specialist member of POLYON's AI collective. " +
-            "Work independently, contribute a distinct perspective, and separate facts from interpretation. " +
+            "Work independently, contribute a distinct perspective, and " +
+            "separate facts from interpretation. " +
             "Do not claim to have verified information you did not receive. " +
             "Do not take external actions.",
         },
@@ -260,7 +261,8 @@ export class CollectiveOrchestrationService {
           content:
             `User request: ${command}\n\nYour role: ${role}\nAgent: ${agentName}\n\n` +
             "Analyze the request from your specialist perspective. " +
-            "Return the useful findings, important assumptions, and uncertainties for another agent to synthesize.",
+            "Return the useful findings, important assumptions, and " +
+            "uncertainties for another agent to synthesize.",
         },
       ],
     };
@@ -290,10 +292,12 @@ export class CollectiveOrchestrationService {
         {
           role: "SYSTEM",
           content:
-            "You are POLYON's synthesis lead. Produce one transparent answer from the collective. " +
-            "Do not treat agent agreement as proof. Distinguish directly supported facts, " +
-            "agent interpretations, disagreements, missing information, and uncertainty. " +
-            "Do not invent sources or verification. Prefer a useful conclusion with explicit caveats.",
+            "You are POLYON's synthesis lead. Produce one transparent answer from " +
+            "the collective. Do not treat agent agreement as proof. Distinguish " +
+            "directly supported facts, agent interpretations, disagreements, " +
+            "missing information, and uncertainty. " +
+            "Do not invent sources or verification. " +
+            "Prefer a useful conclusion with explicit caveats.",
         },
         {
           role: "USER",
