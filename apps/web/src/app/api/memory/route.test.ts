@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const isAuthenticated = vi.fn<() => Promise<boolean>>();
-const getPolyonComposition = vi.fn();
+const { isAuthenticated, getPolyonComposition } = vi.hoisted(() => ({
+  isAuthenticated: vi.fn<() => Promise<boolean>>(),
+  getPolyonComposition: vi.fn(),
+}));
 
 vi.mock("@/server/auth", () => ({
   isAuthenticated,
