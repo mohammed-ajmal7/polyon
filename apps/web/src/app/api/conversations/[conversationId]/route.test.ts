@@ -56,7 +56,9 @@ describe("conversation inspection API", () => {
 
     const response = await GET(
       new Request("http://localhost:3000/api/conversations/conversation-1"),
-      { params: Promise.resolve({ conversationId: "conversation-1" }) },
+      {
+        params: Promise.resolve({ conversationId: "conversation-1" }),
+      },
     );
 
     expect(response.status).toBe(200);
@@ -74,7 +76,9 @@ describe("conversation inspection API", () => {
 
     const response = await GET(
       new Request("http://localhost:3000/api/conversations/missing"),
-      { params: Promise.resolve({ conversationId: "missing" }) },
+      {
+        params: Promise.resolve({ conversationId: "missing" }),
+      },
     );
 
     expect(response.status).toBe(404);
@@ -88,7 +92,9 @@ describe("conversation inspection API", () => {
 
     const response = await GET(
       new Request("http://localhost:3000/api/conversations/conversation-1"),
-      { params: Promise.resolve({ conversationId: "conversation-1" }) },
+      {
+        params: Promise.resolve({ conversationId: "conversation-1" }),
+      },
     );
 
     expect(response.status).toBe(401);
