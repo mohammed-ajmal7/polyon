@@ -29,6 +29,7 @@ export interface RunDebateInput {
   readonly now: () => string;
   readonly modelOptions?: import("@polyon/providers").ModelInvocationOptions;
   readonly signal?: AbortSignal;
+  readonly context?: string;
 }
 
 export interface DebateRunResult {
@@ -166,7 +167,9 @@ export class DebateOrchestrationService {
         },
         {
           role: "USER",
-          content: `Objective: ${debate.objective}\nRound: ${debate.currentRound}\nPhase: ${debate.phase}\nRole: ${role}\n\nPrior contributions:\n${context}`,
+          content:
+            `Objective: ${debate.objective}\nRound: ${debate.currentRound}\nPhase: ${debate.phase}\nRole: ${role}\n\nPrior contributions:\n${context}` +
+            (input.context === undefined ? "" : `\n\nShared analysis context:\n${input.context}`),
         },
       ],
     };
@@ -204,7 +207,10 @@ export class DebateOrchestrationService {
         },
         {
           role: "USER",
-          content: `Objective: ${debate.objective}\nDebate transcript:\n${context}\n\nReturn a reasoned adjudication.`,
+          content:
+            `Objective: ${debate.objective}\nDebate transcript:\n${context}` +
+            (input.context === undefined ? "" : `\n\nShared analysis context:\n${input.context}`) +
+            "\n\nReturn a reasoned adjudication.",
         },
       ],
     };
