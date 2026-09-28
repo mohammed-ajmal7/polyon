@@ -151,10 +151,8 @@ describe("ResearchOrchestrationService", () => {
     expect(search).toHaveBeenCalledTimes(2);
     expect(invokeText).toHaveBeenCalledTimes(3);
 
-    const synthesisRequest = invokeText.mock.calls.at(-1)?.[0] as {
-      request: { messages: Array<{ content: string }> };
-    };
-    expect(synthesisRequest.request.messages[1]?.content).toContain("Bounded evidence excerpt.");
+    const synthesisCall = invokeText.mock.calls.at(-1)?.[0];
+    expect(synthesisCall?.request.messages[1]?.content).toContain("Bounded evidence excerpt.");
     expect(synthesisRequest.request.messages[1]?.content).toContain("Research workspace:");
   });
 
