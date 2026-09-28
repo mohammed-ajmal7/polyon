@@ -200,39 +200,34 @@ describe("FileDomainStores", () => {
     }
   });
 
-  it("rejects direct writes through the public store context during a transaction", () => {
+  it("uses a transactional context for writes and commits them once", () => {
     const directory = mkdtempSync(join(tmpdir(), "polyon-domain-context-"));
 
     try {
       const stores = new FileDomainStores(directory);
 
-      expect(() =>
-        stores.transaction(() => {
-          stores.missions.save({
-            id: "mission-direct-write",
-            objective: "Direct public write must fail.",
-            constraints: [],
-            status: "DRAFT",
-            taskIds: [],
-            createdAt: "2026-09-28T00:00:00.000Z",
-            updatedAt: "2026-09-28T00:00:00.000Z",
-          });
-        }),
-      ).not.toThrow();
+      stores.transaction(({ missions, events }) => {
+        missions.save({
+          id: "mission-transaction-once",
+          objective: "Write through the staged context.",
+          constraints: [],
+          status: "DRAFT",
+          taskIds: [],
+          createdAt: "2026-09-28T00:00:00.000Z",
+          updatedAt: "2026-09-28T00:00:00.000Z",
+        });
+        events.append({
+          id: "event-transaction-once",
+          kind: "MISSION_CREATED",
+          missionId: "mission-transaction-once",
+          occurredAt: "2026-09-28T00:00:00.000Z",
+          data: {},
+        });
+      });
 
-      expect(() =>
-        stores.transaction(() => {
-          stores.missions.save({
-            id: "mission-direct-write-2",
-            objective: "This path is transactional.",
-            constraints: [],
-            status: "DRAFT",
-            taskIds: [],
-            createdAt: "2026-09-28T00:01:00.000Z",
-            updatedAt: "2026-09-28T00:01:00.000Z",
-          });
-        }),
-      ).not.toThrow();
+      const reopened = new FileDomainStores(directory);
+      expect(reopened.missions.get("mission-transaction-once")).toBeDefined();
+      expect(reopened.events.get("event-transaction-once")).toBeDefined();
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
