@@ -331,3 +331,12 @@ export {
   type AgentMessageServiceDependencies,
   type SendAgentMessageInput,
 } from "./agent-message-service";
+
+
+export {
+  AgentRunService,
+  type AgentRunServiceDependencies,
+  type CompleteAgentRunInput,
+  type CreateAgentRunInput,
+  type FailAgentRunInput,
+} from "./agent-run-service";

@@ -41,6 +41,7 @@ import {
   ExecutionResultService,
   AgentToolOrchestrationService,
   AgentMessageService,
+  AgentRunService,
   MemoryService,
   MissionPlanningService,
   MissionCreationService,
@@ -226,6 +227,7 @@ export interface PolyonComposition {
   readonly executionRetry: ExecutionRetryService;
   readonly toolInvocation: ToolInvocationService;
   readonly agentMessages: AgentMessageService;
+  readonly agentRuns: AgentRunService;
   readonly integrationInvocation: IntegrationInvocationService;
   readonly integrationCatalog: IntegrationCatalogService;
   readonly artifactCatalog: ArtifactCatalogService;
@@ -540,6 +542,14 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     unitOfWork: stores,
   });
 
+  const agentRuns = new AgentRunService({
+    agentRuns: stores.agentRuns,
+    messages: stores.messages,
+    events: stores.events,
+    conversations: stores.conversations,
+    unitOfWork: stores,
+  });
+
   const integrationInvocation = new IntegrationInvocationService({
     integrations,
     approvals: stores.approvals,
@@ -563,6 +573,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     agentGateway,
     toolInvocation,
     agentMessages,
+    agentRuns,
     integrationInvocation,
     integrations,
     tools: builtinTools.tools,
@@ -773,6 +784,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     messages: stores.messages,
     events: stores.events,
     ...(research === undefined ? {} : { research }),
+    agentRuns,
     teamPlanner: (request) =>
       planAgentTeam(request, {
         agents,
