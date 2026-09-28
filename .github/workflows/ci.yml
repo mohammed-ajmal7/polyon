@@ -35,8 +35,8 @@ jobs:
 
       - name: Format repair diagnostic
         run: |
-          pnpm exec prettier apps/web/src/app/api/execute/route.ts apps/web/src/app/page.tsx packages/application/src/collective-orchestration-service.ts --write
-          git diff -- apps/web/src/app/api/execute/route.ts apps/web/src/app/page.tsx packages/application/src/collective-orchestration-service.ts
+          pnpm exec prettier apps/web/src/app/api/execute/route.ts apps/web/src/app/page.tsx packages/application/src/collective-orchestration-service.ts packages/application/src/collective-orchestration-service.test.ts --write
+          git diff -- apps/web/src/app/api/execute/route.ts apps/web/src/app/page.tsx packages/application/src/collective-orchestration-service.ts packages/application/src/collective-orchestration-service.test.ts
 
       - name: Format check
         run: pnpm format:check
