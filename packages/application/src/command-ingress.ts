@@ -144,7 +144,8 @@ export class CommandIngressService {
     if (existing.status !== "ACTIVE") {
       throw new CommandIngressError(
         "CONVERSATION_NOT_ACTIVE",
-        `Cannot submit a command to conversation ${existing.id} while status is ${existing.status}.`,
+        `Cannot submit a command to conversation ${existing.id} while ` +
+          `status is ${existing.status}.`,
       );
     }
 
