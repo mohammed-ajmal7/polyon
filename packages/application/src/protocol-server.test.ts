@@ -196,63 +196,151 @@ describe("protocol servers", () => {
   });
 });
 
-describe("A2A task status", () => {
-  it("returns bounded persisted task status and maps terminal states", async () => {
-    const task = {
-      id: "task-1",
+describe("A2A task listing", () => {
+  const tasks = [
+    {
+      id: "task-old",
       missionId: "mission-1",
       kind: "CODING" as const,
-      title: "Build",
-      description: "Build it",
+      title: "Old",
+      description: "Old",
       status: "SUCCEEDED" as const,
       dependsOn: [],
       createdAt: "2026-09-28T00:00:00.000Z",
       updatedAt: "2026-09-28T00:00:01.000Z",
-    };
+    },
+    {
+      id: "task-new",
+      missionId: "mission-1",
+      kind: "RESEARCH" as const,
+      title: "New",
+      description: "New",
+      status: "RUNNING" as const,
+      dependsOn: [],
+      createdAt: "2026-09-28T00:00:00.000Z",
+      updatedAt: "2026-09-28T00:00:03.000Z",
+    },
+    {
+      id: "task-other",
+      missionId: "mission-2",
+      kind: "ANALYSIS" as const,
+      title: "Other",
+      description: "Other",
+      status: "FAILED" as const,
+      dependsOn: [],
+      createdAt: "2026-09-28T00:00:00.000Z",
+      updatedAt: "2026-09-28T00:00:02.000Z",
+    },
+  ];
 
-    const service = new A2AServerService({
+  function service() {
+    return new A2AServerService({
       agents: { list: () => [] },
       commandIngress: { submit: vi.fn() } as never,
       conversationOrchestration: { execute: vi.fn() } as never,
       tasks: {
-        list: () => [task],
-        get: (id) => (id === task.id ? task : undefined),
+        list: () => tasks,
+        get: (id) => tasks.find((task) => task.id === id),
       },
       policy: policy(),
       actorId: "a2a-client",
     });
+  }
 
-    const getResponse = await service.handle({
+  it("returns A2A 1.0 cursor-paginated task pages in newest-first order", async () => {
+    const server = service();
+
+    const first = await server.handle({
       jsonrpc: "2.0",
       id: 1,
-      method: "GetTask",
-      params: { id: "task-1" },
-    });
-    expect(getResponse?.result).toEqual({
-      id: "task-1",
-      contextId: "mission-1",
-      status: {
-        state: "completed",
-        timestamp: "2026-09-28T00:00:01.000Z",
-      },
-      metadata: {
-        polyonTaskKind: "CODING",
-      },
+      method: "ListTasks",
+      params: { pageSize: 2 },
     });
 
-    const listResponse = await service.handle({
+    expect(first?.result).toMatchObject({
+      pageSize: 2,
+      totalSize: 3,
+      tasks: [
+        expect.objectContaining({
+          id: "task-new",
+          status: { state: "TASK_STATE_WORKING" },
+        }),
+        expect.objectContaining({
+          id: "task-other",
+          status: { state: "TASK_STATE_FAILED" },
+        }),
+      ],
+    });
+
+    const firstResult = first?.result as { nextPageToken: string };
+    expect(firstResult.nextPageToken).toMatch(/^a2a-tasks:/u);
+
+    const second = await server.handle({
       jsonrpc: "2.0",
       id: 2,
       method: "ListTasks",
-      params: { limit: 1 },
+      params: { pageSize: 2, pageToken: firstResult.nextPageToken },
     });
-    expect(listResponse?.result).toMatchObject({
+
+    expect(second?.result).toMatchObject({
+      pageSize: 2,
+      totalSize: 3,
+      nextPageToken: "",
       tasks: [
         expect.objectContaining({
-          id: "task-1",
-          status: expect.objectContaining({ state: "completed" }),
+          id: "task-old",
+          status: { state: "TASK_STATE_COMPLETED" },
         }),
       ],
+    });
+  });
+
+  it("filters tasks by context and status", async () => {
+    const response = await service().handle({
+      jsonrpc: "2.0",
+      id: 3,
+      method: "ListTasks",
+      params: {
+        contextId: "mission-1",
+        status: "TASK_STATE_WORKING",
+      },
+    });
+
+    expect(response?.result).toEqual({
+      tasks: [
+        expect.objectContaining({
+          id: "task-new",
+          contextId: "mission-1",
+          status: expect.objectContaining({ state: "TASK_STATE_WORKING" }),
+        }),
+      ],
+      nextPageToken: "",
+      pageSize: 50,
+      totalSize: 2,
+    });
+  });
+
+  it("rejects invalid pagination parameters and tokens", async () => {
+    const invalidSize = await service().handle({
+      jsonrpc: "2.0",
+      id: 4,
+      method: "ListTasks",
+      params: { pageSize: 101 },
+    });
+    expect(invalidSize?.error).toEqual({
+      code: -32602,
+      message: "pageSize must be between 1 and 100.",
+    });
+
+    const invalidToken = await service().handle({
+      jsonrpc: "2.0",
+      id: 5,
+      method: "ListTasks",
+      params: { pageToken: "invalid" },
+    });
+    expect(invalidToken?.error).toEqual({
+      code: -32602,
+      message: "A2A task page token is invalid.",
     });
   });
 });
