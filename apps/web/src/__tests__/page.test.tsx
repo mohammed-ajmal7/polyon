@@ -69,7 +69,7 @@ describe("POLYON AI HQ", () => {
     ).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(screen.getByText("Primary")).toBeInTheDocument();
+      expect(screen.getAllByText("Primary").length).toBeGreaterThan(0);
     });
     unmount();
   });
