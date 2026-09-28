@@ -256,6 +256,6 @@ describe("ResearchOrchestrationService", () => {
         actorId: "user-1",
         requiredCapabilityIds: [],
       }),
-    ).rejects.toThrow("between 2 and 8");
+    ).rejects.toThrow("2-8 agents");
   });
 });
