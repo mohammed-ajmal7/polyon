@@ -83,7 +83,9 @@ describe("FileDomainStores", () => {
         updatedAt: "2026-09-27T04:04:00.000Z",
       });
 
-      expect(new FileDomainStores(directory).missions.get("mission-stale-lock-1")).toBeDefined();
+      expect(
+        new FileDomainStores(directory).missions.get("mission-stale-lock-1"),
+      ).toBeDefined();
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
