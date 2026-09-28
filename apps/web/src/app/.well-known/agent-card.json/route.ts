@@ -12,6 +12,7 @@ export async function GET(request: Request): Promise<Response> {
     agents: { list: () => polyon.agents.list() },
     commandIngress: polyon.commandIngress,
     conversationOrchestration: polyon.conversationOrchestration,
+    tasks: polyon.stores.tasks,
     policy: {
       id: "a2a-card",
       name: "A2A discovery",
