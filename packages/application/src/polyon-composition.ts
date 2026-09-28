@@ -46,6 +46,7 @@ import {
   MissionPlanService,
   MissionPlanOrchestrationService,
   MissionWorkflowService,
+  ResearchOrchestrationService,
   ResearchService,
   ResearchSynthesisService,
   CreativeJobService,
@@ -192,6 +193,7 @@ export interface PolyonComposition {
   readonly conversationOrchestration: ConversationAgentOrchestrationService;
   readonly collectiveOrchestration: CollectiveOrchestrationService;
   readonly deepAnalysisOrchestration: DeepAnalysisOrchestrationService;
+  readonly researchOrchestration?: ResearchOrchestrationService;
   readonly missionExecutionOrchestration: MissionExecutionOrchestrationService;
   readonly missionPlanOrchestration: MissionPlanOrchestrationService;
   readonly missionWorkflow: MissionWorkflowService;
@@ -765,6 +767,19 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     unitOfWork: stores,
   });
 
+  const researchOrchestration =
+    research === undefined
+      ? undefined
+      : new ResearchOrchestrationService({
+          agents,
+          agentGateway,
+          research,
+          conversations: stores.conversations,
+          messages: stores.messages,
+          events: stores.events,
+          unitOfWork: stores,
+        });
+
   const missionExecutionOrchestration = new MissionExecutionOrchestrationService(
     new MissionCreationService({
       conversations: stores.conversations,
@@ -796,6 +811,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     conversationOrchestration,
     collectiveOrchestration,
     deepAnalysisOrchestration,
+    ...(researchOrchestration === undefined ? {} : { researchOrchestration }),
     missionExecutionOrchestration,
     missionPlanOrchestration,
     missionWorkflow,
