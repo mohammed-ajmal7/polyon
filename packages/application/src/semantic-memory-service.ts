@@ -46,15 +46,22 @@ export class SemanticMemoryService {
       updatedAt: now,
     };
 
-    const operation = () => {
-      if (this.memories.get(memory.id) === undefined) {
+    const operation = (stores: {
+      readonly memories: MemoryStore;
+      readonly embeddings: EntityStore<MemoryEmbedding>;
+    }) => {
+      if (stores.memories.get(memory.id) === undefined) {
         throw new Error(`Memory not found: ${memory.id}.`);
       }
-      this.embeddings.save(embedding);
+      stores.embeddings.save(embedding);
       return embedding;
     };
 
-    return this.unitOfWork === undefined ? operation() : this.unitOfWork.transaction(() => operation());
+    return this.unitOfWork === undefined
+      ? operation({ memories: this.memories, embeddings: this.embeddings })
+      : this.unitOfWork.transaction((context) =>
+          operation({ memories: context.memory, embeddings: context.memoryEmbeddings }),
+        );
   }
 
   async reindex(
@@ -74,7 +81,8 @@ export class SemanticMemoryService {
       .map((memory) => {
         const id = this.embeddingId(memory.id, modelId);
         const existing = this.embeddings.get(id);
-        const stale = existing === undefined || existing.contentHash !== this.contentHash(memory.text);
+        const stale =
+          existing === undefined || existing.contentHash !== this.contentHash(memory.text);
         return { memory, stale };
       })
       .filter((candidate) => candidate.stale)
@@ -92,13 +100,13 @@ export class SemanticMemoryService {
         throw new Error("Embedding reindex returned an unexpected vector count.");
       }
 
-      const operation = () => {
+      const operation = (embeddingStore: EntityStore<MemoryEmbedding>) => {
         for (let index = 0; index < batch.length; index += 1) {
           const memory = batch[index]!.memory;
           const vector = response.vectors[index];
           if (vector === undefined) throw new Error("Embedding reindex returned a missing vector.");
 
-          this.embeddings.save({
+          embeddingStore.save({
             id: this.embeddingId(memory.id, modelId),
             memoryId: memory.id,
             modelId,
@@ -111,8 +119,8 @@ export class SemanticMemoryService {
         }
       };
 
-      if (this.unitOfWork === undefined) operation();
-      else this.unitOfWork.transaction(operation);
+      if (this.unitOfWork === undefined) operation(this.embeddings);
+      else this.unitOfWork.transaction((context) => operation(context.memoryEmbeddings));
       indexed += batch.length;
     }
 
@@ -147,7 +155,13 @@ export class SemanticMemoryService {
         if (input.scope !== undefined && memory.scope !== input.scope) return undefined;
         if (input.missionId !== undefined && memory.missionId !== input.missionId) return undefined;
         if (input.taskId !== undefined && memory.taskId !== input.taskId) return undefined;
-        if (input.tags !== undefined && !input.tags.every((tag) => memory.tags.some((candidate) => candidate.toLowerCase() === tag.toLowerCase()))) return undefined;
+        if (
+          input.tags !== undefined &&
+          !input.tags.every((tag) =>
+            memory.tags.some((candidate) => candidate.toLowerCase() === tag.toLowerCase()),
+          )
+        )
+          return undefined;
         if (embedding.contentHash !== this.contentHash(memory.text)) return undefined;
 
         return {
@@ -156,17 +170,20 @@ export class SemanticMemoryService {
         };
       })
       .filter((result): result is SemanticMemorySearchResult => result !== undefined)
-      .sort((left, right) =>
-        right.score - left.score ||
-        right.memory.updatedAt.localeCompare(left.memory.updatedAt) ||
-        left.memory.id.localeCompare(right.memory.id),
+      .sort(
+        (left, right) =>
+          right.score - left.score ||
+          right.memory.updatedAt.localeCompare(left.memory.updatedAt) ||
+          left.memory.id.localeCompare(right.memory.id),
       );
 
     return results.slice(0, limit);
   }
 
   private embeddingId(memoryId: string, modelId: string): string {
-    return createHash("sha256").update(memoryId + "\0" + modelId).digest("hex");
+    return createHash("sha256")
+      .update(memoryId + "\0" + modelId)
+      .digest("hex");
   }
 
   private contentHash(text: string): string {

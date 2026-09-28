@@ -25,10 +25,7 @@ describe("BoundedWebResearchRetriever", () => {
         body: new TextEncoder().encode("source B"),
       });
 
-    const retriever = new BoundedWebResearchRetriever(
-      { search },
-      { request } as never,
-    );
+    const retriever = new BoundedWebResearchRetriever({ search }, { request } as never);
 
     const result = await retriever.search("query", { limit: 1 });
 

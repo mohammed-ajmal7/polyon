@@ -1,12 +1,10 @@
-import type {
-  AgentId,
-  Mission,
-  Policy,
-  Task,
-} from "@polyon/contracts";
+import type { AgentId, Mission, Policy, Task } from "@polyon/contracts";
 
 import type { ExecutionDispatchPlan } from "./execution-dispatch";
-import type { ExecutionIdentityFactory, MissionExecutionService } from "./mission-execution-service";
+import type {
+  ExecutionIdentityFactory,
+  MissionExecutionService,
+} from "./mission-execution-service";
 import type { MissionStore, TaskStore } from "@polyon/storage";
 
 export interface ExecuteMissionGraphInput {

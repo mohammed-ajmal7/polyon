@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const isAuthenticated = vi.fn<() => Promise<boolean>>();
-const getPolyonComposition = vi.fn();
+const { isAuthenticated, getPolyonComposition } = vi.hoisted(() => ({
+  isAuthenticated: vi.fn<() => Promise<boolean>>(),
+  getPolyonComposition: vi.fn(),
+}));
 
 vi.mock("@/server/auth", () => ({
   isAuthenticated,
@@ -20,7 +22,7 @@ beforeEach(() => {
 
 describe("memory API", () => {
   it("serves bounded semantic search through the composition service", async () => {
-    const search = vi.fn(async () => [
+    const search = vi.fn(() => [
       {
         memory: {
           id: "memory-1",
@@ -72,9 +74,7 @@ describe("memory API", () => {
     });
 
     const response = await GET(
-      new Request(
-        "http://localhost:3000/api/memory?q=test&mode=semantic",
-      ),
+      new Request("http://localhost:3000/api/memory?q=test&mode=semantic"),
     );
 
     expect(response.status).toBe(503);
@@ -89,11 +89,7 @@ describe("memory API", () => {
       memory: { search: vi.fn() },
     });
 
-    const response = await GET(
-      new Request(
-        "http://localhost:3000/api/memory?q=test&mode=other",
-      ),
-    );
+    const response = await GET(new Request("http://localhost:3000/api/memory?q=test&mode=other"));
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({

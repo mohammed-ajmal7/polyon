@@ -42,7 +42,6 @@ function safeEqual(left: string, right: string): boolean {
   return timingSafeEqual(a, b);
 }
 
-
 function createSession(secret: string): string {
   const expiresAt = Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS;
   const payload = String(expiresAt);
@@ -60,7 +59,6 @@ function verifySession(value: string, secret: string): boolean {
   const expected = createHmac("sha256", secret).update(payload).digest("base64url");
   return safeEqual(signature, expected);
 }
-
 
 export async function authenticateRequest(request: Request): Promise<boolean> {
   const configured = process.env.POLYON_API_TOKEN?.trim();

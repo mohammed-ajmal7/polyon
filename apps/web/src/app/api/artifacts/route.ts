@@ -4,7 +4,8 @@ import { getPolyonComposition } from "@/server/polyon-server";
 export const runtime = "nodejs";
 
 export async function GET(request: Request): Promise<Response> {
-  if (!(await isAuthenticated())) return Response.json({ error: "Authentication required." }, { status: 401 });
+  if (!(await isAuthenticated()))
+    return Response.json({ error: "Authentication required." }, { status: 401 });
 
   const url = new URL(request.url);
   const missionId = optional(url.searchParams.get("missionId"));
@@ -15,8 +16,8 @@ export async function GET(request: Request): Promise<Response> {
     return Response.json({ error: "limit must be between 1 and 500." }, { status: 400 });
   }
 
-  const items = getPolyonComposition().stores.artifacts
-    .list()
+  const items = getPolyonComposition()
+    .stores.artifacts.list()
     .filter((item) => missionId === undefined || item.missionId === missionId)
     .filter((item) => taskId === undefined || item.taskId === taskId)
     .slice(-limit);

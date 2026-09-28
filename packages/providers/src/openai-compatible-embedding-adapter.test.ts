@@ -25,7 +25,12 @@ describe("OpenAICompatibleEmbeddingAdapter", () => {
     await expect(
       adapter.embed({ modelId: "embed-1", input: { input: ["hello", "world"] } }),
     ).resolves.toEqual({
-      output: { vectors: [[1, 0], [0, 1]] },
+      output: {
+        vectors: [
+          [1, 0],
+          [0, 1],
+        ],
+      },
     });
   });
 

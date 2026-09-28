@@ -1,13 +1,13 @@
 import { isAuthenticated } from "@/server/auth";
 import { getPolyonActorId, getPolyonComposition, sanitizeEventData } from "@/server/polyon-server";
-import { TraceQueryService } from "@polyon/application";
 
 export const runtime = "nodejs";
 
 const MAX_ITEMS = 50;
 
 export async function GET(): Promise<Response> {
-  if (!(await isAuthenticated())) return Response.json({ error: "Authentication required." }, { status: 401 });
+  if (!(await isAuthenticated()))
+    return Response.json({ error: "Authentication required." }, { status: 401 });
   const polyon = getPolyonComposition();
   const events = [...polyon.stores.events.list()].slice(-MAX_ITEMS).reverse();
   const approvals = polyon.stores.approvals

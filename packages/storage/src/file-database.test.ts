@@ -42,6 +42,7 @@ describe("FileDomainDatabase migrations", () => {
               debates: [],
               evidence: [],
               memory: [],
+              memoryEmbeddings: [],
               sources: [],
               migrated: true,
             };

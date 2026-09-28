@@ -14,20 +14,14 @@ import type {
   TaskKind,
 } from "@polyon/contracts";
 
-import {
-  MissionCreationService,
-} from "./mission-creation-service";
+import { MissionCreationService } from "./mission-creation-service";
 import {
   MissionExecutionService,
   type ExecutionIdentityFactory,
 } from "./mission-execution-service";
 import { MissionLifecycleService } from "./mission-lifecycle-service";
-import {
-  MissionPlanService,
-  type SubmitMissionPlanInput,
-} from "./mission-plan-service";
+import { MissionPlanService, type SubmitMissionPlanInput } from "./mission-plan-service";
 import type { CommandIngressResult } from "./command-ingress";
-
 
 export interface MissionExecutionOrchestrationInput {
   readonly command: CommandIngressResult;
@@ -56,10 +50,7 @@ export interface MissionExecutionOrchestrationInput {
 }
 
 export type MissionExecutionOrchestrationStatus =
-  | "QUEUED"
-  | "PLAN_APPROVAL_REQUIRED"
-  | "EXECUTION_APPROVAL_REQUIRED"
-  | "PLAN_DENIED";
+  "QUEUED" | "PLAN_APPROVAL_REQUIRED" | "EXECUTION_APPROVAL_REQUIRED" | "PLAN_DENIED";
 
 export interface MissionExecutionOrchestrationResult {
   readonly status: MissionExecutionOrchestrationStatus;

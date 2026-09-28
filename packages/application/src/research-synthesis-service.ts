@@ -1,7 +1,13 @@
 import type { AgentId, Evidence, MemoryEntry, Source } from "@polyon/contracts";
 
 import type { AgentGateway } from "@polyon/agents";
-import type { DomainUnitOfWork, EventStore, EvidenceStore, MemoryStore, SourceStore } from "@polyon/storage";
+import type {
+  DomainUnitOfWork,
+  EventStore,
+  EvidenceStore,
+  MemoryStore,
+  SourceStore,
+} from "@polyon/storage";
 
 const MAX_CONTEXT_CHARS = 60_000;
 const MAX_REPORT_CHARS = 100_000;
@@ -107,7 +113,9 @@ export class ResearchSynthesisService {
     return {
       report,
       memory,
-      sources: selected.map((item) => sourcesById.get(item.sourceId)).filter((source): source is Source => source !== undefined),
+      sources: selected
+        .map((item) => sourcesById.get(item.sourceId))
+        .filter((source): source is Source => source !== undefined),
       evidence: selected,
     };
   }
@@ -122,8 +130,7 @@ function formatEvidenceContext(
 
   for (const item of evidence) {
     const source = sources.get(item.sourceId);
-    const line =
-      `[evidence:${item.id} source:${item.sourceId} ${source?.title ?? "unknown"}] ${item.kind}: ${item.claim}\n${item.supportingContent}`;
+    const line = `[evidence:${item.id} source:${item.sourceId} ${source?.title ?? "unknown"}] ${item.kind}: ${item.claim}\n${item.supportingContent}`;
     if (total + line.length > MAX_CONTEXT_CHARS) break;
     lines.push(line);
     total += line.length + 2;

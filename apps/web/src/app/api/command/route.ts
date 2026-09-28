@@ -7,14 +7,18 @@ export const runtime = "nodejs";
 const MAX_REQUEST_BYTES = 65_536;
 
 export async function POST(request: Request): Promise<Response> {
-  if (!(await isAuthenticated())) return Response.json({ error: "Authentication required." }, { status: 401 });
+  if (!(await isAuthenticated()))
+    return Response.json({ error: "Authentication required." }, { status: 401 });
   if (!isSameOrigin(request)) {
     return Response.json({ error: "Cross-origin POST requests are not allowed." }, { status: 403 });
   }
   try {
     const raw = await request.text();
     if (new TextEncoder().encode(raw).byteLength > MAX_REQUEST_BYTES) {
-      return Response.json({ error: "Command request exceeds the 65536-byte limit." }, { status: 413 });
+      return Response.json(
+        { error: "Command request exceeds the 65536-byte limit." },
+        { status: 413 },
+      );
     }
     const input = JSON.parse(raw) as Record<string, unknown>;
     const actorId = getPolyonActorId();
@@ -50,8 +54,10 @@ function parseMode(value: unknown): CommandMode {
 }
 
 function parseBoundedString(value: unknown, maxLength: number, field: string): string {
-  if (typeof value !== "string" || value.trim() === "") throw new Error(field + " must be a non-empty string.");
-  if (Array.from(value).length > maxLength) throw new Error(field + " exceeds its " + maxLength + "-character limit.");
+  if (typeof value !== "string" || value.trim() === "")
+    throw new Error(field + " must be a non-empty string.");
+  if (Array.from(value).length > maxLength)
+    throw new Error(field + " exceeds its " + maxLength + "-character limit.");
   return value;
 }
 
@@ -65,7 +71,8 @@ function parseParticipantIds(value: unknown, actorId: string): readonly string[]
     throw new Error("participantIds must contain between 1 and 20 ids.");
   }
   const ids = value.map((candidate) => {
-    if (typeof candidate !== "string" || candidate.trim() === "") throw new Error("participantIds must contain non-empty strings.");
+    if (typeof candidate !== "string" || candidate.trim() === "")
+      throw new Error("participantIds must contain non-empty strings.");
     return candidate.trim();
   });
   if (!ids.includes(actorId)) ids.push(actorId);

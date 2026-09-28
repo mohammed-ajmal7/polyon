@@ -299,6 +299,7 @@ Do not claim the complete production system is already finished. The work so far
 The foundational POLYON operating loop is implemented and connected end-to-end.
 
 Implemented:
+
 - governed Direct, Broadcast, Debate, and Mission execution;
 - durable execution queue/recovery, retries, cancellation, deadlines, result publication, and audit traces;
 - provider-independent model gateway plus OpenAI-compatible text execution;
@@ -313,6 +314,7 @@ Implemented:
 - adversarial, recovery, and volume sanity coverage across application/runtime/storage/security paths.
 
 Remaining depth:
+
 - provider-independent embedding routing and bounded persisted semantic memory search are implemented; automatic indexing/reindex recovery and vector-scale optimization remain.
 - advanced MCP/A2A protocol capabilities;
 - optional enterprise/multi-user auth;
@@ -320,6 +322,7 @@ Remaining depth:
 - deployment automation for a specific infrastructure target.
 
 The code and tests remain authoritative over this summary.
+
 ## 7. Target end-to-end behavior
 
 A typical future Mission should behave approximately like this:

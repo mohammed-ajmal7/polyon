@@ -3,25 +3,37 @@ import { randomUUID } from "node:crypto";
 
 import type { CommandMode } from "@polyon/application";
 
-import { getPolyonActorId, getPolyonComposition, getPolyonPolicy, isSameOrigin } from "@/server/polyon-server";
+import {
+  getPolyonActorId,
+  getPolyonComposition,
+  getPolyonPolicy,
+  isSameOrigin,
+} from "@/server/polyon-server";
 
 export const runtime = "nodejs";
 
 const MAX_REQUEST_BYTES = 65_536;
 
 export async function POST(request: Request): Promise<Response> {
-  if (!(await isAuthenticated())) return Response.json({ error: "Authentication required." }, { status: 401 });
+  if (!(await isAuthenticated()))
+    return Response.json({ error: "Authentication required." }, { status: 401 });
   if (!isSameOrigin(request)) {
     return Response.json({ error: "Cross-origin POST requests are not allowed." }, { status: 403 });
   }
   try {
     if (!process.env.POLYON_EXECUTION_ENABLED || process.env.POLYON_EXECUTION_ENABLED !== "true") {
-      return Response.json({ error: "Execution is disabled. Set POLYON_EXECUTION_ENABLED=true." }, { status: 503 });
+      return Response.json(
+        { error: "Execution is disabled. Set POLYON_EXECUTION_ENABLED=true." },
+        { status: 503 },
+      );
     }
 
     const raw = await request.text();
     if (new TextEncoder().encode(raw).byteLength > MAX_REQUEST_BYTES) {
-      return Response.json({ error: "Execution request exceeds the 65536-byte limit." }, { status: 413 });
+      return Response.json(
+        { error: "Execution request exceeds the 65536-byte limit." },
+        { status: 413 },
+      );
     }
 
     const input = JSON.parse(raw) as Record<string, unknown>;
@@ -56,7 +68,11 @@ export async function POST(request: Request): Promise<Response> {
         policy,
         actorId,
         maxToolRounds: parsePositiveInteger(input.maxToolRounds, 8, 100),
-        maxToolOutputBytes: parsePositiveInteger(input.maxToolOutputBytes, 64 * 1024, 2 * 1024 * 1024),
+        maxToolOutputBytes: parsePositiveInteger(
+          input.maxToolOutputBytes,
+          64 * 1024,
+          2 * 1024 * 1024,
+        ),
       });
       return Response.json({ mode, result }, { status: 201 });
     }
@@ -112,13 +128,16 @@ export async function POST(request: Request): Promise<Response> {
 }
 
 function parseMode(value: unknown): CommandMode {
-  if (value === "Direct" || value === "Broadcast" || value === "Debate" || value === "Mission") return value;
+  if (value === "Direct" || value === "Broadcast" || value === "Debate" || value === "Mission")
+    return value;
   throw new Error("Invalid command mode.");
 }
 
 function parseString(value: unknown, maxLength: number, field: string): string {
-  if (typeof value !== "string" || value.trim() === "") throw new Error(field + " must be a non-empty string.");
-  if (Array.from(value).length > maxLength) throw new Error(field + " exceeds its " + maxLength + "-character limit.");
+  if (typeof value !== "string" || value.trim() === "")
+    throw new Error(field + " must be a non-empty string.");
+  if (Array.from(value).length > maxLength)
+    throw new Error(field + " exceeds its " + maxLength + "-character limit.");
   return value.trim();
 }
 
@@ -129,28 +148,35 @@ function parseOptionalString(value: unknown): string | undefined {
 function parsePositiveInteger(value: unknown, fallback: number, max: number): number {
   if (value === undefined) return fallback;
   const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0 || parsed > max) throw new Error("Integer parameter is outside its allowed bounds.");
+  if (!Number.isInteger(parsed) || parsed <= 0 || parsed > max)
+    throw new Error("Integer parameter is outside its allowed bounds.");
   return parsed;
 }
 
 function parseStringArray(value: unknown, max: number): readonly string[] {
   if (value === undefined) return [];
-  if (!Array.isArray(value) || value.length > max) throw new Error("String array exceeds its allowed bound.");
+  if (!Array.isArray(value) || value.length > max)
+    throw new Error("String array exceeds its allowed bound.");
   return value.map((item) => parseString(item, 200, "array item"));
 }
 
 function resolveTargets(value: unknown, polyon: ReturnType<typeof getPolyonComposition>) {
-  const ids = value === undefined
-    ? [polyon.agents.list()[0]?.id].filter((id): id is string => id !== undefined)
-    : Array.isArray(value)
-      ? value.map((id) => parseString(id, 200, "agentId"))
-      : (() => { throw new Error("agentIds must be an array."); })();
+  const ids =
+    value === undefined
+      ? [polyon.agents.list()[0]?.id].filter((id): id is string => id !== undefined)
+      : Array.isArray(value)
+        ? value.map((id) => parseString(id, 200, "agentId"))
+        : (() => {
+            throw new Error("agentIds must be an array.");
+          })();
 
-  if (ids.length === 0 || ids.length > 8) throw new Error("agentIds must contain between 1 and 8 agents.");
+  if (ids.length === 0 || ids.length > 8)
+    throw new Error("agentIds must contain between 1 and 8 agents.");
   const unique = [...new Set(ids)];
   return unique.map((agentId) => {
     const agent = polyon.agents.get(agentId);
-    if (agent === undefined || agent.status !== "ACTIVE") throw new Error("Requested agent is not active: " + agentId + ".");
+    if (agent === undefined || agent.status !== "ACTIVE")
+      throw new Error("Requested agent is not active: " + agentId + ".");
     return { agentId, actorId: agentId };
   });
 }
@@ -159,10 +185,4 @@ function parseRiskLevel(value: unknown): "LOW" | "MEDIUM" | "HIGH" {
   if (value === undefined || value === "LOW") return "LOW";
   if (value === "MEDIUM" || value === "HIGH") return value;
   throw new Error("riskLevel must be LOW, MEDIUM, or HIGH.");
-}
-
-function parseTaskKind(value: unknown) {
-  if (value === undefined) return "OTHER" as const;
-  if (value === "RESEARCH" || value === "ANALYSIS" || value === "CODING" || value === "CREATIVE" || value === "VALIDATION" || value === "OTHER") return value;
-  throw new Error("Invalid taskKind.");
 }

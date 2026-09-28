@@ -1,11 +1,11 @@
-import type {
-  AgentId,
-  Mission,
-  Policy,
-} from "@polyon/contracts";
+import type { AgentId, Mission, Policy } from "@polyon/contracts";
 import type { DomainUnitOfWork, MissionStore } from "@polyon/storage";
 
-import type { MissionPlanService, MissionPlanServiceDependencies, MissionPlanSubmissionResult } from "./mission-plan-service";
+import type {
+  MissionPlanService,
+  MissionPlanServiceDependencies,
+  MissionPlanSubmissionResult,
+} from "./mission-plan-service";
 import type { MissionPlanningService } from "./mission-planning-service";
 
 export interface PlanMissionInput {

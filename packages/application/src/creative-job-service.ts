@@ -18,7 +18,10 @@ export interface CreativeJobRequest {
 }
 
 export interface CreativeAdapter {
-  generate(request: CreativeJobRequest, signal?: AbortSignal): Promise<{
+  generate(
+    request: CreativeJobRequest,
+    signal?: AbortSignal,
+  ): Promise<{
     readonly artifact: Omit<Artifact, "id" | "createdAt" | "updatedAt">;
   }>;
 }
@@ -36,7 +39,9 @@ export class CreativeJobService {
 
     const output = await this.adapter.generate(request, signal);
     if (output.artifact.kind !== request.outputKind) {
-      throw new Error("Creative adapter returned an artifact kind that does not match the requested output.");
+      throw new Error(
+        "Creative adapter returned an artifact kind that does not match the requested output.",
+      );
     }
     if (output.artifact.status !== "AVAILABLE" && output.artifact.status !== "CREATING") {
       throw new Error("Creative adapter returned an invalid artifact status.");
@@ -81,8 +86,12 @@ function validateCreativeRequest(request: CreativeJobRequest): void {
     throw new RangeError("Creative request IDs must not be empty.");
   }
   if (request.prompt.trim() === "") throw new RangeError("Creative prompt must not be empty.");
-  if (request.prompt.length > 50_000) throw new RangeError("Creative prompt exceeds the 50000-character limit.");
-  if (request.artifactName.trim() === "") throw new RangeError("Creative artifactName must not be empty.");
-  if (request.location.trim() === "") throw new RangeError("Creative artifact location must not be empty.");
-  if (!Number.isFinite(Date.parse(request.createdAt))) throw new RangeError("Creative createdAt must be a valid timestamp.");
+  if (request.prompt.length > 50_000)
+    throw new RangeError("Creative prompt exceeds the 50000-character limit.");
+  if (request.artifactName.trim() === "")
+    throw new RangeError("Creative artifactName must not be empty.");
+  if (request.location.trim() === "")
+    throw new RangeError("Creative artifact location must not be empty.");
+  if (!Number.isFinite(Date.parse(request.createdAt)))
+    throw new RangeError("Creative createdAt must be a valid timestamp.");
 }

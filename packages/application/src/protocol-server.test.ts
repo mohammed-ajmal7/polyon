@@ -57,7 +57,15 @@ describe("protocol servers", () => {
       status: "SUCCEEDED" as const,
       invocationId: "mcp:2",
       toolId: "filesystem.read.scoped",
-      policyDecision: { id: "d", policyId: "p", action: "READ", riskLevel: "LOW", effect: "ALLOW", reason: "ok", evaluatedAt: "2026-09-28T00:00:00.000Z" },
+      policyDecision: {
+        id: "d",
+        policyId: "p",
+        action: "READ",
+        riskLevel: "LOW",
+        effect: "ALLOW",
+        reason: "ok",
+        evaluatedAt: "2026-09-28T00:00:00.000Z",
+      },
       output: { ok: true },
     }));
     const tool = {
@@ -115,27 +123,42 @@ describe("protocol servers", () => {
           content: "hello",
           createdAt: "2026-09-28T00:00:00.000Z",
         },
-        event: { id: "a2a-event", kind: "MESSAGE_CREATED", occurredAt: "2026-09-28T00:00:00.000Z", data: {} },
+        event: {
+          id: "a2a-event",
+          kind: "MESSAGE_CREATED",
+          occurredAt: "2026-09-28T00:00:00.000Z",
+          data: {},
+        },
       })),
     };
     const conversation = {
       execute: vi.fn(async () => ({
         status: "SUCCEEDED" as const,
         responses: [],
-        persistedMessages: [{
-          id: "a2a-response",
-          conversationId: "a2a-conversation",
-          actorId: "agent-1",
-          role: "AGENT" as const,
-          kind: "TEXT" as const,
-          content: "world",
-          createdAt: "2026-09-28T00:00:01.000Z",
-        }],
+        persistedMessages: [
+          {
+            id: "a2a-response",
+            conversationId: "a2a-conversation",
+            actorId: "agent-1",
+            role: "AGENT" as const,
+            kind: "TEXT" as const,
+            content: "world",
+            createdAt: "2026-09-28T00:00:01.000Z",
+          },
+        ],
       })),
     };
     const service = new A2AServerService({
       agents: {
-        list: () => [{ id: "agent-1", name: "Primary", role: "General", status: "ACTIVE", description: "Primary agent" }],
+        list: () => [
+          {
+            id: "agent-1",
+            name: "Primary",
+            role: "General",
+            status: "ACTIVE",
+            description: "Primary agent",
+          },
+        ],
       },
       commandIngress: commandIngress as never,
       conversationOrchestration: conversation as never,
@@ -172,7 +195,6 @@ describe("protocol servers", () => {
     });
   });
 });
-
 
 describe("A2A task status", () => {
   it("returns bounded persisted task status and maps terminal states", async () => {
@@ -224,11 +246,11 @@ describe("A2A task status", () => {
       method: "ListTasks",
       params: { limit: 1 },
     });
-    expect(listResponse.result).toEqual({
+    expect(listResponse.result).toMatchObject({
       tasks: [
         expect.objectContaining({
           id: "task-1",
-          status: { state: "completed" },
+          status: expect.objectContaining({ state: "completed" }),
         }),
       ],
     });

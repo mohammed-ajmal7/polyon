@@ -331,13 +331,13 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   const semanticMemory =
     embeddingGateway === undefined
       ? undefined
-      : new SemanticMemoryService(
-          stores.memory,
-          stores.memoryEmbeddings,
-          embeddingGateway,
-          stores,
-        );
-  const debates = new DebateOrchestrationService(agentGateway, stores.debates, stores.events, stores);
+      : new SemanticMemoryService(stores.memory, stores.memoryEmbeddings, embeddingGateway, stores);
+  const debates = new DebateOrchestrationService(
+    agentGateway,
+    stores.debates,
+    stores.events,
+    stores,
+  );
   const research =
     options.researchRetriever === undefined
       ? undefined
@@ -359,12 +359,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   const creative =
     options.creativeAdapter === undefined
       ? undefined
-      : new CreativeJobService(
-          options.creativeAdapter,
-          stores.artifacts,
-          stores.events,
-          stores,
-        );
+      : new CreativeJobService(options.creativeAdapter, stores.artifacts, stores.events, stores);
 
   const builtinTools = createInMemoryBuiltinToolRegistries();
 
@@ -473,7 +468,8 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
         });
 
   registerKnowledgeTools(builtinTools.tools, builtinTools.adapters, memory, research);
-  if (creative !== undefined) registerCreativeTools(builtinTools.tools, builtinTools.adapters, creative);
+  if (creative !== undefined)
+    registerCreativeTools(builtinTools.tools, builtinTools.adapters, creative);
 
   registerBuiltinTools(builtinTools, {
     artifactList: (filter) => artifactCatalog.list(filter),
@@ -737,8 +733,6 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     stores.tasks,
   );
 
-
-
   return {
     commandIngress,
     conversationOrchestration,
@@ -753,6 +747,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     models,
     providers,
     providerAdapters,
+    embeddingAdapters,
     integrations,
     ...(options.secretResolver === undefined ? {} : { secretResolver: options.secretResolver }),
     modelGateway,

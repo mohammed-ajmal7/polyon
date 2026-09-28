@@ -159,10 +159,25 @@ export {
 } from "./polyon-composition";
 
 export { MemoryService, type RememberMemoryInput, type SearchMemoryInput } from "./memory-service";
-export { ResearchService, type ResearchRetriever, type ResearchSourceCandidate, type ConductResearchInput, type ConductResearchResult } from "./research-service";
+export {
+  ResearchService,
+  type ResearchRetriever,
+  type ResearchSourceCandidate,
+  type ConductResearchInput,
+  type ConductResearchResult,
+} from "./research-service";
 
-export { BoundedWebResearchRetriever, type ResearchSearchResult, type BoundedWebResearchRetrieverOptions } from "./bounded-web-research-retriever";
-export { DebateOrchestrationService, type CreateDebateInput, type RunDebateInput, type DebateRunResult } from "./debate-orchestration-service";
+export {
+  BoundedWebResearchRetriever,
+  type ResearchSearchResult,
+  type BoundedWebResearchRetrieverOptions,
+} from "./bounded-web-research-retriever";
+export {
+  DebateOrchestrationService,
+  type CreateDebateInput,
+  type RunDebateInput,
+  type DebateRunResult,
+} from "./debate-orchestration-service";
 
 export { registerKnowledgeTools } from "./knowledge-tools";
 
@@ -173,32 +188,96 @@ export {
   type MissionExecutionOrchestrationStatus,
 } from "./mission-execution-orchestration-service";
 
-export { CodingAgentService, DEFAULT_CODING_TOOL_IDS, type CodingAgentInput } from "./coding-agent-service";
+export {
+  CodingAgentService,
+  DEFAULT_CODING_TOOL_IDS,
+  type CodingAgentInput,
+} from "./coding-agent-service";
 export { TraceQueryService, type TraceQuery, type TraceEvent } from "./trace-query-service";
 
-export { ConversationAgentOrchestrationService, type ConversationAgentTarget, type ExecuteConversationInput, type ConversationExecutionResult, type ConversationExecutionStatus } from "./conversation-agent-orchestration-service";
+export {
+  ConversationAgentOrchestrationService,
+  type ConversationAgentTarget,
+  type ExecuteConversationInput,
+  type ConversationExecutionResult,
+  type ConversationExecutionStatus,
+} from "./conversation-agent-orchestration-service";
 
-export { ResearchSynthesisService, type SynthesizeResearchInput, type ResearchSynthesisResult } from "./research-synthesis-service";
-export { CreativeJobService, type CreativeAdapter, type CreativeJobRequest, type CreativeOperation } from "./creative-job-service";
+export {
+  ResearchSynthesisService,
+  type SynthesizeResearchInput,
+  type ResearchSynthesisResult,
+} from "./research-synthesis-service";
+export {
+  CreativeJobService,
+  type CreativeAdapter,
+  type CreativeJobRequest,
+  type CreativeOperation,
+} from "./creative-job-service";
 
-export { ConfiguredHttpResearchProvider, type ConfiguredHttpResearchProviderOptions, type ResearchSearchProvider } from "./configured-http-research-provider";
+export {
+  ConfiguredHttpResearchProvider,
+  type ConfiguredHttpResearchProviderOptions,
+  type ResearchSearchProvider,
+} from "./configured-http-research-provider";
 
-export { MissionPlanningService, MissionPlanningValidationError, type GenerateMissionPlanInput, type GeneratedMissionPlan, type GeneratedTaskSpec } from "./mission-planning-service";
+export {
+  MissionPlanningService,
+  MissionPlanningValidationError,
+  type GenerateMissionPlanInput,
+  type GeneratedMissionPlan,
+  type GeneratedTaskSpec,
+} from "./mission-planning-service";
 
-export { MissionPlanOrchestrationService, type PlanMissionInput, type PlanMissionResult } from "./mission-plan-orchestration-service";
+export {
+  MissionPlanOrchestrationService,
+  type PlanMissionInput,
+  type PlanMissionResult,
+} from "./mission-plan-orchestration-service";
 
-export { MissionGraphExecutionService, type ExecuteMissionGraphInput, type ExecuteMissionGraphResult } from "./mission-graph-execution-service";
+export {
+  MissionGraphExecutionService,
+  type ExecuteMissionGraphInput,
+  type ExecuteMissionGraphResult,
+} from "./mission-graph-execution-service";
 
-export { MissionWorkflowService, type ExecuteMissionWorkflowInput, type ExecuteMissionWorkflowResult, type MissionWorkflowStatus } from "./mission-workflow-service";
+export {
+  MissionWorkflowService,
+  type ExecuteMissionWorkflowInput,
+  type ExecuteMissionWorkflowResult,
+  type MissionWorkflowStatus,
+} from "./mission-workflow-service";
 
-export { KnowledgeContextService, type KnowledgeContextInput, type KnowledgeContextItem, type KnowledgeContextResult } from "./knowledge-context-service";
+export {
+  KnowledgeContextService,
+  type KnowledgeContextInput,
+  type KnowledgeContextItem,
+  type KnowledgeContextResult,
+} from "./knowledge-context-service";
 
-export { ConfiguredHttpCreativeAdapter, type ConfiguredHttpCreativeAdapterOptions } from "./configured-http-creative-adapter";
+export {
+  ConfiguredHttpCreativeAdapter,
+  type ConfiguredHttpCreativeAdapterOptions,
+} from "./configured-http-creative-adapter";
 
-export { McpServerService, type McpJsonRpcRequest, type McpJsonRpcResponse, type McpServerDependencies } from "./mcp-server-service";
+export {
+  McpServerService,
+  type McpJsonRpcRequest,
+  type McpJsonRpcResponse,
+  type McpServerDependencies,
+} from "./mcp-server-service";
 
-export { A2AServerService, type A2AJsonRpcRequest, type A2AJsonRpcResponse, type A2AServerDependencies } from "./a2a-server-service";
+export {
+  A2AServerService,
+  type A2AJsonRpcRequest,
+  type A2AJsonRpcResponse,
+  type A2AServerDependencies,
+} from "./a2a-server-service";
 
 export { registerCreativeTools } from "./creative-tools";
 
-export { SemanticMemoryService, type SemanticMemorySearchInput, type SemanticMemorySearchResult } from "./semantic-memory-service";
+export {
+  SemanticMemoryService,
+  type SemanticMemorySearchInput,
+  type SemanticMemorySearchResult,
+} from "./semantic-memory-service";

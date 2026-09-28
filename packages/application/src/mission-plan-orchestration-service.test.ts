@@ -55,7 +55,7 @@ describe("MissionPlanOrchestrationService", () => {
     };
 
     const plans = {
-      submit: vi.fn(async () => ({
+      submit: vi.fn(() => ({
         status: "APPLIED" as const,
         mission: stores.missions.get("mission-1")!,
         proposal: {

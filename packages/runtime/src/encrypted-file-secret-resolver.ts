@@ -1,10 +1,6 @@
 /// <reference types="node" />
 
-import {
-  createCipheriv,
-  createDecipheriv,
-  randomBytes,
-} from "node:crypto";
+import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import {
   chmodSync,
   existsSync,
@@ -16,14 +12,8 @@ import {
 } from "node:fs";
 import { dirname } from "node:path";
 
-import type {
-  SecretReference,
-  SecretReferenceKind,
-} from "@polyon/contracts";
-import {
-  SecretResolverError,
-  type SecretResolver,
-} from "@polyon/integrations";
+import type { SecretReference, SecretReferenceKind } from "@polyon/contracts";
+import { SecretResolverError, type SecretResolver } from "@polyon/integrations";
 
 const STORE_VERSION = 1;
 const ALGORITHM = "aes-256-gcm";
@@ -152,9 +142,11 @@ export class EncryptedFileSecretResolver implements SecretResolver {
   has(reference: SecretReference): boolean {
     validateReference(reference);
     const stored = this.secrets.get(reference.id);
-    return stored !== undefined &&
+    return (
+      stored !== undefined &&
       stored.provider === reference.provider &&
-      stored.kind === reference.kind;
+      stored.kind === reference.kind
+    );
   }
 
   private load(): Map<string, StoredSecret> {
@@ -164,7 +156,11 @@ export class EncryptedFileSecretResolver implements SecretResolver {
 
     try {
       const parsed = JSON.parse(readFileSync(this.filePath, "utf8")) as SecretStoreFile;
-      if (parsed.version !== STORE_VERSION || parsed.secrets === null || typeof parsed.secrets !== "object") {
+      if (
+        parsed.version !== STORE_VERSION ||
+        parsed.secrets === null ||
+        typeof parsed.secrets !== "object"
+      ) {
         throw new Error("unsupported secret store");
       }
 

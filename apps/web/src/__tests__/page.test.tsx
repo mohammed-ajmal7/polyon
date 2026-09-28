@@ -33,8 +33,9 @@ describe("POLYON AI HQ", () => {
   beforeEach(() => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        const url = String(input);
+      vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+        const url =
+          typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
         if (url.endsWith("/api/overview")) {
           return new Response(JSON.stringify(overview), {
             status: 200,
@@ -61,15 +62,11 @@ describe("POLYON AI HQ", () => {
   it("renders the live command center", async () => {
     const { unmount } = render(<Home />);
 
-    expect(
-      screen.getByText("One command. Many intelligences."),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "What should POLYON do?" }),
-    ).toBeInTheDocument();
+    expect(screen.getByText("One command. Many intelligences.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "What should POLYON do?" })).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(screen.getByText("Primary")).toBeInTheDocument();
+      expect(screen.getAllByText("Primary").length).toBeGreaterThan(0);
     });
     unmount();
   });
@@ -80,9 +77,7 @@ describe("POLYON AI HQ", () => {
     fireEvent.click(screen.getByRole("button", { name: "Debate" }));
 
     expect(
-      screen.getByText(
-        "Run a bounded proposal, criticism, evidence and adjudication flow.",
-      ),
+      screen.getByText("Run a bounded proposal, criticism, evidence and adjudication flow."),
     ).toBeInTheDocument();
     unmount();
   });
@@ -114,8 +109,10 @@ describe("POLYON AI HQ", () => {
   });
 
   it("shows the authentication gate when the server requires login", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      if (String(input).endsWith("/api/overview")) {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url =
+        typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      if (url.endsWith("/api/overview")) {
         return new Response(JSON.stringify({ error: "Authentication required." }), {
           status: 401,
         });

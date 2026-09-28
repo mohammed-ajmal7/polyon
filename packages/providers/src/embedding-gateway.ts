@@ -1,4 +1,10 @@
-import type { EmbeddingRequest, EmbeddingResponse, Model, ModelId, Provider } from "@polyon/contracts";
+import type {
+  EmbeddingRequest,
+  EmbeddingResponse,
+  Model,
+  ModelId,
+  Provider,
+} from "@polyon/contracts";
 
 import type { EmbeddingAdapterRegistry } from "./embedding-adapter";
 import { normalizeProviderInvocationError } from "./provider-errors";
@@ -17,20 +23,6 @@ export class EmbeddingGateway {
     input: EmbeddingRequest,
     options: { readonly retries?: number; readonly signal?: AbortSignal } = {},
   ): Promise<EmbeddingResponse> {
-    const model = this.dependencies.models.get(modelId);
-    if (model === undefined) throw new EmbeddingGatewayError("MODEL_NOT_FOUND", modelId);
-    if (model.kind !== "EMBEDDING") throw new EmbeddingGatewayError("MODEL_KIND_UNSUPPORTED", modelId);
-    if (!model.enabled) throw new EmbeddingGatewayError("MODEL_DISABLED", modelId);
-
-    const provider = this.dependencies.providers.get(model.providerId);
-    if (provider === undefined) throw new EmbeddingGatewayError("PROVIDER_NOT_FOUND", modelId);
-    if (!provider.enabled) throw new EmbeddingGatewayError("PROVIDER_DISABLED", modelId);
-
-    const adapter = this.dependencies.adapters.get(provider.id);
-    if (adapter === undefined) {
-      throw new EmbeddingGatewayError("PROVIDER_ADAPTER_NOT_FOUND", modelId);
-    }
-
     if (input.input.length === 0 || input.input.length > 32) {
       throw new RangeError("Embedding requests must contain between 1 and 32 inputs.");
     }
@@ -41,6 +33,21 @@ export class EmbeddingGateway {
     const retries = options.retries ?? 0;
     if (!Number.isInteger(retries) || retries < 0 || retries > 3) {
       throw new RangeError("Embedding retries must be an integer between 0 and 3.");
+    }
+
+    const model = this.dependencies.models.get(modelId);
+    if (model === undefined) throw new EmbeddingGatewayError("MODEL_NOT_FOUND", modelId);
+    if (model.kind !== "EMBEDDING")
+      throw new EmbeddingGatewayError("MODEL_KIND_UNSUPPORTED", modelId);
+    if (!model.enabled) throw new EmbeddingGatewayError("MODEL_DISABLED", modelId);
+
+    const provider = this.dependencies.providers.get(model.providerId);
+    if (provider === undefined) throw new EmbeddingGatewayError("PROVIDER_NOT_FOUND", modelId);
+    if (!provider.enabled) throw new EmbeddingGatewayError("PROVIDER_DISABLED", modelId);
+
+    const adapter = this.dependencies.adapters.get(provider.id);
+    if (adapter === undefined) {
+      throw new EmbeddingGatewayError("PROVIDER_ADAPTER_NOT_FOUND", modelId);
     }
 
     let attempt = 0;

@@ -32,7 +32,10 @@ export async function POST(request: Request): Promise<Response> {
 
     const raw = await request.text();
     if (new TextEncoder().encode(raw).byteLength > MAX_REQUEST_BYTES) {
-      return Response.json({ error: "Mission plan request exceeds the 32768-byte limit." }, { status: 413 });
+      return Response.json(
+        { error: "Mission plan request exceeds the 32768-byte limit." },
+        { status: 413 },
+      );
     }
 
     const input = JSON.parse(raw) as Record<string, unknown>;

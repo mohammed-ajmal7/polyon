@@ -1,8 +1,4 @@
-import type {
-  ModelToolDefinition,
-  TextModelRequest,
-  ToolId,
-} from "@polyon/contracts";
+import type { ModelToolDefinition, TextModelRequest, ToolId } from "@polyon/contracts";
 
 import type { AgentToolOrchestrationResult } from "./agent-tool-orchestration-service";
 import type { AgentToolOrchestrationService } from "./agent-tool-orchestration-service";
@@ -38,7 +34,9 @@ export class CodingAgentService {
   invoke(input: CodingAgentInput): Promise<AgentToolOrchestrationResult> {
     const allowed = new Set(input.allowedToolIds ?? DEFAULT_CODING_TOOL_IDS);
     const all = this.orchestration.modelToolDefinitions();
-    const exposed: readonly ModelToolDefinition[] = all.filter((tool) => allowed.has(tool.toolId as ToolId));
+    const exposed: readonly ModelToolDefinition[] = all.filter((tool) =>
+      allowed.has(tool.toolId as ToolId),
+    );
 
     if (exposed.length === 0) {
       throw new Error("Coding agent has no enabled tools in its explicit allowlist.");

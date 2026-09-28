@@ -7,14 +7,10 @@ const cookieStore = {
 };
 
 vi.mock("next/headers", () => ({
-  cookies: vi.fn(async () => cookieStore),
+  cookies: vi.fn(() => cookieStore),
 }));
 
-import {
-  authenticateRequest,
-  issueSession,
-  isAuthenticated,
-} from "./auth";
+import { authenticateRequest, issueSession, isAuthenticated } from "./auth";
 
 afterEach(() => {
   vi.clearAllMocks();

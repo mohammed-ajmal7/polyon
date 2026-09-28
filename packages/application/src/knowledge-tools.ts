@@ -1,10 +1,4 @@
-import type {
-  Evidence,
-  MemoryEntry,
-  MemoryScope,
-  Source,
-  Tool,
-} from "@polyon/contracts";
+import type { Evidence, MemoryEntry, MemoryScope, Source, Tool } from "@polyon/contracts";
 import type { ToolAdapter, ToolAdapterRegistry, ToolRegistry } from "@polyon/tools";
 
 import type { MemoryService } from "./memory-service";
@@ -58,7 +52,11 @@ export function registerKnowledgeTools(
         scope: { type: "string", enum: ["PRIVATE", "PROJECT", "MISSION", "TASK"] },
         missionId: { type: "string", minLength: 1, maxLength: 200 },
         taskId: { type: "string", minLength: 1, maxLength: 200 },
-        tags: { type: "array", maxItems: 32, items: { type: "string", minLength: 1, maxLength: 100 } },
+        tags: {
+          type: "array",
+          maxItems: 32,
+          items: { type: "string", minLength: 1, maxLength: 100 },
+        },
         limit: { type: "integer", minimum: 1, maximum: 100 },
       },
     },
@@ -80,8 +78,16 @@ export function registerKnowledgeTools(
         kind: { type: "string", enum: ["FACT", "PREFERENCE", "DECISION", "SUMMARY", "OTHER"] },
         scope: { type: "string", enum: ["PRIVATE", "PROJECT", "MISSION", "TASK"] },
         text: { type: "string", minLength: 1, maxLength: 50_000 },
-        tags: { type: "array", maxItems: 32, items: { type: "string", minLength: 1, maxLength: 100 } },
-        sourceIds: { type: "array", maxItems: 100, items: { type: "string", minLength: 1, maxLength: 200 } },
+        tags: {
+          type: "array",
+          maxItems: 32,
+          items: { type: "string", minLength: 1, maxLength: 100 },
+        },
+        sourceIds: {
+          type: "array",
+          maxItems: 100,
+          items: { type: "string", minLength: 1, maxLength: 200 },
+        },
         missionId: { type: "string", maxLength: 200 },
         taskId: { type: "string", maxLength: 200 },
       },
@@ -153,9 +159,11 @@ export function registerKnowledgeTools(
         query: input.query,
         sourceLimit: input.sourceLimit,
         sourceIdFactory: (index, candidate) =>
-          "research-source-" + stableId(index + ":" + candidate.locator + ":" + candidate.retrievedAt),
+          "research-source-" +
+          stableId(index + ":" + candidate.locator + ":" + candidate.retrievedAt),
         evidenceIdFactory: (index, candidate) =>
-          "research-evidence-" + stableId(index + ":" + candidate.locator + ":" + candidate.retrievedAt),
+          "research-evidence-" +
+          stableId(index + ":" + candidate.locator + ":" + candidate.retrievedAt),
         now: new Date().toISOString(),
       });
 

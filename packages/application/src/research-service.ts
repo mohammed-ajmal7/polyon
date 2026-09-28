@@ -68,7 +68,6 @@ export class ResearchService {
           title: candidate.title.trim(),
           locator: candidate.locator,
           retrievedAt: candidate.retrievedAt,
-
         };
         const evidence: Evidence = {
           id: input.evidenceIdFactory(index, candidate),
@@ -98,7 +97,12 @@ export class ResearchService {
           missionId: input.missionId,
           taskId: input.taskId,
           occurredAt: source.retrievedAt ?? input.now,
-          data: { sourceId: source.id, kind: source.kind, title: source.title, locator: source.locator },
+          data: {
+            sourceId: source.id,
+            kind: source.kind,
+            title: source.title,
+            locator: source.locator,
+          },
         });
         this.events.append({
           id: `EVIDENCE_CAPTURED:${evidence.id}`,
@@ -121,10 +125,14 @@ export class ResearchService {
 }
 
 function validateCandidate(candidate: ResearchSourceCandidate): void {
-  if (candidate.title.trim() === "") throw new RangeError("Research source title must not be empty.");
-  if (candidate.locator.trim() === "") throw new RangeError("Research source locator must not be empty.");
-  if (candidate.content.trim() === "") throw new RangeError("Research evidence content must not be empty.");
-  if (candidate.content.length > 100_000) throw new RangeError("Research evidence content exceeds the 100000-character limit.");
+  if (candidate.title.trim() === "")
+    throw new RangeError("Research source title must not be empty.");
+  if (candidate.locator.trim() === "")
+    throw new RangeError("Research source locator must not be empty.");
+  if (candidate.content.trim() === "")
+    throw new RangeError("Research evidence content must not be empty.");
+  if (candidate.content.length > 100_000)
+    throw new RangeError("Research evidence content exceeds the 100000-character limit.");
   if (!Number.isFinite(Date.parse(candidate.retrievedAt))) {
     throw new RangeError("Research source retrievedAt must be a valid timestamp.");
   }

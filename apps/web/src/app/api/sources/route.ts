@@ -4,7 +4,8 @@ import { getPolyonComposition } from "@/server/polyon-server";
 export const runtime = "nodejs";
 
 export async function GET(request: Request): Promise<Response> {
-  if (!(await isAuthenticated())) return Response.json({ error: "Authentication required." }, { status: 401 });
+  if (!(await isAuthenticated()))
+    return Response.json({ error: "Authentication required." }, { status: 401 });
 
   const url = new URL(request.url);
   const limit = Number(url.searchParams.get("limit") ?? "100");

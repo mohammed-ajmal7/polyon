@@ -23,6 +23,8 @@ export type {
   TextModelRequest,
   TextModelResponse,
   TextModelUsage,
+  EmbeddingRequest,
+  EmbeddingResponse,
 } from "./agent/index";
 
 export type { DomainEvent, EventId, EventKind } from "./observability/index";
@@ -87,9 +89,19 @@ export type { MissionPlanProposal } from "./work/mission-plan-proposal";
 export type { MissionPlanProposalId } from "./work/ids";
 
 export type { SecretReference, SecretReferenceId, SecretReferenceKind } from "./security/index";
-export type { MemoryEmbedding, MemoryEntry, MemoryId, MemoryKind, MemoryScope } from "./memory/index";
+export type {
+  MemoryEmbedding,
+  MemoryEntry,
+  MemoryId,
+  MemoryKind,
+  MemoryScope,
+} from "./memory/index";
 
-export type { InteroperabilityAdapter, InteroperabilityEnvelope, InteroperabilityProtocol } from "./interoperability/index";
+export type {
+  InteroperabilityAdapter,
+  InteroperabilityEnvelope,
+  InteroperabilityProtocol,
+} from "./interoperability/index";
 export { validateInteroperabilityEnvelope } from "./interoperability/index";
 
 export { JsonInteroperabilityAdapter } from "./interoperability/index";

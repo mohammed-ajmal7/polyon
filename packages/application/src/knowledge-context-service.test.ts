@@ -60,11 +60,7 @@ describe("KnowledgeContextService", () => {
   it("fails when the caller does not explicitly authorize a scope", () => {
     const stores = new InMemoryDomainStores();
     expect(() =>
-      new KnowledgeContextService(
-        stores.memory,
-        stores.evidence,
-        stores.sources,
-      ).assemble({
+      new KnowledgeContextService(stores.memory, stores.evidence, stores.sources).assemble({
         query: "anything",
         allowedScopes: [],
       }),
@@ -74,11 +70,7 @@ describe("KnowledgeContextService", () => {
   it("enforces context size bounds", () => {
     const stores = new InMemoryDomainStores();
     expect(() =>
-      new KnowledgeContextService(
-        stores.memory,
-        stores.evidence,
-        stores.sources,
-      ).assemble({
+      new KnowledgeContextService(stores.memory, stores.evidence, stores.sources).assemble({
         query: "anything",
         allowedScopes: ["PRIVATE"],
         maxCharacters: 100_001,

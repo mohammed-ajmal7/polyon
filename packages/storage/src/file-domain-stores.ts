@@ -24,6 +24,7 @@ export class FileDomainStores implements DurableDomainStores {
   private readonly state: ReturnType<FileDomainDatabase["snapshot"]>;
   private revision: string;
   private readonly context: DomainStoreTransactionContext;
+  private activeContext: DomainStoreTransactionContext | undefined;
 
   constructor(readonly rootDir: string) {
     this.database = new FileDomainDatabase(join(rootDir, "domain-state.json"));
@@ -38,63 +39,63 @@ export class FileDomainStores implements DurableDomainStores {
   }
 
   get approvals() {
-    return this.context.approvals;
+    return (this.activeContext ?? this.context).approvals;
   }
 
   get debates() {
-    return this.context.debates;
+    return (this.activeContext ?? this.context).debates;
   }
 
   get evidence() {
-    return this.context.evidence;
+    return (this.activeContext ?? this.context).evidence;
   }
 
   get memory() {
-    return this.context.memory;
+    return (this.activeContext ?? this.context).memory;
   }
 
   get memoryEmbeddings() {
-    return this.context.memoryEmbeddings;
+    return (this.activeContext ?? this.context).memoryEmbeddings;
   }
 
   get sources() {
-    return this.context.sources;
+    return (this.activeContext ?? this.context).sources;
   }
 
   get artifacts() {
-    return this.context.artifacts;
+    return (this.activeContext ?? this.context).artifacts;
   }
 
   get conversations() {
-    return this.context.conversations;
+    return (this.activeContext ?? this.context).conversations;
   }
 
   get executions() {
-    return this.context.executions;
+    return (this.activeContext ?? this.context).executions;
   }
 
   get messages() {
-    return this.context.messages;
+    return (this.activeContext ?? this.context).messages;
   }
 
   get missions() {
-    return this.context.missions;
+    return (this.activeContext ?? this.context).missions;
   }
 
   get missionPlanProposals() {
-    return this.context.missionPlanProposals;
+    return (this.activeContext ?? this.context).missionPlanProposals;
   }
 
   get policyDecisions() {
-    return this.context.policyDecisions;
+    return (this.activeContext ?? this.context).policyDecisions;
   }
 
   get tasks() {
-    return this.context.tasks;
+    return (this.activeContext ?? this.context).tasks;
   }
 
   get events() {
-    return this.context.events;
+    return (this.activeContext ?? this.context).events;
   }
 
   transaction<T>(work: (context: DomainStoreTransactionContext) => T): T {
@@ -108,6 +109,7 @@ export class FileDomainStores implements DurableDomainStores {
       const snapshot = this.database.snapshotWithRevision();
       const stagedState = snapshot.state;
       const stagedContext = createStateContext(stagedState);
+      this.activeContext = stagedContext;
       const result = work(stagedContext);
 
       const nextRevision = this.database.replaceIfRevision(stagedState, snapshot.revision);
@@ -116,6 +118,7 @@ export class FileDomainStores implements DurableDomainStores {
 
       return result;
     } finally {
+      this.activeContext = undefined;
       this.transactionActive = false;
     }
   }

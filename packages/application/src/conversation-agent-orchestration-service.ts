@@ -1,9 +1,4 @@
-import type {
-  ActorId,
-  DomainEvent,
-  Message,
-  TextModelRequest,
-} from "@polyon/contracts";
+import type { ActorId, DomainEvent, Message, TextModelRequest } from "@polyon/contracts";
 
 import type {
   AgentToolOrchestrationResult,
@@ -36,10 +31,7 @@ export interface ExecuteConversationInput {
   readonly maxToolOutputBytes?: number;
 }
 
-export type ConversationExecutionStatus =
-  | "SUCCEEDED"
-  | "APPROVAL_REQUIRED"
-  | "FAILED";
+export type ConversationExecutionStatus = "SUCCEEDED" | "APPROVAL_REQUIRED" | "FAILED";
 
 export interface ConversationExecutionResult {
   readonly status: ConversationExecutionStatus;

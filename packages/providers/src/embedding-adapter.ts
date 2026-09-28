@@ -1,9 +1,4 @@
-import type {
-  EmbeddingRequest,
-  EmbeddingResponse,
-  ModelId,
-  ProviderId,
-} from "@polyon/contracts";
+import type { EmbeddingRequest, EmbeddingResponse, ModelId, ProviderId } from "@polyon/contracts";
 
 export interface EmbeddingProviderAdapter {
   readonly providerId: ProviderId;

@@ -3,6 +3,7 @@
 POLYON's foundational controlled operating loop is implemented on `feature/core-architecture`.
 
 Current capabilities:
+
 - governed Direct, Broadcast, Debate, and Mission execution;
 - durable storage with migrations, transactions, concurrency protection, backup/restore, and restart recovery;
 - provider-independent model routing and OpenAI-compatible text execution;

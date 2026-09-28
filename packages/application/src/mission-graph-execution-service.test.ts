@@ -45,11 +45,9 @@ describe("MissionGraphExecutionService", () => {
       rejected: [],
     }));
 
-    const service = new MissionGraphExecutionService(
-      stores.missions,
-      stores.tasks,
-      { dispatchReadyTasks } as never,
-    );
+    const service = new MissionGraphExecutionService(stores.missions, stores.tasks, {
+      dispatchReadyTasks,
+    } as never);
 
     const policy = {
       id: "policy",
@@ -78,7 +76,7 @@ describe("MissionGraphExecutionService", () => {
 
     expect(dispatchReadyTasks).toHaveBeenCalledWith(
       expect.objectContaining({
-        missionId: undefined,
+        mission: expect.objectContaining({ id: "mission-1" }),
       }),
     );
     expect(result.dispatched).toHaveLength(1);

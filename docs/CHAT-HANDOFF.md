@@ -13,6 +13,7 @@
 ## Implemented operating loop
 
 ### Interaction and execution
+
 - Direct, Broadcast, Debate, Mission ingress;
 - governed Direct/Broadcast agent orchestration;
 - bounded debate runtime;
@@ -21,6 +22,7 @@
 - result/message/artifact publication and audit trace.
 
 ### Agents, models, providers
+
 - agent/model/provider registries and capability-aware routing;
 - provider-independent model gateway;
 - OpenAI-compatible HTTP text model adapter;
@@ -28,6 +30,7 @@
 - bounded local coding-agent process adapter.
 
 ### Tools and integrations
+
 - governed filesystem/terminal/Git/artifact tools;
 - dynamic model-facing tool catalog with strict exposure enforcement;
 - Google Drive READ integration;
@@ -36,6 +39,7 @@
 - all consequential integration/tool execution remains behind policy/approval/audit.
 
 ### Memory, research, evidence
+
 - durable memory and scoped search;
 - Source + Evidence records with mission/task lineage;
 - bounded configurable web research retriever;
@@ -44,6 +48,7 @@
 - memory/evidence/source/artifact APIs.
 
 ### Security and operations
+
 - optional HMAC-signed HTTP-only server session;
 - same-origin write protection;
 - response security headers;
@@ -64,9 +69,11 @@
 5. Target-specific deployment automation beyond self-hosted Docker/Compose.
 
 A2A is the current agent-to-agent interoperability path; the former ACP line is not duplicated as an independent modern transport.
+
 ## Continuation rules
 
 Always:
+
 1. inspect the live branch;
 2. inspect the newest CI run for the exact head;
 3. select one coherent slice;

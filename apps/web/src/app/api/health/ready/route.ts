@@ -22,12 +22,12 @@ export async function GET(): Promise<Response> {
 
   try {
     const polyon = getPolyonComposition();
-    const modelConfigured = polyon.agents.list().some(
-      (agent) => agent.status === "ACTIVE" && agent.preferredModelId !== undefined,
-    );
-    const emailConfigured = polyon.integrations.list().some(
-      (integration) => integration.kind === "EMAIL",
-    );
+    const modelConfigured = polyon.agents
+      .list()
+      .some((agent) => agent.status === "ACTIVE" && agent.preferredModelId !== undefined);
+    const emailConfigured = polyon.integrations
+      .list()
+      .some((integration) => integration.kind === "EMAIL");
     const researchConfigured = polyon.research !== undefined;
 
     const checks = {
@@ -41,9 +41,7 @@ export async function GET(): Promise<Response> {
     };
 
     const ready =
-      checks.storage &&
-      checks.runtime &&
-      (!checks.executionEnabled || checks.modelConfigured);
+      checks.storage && checks.runtime && (!checks.executionEnabled || checks.modelConfigured);
 
     return Response.json(
       {

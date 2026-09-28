@@ -35,8 +35,14 @@ export class TraceQueryService {
       .filter((event) => query.missionId === undefined || event.missionId === query.missionId)
       .filter((event) => query.taskId === undefined || event.taskId === query.taskId)
       .filter((event) => query.executionId === undefined || event.executionId === query.executionId)
-      .filter((event) => query.conversationId === undefined || event.conversationId === query.conversationId)
-      .sort((left, right) => left.occurredAt.localeCompare(right.occurredAt) || left.id.localeCompare(right.id))
+      .filter(
+        (event) =>
+          query.conversationId === undefined || event.conversationId === query.conversationId,
+      )
+      .sort(
+        (left, right) =>
+          left.occurredAt.localeCompare(right.occurredAt) || left.id.localeCompare(right.id),
+      )
       .slice(-limit)
       .map((event) => ({
         id: event.id,
@@ -64,7 +70,8 @@ function redactTraceData(
       normalized.includes("token") ||
       normalized.includes("credential") ||
       normalized.includes("authorization")
-    ) continue;
+    )
+      continue;
     safe[key] = value;
   }
   return safe;
