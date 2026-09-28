@@ -66,7 +66,12 @@ export class SemanticMemoryService {
 
   async reindex(
     modelId: string,
-    input: { readonly now: string; readonly batchSize?: number; readonly maxEntries?: number },
+    input: {
+      readonly now: string;
+      readonly batchSize?: number;
+      readonly maxEntries?: number;
+      readonly signal?: AbortSignal;
+    },
   ): Promise<{ readonly indexed: number; readonly stale: number; readonly skipped: number }> {
     if (modelId.trim() === "") throw new RangeError("Embedding model ID must not be empty.");
 
