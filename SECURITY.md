@@ -23,4 +23,3 @@ local machine:
 - keep model, integration, SMTP, and other credentials server-side;
 - use explicit research and semantic-indexing allowlists;
 - protect and back up the persistent POLYON data directory.
-
