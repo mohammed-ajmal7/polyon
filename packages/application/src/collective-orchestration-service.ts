@@ -720,9 +720,34 @@ export class CollectiveOrchestrationService {
             role: "AGENT",
             kind: "TEXT",
             content: contribution.content,
+            runId: collectiveId,
+            fromAgentId: contribution.agentId,
+            agentMessageType: "finding",
+            payload: {
+              agentId: contribution.agentId,
+              role: contribution.role,
+              modelId: contribution.modelId,
+              providerId: contribution.providerId,
+              sourceIds: [...contribution.sourceIds],
+              evidenceIds: [...contribution.evidenceIds],
+            },
             createdAt: occurredAt,
           });
         }
+
+        stores.events.append({
+          id: `AGENT_MESSAGE_CREATED:${messageId}`,
+          kind: "AGENT_MESSAGE_CREATED",
+          actorId: contribution.actorId,
+          conversationId: input.command.conversation.id,
+          occurredAt,
+          data: {
+            messageId,
+            runId: collectiveId,
+            fromAgentId: contribution.agentId,
+            agentMessageType: "finding",
+          },
+        });
 
         stores.events.append({
           id: `COLLECTIVE_CONTRIBUTION:${collectiveId}:${contribution.agentId}`,
@@ -798,9 +823,34 @@ export class CollectiveOrchestrationService {
             role: "AGENT",
             kind: "TEXT",
             content: challenge.content,
+            runId: collectiveId,
+            fromAgentId: challenge.agentId,
+            agentMessageType: "challenge",
+            payload: {
+              agentId: challenge.agentId,
+              round: challenge.round,
+              modelId: challenge.modelId,
+              providerId: challenge.providerId,
+              targetAgentIds: [...challenge.targetAgentIds],
+            },
             createdAt: occurredAt,
           });
         }
+
+        stores.events.append({
+          id: `AGENT_MESSAGE_CREATED:${messageId}`,
+          kind: "AGENT_MESSAGE_CREATED",
+          actorId: challenge.actorId,
+          conversationId: input.command.conversation.id,
+          occurredAt,
+          data: {
+            messageId,
+            runId: collectiveId,
+            fromAgentId: challenge.agentId,
+            agentMessageType: "challenge",
+            toAgentIds: [...challenge.targetAgentIds],
+          },
+        });
 
         stores.events.append({
           id: `COLLECTIVE_CHALLENGE:${collectiveId}:r${challenge.round}:${challenge.agentId}`,
@@ -874,6 +924,16 @@ export class CollectiveOrchestrationService {
       role: "AGENT",
       kind: "TEXT",
       content,
+      runId: collectiveId,
+      fromAgentId: synthesizerAgentId,
+      agentMessageType: "decision",
+      payload: {
+        synthesizerAgentId,
+        modelId,
+        providerId,
+        sourceIds: research.sources.map((source) => source.id),
+        evidenceIds: research.evidence.map((evidence) => evidence.id),
+      },
       createdAt: occurredAt,
     };
 
@@ -894,6 +954,21 @@ export class CollectiveOrchestrationService {
           updatedAt: occurredAt,
         });
       }
+
+      stores.events.append({
+        id: `AGENT_MESSAGE_CREATED:${message.id}`,
+        kind: "AGENT_MESSAGE_CREATED",
+        actorId: synthesizerAgentId,
+        conversationId: message.conversationId,
+        occurredAt,
+        data: {
+          messageId: message.id,
+          runId: collectiveId,
+          fromAgentId: synthesizerAgentId,
+          agentMessageType: "decision",
+          synthesis: true,
+        },
+      });
 
       const event: DomainEvent = {
         id: `COLLECTIVE_SYNTHESIZED:${collectiveId}`,
