@@ -5,6 +5,7 @@ import { EmbeddingGateway, InMemoryEmbeddingAdapterRegistry } from "@polyon/prov
 import { InMemoryDomainStores } from "@polyon/storage";
 
 import { SemanticMemoryService } from "./semantic-memory-service";
+import { ExactNormalizedSemanticVectorIndex } from "./semantic-vector-index";
 
 describe("SemanticMemoryService", () => {
   it("persists embeddings and ranks semantic matches deterministically", async () => {
