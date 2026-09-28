@@ -1,0 +1,26 @@
+name: Temporary Format Probe
+
+on:
+  push:
+    branches:
+      - feature/a2a-list-tasks-pagination
+
+jobs:
+  format-probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24.13.1
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Format target files and print diff
+        run: |
+          pnpm exec prettier packages/application/src/a2a-server-service.ts packages/application/src/protocol-server.test.ts --write
+          git diff -- packages/application/src/a2a-server-service.ts packages/application/src/protocol-server.test.ts
