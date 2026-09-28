@@ -1,4 +1,4 @@
-import type { Agent, Model, Policy, Provider, SecretReference } from "@polyon/contracts";
+import type { Agent, MemoryScope, Model, Policy, Provider, SecretReference } from "@polyon/contracts";
 import {
   EmailIntegrationAdapter,
   GoogleDriveIntegrationAdapter,
@@ -98,6 +98,7 @@ export interface PolyonCompositionOptions {
   readonly semanticMemoryIndexIntervalMs?: number;
   readonly semanticMemoryIndexBatchSize?: number;
   readonly semanticMemoryIndexMaxEntries?: number;
+  readonly semanticMemoryIndexAllowedScopes?: readonly MemoryScope[];
   readonly integrations?: readonly IntegrationAdapter[];
   readonly secretResolver?: SecretResolver;
   readonly googleDriveIntegrationId?: string;
@@ -342,7 +343,8 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   const semanticMemoryIndexer =
     semanticMemory === undefined ||
     embeddingGateway === undefined ||
-    options.semanticMemoryIndexingEnabled === false
+    options.semanticMemoryIndexingEnabled !== true ||
+    (options.semanticMemoryIndexAllowedScopes?.length ?? 0) === 0
       ? undefined
       : createSemanticMemoryIndexer(semanticMemory, options.embeddingProvider!.model.id, {
           ...(options.semanticMemoryIndexIntervalMs === undefined
@@ -354,6 +356,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
           ...(options.semanticMemoryIndexMaxEntries === undefined
             ? {}
             : { maxEntries: options.semanticMemoryIndexMaxEntries }),
+          allowedScopes: options.semanticMemoryIndexAllowedScopes,
         });
   const debates = new DebateOrchestrationService(
     agentGateway,
