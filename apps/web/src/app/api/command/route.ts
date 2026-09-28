@@ -51,6 +51,7 @@ function parseMode(value: unknown): CommandMode {
     value === "Direct" ||
     value === "Broadcast" ||
     value === "Collaborative" ||
+    value === "DeepAnalysis" ||
     value === "Debate" ||
     value === "Mission"
   ) {
