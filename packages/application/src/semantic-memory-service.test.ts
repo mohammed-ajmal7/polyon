@@ -282,8 +282,16 @@ describe("SemanticMemoryService", () => {
 
     const vectorIndex = new ExactNormalizedSemanticVectorIndex();
     const failingUnitOfWork = {
-      transaction<T>(work: () => T): T {
-        work();
+      transaction<T>(
+        work: (context: {
+          readonly memory: typeof stores.memory;
+          readonly memoryEmbeddings: typeof stores.memoryEmbeddings;
+        }) => T,
+      ): T {
+        work({
+          memory: stores.memory,
+          memoryEmbeddings: stores.memoryEmbeddings,
+        });
         throw new Error("commit failed");
       },
     };
