@@ -128,9 +128,7 @@ export class DeepAnalysisOrchestrationService {
       maxDebateRounds <= 0 ||
       maxDebateRounds > MAX_DEBATE_ROUNDS
     ) {
-      throw new RangeError(
-        "Deep analysis maxDebateRounds must be an integer between 1 and 4.",
-      );
+      throw new RangeError("Deep analysis maxDebateRounds must be an integer between 1 and 4.");
     }
 
     this.dependencies.debates.create({
@@ -151,14 +149,14 @@ export class DeepAnalysisOrchestrationService {
         context,
       })
       .catch((error) => {
-      this.persistError(
-        input,
-        deepAnalysisId,
-        now(),
-        error instanceof Error ? error.message : "Deep-analysis debate failed.",
-      );
-      return undefined;
-    });
+        this.persistError(
+          input,
+          deepAnalysisId,
+          now(),
+          error instanceof Error ? error.message : "Deep-analysis debate failed.",
+        );
+        return undefined;
+      });
 
     if (debate === undefined) {
       return {
@@ -308,13 +306,7 @@ export class DeepAnalysisOrchestrationService {
 
 function buildDebateContext(collective: CollectiveExecutionResult): string {
   const contributionLines = collective.contributions.map(
-    (item) =>
-      "[agent=" +
-      item.agentId +
-      " role=" +
-      item.role +
-      "]\n" +
-      item.content,
+    (item) => "[agent=" + item.agentId + " role=" + item.role + "]\n" + item.content,
   );
   const blocks = [
     "Collective synthesis:\n" + (collective.synthesis?.content ?? ""),
