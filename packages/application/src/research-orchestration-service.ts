@@ -174,7 +174,7 @@ export class ResearchOrchestrationService {
           failures,
           researchContext,
         ),
-        signal: input.signal,
+        ...(input.signal === undefined ? {} : { modelOptions: { signal: input.signal } }),
       });
 
       const content = response.output.content.trim().slice(0, MAX_FINDING_CHARACTERS);
@@ -281,7 +281,7 @@ export class ResearchOrchestrationService {
               candidate.retrievedAt,
           ),
         now: now(),
-        signal: input.signal,
+        ...(input.signal === undefined ? {} : { modelOptions: { signal: input.signal } }),
       });
       research = { sources: result.sources, evidence: result.evidence };
     } catch (error) {
@@ -305,7 +305,7 @@ export class ResearchOrchestrationService {
           agent?.name ?? target.agentId,
           research,
         ),
-        signal: input.signal,
+        ...(input.signal === undefined ? {} : { modelOptions: { signal: input.signal } }),
       });
       const content = response.output.content.trim().slice(0, MAX_FINDING_CHARACTERS);
       if (content === "") throw new Error("Research analyst returned empty content.");
