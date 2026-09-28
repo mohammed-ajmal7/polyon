@@ -175,7 +175,7 @@ export class ModelGateway {
           context: {
             ...options.usageContext,
             costClass:
-              options.usageContext?.costClass ?? effectiveCostClass(provider),
+              options.usageContext?.costClass ?? effectiveCostClass(model, provider),
           },
         });
 
@@ -329,6 +329,10 @@ function extractUsageTokens<TOutput>(
   return undefined;
 }
 
-function effectiveCostClass(provider: Provider): UsageCostClass {
+function effectiveCostClass(model: Model, provider: Provider): UsageCostClass {
+  if (model.costClass !== undefined) {
+    return model.costClass;
+  }
+
   return provider.kind === "LOCAL_MODEL" ? "free" : "unknown";
 }
