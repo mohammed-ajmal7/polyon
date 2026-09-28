@@ -1,6 +1,6 @@
 # POLYON Production Readiness
 
-POLYON's foundational controlled operating loop is implemented on `feature/core-architecture`.
+POLYON's foundational controlled operating loop is implemented. The active development/integration line is `develop`; `feature/core-architecture` is retained as the historical architecture baseline.
 
 Current capabilities:
 
@@ -12,6 +12,8 @@ Current capabilities:
 - bounded coding-agent process execution;
 - authenticated web APIs and live AI HQ;
 - baseline MCP 2026-07-28 and A2A 1.0 HTTP interoperability;
+- automatic semantic indexing with explicit scope allowlisting and durable restart-safe recovery behavior;
+- an exact normalized local semantic vector index behind a replaceable index boundary;
 - Docker/Compose deployment with CI verification.
 
 ## Safety defaults
@@ -24,11 +26,12 @@ Current capabilities:
 
 ## Remaining production-depth work
 
-1. Automatic durable indexing/reindex recovery and a replaceable vector acceleration strategy are implemented: semantic indexing can run on startup, and the default exact local vector index caches normalized vectors while preserving an adapter boundary for ANN/pgvector implementations.
-2. Advanced MCP/A2A features such as streaming, push, subscriptions, and broader spec coverage.
-3. Multi-user/enterprise identity and tenancy, outside the personal deployment scope.
-4. Production-scale coverage is expanded with deterministic 10k-memory retrieval and 250-item durable restart tests; sustained load testing, profiling, and broader adversarial E2E coverage remain.
-5. Deployment automation for a specific infrastructure target beyond self-hosted Docker/Compose.
+1. Advanced MCP/A2A features such as streaming, push, subscriptions, and broader specification coverage.
+2. Multi-user/enterprise identity and tenancy, outside the personal deployment scope.
+3. Sustained load testing, profiling, and broader adversarial E2E coverage beyond the current deterministic production-scale suite.
+4. Deployment automation for a specific infrastructure target beyond self-hosted Docker/Compose.
+
+These items do not block the basic self-hosted release workflow when the documented safety defaults, release checklist, and CI gates are satisfied. They remain explicit depth work rather than reasons to claim unsupported protocol or deployment coverage.
 
 Do not fake provider/protocol support to close these items. Keep adapters replaceable.
 
