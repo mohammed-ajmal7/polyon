@@ -114,6 +114,7 @@ describe("CollectiveOrchestrationService", () => {
       actorId: "user-1",
       requiredCapabilityIds: [],
       synthesizerAgentId: "synthesizer",
+      maxChallengeRounds: 0,
       now: () => now,
     });
 
@@ -180,6 +181,7 @@ describe("CollectiveOrchestrationService", () => {
       actorId: "user-1",
       requiredCapabilityIds: [],
       synthesizerAgentId: "synthesizer",
+      maxChallengeRounds: 0,
       now: () => now,
     });
 
@@ -266,6 +268,7 @@ describe("CollectiveOrchestrationService", () => {
       synthesizerAgentId: "synthesizer",
       researchEnabled: true,
       researchSourceLimit: 1,
+      maxChallengeRounds: 0,
       now: () => now,
     });
 
@@ -284,6 +287,83 @@ describe("CollectiveOrchestrationService", () => {
         message.content.includes("Primary evidence from the research source."),
       ),
     ).toBe(true);
+  });
+
+
+  it("runs a bounded peer challenge round before synthesis", async () => {
+    const stores = new InMemoryDomainStores();
+    stores.conversations.save(command().conversation);
+    stores.messages.save(command().message);
+
+    const agents = new InMemoryAgentRegistry();
+    agents.register(agent("researcher", "Research specialist"));
+    agents.register(agent("analyst", "Analytical specialist"));
+    agents.register(agent("synthesizer", "Synthesis lead"));
+
+    const requests: TextModelRequest[] = [];
+    const invokeText = vi.fn(async (input: { agentId: string; request: TextModelRequest }) => {
+      requests.push(input.request);
+      const userMessage = input.request.messages.find((message) => message.role === "USER");
+      const prompt = userMessage?.content ?? "";
+
+      if (prompt.includes("Return the strongest challenges")) {
+        return {
+          modelId: input.agentId + "-model",
+          providerId: "test-provider",
+          output: {
+            content: input.agentId + " challenges a peer assumption.",
+          },
+        };
+      }
+
+      return {
+        modelId: input.agentId + "-model",
+        providerId: "test-provider",
+        output: {
+          content:
+            input.agentId === "synthesizer"
+              ? "Findings, Evidence, Agreements, Disagreements, Counterclaims, Uncertainty, Conclusion."
+              : input.agentId + " initial finding.",
+        },
+      };
+    });
+
+    const service = new CollectiveOrchestrationService({
+      agents,
+      agentGateway: { invokeText } as never,
+      conversations: stores.conversations,
+      messages: stores.messages,
+      events: stores.events,
+      unitOfWork: stores,
+    });
+
+    const result = await service.execute({
+      command: command(),
+      targets: [
+        { agentId: "researcher", actorId: "researcher" },
+        { agentId: "analyst", actorId: "analyst" },
+        { agentId: "synthesizer", actorId: "synthesizer" },
+      ],
+      actorId: "user-1",
+      requiredCapabilityIds: [],
+      synthesizerAgentId: "synthesizer",
+      maxChallengeRounds: 1,
+      now: () => now,
+    });
+
+    expect(result.status).toBe("SUCCEEDED");
+    expect(result.challenges).toHaveLength(3);
+    expect(
+      requests.filter((request) =>
+        request.messages.some(
+          (message) => message.role === "USER" && message.content.includes("Return the strongest challenges"),
+        ),
+      ),
+    ).toHaveLength(3);
+    expect(
+      stores.events.filter((event) => event.kind === "COLLECTIVE_CHALLENGE"),
+    ).toHaveLength(3);
+    expect(result.synthesis?.content).toContain("Counterclaims");
   });
 
   it("requires at least two distinct active participants", async () => {
