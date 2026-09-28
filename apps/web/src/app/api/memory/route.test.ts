@@ -22,7 +22,7 @@ beforeEach(() => {
 
 describe("memory API", () => {
   it("serves bounded semantic search through the composition service", async () => {
-    const search = vi.fn(async () => [
+    const search = vi.fn(() => [
       {
         memory: {
           id: "memory-1",
