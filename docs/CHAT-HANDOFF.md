@@ -86,3 +86,5 @@ Always:
 The repository code and tests outrank this handoff if they differ.
 
 - Semantic memory now uses a bounded exact normalized vector index that caches normalized embeddings, preserves cosine-equivalent scoring, rebuilds from durable vectors on startup, and keeps the service fallback path available.
+
+- MCP HTTP hardening now handles `notifications/initialized` without a JSON-RPC response and bounds `tools/list` with opaque cursor pagination.
