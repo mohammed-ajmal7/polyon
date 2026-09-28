@@ -7,7 +7,7 @@ import {
   SmtpTransport,
   type EmailTransport,
 } from "@polyon/integrations";
-import { OpenAICompatibleEmbeddingAdapter } from "@polyon/providers";
+import { OpenAICompatibleEmbeddingAdapter, UsageGovernor } from "@polyon/providers";
 import { EncryptedFileSecretResolver, NodeSmtpConnectionFactory } from "@polyon/runtime";
 import {
   BoundedWebResearchRetriever,
@@ -47,6 +47,7 @@ function buildOptions() {
   const secretResolver = email === undefined ? undefined : buildSecretResolver();
   const researchRetriever = buildResearchRetriever();
   const creativeAdapter = buildCreativeAdapter();
+  const usageGovernor = buildUsageGovernor();
   const semanticMemoryIndexAllowedScopes = parseMemoryScopes(
     process.env.POLYON_SEMANTIC_INDEX_ALLOWED_SCOPES,
   );
@@ -59,6 +60,7 @@ function buildOptions() {
     ...(secretResolver === undefined ? {} : { secretResolver }),
     ...(researchRetriever === undefined ? {} : { researchRetriever }),
     ...(creativeAdapter === undefined ? {} : { creativeAdapter }),
+    usageGovernor,
     semanticMemoryIndexAllowedScopes,
     semanticMemoryIndexingEnabled: semanticMemoryIndexAllowedScopes.length > 0,
     ...(email === undefined
@@ -410,4 +412,90 @@ export function getPolyonBaseUrl(request?: Request): string {
     return url.origin;
   }
   return "http://localhost:3000";
+}
+
+
+function buildUsageGovernor(): UsageGovernor {
+  const rawCostMode = process.env.POLYON_COST_MODE?.trim().toLowerCase();
+  const costMode = rawCostMode === "zero" ? "zero" : "configured";
+
+  return new UsageGovernor({
+    costMode,
+    budgets: parseUsageBudgets(process.env.POLYON_USAGE_BUDGETS_JSON),
+  });
+}
+
+function parseUsageBudgets(value: string | undefined) {
+  if (value === undefined || value.trim() === "") return [];
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch (error) {
+    throw new Error(
+      `POLYON_USAGE_BUDGETS_JSON must contain valid JSON: ${
+        error instanceof Error ? error.message : "invalid JSON"
+      }.`,
+      { cause: error },
+    );
+  }
+
+  if (!Array.isArray(parsed)) {
+    throw new Error("POLYON_USAGE_BUDGETS_JSON must contain an array.");
+  }
+
+  return parsed.map((item, index) => {
+    if (item === null || typeof item !== "object" || Array.isArray(item)) {
+      throw new Error(`Usage budget at index ${index} must be an object.`);
+    }
+
+    const record = item as Record<string, unknown>;
+    const providerId = requiredUsageBudgetString(record.providerId, "providerId", index);
+
+    return {
+      providerId,
+      ...(optionalUsageLimit(record.dailyRequestLimit, "dailyRequestLimit", index) === undefined
+        ? {}
+        : { dailyRequestLimit: optionalUsageLimit(record.dailyRequestLimit, "dailyRequestLimit", index) }),
+      ...(optionalUsageLimit(record.monthlyRequestLimit, "monthlyRequestLimit", index) === undefined
+        ? {}
+        : {
+            monthlyRequestLimit: optionalUsageLimit(
+              record.monthlyRequestLimit,
+              "monthlyRequestLimit",
+              index,
+            ),
+          }),
+      ...(optionalUsageLimit(record.maxTokensPerRun, "maxTokensPerRun", index) === undefined
+        ? {}
+        : {
+            maxTokensPerRun: optionalUsageLimit(record.maxTokensPerRun, "maxTokensPerRun", index),
+          }),
+      ...(optionalUsageLimit(record.maxAgentsPerRun, "maxAgentsPerRun", index) === undefined
+        ? {}
+        : {
+            maxAgentsPerRun: optionalUsageLimit(record.maxAgentsPerRun, "maxAgentsPerRun", index),
+          }),
+      ...(optionalUsageLimit(record.maxDebateRounds, "maxDebateRounds", index) === undefined
+        ? {}
+        : {
+            maxDebateRounds: optionalUsageLimit(record.maxDebateRounds, "maxDebateRounds", index),
+          }),
+    };
+  });
+}
+
+function requiredUsageBudgetString(value: unknown, field: string, index: number): string {
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new Error(`Usage budget at index ${index} requires a non-empty ${field}.`);
+  }
+  return value.trim();
+}
+
+function optionalUsageLimit(value: unknown, field: string, index: number): number | undefined {
+  if (value === undefined) return undefined;
+  if (!Number.isInteger(value) || (value as number) < 0) {
+    throw new Error(`Usage budget ${field} at index ${index} must be a non-negative integer.`);
+  }
+  return value as number;
 }
