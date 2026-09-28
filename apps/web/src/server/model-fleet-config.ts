@@ -79,7 +79,7 @@ export function parseModelProfiles(value: string): ModelProfileConfig[] {
 
 export function buildModelRegistrations(
   profiles: readonly ModelProfileConfig[],
-  environment: NodeJS.ProcessEnv,
+  environment: Readonly<Record<string, string | undefined>>,
 ): ModelRegistrationBundle {
   const now = new Date().toISOString();
 
