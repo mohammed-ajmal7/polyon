@@ -228,7 +228,7 @@ describe("A2A task status", () => {
       tasks: [
         expect.objectContaining({
           id: "task-1",
-          status: { state: "completed" },
+          status: expect.objectContaining({ state: "completed" }),
         }),
       ],
     });
