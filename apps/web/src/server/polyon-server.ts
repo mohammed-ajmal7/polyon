@@ -18,6 +18,7 @@ import {
   ConfiguredHttpResearchProvider,
   createPolyonComposition,
   type PolyonComposition,
+  type PolyonProviderRegistration,
 } from "@polyon/application";
 
 const globalState = globalThis as typeof globalThis & { __polyonComposition?: PolyonComposition };
@@ -39,7 +40,7 @@ export function getPolyonComposition(): PolyonComposition {
 }
 
 function buildOptions() {
-  const model = buildModelRegistration();
+  const model = buildModelRegistrations();
   const embedding = buildEmbeddingRegistration();
   const email = buildEmailRegistration();
   const secretResolver = email === undefined ? undefined : buildSecretResolver();
@@ -52,7 +53,7 @@ function buildOptions() {
     storageRoot: process.env.POLYON_DATA_DIR?.trim() || join(process.cwd(), ".polyon-data"),
     ...(model === undefined
       ? {}
-      : { agents: [model.agent], models: [model.model], providers: [model.registration] }),
+      : { agents: model.agents, models: model.models, providers: model.providers }),
     ...(embedding === undefined ? {} : { embeddingProvider: embedding }),
     ...(secretResolver === undefined ? {} : { secretResolver }),
     ...(researchRetriever === undefined ? {} : { researchRetriever }),
@@ -103,13 +104,20 @@ function buildEmbeddingRegistration() {
   return { provider, model, adapter };
 }
 
-function buildModelRegistration() {
+function buildModelRegistrations():
+  | {
+      agents: Agent[];
+      models: Model[];
+      providers: PolyonProviderRegistration[];
+    }
+  | undefined {
   const endpoint = process.env.POLYON_MODEL_ENDPOINT?.trim();
   const modelId = process.env.POLYON_MODEL_ID?.trim();
   if (endpoint === undefined || endpoint === "" || modelId === undefined || modelId === "")
     return undefined;
+
   const providerId = process.env.POLYON_PROVIDER_ID?.trim() || "configured-model-provider";
-  const agentId = process.env.POLYON_AGENT_ID?.trim() || "primary";
+  const baseAgentId = process.env.POLYON_AGENT_ID?.trim() || "primary";
   const now = new Date().toISOString();
   const provider: Provider = {
     id: providerId,
@@ -125,18 +133,6 @@ function buildModelRegistration() {
     capabilityIds: [],
     enabled: true,
   };
-  const agent: Agent = {
-    id: agentId,
-    name: process.env.POLYON_AGENT_NAME?.trim() || "Primary",
-    role: process.env.POLYON_AGENT_ROLE?.trim() || "General operations",
-    description: "Server-configured POLYON agent.",
-    status: "ACTIVE",
-    capabilityIds: [],
-    preferredModelId: modelId,
-    fallbackModelIds: [],
-    createdAt: now,
-    updatedAt: now,
-  };
   const adapter = new OpenAICompatibleTextModelAdapter({
     providerId,
     endpoint,
@@ -144,7 +140,72 @@ function buildModelRegistration() {
       ? {}
       : { apiKey: process.env.POLYON_MODEL_API_KEY }),
   });
-  return { agent, model, registration: { provider, adapter } };
+  const registration = { provider, adapter } satisfies PolyonProviderRegistration;
+
+  const agent = {
+    id: baseAgentId,
+    name: process.env.POLYON_AGENT_NAME?.trim() || "Primary",
+    role: process.env.POLYON_AGENT_ROLE?.trim() || "General operations",
+    description: "Server-configured POLYON agent.",
+    status: "ACTIVE" as const,
+    capabilityIds: [],
+    preferredModelId: modelId,
+    fallbackModelIds: [],
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  if ((process.env.POLYON_COLLECTIVE_PRESET?.trim() || "default").toLowerCase() !== "default") {
+    return {
+      agents: [agent],
+      models: [model],
+      providers: [registration],
+    };
+  }
+
+  const roles = [
+    {
+      id: "researcher",
+      name: "Researcher",
+      role: "Independent research specialist",
+      description: "Finds relevant facts, context, assumptions, and gaps.",
+    },
+    {
+      id: "analyst",
+      name: "Analyst",
+      role: "Analytical specialist",
+      description: "Compares explanations, patterns, trade-offs, and implications.",
+    },
+    {
+      id: "skeptic",
+      name: "Skeptic",
+      role: "Skeptical fact checker",
+      description: "Challenges unsupported claims, hidden assumptions, and overconfidence.",
+    },
+    {
+      id: "synthesizer",
+      name: "Synthesizer",
+      role: "Collective synthesis lead",
+      description: "Compares team findings and produces a transparent final answer.",
+    },
+  ];
+
+  const agents = roles.map((role) => ({
+    ...role,
+    id: baseAgentId + "-" + role.id,
+    status: "ACTIVE" as const,
+    capabilityIds: [],
+    preferredModelId: modelId,
+    fallbackModelIds: [],
+    createdAt: now,
+    updatedAt: now,
+  }));
+
+  return {
+    agents,
+    models: [model],
+    providers: [registration],
+  };
 }
 
 function buildEmailRegistration():

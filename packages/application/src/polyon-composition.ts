@@ -30,6 +30,7 @@ import {
   CommandIngressService,
   CodingAgentService,
   ConversationAgentOrchestrationService,
+  CollectiveOrchestrationService,
   IntegrationCatalogService,
   IntegrationInvocationService,
   LocalArtifactContentService,
@@ -188,6 +189,7 @@ export interface PolyonCompositionOptions {
 export interface PolyonComposition {
   readonly commandIngress: CommandIngressService;
   readonly conversationOrchestration: ConversationAgentOrchestrationService;
+  readonly collectiveOrchestration: CollectiveOrchestrationService;
   readonly missionExecutionOrchestration: MissionExecutionOrchestrationService;
   readonly missionPlanOrchestration: MissionPlanOrchestrationService;
   readonly missionWorkflow: MissionWorkflowService;
@@ -741,6 +743,15 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     stores,
   );
 
+  const collectiveOrchestration = new CollectiveOrchestrationService({
+    agents,
+    agentGateway,
+    conversations: stores.conversations,
+    messages: stores.messages,
+    events: stores.events,
+    unitOfWork: stores,
+  });
+
   const missionExecutionOrchestration = new MissionExecutionOrchestrationService(
     new MissionCreationService({
       conversations: stores.conversations,
@@ -770,6 +781,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   return {
     commandIngress,
     conversationOrchestration,
+    collectiveOrchestration,
     missionExecutionOrchestration,
     missionPlanOrchestration,
     missionWorkflow,

@@ -47,7 +47,13 @@ export async function POST(request: Request): Promise<Response> {
 }
 
 function parseMode(value: unknown): CommandMode {
-  if (value === "Direct" || value === "Broadcast" || value === "Debate" || value === "Mission") {
+  if (
+    value === "Direct" ||
+    value === "Broadcast" ||
+    value === "Collaborative" ||
+    value === "Debate" ||
+    value === "Mission"
+  ) {
     return value;
   }
   throw new Error("Invalid command mode.");

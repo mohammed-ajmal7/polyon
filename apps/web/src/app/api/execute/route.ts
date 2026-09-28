@@ -41,7 +41,7 @@ export async function POST(request: Request): Promise<Response> {
     const command = parseString(input.command, 50_000, "command");
     const polyon = getPolyonComposition();
     const actorId = getPolyonActorId();
-    const targets = resolveTargets(input.agentIds, polyon);
+    const targets = resolveTargets(input.agentIds, mode, polyon);
     const participantIds = [actorId, ...targets.map((target) => target.actorId)];
 
     const commandResult = polyon.commandIngress.submit({
@@ -73,6 +73,18 @@ export async function POST(request: Request): Promise<Response> {
           64 * 1024,
           2 * 1024 * 1024,
         ),
+      });
+      return Response.json({ mode, result }, { status: 201 });
+    }
+
+    if (mode === "Collaborative") {
+      const result = await polyon.collectiveOrchestration.execute({
+        command: commandResult,
+        targets,
+        requiredCapabilityIds,
+        actorId,
+        synthesizerAgentId: parseOptionalString(input.synthesizerAgentId),
+        maxParticipants: parsePositiveInteger(input.maxParticipants, 8, 8),
       });
       return Response.json({ mode, result }, { status: 201 });
     }
@@ -128,7 +140,13 @@ export async function POST(request: Request): Promise<Response> {
 }
 
 function parseMode(value: unknown): CommandMode {
-  if (value === "Direct" || value === "Broadcast" || value === "Debate" || value === "Mission")
+  if (
+    value === "Direct" ||
+    value === "Broadcast" ||
+    value === "Collaborative" ||
+    value === "Debate" ||
+    value === "Mission"
+  )
     return value;
   throw new Error("Invalid command mode.");
 }
@@ -160,15 +178,23 @@ function parseStringArray(value: unknown, max: number): readonly string[] {
   return value.map((item) => parseString(item, 200, "array item"));
 }
 
-function resolveTargets(value: unknown, polyon: ReturnType<typeof getPolyonComposition>) {
-  const ids =
-    value === undefined
-      ? [polyon.agents.list()[0]?.id].filter((id): id is string => id !== undefined)
-      : Array.isArray(value)
-        ? value.map((id) => parseString(id, 200, "agentId"))
-        : (() => {
-            throw new Error("agentIds must be an array.");
-          })();
+function resolveTargets(
+  value: unknown,
+  mode: CommandMode,
+  polyon: ReturnType<typeof getPolyonComposition>,
+) {
+  let ids: readonly string[];
+
+  if (value === undefined) {
+    ids =
+      mode === "Collaborative"
+        ? polyon.agents.list().slice(0, 8).map((agent) => agent.id)
+        : [polyon.agents.list()[0]?.id].filter((id): id is string => id !== undefined);
+  } else if (Array.isArray(value)) {
+    ids = value.map((id) => parseString(id, 200, "agentId"));
+  } else {
+    throw new Error("agentIds must be an array.");
+  }
 
   if (ids.length === 0 || ids.length > 8)
     throw new Error("agentIds must contain between 1 and 8 agents.");

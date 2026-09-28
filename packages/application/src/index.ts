@@ -196,6 +196,17 @@ export {
 export { TraceQueryService, type TraceQuery, type TraceEvent } from "./trace-query-service";
 
 export {
+  CollectiveOrchestrationService,
+  type CollectiveContribution,
+  type CollectiveFailure,
+  type CollectiveExecutionResult,
+  type CollectiveExecutionStatus,
+  type CollectiveOrchestrationDependencies,
+  type CollectiveTarget,
+  type ExecuteCollectiveInput,
+} from "./collective-orchestration-service";
+
+export {
   ConversationAgentOrchestrationService,
   type ConversationAgentTarget,
   type ExecuteConversationInput,

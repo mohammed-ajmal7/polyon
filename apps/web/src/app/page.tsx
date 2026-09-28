@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
-type Mode = "Direct" | "Broadcast" | "Debate" | "Mission";
+type Mode = "Direct" | "Broadcast" | "Collaborative" | "Debate" | "Mission";
 type ActivityKind = "SYSTEM" | "APPROVAL" | "EXECUTION" | "AGENT";
 
 interface Overview {
@@ -80,7 +80,7 @@ function summarize(data: Readonly<Record<string, unknown>>) {
 }
 
 export default function Home() {
-  const [mode, setMode] = useState<Mode>("Mission");
+  const [mode, setMode] = useState<Mode>("Collaborative");
   const [command, setCommand] = useState("");
   const [overview, setOverview] = useState<Overview | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -105,6 +105,11 @@ export default function Home() {
   const modeDescription = useMemo(() => {
     if (mode === "Direct") return "Work with one intelligence at a time.";
     if (mode === "Broadcast") return "Send one request to multiple agents independently.";
+    if (mode === "Collaborative")
+      return (
+        "Let a coordinated AI team contribute distinct perspectives and " +
+        "synthesize one answer."
+      );
     if (mode === "Debate")
       return "Run a bounded proposal, criticism, evidence and adjudication flow.";
     return "Turn a larger objective into governed, executable work.";
@@ -337,7 +342,9 @@ export default function Home() {
                         </div>
                       </div>
                       <div className="mt-5 flex flex-wrap gap-2">
-                        {(["Direct", "Broadcast", "Debate", "Mission"] as Mode[]).map((entry) => (
+                        {(
+                          ["Direct", "Broadcast", "Collaborative", "Debate", "Mission"] as Mode[]
+                        ).map((entry) => (
                           <button
                             key={entry}
                             type="button"

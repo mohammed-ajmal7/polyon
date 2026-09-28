@@ -100,7 +100,7 @@ describe("POLYON AI HQ", () => {
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({
-          mode: "Mission",
+          mode: "Collaborative",
           command: "Review the execution architecture.",
         }),
       }),
