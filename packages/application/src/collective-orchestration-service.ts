@@ -109,6 +109,15 @@ export class CollectiveOrchestrationService {
     }
 
     const contributors = targets.filter((target) => target.agentId !== synthesizerAgentId);
+    this.persistStart(
+      collectiveId,
+      input,
+      synthesizerAgentId,
+      now(),
+      researchEnabled,
+      researchSourceLimit,
+    );
+
     const researchByAgent = new Map<AgentId, ResearchContext>();
     const researchFailures: CollectiveFailure[] = [];
 
@@ -126,7 +135,7 @@ export class CollectiveOrchestrationService {
             sourceIdFactory: (index, candidate) =>
               "collective-source-" +
               stableId(
-                target.agentId + ":" + index + ":" + candidate.locator + ":" + candidate.retrievedAt,
+                collectiveId + ":" + target.agentId + ":" + index + ":" + candidate.locator + ":" + candidate.retrievedAt,
               ),
             evidenceIdFactory: (index, candidate) =>
               "collective-evidence-" +
@@ -149,15 +158,6 @@ export class CollectiveOrchestrationService {
         }
       }
     }
-
-    this.persistStart(
-      collectiveId,
-      input,
-      synthesizerAgentId,
-      now(),
-      researchEnabled,
-      researchSourceLimit,
-    );
 
     const contributorResults = await Promise.all(
       contributors.map(async (target) => {
