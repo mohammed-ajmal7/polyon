@@ -267,7 +267,6 @@ export class CollectiveOrchestrationService {
         failures,
         sourceIds: [],
         evidenceIds: [],
-        ...(debateFailure === undefined ? {} : { failures: [...failures, debateFailure] }),
       };
     }
 
@@ -432,6 +431,26 @@ export class CollectiveOrchestrationService {
         throw new RangeError("Collective researchSourceLimit must be an integer between 1 and 20.");
       }
     }
+  }
+
+  private buildDebateContext(
+    command: string,
+    contributions: readonly CollectiveContribution[],
+    research: ResearchContext,
+  ): string {
+    const contributionContext = contributions
+      .map(
+        (item) =>
+          `[agent=${item.agentId} role=${item.role} model=${item.modelId} provider=${item.providerId}]\n${item.content}`,
+      )
+      .join("\n\n");
+    const evidenceContext = formatEvidenceContext(research);
+
+    const context =
+      `User request: ${command.trim()}\n\nCollective contributions:\n${contributionContext}` +
+      (evidenceContext === "" ? "" : `\n\nInitial evidence:\n${evidenceContext}`);
+
+    return context.slice(0, MAX_EVIDENCE_CONTEXT_CHARACTERS);
   }
 
   private buildContributorRequest(
