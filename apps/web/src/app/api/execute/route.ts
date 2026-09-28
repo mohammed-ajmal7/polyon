@@ -97,6 +97,7 @@ export async function POST(request: Request): Promise<Response> {
         actorId,
         synthesizerAgentId: parseOptionalString(input.synthesizerAgentId),
         maxParticipants: parsePositiveInteger(input.maxParticipants, 8, 8),
+        maxChallengeRounds: parseOptionalInteger(input.maxChallengeRounds, 0, 2),
         maxDebateRounds: parsePositiveInteger(input.maxDebateRounds, 2, 4),
       });
       return Response.json({ mode, result }, { status: 201 });
@@ -181,6 +182,14 @@ function parsePositiveInteger(value: unknown, fallback: number, max: number): nu
   if (value === undefined) return fallback;
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0 || parsed > max)
+    throw new Error("Integer parameter is outside its allowed bounds.");
+  return parsed;
+}
+
+function parseOptionalInteger(value: unknown, fallback: number, max: number): number {
+  if (value === undefined) return fallback;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > max)
     throw new Error("Integer parameter is outside its allowed bounds.");
   return parsed;
 }
