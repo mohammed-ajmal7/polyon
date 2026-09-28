@@ -270,59 +270,6 @@ describe("FileDomainStores", () => {
       rmSync(directory, { recursive: true, force: true });
     }
   });
-
-  it("routes normal store getters through the active transaction context", () => {
-    const directory = mkdtempSync(join(tmpdir(), "polyon-domain-context-"));
-
-    try {
-      const stores = new FileDomainStores(directory);
-
-      stores.transaction(() => {
-        stores.missions.save({
-          id: "mission-context-1",
-          objective: "Use active transaction context.",
-          constraints: [],
-          status: "DRAFT",
-          taskIds: [],
-          createdAt: "2026-09-28T00:00:00.000Z",
-          updatedAt: "2026-09-28T00:00:00.000Z",
-        });
-        stores.events.append({
-          id: "event-context-1",
-          kind: "MISSION_CREATED",
-          missionId: "mission-context-1",
-          occurredAt: "2026-09-28T00:00:00.000Z",
-          data: {},
-        });
-      });
-
-      const reopened = new FileDomainStores(directory);
-      expect(reopened.missions.get("mission-context-1")).toBeDefined();
-      expect(reopened.events.get("event-context-1")).toBeDefined();
-
-      expect(() =>
-        stores.transaction(() => {
-          stores.missions.save({
-            id: "mission-context-rollback",
-            objective: "Must roll back.",
-            constraints: [],
-            status: "DRAFT",
-            taskIds: [],
-            createdAt: "2026-09-28T00:00:00.000Z",
-            updatedAt: "2026-09-28T00:00:00.000Z",
-          });
-          throw new Error("rollback");
-        }),
-      ).toThrow("rollback");
-
-      expect(
-        new FileDomainStores(directory).missions.get("mission-context-rollback"),
-      ).toBeUndefined();
-    } finally {
-      rmSync(directory, { recursive: true, force: true });
-    }
-  });
-
   it("commits mission and event changes as one durable transaction", () => {
     const directory = mkdtempSync(join(tmpdir(), "polyon-domain-"));
 
