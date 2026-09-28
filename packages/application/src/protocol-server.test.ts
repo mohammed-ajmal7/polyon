@@ -1,3 +1,4 @@
+import type { Execution } from "@polyon/contracts";
 import { describe, expect, it, vi } from "vitest";
 
 import { A2AServerService } from "./a2a-server-service";
@@ -235,7 +236,7 @@ describe("A2A task listing", () => {
     },
   ];
 
-  const executions = [
+  const executions: Execution[] = [
     {
       id: "execution-old",
       missionId: "mission-1",
