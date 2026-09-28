@@ -1,6 +1,6 @@
-import type { Agent, AgentId, CapabilityId, Model, ModelId, Provider, ProviderId } from "@polyon/contracts";
+import type { Agent, AgentId, CapabilityId, Model, Provider } from "@polyon/contracts";
 
-import { routeAgentModel, type ModelRoutingRequest } from "./model-routing";
+import { ModelRoutingError, routeAgentModel, type ModelRoutingRequest } from "./model-routing";
 import type { AgentRegistry } from "./agent-registry";
 import type { ModelRegistry } from "./model-registry";
 import type { ProviderRegistry } from "./provider-registry";
@@ -55,12 +55,8 @@ export function resolveAgentModel(
       source: result.source,
     };
   } catch (error) {
-    if (
-      error instanceof Error &&
-      (error as Partial<{ kind: AgentModelRoutingErrorKind }>).kind !== undefined
-    ) {
-      const kind = (error as Error & { kind: AgentModelRoutingErrorKind }).kind;
-      throw new AgentModelRoutingError(kind, input.agentId, error.message);
+    if (error instanceof ModelRoutingError) {
+      throw new AgentModelRoutingError(error.kind, input.agentId, error.message);
     }
 
     throw error;
