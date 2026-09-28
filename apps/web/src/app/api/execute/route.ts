@@ -161,8 +161,3 @@ function parseRiskLevel(value: unknown): "LOW" | "MEDIUM" | "HIGH" {
   throw new Error("riskLevel must be LOW, MEDIUM, or HIGH.");
 }
 
-function parseTaskKind(value: unknown) {
-  if (value === undefined) return "OTHER" as const;
-  if (value === "RESEARCH" || value === "ANALYSIS" || value === "CODING" || value === "CREATIVE" || value === "VALIDATION" || value === "OTHER") return value;
-  throw new Error("Invalid taskKind.");
-}
