@@ -94,8 +94,7 @@ export class CollectiveOrchestrationService {
 
     const now = input.now ?? (() => new Date().toISOString());
     const targets = [...input.targets];
-    const synthesizerAgentId =
-      input.synthesizerAgentId ?? targets[targets.length - 1]!.agentId;
+    const synthesizerAgentId = input.synthesizerAgentId ?? targets[targets.length - 1]!.agentId;
     const collectiveId = `collective:${input.command.conversation.id}:${input.command.message.id}`;
     const researchEnabled = input.researchEnabled ?? this.dependencies.research !== undefined;
     const researchSourceLimit = input.researchSourceLimit ?? DEFAULT_RESEARCH_SOURCE_LIMIT;
@@ -136,12 +135,26 @@ export class CollectiveOrchestrationService {
             sourceIdFactory: (index, candidate) =>
               "collective-source-" +
               stableId(
-                collectiveId + ":" + target.agentId + ":" + index + ":" + candidate.locator + ":" + candidate.retrievedAt,
+                collectiveId +
+                  ":" +
+                  target.agentId +
+                  ":" +
+                  index +
+                  ":" +
+                  candidate.locator +
+                  ":" +
+                  candidate.retrievedAt,
               ),
             evidenceIdFactory: (index, candidate) =>
               "collective-evidence-" +
               stableId(
-                target.agentId + ":" + index + ":" + candidate.locator + ":" + candidate.retrievedAt,
+                target.agentId +
+                  ":" +
+                  index +
+                  ":" +
+                  candidate.locator +
+                  ":" +
+                  candidate.retrievedAt,
               ),
             now: now(),
           });
@@ -396,9 +409,7 @@ export class CollectiveOrchestrationService {
             `User request: ${command}\n\nYour role: ${role}\nAgent: ${agentName}\n\n` +
             "Analyze the request from your specialist perspective. " +
             "Return useful findings, important assumptions, and uncertainties for another agent to synthesize." +
-            (sourceContext === ""
-              ? ""
-              : `\n\nRetrieved sources:\n${sourceContext}`) +
+            (sourceContext === "" ? "" : `\n\nRetrieved sources:\n${sourceContext}`) +
             (evidenceContext === "" ? "" : `\n\nRetrieved evidence:\n${evidenceContext}`),
         },
       ],
@@ -635,11 +646,13 @@ export class CollectiveOrchestrationService {
     });
   }
 
-  private withStores<T>(work: (stores: {
-    readonly conversations: ConversationStore;
-    readonly messages: MessageStore;
-    readonly events: EventStore;
-  }) => T): T {
+  private withStores<T>(
+    work: (stores: {
+      readonly conversations: ConversationStore;
+      readonly messages: MessageStore;
+      readonly events: EventStore;
+    }) => T,
+  ): T {
     if (this.dependencies.unitOfWork === undefined) {
       return work(this.dependencies);
     }
