@@ -23,6 +23,8 @@ export type {
   TextModelRequest,
   TextModelResponse,
   TextModelUsage,
+  EmbeddingRequest,
+  EmbeddingResponse,
 } from "./agent/index";
 
 export type { DomainEvent, EventId, EventKind } from "./observability/index";
