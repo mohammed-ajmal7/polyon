@@ -131,7 +131,7 @@ describe("POLYON collective composition", () => {
         now: () => now,
       });
 
-      expect(result.status).toBe("SUCCEEDED");
+      // The synthesizer participates in challenges and synthesis, but is not a contributor.\n      expect(result.status).toBe("SUCCEEDED");
       expect(result.contributions.map((item) => item.agentId)).toEqual([
         "researcher",
         "analyst",
