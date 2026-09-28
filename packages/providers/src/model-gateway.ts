@@ -13,6 +13,11 @@ import type {
 } from "./provider-adapter";
 import { normalizeProviderInvocationError, ProviderInvocationError } from "./provider-errors";
 import type { ProviderAdapterRegistry } from "./provider-adapter-registry";
+import {
+  UsageGovernor,
+  type UsageCostClass,
+  type UsageInvocationContext,
+} from "./usage-governor";
 
 export type ModelGatewayErrorKind =
   | "MODEL_NOT_FOUND"
@@ -26,6 +31,8 @@ export interface ModelInvocationOptions {
   readonly timeoutMs?: number;
   readonly signal?: AbortSignal;
   readonly retries?: number;
+  readonly usageContext?: UsageInvocationContext;
+  readonly estimatedTokens?: number;
 }
 
 export class ModelGatewayError extends Error {
@@ -52,6 +59,7 @@ export interface ModelGatewayDependencies {
   readonly models: ModelCatalog;
   readonly providers: ProviderCatalog;
   readonly adapters: ProviderAdapterRegistry;
+  readonly usageGovernor?: UsageGovernor;
 }
 
 export class ModelGateway {
@@ -76,7 +84,16 @@ export class ModelGateway {
       );
     }
 
-    return this.invoke<TextModelRequest, TextModelResponse>(modelId, request, options);
+    return this.invoke<TextModelRequest, TextModelResponse>(
+      modelId,
+      request,
+      options.estimatedTokens === undefined
+        ? {
+            ...options,
+            estimatedTokens: estimateTextModelTokens(request),
+          }
+        : options,
+    );
   }
 
   invoke<TInput = unknown, TOutput = unknown>(
@@ -136,12 +153,18 @@ export class ModelGateway {
       throw new RangeError("Model invocation retries must be a non-negative integer.");
     }
 
-    return this.invokeWithRetry<TInput, TOutput>(adapter, provider.id, modelId, input, options);
+    return this.invokeWithRetry<TInput, TOutput>(
+      adapter,
+      provider,
+      modelId,
+      input,
+      options,
+    );
   }
 
   private async invokeWithRetry<TInput, TOutput>(
     adapter: ModelProviderAdapter,
-    providerId: string,
+    provider: Provider,
     modelId: ModelId,
     input: TInput,
     options: ModelInvocationOptions,
@@ -151,15 +174,36 @@ export class ModelGateway {
 
     while (true) {
       try {
-        return await this.invokeOnce<TInput, TOutput>(adapter, modelId, input, options);
-      } catch (error) {
-        const normalized = normalizeProviderInvocationError(error, providerId, modelId);
+        const reservation = this.dependencies.usageGovernor?.authorize({
+          providerId: provider.id,
+          modelId,
+          estimatedTokens: options.estimatedTokens,
+          context: {
+            ...options.usageContext,
+            costClass:
+              options.usageContext?.costClass ?? effectiveCostClass(provider),
+          },
+        });
 
-        if (!normalized.retryable || attempt >= maxRetries) {
-          throw normalized;
+        try {
+          const result = await this.invokeOnce<TInput, TOutput>(
+            adapter,
+            modelId,
+            input,
+            options,
+          );
+          reservation?.complete(extractUsageTokens(result));
+          return result;
+        } catch (error) {
+          reservation?.complete();
+          const normalized = normalizeProviderInvocationError(error, provider.id, modelId);
+
+          if (!normalized.retryable || attempt >= maxRetries) {
+            throw normalized;
+          }
+
+          attempt += 1;
         }
-
-        attempt += 1;
       }
     }
   }
@@ -263,4 +307,35 @@ export class ModelGateway {
       removeAbortListener?.();
     }
   }
+}
+
+
+function estimateTextModelTokens(request: TextModelRequest): number {
+  const serializedLength = JSON.stringify(request).length;
+  const inputEstimate = Math.ceil(serializedLength / 4);
+  return inputEstimate + (request.maxOutputTokens ?? 0);
+}
+
+function extractUsageTokens<TOutput>(
+  result: ProviderInvocationResult<TOutput>,
+): number | undefined {
+  const output = result.output;
+
+  if (
+    typeof output === "object" &&
+    output !== null &&
+    "usage" in output &&
+    typeof output.usage === "object" &&
+    output.usage !== null &&
+    "totalTokens" in output.usage &&
+    typeof output.usage.totalTokens === "number"
+  ) {
+    return output.usage.totalTokens;
+  }
+
+  return undefined;
+}
+
+function effectiveCostClass(provider: Provider): UsageCostClass {
+  return provider.kind === "LOCAL_MODEL" ? "free" : "unknown";
 }
