@@ -154,7 +154,7 @@ function buildModelRegistrations():
     updatedAt: now,
   };
 
-  if ((process.env.POLYON_COLLECTIVE_PRESET?.trim() || "").toLowerCase() !== "default") {
+  if ((process.env.POLYON_COLLECTIVE_PRESET?.trim() || "default").toLowerCase() !== "default") {
     return {
       agents: [agent],
       models: [model],
