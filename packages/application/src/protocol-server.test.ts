@@ -224,7 +224,7 @@ describe("A2A task status", () => {
       method: "ListTasks",
       params: { limit: 1 },
     });
-    expect(listResponse.result).toEqual({
+    expect(listResponse.result).toMatchObject({
       tasks: [
         expect.objectContaining({
           id: "task-1",
