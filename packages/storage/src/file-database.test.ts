@@ -11,6 +11,7 @@ import { CURRENT_DURABLE_DOMAIN_VERSION } from "./migrations";
 function legacySnapshot(version: number): Record<string, unknown> {
   return {
     version,
+    agentRuns: [],
     approvals: [],
     artifacts: [],
     conversations: [],
@@ -39,6 +40,7 @@ describe("FileDomainDatabase migrations", () => {
           migrate(state) {
             return {
               ...state,
+              agentRuns: [],
               debates: [],
               evidence: [],
               memory: [],
