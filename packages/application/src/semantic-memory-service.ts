@@ -211,6 +211,26 @@ export class SemanticMemoryService {
   }
 }
 
+function cosineSimilarity(left: readonly number[], right: readonly number[]): number {
+  if (left.length !== right.length || left.length === 0) return 0;
+
+  let dot = 0;
+  let leftMagnitude = 0;
+  let rightMagnitude = 0;
+
+  for (let index = 0; index < left.length; index += 1) {
+    const leftValue = left[index]!;
+    const rightValue = right[index]!;
+    if (!Number.isFinite(leftValue) || !Number.isFinite(rightValue)) return 0;
+    dot += leftValue * rightValue;
+    leftMagnitude += leftValue * leftValue;
+    rightMagnitude += rightValue * rightValue;
+  }
+
+  if (leftMagnitude === 0 || rightMagnitude === 0) return 0;
+  return dot / Math.sqrt(leftMagnitude * rightMagnitude);
+}
+
 function assertBound(value: number, minimum: number, maximum: number, field: string): void {
   if (!Number.isInteger(value) || value < minimum || value > maximum) {
     throw new RangeError(`${field} must be an integer between ${minimum} and ${maximum}.`);
