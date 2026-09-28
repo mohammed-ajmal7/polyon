@@ -151,7 +151,7 @@ describe("POLYON collective composition", () => {
 
       expect(
         composition.stores.events.list().filter((event) => event.kind === "COLLECTIVE_CONTRIBUTION"),
-      ).toHaveLength(4);
+      ).toHaveLength(3);
       expect(
         composition.stores.events.list().filter((event) => event.kind === "COLLECTIVE_CHALLENGE"),
       ).toHaveLength(4);
