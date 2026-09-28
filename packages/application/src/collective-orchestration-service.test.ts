@@ -280,9 +280,11 @@ describe("CollectiveOrchestrationService", () => {
           message.content.includes("Shared evidence"),
       ),
     );
-    expect(synthesisRequest?.messages.some((message) =>
-      message.content.includes("Primary evidence from the research source."),
-    )).toBe(true);
+    expect(
+      synthesisRequest?.messages.some((message) =>
+        message.content.includes("Primary evidence from the research source."),
+      ),
+    ).toBe(true);
   });
 
   it("requires at least two distinct active participants", async () => {
