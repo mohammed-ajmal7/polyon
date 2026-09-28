@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-const authenticateRequest = vi.fn();
-const getPolyonComposition = vi.fn();
-const getPolyonPolicy = vi.fn();
+const { authenticateRequest, getPolyonComposition, getPolyonPolicy } = vi.hoisted(() => ({
+  authenticateRequest: vi.fn(),
+  getPolyonComposition: vi.fn(),
+  getPolyonPolicy: vi.fn(),
+}));
 
 vi.mock("@/server/auth", () => ({ authenticateRequest }));
 vi.mock("@/server/polyon-server", () => ({ getPolyonComposition, getPolyonPolicy }));
