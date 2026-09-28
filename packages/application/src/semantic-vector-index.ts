@@ -9,10 +9,7 @@ export interface SemanticVectorIndex {
   upsert(embedding: MemoryEmbedding): void;
   remove(embeddingId: MemoryEmbedding["id"]): void;
   rebuild(embeddings: readonly MemoryEmbedding[]): void;
-  search(
-    modelId: string,
-    queryVector: readonly number[],
-  ): readonly SemanticVectorSearchHit[];
+  search(modelId: string, queryVector: readonly number[]): readonly SemanticVectorSearchHit[];
 }
 
 interface IndexedEmbedding {

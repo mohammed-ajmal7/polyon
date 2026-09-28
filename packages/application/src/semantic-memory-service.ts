@@ -93,14 +93,13 @@ export class SemanticMemoryService {
     const candidates = this.memories
       .list()
       .filter((memory) =>
-        input.allowedScopes === undefined
-          ? true
-          : input.allowedScopes.includes(memory.scope),
+        input.allowedScopes === undefined ? true : input.allowedScopes.includes(memory.scope),
       )
       .map((memory) => {
         const id = this.embeddingId(memory.id, modelId);
         const existing = this.embeddings.get(id);
-        const stale = existing === undefined || existing.contentHash !== this.contentHash(memory.text);
+        const stale =
+          existing === undefined || existing.contentHash !== this.contentHash(memory.text);
         return { memory, stale };
       })
       .filter((candidate) => candidate.stale)
@@ -173,37 +172,51 @@ export class SemanticMemoryService {
     const queryVector = queryResponse.vectors[0];
     if (queryVector === undefined) throw new Error("Embedding provider returned no query vector.");
 
-    const candidateEmbeddings = this.vectorIndex === undefined
-      ? this.embeddings
-          .list()
-          .filter((embedding) => embedding.modelId === input.modelId)
-          .filter((embedding) => embedding.dimensions === queryVector.length)
-          .map((embedding) => ({ embedding, score: cosineSimilarity(queryVector, embedding.vector) }))
-      : this.vectorIndex.search(input.modelId, queryVector);
+    const candidateEmbeddings =
+      this.vectorIndex === undefined
+        ? this.embeddings
+            .list()
+            .filter((embedding) => embedding.modelId === input.modelId)
+            .filter((embedding) => embedding.dimensions === queryVector.length)
+            .map((embedding) => ({
+              embedding,
+              score: cosineSimilarity(queryVector, embedding.vector),
+            }))
+        : this.vectorIndex.search(input.modelId, queryVector);
 
-    const results = candidateEmbeddings.map(({ embedding, score }) => {
+    const results = candidateEmbeddings
+      .map(({ embedding, score }) => {
         const memory = this.memories.get(embedding.memoryId);
         if (memory === undefined) return undefined;
         if (input.scope !== undefined && memory.scope !== input.scope) return undefined;
         if (input.missionId !== undefined && memory.missionId !== input.missionId) return undefined;
         if (input.taskId !== undefined && memory.taskId !== input.taskId) return undefined;
-        if (input.tags !== undefined && !input.tags.every((tag) => memory.tags.some((candidate) => candidate.toLowerCase() === tag.toLowerCase()))) return undefined;
+        if (
+          input.tags !== undefined &&
+          !input.tags.every((tag) =>
+            memory.tags.some((candidate) => candidate.toLowerCase() === tag.toLowerCase()),
+          )
+        )
+          return undefined;
         if (embedding.contentHash !== this.contentHash(memory.text)) return undefined;
 
         return { memory, score };
       })
       .filter((result): result is SemanticMemorySearchResult => result !== undefined)
-      .sort((left, right) =>
-        right.score - left.score ||
-        right.memory.updatedAt.localeCompare(left.memory.updatedAt) ||
-        left.memory.id.localeCompare(right.memory.id),
+      .sort(
+        (left, right) =>
+          right.score - left.score ||
+          right.memory.updatedAt.localeCompare(left.memory.updatedAt) ||
+          left.memory.id.localeCompare(right.memory.id),
       );
 
     return results.slice(0, limit);
   }
 
   private embeddingId(memoryId: string, modelId: string): string {
-    return createHash("sha256").update(memoryId + "\0" + modelId).digest("hex");
+    return createHash("sha256")
+      .update(memoryId + "\0" + modelId)
+      .digest("hex");
   }
 
   private contentHash(text: string): string {

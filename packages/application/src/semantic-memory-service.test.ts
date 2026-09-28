@@ -96,7 +96,6 @@ describe("SemanticMemoryService", () => {
     expect(stores.memoryEmbeddings.list()).toHaveLength(2);
   });
 
-
   it("reindexes only missing or stale embeddings in bounded batches", async () => {
     const stores = new InMemoryDomainStores();
     const adapterRegistry = new InMemoryEmbeddingAdapterRegistry();
@@ -245,9 +244,10 @@ describe("SemanticMemoryService", () => {
     expect(result.skipped).toBe(1);
     expect(embeddedTexts).toEqual(["project deployment context"]);
     expect(stores.memoryEmbeddings.get("missing") ?? undefined).toBeUndefined();
-    expect(stores.memoryEmbeddings.list().map((entry) => entry.memoryId)).toEqual(["project-memory"]);
+    expect(stores.memoryEmbeddings.list().map((entry) => entry.memoryId)).toEqual([
+      "project-memory",
+    ]);
   });
-
 
   it("does not update the vector index when the durable transaction fails", async () => {
     const stores = new InMemoryDomainStores();
@@ -352,7 +352,12 @@ describe("SemanticMemoryService", () => {
       adapters: adapterRegistry,
     });
 
-    const service = new SemanticMemoryService(stores.memory, stores.memoryEmbeddings, gateway, stores);
+    const service = new SemanticMemoryService(
+      stores.memory,
+      stores.memoryEmbeddings,
+      gateway,
+      stores,
+    );
     const memory: MemoryEntry = {
       id: "m1",
       kind: "FACT",

@@ -4,11 +4,7 @@ import type { MemoryEmbedding } from "@polyon/contracts";
 
 import { ExactNormalizedSemanticVectorIndex } from "./semantic-vector-index";
 
-const embedding = (
-  id: string,
-  modelId: string,
-  vector: readonly number[],
-): MemoryEmbedding => ({
+const embedding = (id: string, modelId: string, vector: readonly number[]): MemoryEmbedding => ({
   id,
   memoryId: id,
   modelId,
