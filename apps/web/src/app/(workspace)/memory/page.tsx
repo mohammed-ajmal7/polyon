@@ -30,22 +30,9 @@ export default function MemoryPage() {
   }
 
   useEffect(() => {
-    let active = true;
-    void fetch("/api/memory?limit=50&q=", { cache: "no-store" })
-      .then(async (response) => {
-        const body = (await response.json().catch(() => ({}))) as {
-          memories?: Memory[];
-          error?: string;
-        };
-        if (!response.ok) throw new Error(body.error ?? "Memory search failed.");
-        if (active) setMemories(body.memories ?? []);
-      })
-      .catch((cause) => {
-        if (active) setError(cause instanceof Error ? cause.message : "Memory search failed.");
-      });
-    return () => {
-      active = false;
-    };
+    void search().catch((cause) =>
+      setError(cause instanceof Error ? cause.message : "Memory search failed."),
+    );
   }, []);
 
   async function save(event: FormEvent) {
