@@ -281,7 +281,7 @@ export class ResearchOrchestrationService {
               candidate.retrievedAt,
           ),
         now: now(),
-        ...(input.signal === undefined ? {} : { modelOptions: { signal: input.signal } }),
+        signal: input.signal,
       });
       research = { sources: result.sources, evidence: result.evidence };
     } catch (error) {
