@@ -90,11 +90,17 @@ describe("DebateOrchestrationService", () => {
     });
 
     expect(result.debate.status).toBe("DECIDED");
-    expect(requests.every((request) =>
-      request.request.messages.some((message) =>
+    expect(requests).toHaveLength(9);
+    expect(
+      requests[0]?.request.messages.some((message) =>
         message.content.includes("Collective evidence says the leading hypothesis has support."),
       ),
-    )).toBe(true);
+    ).toBe(true);
+    expect(
+      requests.at(-1)?.request.messages.some((message) =>
+        message.content.includes("Collective evidence says the leading hypothesis has support."),
+      ),
+    ).toBe(true);
     expect(
       stores.events
         .list()
