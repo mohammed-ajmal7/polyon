@@ -267,10 +267,51 @@ export class CollectiveOrchestrationService {
         failures,
         sourceIds: [],
         evidenceIds: [],
+        ...(debateFailure === undefined ? {} : { failures: [...failures, debateFailure] }),
       };
     }
 
     const researchContext = mergeResearchContext([...researchByAgent.values()]);
+    let debateResult: DebateRunResult | undefined;
+    let debateFailure: CollectiveFailure | undefined;
+
+    if (input.debateEnabled === true) {
+      const debateId = `${collectiveId}:debate`;
+      try {
+        this.dependencies.debates.create({
+          id: debateId,
+          objective: input.command.message.content,
+          participantAgentIds: targets.map((target) => target.agentId),
+          maxParticipants: targets.length,
+          maxRounds: input.debateMaxRounds ?? 1,
+          createdAt: now(),
+          conversationId: input.command.conversation.id,
+        });
+
+        debateResult = await this.dependencies.debates.run({
+          debateId,
+          requiredCapabilityIds: input.requiredCapabilityIds,
+          adjudicatorAgentId: synthesizerAgentId,
+          now,
+          conversationId: input.command.conversation.id,
+          initialContext: this.buildDebateContext(
+            input.command.message.content,
+            contributions,
+            researchContext,
+          ),
+        });
+      } catch (error) {
+        debateFailure = {
+          agentId: synthesizerAgentId,
+          actorId:
+            targets.find((target) => target.agentId === synthesizerAgentId)?.actorId ??
+            synthesizerAgentId,
+          error: `Debate failed: ${error instanceof Error ? error.message : "Unknown debate error."}`,
+        };
+        this.persistFailure(collectiveId, input, synthesizerAgentId, debateFailure.error, now());
+      }
+    }
+
     let synthesisContent: string;
     let synthesisModelId: string;
     let synthesisProviderId: string;
@@ -284,6 +325,7 @@ export class CollectiveOrchestrationService {
           contributions,
           failures,
           researchContext,
+          debateResult,
         ),
       });
       synthesisContent = response.output.content.trim().slice(0, MAX_CONTRIBUTION_CHARACTERS);
@@ -340,15 +382,21 @@ export class CollectiveOrchestrationService {
       now(),
     );
 
+    const allFailures =
+      debateFailure === undefined ? failures : [...failures, debateFailure];
+
     return {
       collectiveId,
       conversationId: input.command.conversation.id,
-      status: failures.length === 0 ? "SUCCEEDED" : "PARTIAL",
+      status: allFailures.length === 0 ? "SUCCEEDED" : "PARTIAL",
       synthesizerAgentId,
       contributions,
-      failures,
+      failures: allFailures,
       sourceIds: researchContext.sources.map((source) => source.id),
       evidenceIds: researchContext.evidence.map((evidence) => evidence.id),
+      ...(debateResult === undefined
+        ? {}
+        : { debateId: debateResult.debate.id, debateDecision: debateResult.decision }),
       synthesis,
     };
   }
