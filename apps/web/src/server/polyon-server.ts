@@ -9,7 +9,6 @@ import {
 } from "@polyon/integrations";
 import {
   OpenAICompatibleEmbeddingAdapter,
-  OpenAICompatibleTextModelAdapter,
 } from "@polyon/providers";
 import { EncryptedFileSecretResolver, NodeSmtpConnectionFactory } from "@polyon/runtime";
 import {
@@ -124,7 +123,6 @@ function buildConfiguredModelRegistrations() {
 
   const providerId = process.env.POLYON_PROVIDER_ID?.trim() || "configured-model-provider";
   const baseAgentId = process.env.POLYON_AGENT_ID?.trim() || "primary";
-  const now = new Date().toISOString();
   const profile: ModelProfileConfig = {
     agentId: baseAgentId,
     agentName: process.env.POLYON_AGENT_NAME?.trim() || "Primary",
