@@ -107,6 +107,10 @@ User -> Request -> Agent B
 
 Results remain separately attributable.
 
+### Collaborative
+
+Collaborative mode is the first multi-agent collective workflow. POLYON sends a request to a bounded team of active agents in parallel, preserves each attributable contribution, and asks a designated synthesis agent to compare the findings into one transparent response. Contributor failures are recorded without discarding successful work. The workflow is intentionally non-acting: consequential tool and integration work remains behind the existing policy and approval paths.
+
 ### Debate
 
 A finite structured process:
