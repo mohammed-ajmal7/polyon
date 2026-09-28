@@ -6,6 +6,7 @@ import {
   ModelGateway,
   ModelGatewayError,
   ProviderInvocationError,
+  UsageGovernor,
   type ModelCatalog,
   type ProviderCatalog,
 } from ".";
@@ -360,6 +361,115 @@ describe("ModelGateway", () => {
         kind: "PROVIDER_ADAPTER_NOT_FOUND",
       }),
     );
+  });
+
+  it("blocks hosted model calls in zero-cost mode unless explicitly classified as free", () => {
+    const { models, providers } = createCatalogs();
+    const adapters = new InMemoryProviderAdapterRegistry();
+    adapters.register({
+      providerId: "provider-1",
+      async invoke() {
+        return { output: "should not run" };
+      },
+    });
+
+    const gateway = new ModelGateway({
+      models,
+      providers,
+      adapters,
+      usageGovernor: new UsageGovernor({ costMode: "zero" }),
+    });
+
+    expect(() => gateway.invoke("model-1", "hello")).toThrowError(
+      expect.objectContaining({
+        kind: "PAID_MODEL_BLOCKED",
+      }),
+    );
+  });
+
+  it("records actual token usage and enforces per-run token budgets", async () => {
+    const adapters = new InMemoryProviderAdapterRegistry();
+    adapters.register({
+      providerId: "provider-1",
+      async invoke() {
+        return {
+          output: {
+            content: "ok",
+            usage: { totalTokens: 12 },
+          },
+        };
+      },
+    });
+
+    const governor = new UsageGovernor({
+      budgets: [{ providerId: "provider-1", maxTokensPerRun: 20 }],
+    });
+    const { models, providers } = createCatalogs();
+    const gateway = new ModelGateway({
+      models,
+      providers,
+      adapters,
+      usageGovernor: governor,
+    });
+
+    await gateway.invoke("model-1", "hello", {
+      estimatedTokens: 18,
+      usageContext: {
+        runId: "run-1",
+        agentId: "agent-1",
+        costClass: "free",
+      },
+    });
+
+    expect(governor.runSnapshot("run-1", "provider-1")).toMatchObject({
+      tokens: 12,
+      agents: 1,
+    });
+
+    expect(() =>
+      gateway.invoke("model-1", "hello", {
+        estimatedTokens: 9,
+        usageContext: {
+          runId: "run-1",
+          agentId: "agent-1",
+          costClass: "free",
+        },
+      }),
+    ).toThrowError(expect.objectContaining({ kind: "RUN_TOKEN_LIMIT" }));
+  });
+
+  it("counts retry attempts against provider request limits", async () => {
+    let calls = 0;
+    const adapters = new InMemoryProviderAdapterRegistry();
+    adapters.register({
+      providerId: "provider-1",
+      async invoke() {
+        calls += 1;
+        throw new ProviderInvocationError(
+          "UNAVAILABLE",
+          "provider-1",
+          "model-1",
+          "temporary failure",
+          true,
+        );
+      },
+    });
+
+    const gateway = new ModelGateway({
+      ...createCatalogs(),
+      adapters,
+      usageGovernor: new UsageGovernor({
+        budgets: [{ providerId: "provider-1", dailyRequestLimit: 1 }],
+      }),
+    });
+
+    await expect(
+      gateway.invoke("model-1", "hello", {
+        retries: 1,
+        usageContext: { costClass: "free" },
+      }),
+    ).rejects.toMatchObject({ kind: "DAILY_REQUEST_LIMIT" });
+    expect(calls).toBe(1);
   });
 
   it("exposes immutable registry state through gateway dependencies", () => {

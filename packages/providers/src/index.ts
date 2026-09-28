@@ -66,3 +66,17 @@ export {
   type BuiltInProviderPreset,
   type TextModelProviderFactoryOptions,
 } from "./provider-presets";
+
+export {
+  UsageGovernor,
+  UsageGovernorError,
+  type ProviderUsageSnapshot,
+  type RunUsageSnapshot,
+  type UsageAuthorizationRequest,
+  type UsageBudget,
+  type UsageCostClass,
+  type UsageGovernorOptions,
+  type UsageInvocationContext,
+  type UsageGovernorErrorKind,
+  type UsageReservation,
+} from "./usage-governor";
