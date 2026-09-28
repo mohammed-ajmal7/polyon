@@ -153,13 +153,7 @@ export class ModelGateway {
       throw new RangeError("Model invocation retries must be a non-negative integer.");
     }
 
-    return this.invokeWithRetry<TInput, TOutput>(
-      adapter,
-      provider,
-      modelId,
-      input,
-      options,
-    );
+    return this.invokeWithRetry<TInput, TOutput>(adapter, provider, modelId, input, options);
   }
 
   private async invokeWithRetry<TInput, TOutput>(
@@ -308,7 +302,6 @@ export class ModelGateway {
     }
   }
 }
-
 
 function estimateTextModelTokens(request: TextModelRequest): number {
   const serializedLength = JSON.stringify(request).length;
