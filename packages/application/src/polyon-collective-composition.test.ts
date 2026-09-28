@@ -164,4 +164,65 @@ describe("POLYON collective composition", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+
+  it("forms a bounded team automatically when collective targets are omitted", async () => {
+    const root = mkdtempSync(join(tmpdir(), "polyon-collective-planner-"));
+
+    try {
+      const agents = [
+        makeAgent("researcher", "model.researcher", "Researcher"),
+        makeAgent("analyst", "model.analyst", "Analyst"),
+        makeAgent("skeptic", "model.skeptic", "Skeptic"),
+        makeAgent("synthesizer", "model.synthesizer", "Synthesizer"),
+      ];
+      const models = agents.map((agent) => makeModel(agent.preferredModelId!));
+      const composition = createPolyonComposition({
+        storageRoot: root,
+        providers: [makeProvider()],
+        models,
+        agents,
+      });
+
+      const command = composition.commandIngress.submit({
+        mode: "Collaborative",
+        command: "Assemble the appropriate team and investigate the incident.",
+        actorId: "user.test",
+        conversationId: "conversation.collective.planner",
+        messageId: "message.collective.planner",
+        eventId: "event.collective.planner",
+        participantIds: ["user.test"],
+        createdAt: now,
+      });
+
+      const result = await composition.collectiveOrchestration.execute({
+        command,
+        actorId: "user.test",
+        requiredCapabilityIds: [],
+        maxParticipants: 4,
+        maxChallengeRounds: 0,
+        now: () => now,
+      });
+
+      expect(result.status).toBe("SUCCEEDED");
+      expect(result.synthesizerAgentId).toBe("synthesizer");
+      expect(result.contributions.map((item) => item.agentId)).toEqual([
+        "analyst",
+        "researcher",
+        "skeptic",
+      ]);
+
+      const started = composition.stores.events.list().find(
+        (event) => event.kind === "COLLECTIVE_STARTED",
+      );
+      expect(started?.data.participantAgentIds).toEqual([
+        "analyst",
+        "researcher",
+        "skeptic",
+        "synthesizer",
+      ]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });

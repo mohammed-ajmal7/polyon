@@ -48,3 +48,12 @@ export {
   type ProviderHealth,
   type RoutedAgentModel,
 } from "./model-routing";
+
+export {
+  AgentTeamPlannerError,
+  planAgentTeam,
+  type AgentTeamMember,
+  type AgentTeamPlan,
+  type AgentTeamPlannerErrorKind,
+  type AgentTeamPlanningRequest,
+} from "./agent-team-planner";

@@ -13,6 +13,9 @@ export interface Agent {
 
   readonly preferredModelId?: ModelId;
   readonly fallbackModelIds: readonly ModelId[];
+  readonly allowedToolIds?: readonly string[];
+  readonly maxRounds?: number;
+  readonly maxTokens?: number;
 
   readonly createdAt: string;
   readonly updatedAt: string;

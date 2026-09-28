@@ -6,7 +6,12 @@ import type {
   Source,
   TextModelRequest,
 } from "@polyon/contracts";
-import type { AgentGateway, AgentRegistry } from "@polyon/agents";
+import type {
+  AgentGateway,
+  AgentRegistry,
+  AgentTeamPlanningRequest,
+  AgentTeamPlan,
+} from "@polyon/agents";
 import type {
   ConversationStore,
   DomainUnitOfWork,
@@ -33,7 +38,7 @@ export interface CollectiveTarget {
 
 export interface ExecuteCollectiveInput {
   readonly command: CommandIngressResult;
-  readonly targets: readonly CollectiveTarget[];
+  readonly targets?: readonly CollectiveTarget[];
   readonly actorId: string;
   readonly requiredCapabilityIds: readonly string[];
   readonly synthesizerAgentId?: AgentId;
@@ -93,6 +98,7 @@ export interface CollectiveOrchestrationDependencies {
   readonly messages: MessageStore;
   readonly events: EventStore;
   readonly research?: ResearchService;
+  readonly teamPlanner?: (request: AgentTeamPlanningRequest) => AgentTeamPlan;
   readonly unitOfWork?: DomainUnitOfWork;
 }
 
@@ -105,10 +111,10 @@ export class CollectiveOrchestrationService {
   constructor(private readonly dependencies: CollectiveOrchestrationDependencies) {}
 
   async execute(input: ExecuteCollectiveInput): Promise<CollectiveExecutionResult> {
-    this.validateInput(input);
-
     const now = input.now ?? (() => new Date().toISOString());
-    const targets = [...input.targets];
+    const maxParticipants = input.maxParticipants ?? DEFAULT_MAX_PARTICIPANTS;
+    const targets = this.resolveTargets(input, maxParticipants);
+    this.validateInput(input, targets, maxParticipants);
     const synthesizerAgentId = input.synthesizerAgentId ?? targets[targets.length - 1]!.agentId;
     const collectiveId = `collective:${input.command.conversation.id}:${input.command.message.id}`;
     const researchEnabled = input.researchEnabled ?? this.dependencies.research !== undefined;
@@ -133,6 +139,7 @@ export class CollectiveOrchestrationService {
       researchEnabled,
       researchSourceLimit,
       maxChallengeRounds,
+      targets,
     );
 
     const researchByAgent = new Map<AgentId, ResearchContext>();
@@ -454,12 +461,39 @@ export class CollectiveOrchestrationService {
     };
   }
 
-  private validateInput(input: ExecuteCollectiveInput): void {
+  private resolveTargets(
+    input: ExecuteCollectiveInput,
+    maxParticipants: number,
+  ): CollectiveTarget[] {
+    if (input.targets !== undefined && input.targets.length > 0) {
+      return [...input.targets];
+    }
+
+    if (this.dependencies.teamPlanner === undefined) {
+      throw new RangeError("Collective targets are required when no team planner is configured.");
+    }
+
+    const plan = this.dependencies.teamPlanner({
+      requiredCapabilityIds: input.requiredCapabilityIds,
+      minimumAgents: MIN_PARTICIPANTS,
+      maximumAgents: maxParticipants,
+      preferProviderDiversity: true,
+    });
+
+    return plan.members.map((member) => ({
+      agentId: member.agent.id,
+      actorId: member.agent.id,
+    }));
+  }
+
+  private validateInput(
+    input: ExecuteCollectiveInput,
+    targets: readonly CollectiveTarget[],
+    maxParticipants: number,
+  ): void {
     if (input.command.message.actorId !== input.actorId) {
       throw new Error("Command actor and collective actor must match.");
     }
-
-    const maxParticipants = input.maxParticipants ?? DEFAULT_MAX_PARTICIPANTS;
     if (
       !Number.isInteger(maxParticipants) ||
       maxParticipants < MIN_PARTICIPANTS ||
@@ -468,12 +502,19 @@ export class CollectiveOrchestrationService {
       throw new RangeError("Collective participant limit must be between 2 and 8.");
     }
 
-    if (input.targets.length < MIN_PARTICIPANTS || input.targets.length > maxParticipants) {
+    if (targets.length < MIN_PARTICIPANTS || targets.length > maxParticipants) {
       throw new RangeError(`Collective execution requires 2-${maxParticipants} agents.`);
     }
 
-    if (new Set(input.targets.map((target) => target.agentId)).size !== input.targets.length) {
+    if (new Set(targets.map((target) => target.agentId)).size !== targets.length) {
       throw new Error("Collective targets must not contain duplicate agent IDs.");
+    }
+
+    if (
+      input.synthesizerAgentId !== undefined &&
+      !targets.some((target) => target.agentId === input.synthesizerAgentId)
+    ) {
+      throw new Error("Collective synthesizer must be one of the collective targets.");
     }
 
     if (input.researchSourceLimit !== undefined) {
@@ -639,6 +680,7 @@ export class CollectiveOrchestrationService {
     researchEnabled: boolean,
     researchSourceLimit: number,
     maxChallengeRounds: number,
+    targets: readonly CollectiveTarget[],
   ): void {
     this.withStores((stores) => {
       stores.events.append({
@@ -649,7 +691,7 @@ export class CollectiveOrchestrationService {
         occurredAt,
         data: {
           collectiveId,
-          participantAgentIds: input.targets.map((target) => target.agentId),
+          participantAgentIds: targets.map((target) => target.agentId),
           synthesizerAgentId,
           commandMessageId: input.command.message.id,
           researchEnabled,
