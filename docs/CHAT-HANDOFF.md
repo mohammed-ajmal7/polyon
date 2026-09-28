@@ -9,7 +9,8 @@
 - Integration branch: `develop`
 - Historical architecture branch: `feature/core-architecture`
 - Release branch for the first release candidate: `release/0.1.0`
-- Current architecture baseline head: **2c84f17060ea468105395ef264d4f6a7bed95002**
+- Current `develop` head: **48d6361f20c50642c5508083954dd752550f3ea6**
+- Historical architecture/release baseline head: **2c84f17060ea468105395ef264d4f6a7bed95002**
 - CI is the source of truth for verification. Do not call any branch green until the latest run for the exact head succeeds.
 
 ## Implemented operating loop
@@ -39,7 +40,9 @@
 - Telegram SEND_MESSAGE integration;
 - Email SEND_EMAIL through provider-neutral SMTP with TLS/STARTTLS, AUTH LOGIN, MIME and protocol bounds;
 - all consequential integration/tool execution remains behind policy/approval/audit;
-- MCP HTTP handling supports initialization notifications without a JSON-RPC response and bounded `tools/list` pagination with opaque cursors.
+- MCP HTTP handling supports initialization notifications without a JSON-RPC response and bounded `tools/list` pagination with opaque cursors;
+- A2A HTTP handling supports agent card, SendMessage, GetTask, ListTasks, and CancelTask with actor-scoped task visibility;
+- AI HQ workspace routes cover Missions, Executions, Approvals, Agents, Memory, Research, Evidence, Artifacts, Activity, and Settings.
 
 ### Memory, research, evidence
 
@@ -68,7 +71,8 @@
 
 ## Intentional remaining work
 
-1. Advanced MCP/A2A features beyond the implemented HTTP baseline.
+1. Release-candidate deployment validation: real model configuration, approval/execution smoke tests, backup/restore, and authenticated self-hosted deployment.
+2. Advanced MCP/A2A features beyond the implemented HTTP baseline.
 2. Multi-user/enterprise identity and tenancy, outside the current personal deployment scope.
 3. Sustained production-scale load/profiling and broader adversarial E2E coverage.
 4. Target-specific deployment automation beyond self-hosted Docker/Compose.
