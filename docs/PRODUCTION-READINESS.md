@@ -26,7 +26,7 @@ Current capabilities:
 
 ## Remaining production-depth work
 
-1. Advanced MCP/A2A features such as streaming, push, subscriptions, and broader specification coverage.
+1. Advanced MCP/A2A features such as streaming, push, subscriptions, and broader specification coverage. MCP initialization notifications and bounded `tools/list` pagination are implemented; those advanced capabilities remain pending.
 2. Multi-user/enterprise identity and tenancy, outside the personal deployment scope.
 3. Sustained load testing, profiling, and broader adversarial E2E coverage beyond the current deterministic production-scale suite.
 4. Deployment automation for a specific infrastructure target beyond self-hosted Docker/Compose.
