@@ -47,6 +47,62 @@ describe("DebateOrchestrationService", () => {
     expect(invokeText).toHaveBeenCalledTimes(9);
   });
 
+  it("attaches the conversation and bounded initial context to debate traces", async () => {
+    const stores = new InMemoryDomainStores();
+    const requests: Array<{ agentId: string; request: { messages: readonly { content: string }[] } }> = [];
+    const invokeText = vi.fn(async (input: {
+      agentId: string;
+      request: { messages: readonly { content: string }[] };
+    }) => {
+      requests.push(input);
+      return {
+        agentId: input.agentId,
+        modelId: "model-1",
+        providerId: "provider-1",
+        source: "preferred" as const,
+        output: { content: "debate response" },
+      };
+    });
+    const service = new DebateOrchestrationService(
+      { invokeText } as never,
+      stores.debates,
+      stores.events,
+      stores,
+    );
+
+    const debate = service.create({
+      id: "debate-context-1",
+      objective: "Evaluate the evidence.",
+      participantAgentIds: ["agent-a", "agent-b"],
+      maxParticipants: 2,
+      maxRounds: 1,
+      createdAt: "2026-09-28T00:00:00.000Z",
+      conversationId: "conversation-context",
+    });
+
+    const result = await service.run({
+      debateId: debate.id,
+      requiredCapabilityIds: [],
+      adjudicatorAgentId: "agent-a",
+      now: () => "2026-09-28T00:00:01.000Z",
+      conversationId: "conversation-context",
+      initialContext: "Collective evidence says the leading hypothesis has support.",
+    });
+
+    expect(result.debate.status).toBe("DECIDED");
+    expect(requests.every((request) =>
+      request.request.messages.some((message) =>
+        message.content.includes("Collective evidence says the leading hypothesis has support."),
+      ),
+    )).toBe(true);
+    expect(
+      stores.events
+        .list()
+        .filter((event) => event.kind.startsWith("DEBATE_"))
+        .every((event) => event.conversationId === "conversation-context"),
+    ).toBe(true);
+  });
+
   it("reuses persisted contributions and returns an existing decision on restart", async () => {
     const stores = new InMemoryDomainStores();
     const invokeText = vi.fn(async () => ({
