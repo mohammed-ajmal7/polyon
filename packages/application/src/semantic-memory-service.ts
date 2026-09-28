@@ -66,7 +66,12 @@ export class SemanticMemoryService {
 
   async reindex(
     modelId: string,
-    input: { readonly now: string; readonly batchSize?: number; readonly maxEntries?: number },
+    input: {
+      readonly now: string;
+      readonly batchSize?: number;
+      readonly maxEntries?: number;
+      readonly signal?: AbortSignal;
+    },
   ): Promise<{ readonly indexed: number; readonly stale: number; readonly skipped: number }> {
     if (modelId.trim() === "") throw new RangeError("Embedding model ID must not be empty.");
 
@@ -92,9 +97,11 @@ export class SemanticMemoryService {
 
     for (let offset = 0; offset < candidates.length; offset += batchSize) {
       const batch = candidates.slice(offset, offset + batchSize);
-      const response = await this.embeddingGateway.embed(modelId, {
-        input: batch.map(({ memory }) => memory.text),
-      });
+      const response = await this.embeddingGateway.embed(
+        modelId,
+        { input: batch.map(({ memory }) => memory.text) },
+        { signal: input.signal },
+      );
 
       if (response.vectors.length !== batch.length) {
         throw new Error("Embedding reindex returned an unexpected vector count.");

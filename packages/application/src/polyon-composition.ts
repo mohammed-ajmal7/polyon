@@ -17,6 +17,8 @@ import {
 import {
   ArtifactCatalogService,
   SemanticMemoryService,
+  createSemanticMemoryIndexer,
+  type SemanticMemoryIndexer,
   CommandIngressService,
   CodingAgentService,
   ConversationAgentOrchestrationService,
@@ -92,6 +94,10 @@ export interface PolyonCompositionOptions {
   readonly models?: readonly Model[];
   readonly providers?: readonly PolyonProviderRegistration[];
   readonly embeddingProvider?: PolyonEmbeddingProviderRegistration;
+  readonly semanticMemoryIndexingEnabled?: boolean;
+  readonly semanticMemoryIndexIntervalMs?: number;
+  readonly semanticMemoryIndexBatchSize?: number;
+  readonly semanticMemoryIndexMaxEntries?: number;
   readonly integrations?: readonly IntegrationAdapter[];
   readonly secretResolver?: SecretResolver;
   readonly googleDriveIntegrationId?: string;
@@ -207,6 +213,7 @@ export interface PolyonComposition {
   readonly codingAgent: CodingAgentService;
   readonly memory: MemoryService;
   readonly semanticMemory?: SemanticMemoryService;
+  readonly semanticMemoryIndexer?: SemanticMemoryIndexer;
   readonly research?: ResearchService;
   readonly researchSynthesis: ResearchSynthesisService;
   readonly creative?: CreativeJobService;
@@ -332,6 +339,22 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     embeddingGateway === undefined
       ? undefined
       : new SemanticMemoryService(stores.memory, stores.memoryEmbeddings, embeddingGateway, stores);
+  const semanticMemoryIndexer =
+    semanticMemory === undefined ||
+    embeddingGateway === undefined ||
+    options.semanticMemoryIndexingEnabled === false
+      ? undefined
+      : createSemanticMemoryIndexer(semanticMemory, options.embeddingProvider!.model.id, {
+          ...(options.semanticMemoryIndexIntervalMs === undefined
+            ? {}
+            : { intervalMs: options.semanticMemoryIndexIntervalMs }),
+          ...(options.semanticMemoryIndexBatchSize === undefined
+            ? {}
+            : { batchSize: options.semanticMemoryIndexBatchSize }),
+          ...(options.semanticMemoryIndexMaxEntries === undefined
+            ? {}
+            : { maxEntries: options.semanticMemoryIndexMaxEntries }),
+        });
   const debates = new DebateOrchestrationService(
     agentGateway,
     stores.debates,
@@ -770,6 +793,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     codingAgent,
     memory,
     ...(semanticMemory === undefined ? {} : { semanticMemory }),
+    ...(semanticMemoryIndexer === undefined ? {} : { semanticMemoryIndexer }),
     ...(research === undefined ? {} : { research }),
     researchSynthesis,
     ...(creative === undefined ? {} : { creative }),
