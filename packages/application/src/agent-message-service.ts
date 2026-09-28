@@ -6,7 +6,13 @@ import type {
   Message,
   MessageId,
 } from "@polyon/contracts";
-import type { ConversationStore, DomainUnitOfWork, EventStore, MessageStore } from "@polyon/storage";
+import type {
+  ConversationStore,
+  DomainStoreTransactionContext,
+  DomainUnitOfWork,
+  EventStore,
+  MessageStore,
+} from "@polyon/storage";
 
 const MAX_RUN_ID_LENGTH = 160;
 const MAX_CONTENT_CHARACTERS = 12_000;
