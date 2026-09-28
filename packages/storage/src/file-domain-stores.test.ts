@@ -200,7 +200,45 @@ describe("FileDomainStores", () => {
     }
   });
 
-  it("uses a transactional context for writes and commits them once", () => {
+  it("rejects a public direct write during a transaction", () => {
+    const directory = mkdtempSync(join(tmpdir(), "polyon-domain-context-"));
+
+    try {
+      const stores = new FileDomainStores(directory);
+
+      expect(() =>
+        stores.transaction(({ missions }) => {
+          missions.save({
+            id: "mission-staged",
+            objective: "Staged transaction write.",
+            constraints: [],
+            status: "DRAFT",
+            taskIds: [],
+            createdAt: "2026-09-28T00:00:00.000Z",
+            updatedAt: "2026-09-28T00:00:00.000Z",
+          });
+
+          stores.missions.save({
+            id: "mission-direct",
+            objective: "Must not bypass transaction.",
+            constraints: [],
+            status: "DRAFT",
+            taskIds: [],
+            createdAt: "2026-09-28T00:00:00.000Z",
+            updatedAt: "2026-09-28T00:00:00.000Z",
+          });
+        }),
+      ).toThrow("A storage transaction is already in progress.");
+
+      const reopened = new FileDomainStores(directory);
+      expect(reopened.missions.get("mission-staged")).toBeUndefined();
+      expect(reopened.missions.get("mission-direct")).toBeUndefined();
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("commits writes from the transaction callback once", () => {
     const directory = mkdtempSync(join(tmpdir(), "polyon-domain-context-"));
 
     try {
