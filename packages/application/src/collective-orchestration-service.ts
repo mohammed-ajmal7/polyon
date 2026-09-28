@@ -588,8 +588,7 @@ export class CollectiveOrchestrationService {
     );
     const challengeLines = challenges.map(
       (item) =>
-        `[challenge agent=${item.agentId} round=${item.round} targets=${item.targetAgentIds.join(",")}]
-${item.content}`,
+        `[challenge agent=${item.agentId} round=${item.round} targets=${item.targetAgentIds.join(",")}]\n${item.content}`,
     );
     const failureLines = failures.map((item) => `[agent=${item.agentId}] failed: ${item.error}`);
     const evidenceContext = formatEvidenceContext(research);
@@ -615,7 +614,7 @@ ${item.content}`,
         {
           role: "USER",
           content:
-            `User request: ${command}\n\nCollective findings:\n${context}` +
+            `User request: ${command}\n\nCollective findings and challenges:\n${context}` +
             (evidenceContext === "" ? "" : `\n\nShared evidence:\n${evidenceContext}`) +
             "\n\nFormat the response with these sections: Findings, Evidence, Agreements, " +
             "Disagreements, Counterclaims, Uncertainty, Conclusion.",
