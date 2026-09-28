@@ -161,7 +161,9 @@ export class McpServerService {
       actorId: this.dependencies.actorId,
     });
 
-    return toolOutcomeResponse(request.id, outcome);
+    return toolOutcomeResponse(request.id ?? null, outcome);
+  }
+
   private listTools(request: McpJsonRpcRequest): McpJsonRpcResponse {
     const allTools = [
       ...this.dependencies.tools.list()
