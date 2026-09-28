@@ -6,6 +6,7 @@ import { InMemoryDomainStores } from "@polyon/storage";
 
 import type { CommandIngressResult } from "./command-ingress";
 import { CollectiveOrchestrationService } from "./collective-orchestration-service";
+import { ResearchService } from "./research-service";
 
 const now = "2026-09-28T13:00:00.000Z";
 
@@ -81,6 +82,8 @@ describe("CollectiveOrchestrationService", () => {
       }
 
       return {
+        modelId: agentId + "-model",
+        providerId: "test-provider",
         output: {
           content:
             agentId === "researcher"
@@ -146,6 +149,8 @@ describe("CollectiveOrchestrationService", () => {
     const invokeText = vi.fn(async ({ agentId }: { agentId: string }) => {
       if (agentId === "researcher") throw new Error("research service unavailable");
       return {
+        modelId: agentId + "-model",
+        providerId: "test-provider",
         output: {
           content:
             agentId === "analyst"
@@ -186,6 +191,99 @@ describe("CollectiveOrchestrationService", () => {
       },
     ]);
     expect(result.synthesis?.content).toContain("failed researcher");
+  });
+
+
+  it("researches per contributor and gives source-backed evidence to the synthesizer", async () => {
+    const stores = new InMemoryDomainStores();
+    stores.conversations.save(command().conversation);
+    stores.messages.save(command().message);
+
+    const agents = new InMemoryAgentRegistry();
+    agents.register(agent("researcher", "Research specialist"));
+    agents.register(agent("analyst", "Analytical specialist"));
+    agents.register(agent("synthesizer", "Synthesis lead"));
+
+    const retriever = {
+      search: vi.fn(async (query: string) => [
+        {
+          title: query.includes("Research specialist") ? "Research source" : "Analysis source",
+          locator: query.includes("Research specialist")
+            ? "https://example.com/research"
+            : "https://example.com/analysis",
+          kind: "WEB" as const,
+          content: query.includes("Research specialist")
+            ? "Primary evidence from the research source."
+            : "Independent evidence from the analysis source.",
+          claim: "A supported claim.",
+          retrievedAt: now,
+        },
+      ]),
+    };
+
+    const research = new ResearchService(
+      retriever,
+      stores.sources,
+      stores.evidence,
+      stores.events,
+      stores,
+    );
+
+    const requests: TextModelRequest[] = [];
+    const invokeText = vi.fn(async (input: { agentId: string; request: TextModelRequest }) => {
+      requests.push(input.request);
+      return {
+        modelId: input.agentId + "-model",
+        providerId: "test-provider",
+        output: {
+          content:
+            input.agentId === "synthesizer"
+              ? "Synthesized from evidence and team findings."
+              : "Contributor finding grounded in retrieved evidence.",
+        },
+      };
+    });
+
+    const service = new CollectiveOrchestrationService({
+      agents,
+      agentGateway: { invokeText } as never,
+      conversations: stores.conversations,
+      messages: stores.messages,
+      events: stores.events,
+      research,
+      unitOfWork: stores,
+    });
+
+    const result = await service.execute({
+      command: command(),
+      targets: [
+        { agentId: "researcher", actorId: "researcher" },
+        { agentId: "analyst", actorId: "analyst" },
+        { agentId: "synthesizer", actorId: "synthesizer" },
+      ],
+      actorId: "user-1",
+      requiredCapabilityIds: [],
+      synthesizerAgentId: "synthesizer",
+      researchEnabled: true,
+      researchSourceLimit: 1,
+      now: () => now,
+    });
+
+    expect(result.status).toBe("SUCCEEDED");
+    expect(result.sourceIds).toHaveLength(2);
+    expect(result.evidenceIds).toHaveLength(2);
+    expect(stores.evidence.list().every((item) => item.taskId === result.collectiveId)).toBe(true);
+
+    const synthesisRequest = requests.find((request) =>
+      request.messages.some(
+        (message) =>
+          message.role === "USER" &&
+          message.content.includes("Shared evidence"),
+      ),
+    );
+    expect(synthesisRequest?.messages.some((message) =>
+      message.content.includes("Primary evidence from the research source."),
+    )).toBe(true);
   });
 
   it("requires at least two distinct active participants", async () => {
