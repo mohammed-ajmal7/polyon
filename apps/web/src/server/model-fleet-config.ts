@@ -1,5 +1,10 @@
 import type { Agent, Model, Provider } from "@polyon/contracts";
-import { OpenAICompatibleTextModelAdapter } from "@polyon/providers";
+import {
+  createTextModelProviderAdapter,
+  getBuiltInProviderPreset,
+  resolveProviderApiKeyEnv,
+  resolveProviderEndpoint,
+} from "@polyon/providers";
 import type { PolyonProviderRegistration } from "@polyon/application";
 
 export interface ModelProfileConfig {
@@ -11,7 +16,7 @@ export interface ModelProfileConfig {
   readonly modelName?: string;
   readonly providerId: string;
   readonly providerName?: string;
-  readonly endpoint: string;
+  readonly endpoint?: string;
   readonly apiKeyEnv?: string;
   readonly fallbackModelIds?: readonly string[];
 }
@@ -116,17 +121,19 @@ export function buildModelRegistrations(
   }));
 
   const providers = [...profilesByProviderId(profiles)].map((profile) => {
-    const apiKey =
-      profile.apiKeyEnv === undefined ? undefined : environment[profile.apiKeyEnv]?.trim();
+    const endpoint = resolveProviderEndpoint(profile.providerId, profile.endpoint);
+    const apiKeyEnv = resolveProviderApiKeyEnv(profile.providerId, profile.apiKeyEnv);
+    const apiKey = apiKeyEnv === undefined ? undefined : environment[apiKeyEnv]?.trim();
+    const preset = getBuiltInProviderPreset(profile.providerId);
     const provider: Provider = {
       id: profile.providerId,
-      name: profile.providerName ?? profile.providerId,
-      kind: "HOSTED_MODEL",
+      name: profile.providerName ?? preset?.providerName ?? profile.providerId,
+      kind: preset?.kind ?? "HOSTED_MODEL",
       enabled: true,
     };
-    const adapter = new OpenAICompatibleTextModelAdapter({
+    const adapter = createTextModelProviderAdapter({
       providerId: profile.providerId,
-      endpoint: profile.endpoint,
+      endpoint,
       ...(apiKey === undefined || apiKey === "" ? {} : { apiKey }),
     });
 
@@ -160,7 +167,11 @@ function sameModelConfiguration(a: ModelProfileConfig, b: ModelProfileConfig): b
 
 function sameProviderConfiguration(a: ModelProfileConfig, b: ModelProfileConfig): boolean {
   return (
-    a.providerName === b.providerName && a.endpoint === b.endpoint && a.apiKeyEnv === b.apiKeyEnv
+    a.providerName === b.providerName &&
+    resolveProviderEndpoint(a.providerId, a.endpoint) ===
+      resolveProviderEndpoint(b.providerId, b.endpoint) &&
+    resolveProviderApiKeyEnv(a.providerId, a.apiKeyEnv) ===
+      resolveProviderApiKeyEnv(b.providerId, b.apiKeyEnv)
   );
 }
 
@@ -180,7 +191,7 @@ function parseProfile(value: unknown, index: number): ModelProfileConfig {
     modelName: optionalString(record.modelName, "modelName", index),
     providerId: requiredString(record.providerId, "providerId", index),
     providerName: optionalString(record.providerName, "providerName", index),
-    endpoint: requiredString(record.endpoint, "endpoint", index),
+    endpoint: optionalString(record.endpoint, "endpoint", index),
     apiKeyEnv: optionalString(record.apiKeyEnv, "apiKeyEnv", index),
     fallbackModelIds: parseFallbacks(record.fallbackModelIds, index),
   };
