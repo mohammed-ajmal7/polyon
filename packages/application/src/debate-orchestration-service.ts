@@ -259,15 +259,24 @@ export class DebateOrchestrationService {
     else this.unitOfWork.transaction(operation);
   }
 
-  private debateEvent(kind: DomainEvent["kind"], debate: Debate, occurredAt: string, data: Record<string, unknown>): DomainEvent {
+  private debateEvent(
+    kind: DomainEvent["kind"],
+    debate: Debate,
+    occurredAt: string,
+    data: Record<string, unknown>,
+  ): DomainEvent {
+    const from = typeof data.from === "string" ? data.from : "";
+    const to = typeof data.to === "string" ? data.to : "";
+    const phase = typeof data.phase === "string" ? data.phase : debate.phase;
+    const round = typeof data.round === "number" ? String(data.round) : String(debate.currentRound);
+
     return {
-      id: `${kind}:${debate.id}:${occurredAt}`,
+      id: `${kind}:${debate.id}:${occurredAt}:${from}:${to}:${phase}:${round}`,
       kind,
       occurredAt,
       data: { debateId: debate.id, ...data },
     };
-  }
-}
+  }}
 
 function phaseInstruction(phase: Debate["phase"]): string {
   switch (phase) {
