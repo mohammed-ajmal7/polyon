@@ -24,6 +24,7 @@ import {
 } from "@polyon/agents";
 import {
   ArtifactCatalogService,
+  AgentRunService,
   SemanticMemoryService,
   createSemanticMemoryIndexer,
   ExactNormalizedSemanticVectorIndex,
@@ -229,6 +230,7 @@ export interface PolyonComposition {
   readonly artifactCatalog: ArtifactCatalogService;
   readonly localArtifactContent?: LocalArtifactContentService;
   readonly agentToolOrchestration: AgentToolOrchestrationService;
+  readonly agentRuns: AgentRunService;
   readonly codingAgent: CodingAgentService;
   readonly memory: MemoryService;
   readonly semanticMemory?: SemanticMemoryService;
@@ -506,6 +508,14 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     artifacts: stores.artifacts,
   });
 
+  const agentRuns = new AgentRunService({
+    agentRuns: stores.agentRuns,
+    messages: stores.messages,
+    events: stores.events,
+    conversations: stores.conversations,
+    unitOfWork: stores,
+  });
+
   const localArtifactContent =
     options.artifactRoot === undefined
       ? undefined
@@ -763,6 +773,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     messages: stores.messages,
     events: stores.events,
     ...(research === undefined ? {} : { research }),
+    agentRuns,
     teamPlanner: (request) =>
       planAgentTeam(request, {
         agents,
@@ -859,6 +870,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     artifactCatalog,
     ...(localArtifactContent === undefined ? {} : { localArtifactContent }),
     agentToolOrchestration,
+    agentRuns,
     codingAgent,
     memory,
     ...(semanticMemory === undefined ? {} : { semanticMemory }),
