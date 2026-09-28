@@ -281,17 +281,21 @@ describe("A2A task listing", () => {
       params: { pageSize: 2, pageToken: firstResult.nextPageToken },
     });
 
-    expect(second?.result).toMatchObject({
-      pageSize: 2,
-      totalSize: 3,
-      nextPageToken: "",
-      tasks: [
-        expect.objectContaining({
-          id: "task-old",
-          status: { state: "TASK_STATE_COMPLETED" },
-        }),
-      ],
-    });
+    const secondResult = second?.result as {
+      tasks: readonly {
+        id: string;
+        status: { state: string };
+      }[];
+      nextPageToken: string;
+      pageSize: number;
+      totalSize: number;
+    };
+    expect(secondResult.pageSize).toBe(2);
+    expect(secondResult.totalSize).toBe(3);
+    expect(secondResult.nextPageToken).toBe("");
+    expect(secondResult.tasks.map((task) => ({ id: task.id, state: task.status.state }))).toEqual([
+      { id: "task-old", state: "TASK_STATE_COMPLETED" },
+    ]);
   });
 
   it("filters tasks by context and status", async () => {
