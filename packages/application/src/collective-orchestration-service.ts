@@ -740,15 +740,15 @@ export class CollectiveOrchestrationService {
           stores.events.append({
             id: `AGENT_MESSAGE_CREATED:${messageId}`,
             kind: "AGENT_MESSAGE_CREATED",
-          actorId: contribution.actorId,
-          conversationId: input.command.conversation.id,
-          occurredAt,
-          data: {
-            messageId,
-            runId: collectiveId,
-            fromAgentId: contribution.agentId,
-            agentMessageType: "finding",
-          },
+            actorId: contribution.actorId,
+            conversationId: input.command.conversation.id,
+            occurredAt,
+            data: {
+              messageId,
+              runId: collectiveId,
+              fromAgentId: contribution.agentId,
+              agentMessageType: "finding",
+            },
           });
         }
 
@@ -846,15 +846,15 @@ export class CollectiveOrchestrationService {
             id: `AGENT_MESSAGE_CREATED:${messageId}`,
             kind: "AGENT_MESSAGE_CREATED",
             actorId: challenge.actorId,
-          conversationId: input.command.conversation.id,
-          occurredAt,
-          data: {
-            messageId,
-            runId: collectiveId,
-            fromAgentId: challenge.agentId,
-            agentMessageType: "challenge",
-            toAgentIds: [...challenge.targetAgentIds],
-          },
+            conversationId: input.command.conversation.id,
+            occurredAt,
+            data: {
+              messageId,
+              runId: collectiveId,
+              fromAgentId: challenge.agentId,
+              agentMessageType: "challenge",
+              toAgentIds: [...challenge.targetAgentIds],
+            },
           });
         }
 
@@ -965,15 +965,15 @@ export class CollectiveOrchestrationService {
         stores.events.append({
           id: `AGENT_MESSAGE_CREATED:${message.id}`,
           kind: "AGENT_MESSAGE_CREATED",
-        actorId: synthesizerAgentId,
-        conversationId: message.conversationId,
-        occurredAt,
-        data: {
-          messageId: message.id,
-          runId: collectiveId,
-          fromAgentId: synthesizerAgentId,
-          agentMessageType: "decision",
-          synthesis: true,
+          actorId: synthesizerAgentId,
+          conversationId: message.conversationId,
+          occurredAt,
+          data: {
+            messageId: message.id,
+            runId: collectiveId,
+            fromAgentId: synthesizerAgentId,
+            agentMessageType: "decision",
+            synthesis: true,
           },
         });
       }
