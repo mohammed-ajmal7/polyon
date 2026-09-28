@@ -784,6 +784,17 @@ export class CollectiveOrchestrationService {
             role: "AGENT",
             kind: "TEXT",
             content: contribution.content,
+            runId: collectiveId,
+            fromAgentId: contribution.agentId,
+            agentMessageType: "finding",
+            payload: {
+              agentId: contribution.agentId,
+              role: contribution.role,
+              modelId: contribution.modelId,
+              providerId: contribution.providerId,
+              sourceIds: [...contribution.sourceIds],
+              evidenceIds: [...contribution.evidenceIds],
+            },
             createdAt: occurredAt,
           });
         }
@@ -862,6 +873,16 @@ export class CollectiveOrchestrationService {
             role: "AGENT",
             kind: "TEXT",
             content: challenge.content,
+            runId: collectiveId,
+            fromAgentId: challenge.agentId,
+            agentMessageType: "challenge",
+            payload: {
+              agentId: challenge.agentId,
+              round: challenge.round,
+              modelId: challenge.modelId,
+              providerId: challenge.providerId,
+              targetAgentIds: [...challenge.targetAgentIds],
+            },
             createdAt: occurredAt,
           });
         }
@@ -938,6 +959,16 @@ export class CollectiveOrchestrationService {
       role: "AGENT",
       kind: "TEXT",
       content,
+      runId: collectiveId,
+      fromAgentId: synthesizerAgentId,
+      agentMessageType: "decision",
+      payload: {
+        synthesizerAgentId,
+        modelId,
+        providerId,
+        sourceIds: research.sources.map((source) => source.id),
+        evidenceIds: research.evidence.map((evidence) => evidence.id),
+      },
       createdAt: occurredAt,
     };
 
