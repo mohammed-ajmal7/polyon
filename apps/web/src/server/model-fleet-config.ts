@@ -47,24 +47,31 @@ export function parseModelProfiles(value: string): ModelProfileConfig[] {
 
   const profiles = parsed.map((item, index) => parseProfile(item, index));
   const agentIds = new Set<string>();
-  const modelIds = new Set<string>();
-  const providerIds = new Set<string>();
+  const modelsById = new Map<string, ModelProfileConfig>();
+  const providersById = new Map<string, ModelProfileConfig>();
 
   for (const profile of profiles) {
     if (agentIds.has(profile.agentId)) {
       throw new Error(`Duplicate model profile agentId: ${profile.agentId}.`);
     }
-    if (modelIds.has(profile.modelId)) {
-      throw new Error(`Duplicate model profile modelId: ${profile.modelId}.`);
-    }
-    if (providerIds.has(profile.providerId)) {
+
+    const existingModel = modelsById.get(profile.modelId);
+    if (existingModel !== undefined && !sameModelConfiguration(existingModel, profile)) {
       throw new Error(
-        `Duplicate model profile providerId: ${profile.providerId}. Each configured provider must have one endpoint.`,
+        `Model profile ${profile.modelId} is configured inconsistently across the roster.`,
       );
     }
+
+    const existingProvider = providersById.get(profile.providerId);
+    if (existingProvider !== undefined && !sameProviderConfiguration(existingProvider, profile)) {
+      throw new Error(
+        `Provider profile ${profile.providerId} is configured inconsistently across the roster.`,
+      );
+    }
+
     agentIds.add(profile.agentId);
-    modelIds.add(profile.modelId);
-    providerIds.add(profile.providerId);
+    modelsById.set(profile.modelId, existingModel ?? profile);
+    providersById.set(profile.providerId, existingProvider ?? profile);
   }
 
   for (const profile of profiles) {
@@ -99,7 +106,7 @@ export function buildModelRegistrations(
     updatedAt: now,
   }));
 
-  const models = profiles.map((profile) => ({
+  const models = [...profilesByModelId(profiles)].map((profile) => ({
     id: profile.modelId,
     providerId: profile.providerId,
     name: profile.modelName ?? profile.modelId,
@@ -108,7 +115,7 @@ export function buildModelRegistrations(
     enabled: true,
   }));
 
-  const providers = profiles.map((profile) => {
+  const providers = [...profilesByProviderId(profiles)].map((profile) => {
     const apiKey =
       profile.apiKeyEnv === undefined ? undefined : environment[profile.apiKeyEnv]?.trim();
     const provider: Provider = {
@@ -127,6 +134,39 @@ export function buildModelRegistrations(
   });
 
   return { agents, models, providers };
+}
+
+function profilesByModelId(profiles: readonly ModelProfileConfig[]): ModelProfileConfig[] {
+  const seen = new Set<string>();
+  return profiles.filter((profile) => {
+    if (seen.has(profile.modelId)) return false;
+    seen.add(profile.modelId);
+    return true;
+  });
+}
+
+function profilesByProviderId(profiles: readonly ModelProfileConfig[]): ModelProfileConfig[] {
+  const seen = new Set<string>();
+  return profiles.filter((profile) => {
+    if (seen.has(profile.providerId)) return false;
+    seen.add(profile.providerId);
+    return true;
+  });
+}
+
+function sameModelConfiguration(a: ModelProfileConfig, b: ModelProfileConfig): boolean {
+  return (
+    a.modelName === b.modelName &&
+    a.providerId === b.providerId
+  );
+}
+
+function sameProviderConfiguration(a: ModelProfileConfig, b: ModelProfileConfig): boolean {
+  return (
+    a.providerName === b.providerName &&
+    a.endpoint === b.endpoint &&
+    a.apiKeyEnv === b.apiKeyEnv
+  );
 }
 
 function parseProfile(value: unknown, index: number): ModelProfileConfig {
