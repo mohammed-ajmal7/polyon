@@ -259,9 +259,20 @@ export class CollectiveOrchestrationService {
         .map((result) => result.failure),
     ];
 
-    this.persistContributions(collectiveId, input, contributions, failures, now());
+    const researchContext = mergeResearchContext([...researchByAgent.values()]);
+
+    if (
+      !Number.isInteger(maxChallengeRounds) ||
+      maxChallengeRounds < 0 ||
+      maxChallengeRounds > MAX_CHALLENGE_ROUNDS
+    ) {
+      throw new RangeError("Collective maxChallengeRounds must be an integer between 0 and 2.");
+    }
+
+    const challenges: CollectiveChallenge[] = [];
 
     if (contributions.length === 0) {
+      this.persistContributions(collectiveId, input, contributions, failures, now());
       this.persistFailure(
         collectiveId,
         input,
@@ -275,13 +286,88 @@ export class CollectiveOrchestrationService {
         status: "FAILED",
         synthesizerAgentId,
         contributions,
+        challenges,
         failures,
         sourceIds: [],
         evidenceIds: [],
       };
     }
 
-    const researchContext = mergeResearchContext([...researchByAgent.values()]);
+    for (let round = 1; round <= maxChallengeRounds; round += 1) {
+      const results = await Promise.all(
+        targets.map(async (target) => {
+          const agent = this.dependencies.agents.get(target.agentId);
+          const role = agent?.role ?? "Generalist";
+          const targetAgentIds = contributors
+            .filter((candidate) => candidate.agentId !== target.agentId)
+            .map((candidate) => candidate.agentId);
+
+          try {
+            const response = await this.dependencies.agentGateway.invokeText({
+              agentId: target.agentId,
+              requiredCapabilityIds: input.requiredCapabilityIds,
+              request: this.buildChallengeRequest(
+                input.command.message.content,
+                role,
+                target.agentId,
+                round,
+                contributions,
+                challenges,
+                researchContext,
+              ),
+            });
+
+            const content = response.output.content.trim().slice(0, MAX_CONTRIBUTION_CHARACTERS);
+            if (content === "") throw new Error("Challenge agent returned empty content.");
+
+            return {
+              kind: "success" as const,
+              challenge: {
+                agentId: target.agentId,
+                actorId: target.actorId,
+                round,
+                modelId: response.modelId,
+                providerId: response.providerId,
+                targetAgentIds,
+                content,
+              },
+            };
+          } catch (error) {
+            return {
+              kind: "failure" as const,
+              failure: {
+                agentId: target.agentId,
+                actorId: target.actorId,
+                error:
+                  error instanceof Error
+                    ? `Challenge failed: ${error.message}`
+                    : "Challenge invocation failed.",
+              },
+            };
+          }
+        }),
+      );
+
+      const roundChallenges = results
+        .filter(
+          (result): result is Extract<(typeof results)[number], { kind: "success" }> =>
+            result.kind === "success",
+        )
+        .map((result) => result.challenge);
+      const roundFailures = results
+        .filter(
+          (result): result is Extract<(typeof results)[number], { kind: "failure" }> =>
+            result.kind === "failure",
+        )
+        .map((result) => result.failure);
+
+      challenges.push(...roundChallenges);
+      failures.push(...roundFailures);
+      this.persistChallenges(collectiveId, input, roundChallenges, roundFailures, now());
+    }
+
+    this.persistContributions(collectiveId, input, contributions, [], now());
+
     let synthesisContent: string;
     let synthesisModelId: string;
     let synthesisProviderId: string;
@@ -293,6 +379,7 @@ export class CollectiveOrchestrationService {
         request: this.buildSynthesisRequest(
           input.command.message.content,
           contributions,
+          challenges,
           failures,
           researchContext,
         ),
@@ -314,6 +401,7 @@ export class CollectiveOrchestrationService {
         status: "FAILED",
         synthesizerAgentId,
         contributions,
+        challenges,
         failures,
         sourceIds: researchContext.sources.map((source) => source.id),
         evidenceIds: researchContext.evidence.map((evidence) => evidence.id),
@@ -357,6 +445,7 @@ export class CollectiveOrchestrationService {
       status: failures.length === 0 ? "SUCCEEDED" : "PARTIAL",
       synthesizerAgentId,
       contributions,
+      challenges,
       failures,
       sourceIds: researchContext.sources.map((source) => source.id),
       evidenceIds: researchContext.evidence.map((evidence) => evidence.id),
