@@ -6,6 +6,41 @@
 
 POLYON is a personal, privacy-first AI workspace for coordinating multiple AI agents, models, tools, research systems, coding agents, and local intelligence.
 
+## Open source
+
+POLYON is released under the **MIT License**.
+
+The repository contains the source for the self-hosted POLYON workspace. You can run it locally, connect it to a compatible model provider, or deploy it with Docker Compose.
+
+Open source does not mean that a public POLYON instance is provided by this repository. Hosting, model inference, credentials, and integrations are deployment concerns. POLYON keeps those concerns outside the source tree and exposes configuration through environment variables.
+
+See [LICENSE](LICENSE) for the license terms, [CONTRIBUTING.md](CONTRIBUTING.md) for development workflow, and [SECURITY.md](SECURITY.md) for security reporting and deployment guidance.
+
+## Quick start
+
+Local development:
+
+```bash
+pnpm install
+cp apps/web/.env.example apps/web/.env
+pnpm dev
+```
+
+Self-hosted Docker:
+
+```bash
+docker compose up --build
+```
+
+For a local model, configure an OpenAI-compatible endpoint in `apps/web/.env`. Keep:
+
+```env
+POLYON_EXECUTION_ENABLED=false
+POLYON_APPROVAL_MODE=ASK_EVERYTHING
+```
+
+until the deployment has been validated.
+
 ## Architecture
 
 POLYON separates domain rules, application orchestration, runtime execution, provider adapters, external integrations, durable storage, and the web interface behind explicit boundaries.
@@ -56,30 +91,12 @@ Secrets stay server-side. Write APIs enforce same-origin checks. Model-requested
 Development uses a protected integration path:
 
 ```
-feature/* -> develop -> release/0.1.0 -> main -> v0.1.0
+feature/* -> develop -> release/* -> main -> v0.1.0
 ```
 
 Features and fixes are developed on short-lived `feature/*` branches and merged into `develop` through pull requests. A release branch is cut from `develop` only when the release candidate is ready for stabilization. Production releases are merged to `main` and tagged.
 
 The historical `feature/core-architecture` branch contains the architecture built before this workflow was introduced and is retained as a reference/integration baseline.
-
-## Local development
-
-```bash
-pnpm install
-cp apps/web/.env.example apps/web/.env
-pnpm dev
-```
-
-For self-hosted deployment:
-
-```bash
-docker compose up --build
-```
-
-Persistent application state is stored in the configured `POLYON_DATA_DIR`.
-
-See `docs/OPERATIONS.md` for configuration and operational guidance and `docs/RELEASE-CHECKLIST.md` for release verification.
 
 ## Verification
 
@@ -106,15 +123,3 @@ The core POLYON operating loop is implemented. Work that can remain after the in
 - target-specific deployment automation beyond self-hosted Docker/Compose.
 
 ACP is treated as the legacy line absorbed into the current A2A interoperability path, not as a separate modern transport to duplicate.
-
-## Quality bar
-
-Before a feature is considered complete:
-
-- preserve human authority;
-- preserve policy/approval/audit boundaries;
-- add focused tests;
-- run typecheck/test/lint/format/build;
-- inspect the resulting diff;
-- document any new operational controls;
-- report CI failures honestly.
