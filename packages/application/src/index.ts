@@ -324,3 +324,10 @@ export {
   type SemanticVectorIndex,
   type SemanticVectorSearchHit,
 } from "./semantic-vector-index";
+
+
+export {
+  AgentMessageService,
+  type AgentMessageServiceDependencies,
+  type SendAgentMessageInput,
+} from "./agent-message-service";

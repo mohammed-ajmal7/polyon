@@ -79,6 +79,7 @@ export type {
   ConversationId,
   ConversationKind,
   ConversationStatus,
+  AgentMessageType,
   Message,
   MessageId,
   MessageKind,

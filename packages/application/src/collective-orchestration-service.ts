@@ -712,7 +712,8 @@ export class CollectiveOrchestrationService {
     this.withStores((stores) => {
       for (const contribution of contributions) {
         const messageId = `collective:${collectiveId}:agent:${contribution.agentId}`;
-        if (stores.messages.get(messageId) === undefined) {
+        const messageExists = stores.messages.get(messageId) !== undefined;
+        if (!messageExists) {
           stores.messages.save({
             id: messageId,
             conversationId: input.command.conversation.id,
@@ -720,7 +721,34 @@ export class CollectiveOrchestrationService {
             role: "AGENT",
             kind: "TEXT",
             content: contribution.content,
+            runId: collectiveId,
+            fromAgentId: contribution.agentId,
+            agentMessageType: "finding",
+            payload: {
+              agentId: contribution.agentId,
+              role: contribution.role,
+              modelId: contribution.modelId,
+              providerId: contribution.providerId,
+              sourceIds: [...contribution.sourceIds],
+              evidenceIds: [...contribution.evidenceIds],
+            },
             createdAt: occurredAt,
+          });
+        }
+
+        if (stores.events.get(`AGENT_MESSAGE_CREATED:${messageId}`) === undefined) {
+          stores.events.append({
+            id: `AGENT_MESSAGE_CREATED:${messageId}`,
+            kind: "AGENT_MESSAGE_CREATED",
+            actorId: contribution.actorId,
+            conversationId: input.command.conversation.id,
+            occurredAt,
+            data: {
+              messageId,
+              runId: collectiveId,
+              fromAgentId: contribution.agentId,
+              agentMessageType: "finding",
+            },
           });
         }
 
@@ -790,7 +818,8 @@ export class CollectiveOrchestrationService {
     this.withStores((stores) => {
       for (const challenge of challenges) {
         const messageId = `collective:${collectiveId}:challenge:${challenge.round}:${challenge.agentId}`;
-        if (stores.messages.get(messageId) === undefined) {
+        const messageExists = stores.messages.get(messageId) !== undefined;
+        if (!messageExists) {
           stores.messages.save({
             id: messageId,
             conversationId: input.command.conversation.id,
@@ -798,7 +827,34 @@ export class CollectiveOrchestrationService {
             role: "AGENT",
             kind: "TEXT",
             content: challenge.content,
+            runId: collectiveId,
+            fromAgentId: challenge.agentId,
+            agentMessageType: "challenge",
+            payload: {
+              agentId: challenge.agentId,
+              round: challenge.round,
+              modelId: challenge.modelId,
+              providerId: challenge.providerId,
+              targetAgentIds: [...challenge.targetAgentIds],
+            },
             createdAt: occurredAt,
+          });
+        }
+
+        if (stores.events.get(`AGENT_MESSAGE_CREATED:${messageId}`) === undefined) {
+          stores.events.append({
+            id: `AGENT_MESSAGE_CREATED:${messageId}`,
+            kind: "AGENT_MESSAGE_CREATED",
+            actorId: challenge.actorId,
+            conversationId: input.command.conversation.id,
+            occurredAt,
+            data: {
+              messageId,
+              runId: collectiveId,
+              fromAgentId: challenge.agentId,
+              agentMessageType: "challenge",
+              toAgentIds: [...challenge.targetAgentIds],
+            },
           });
         }
 
@@ -874,6 +930,16 @@ export class CollectiveOrchestrationService {
       role: "AGENT",
       kind: "TEXT",
       content,
+      runId: collectiveId,
+      fromAgentId: synthesizerAgentId,
+      agentMessageType: "decision",
+      payload: {
+        synthesizerAgentId,
+        modelId,
+        providerId,
+        sourceIds: research.sources.map((source) => source.id),
+        evidenceIds: research.evidence.map((evidence) => evidence.id),
+      },
       createdAt: occurredAt,
     };
 
@@ -892,6 +958,23 @@ export class CollectiveOrchestrationService {
           ...conversation,
           messageIds: [...conversation.messageIds, message.id],
           updatedAt: occurredAt,
+        });
+      }
+
+      if (stores.events.get(`AGENT_MESSAGE_CREATED:${message.id}`) === undefined) {
+        stores.events.append({
+          id: `AGENT_MESSAGE_CREATED:${message.id}`,
+          kind: "AGENT_MESSAGE_CREATED",
+          actorId: synthesizerAgentId,
+          conversationId: message.conversationId,
+          occurredAt,
+          data: {
+            messageId: message.id,
+            runId: collectiveId,
+            fromAgentId: synthesizerAgentId,
+            agentMessageType: "decision",
+            synthesis: true,
+          },
         });
       }
 

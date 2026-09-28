@@ -40,6 +40,7 @@ import {
   ExecutionDispatchService,
   ExecutionResultService,
   AgentToolOrchestrationService,
+  AgentMessageService,
   MemoryService,
   MissionPlanningService,
   MissionCreationService,
@@ -224,6 +225,7 @@ export interface PolyonComposition {
   readonly executionApproval: ExecutionApprovalService;
   readonly executionRetry: ExecutionRetryService;
   readonly toolInvocation: ToolInvocationService;
+  readonly agentMessages: AgentMessageService;
   readonly integrationInvocation: IntegrationInvocationService;
   readonly integrationCatalog: IntegrationCatalogService;
   readonly artifactCatalog: ArtifactCatalogService;
@@ -531,6 +533,13 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
 
   const integrationCatalog = new IntegrationCatalogService(integrations);
 
+  const agentMessages = new AgentMessageService({
+    conversations: stores.conversations,
+    messages: stores.messages,
+    events: stores.events,
+    unitOfWork: stores,
+  });
+
   const integrationInvocation = new IntegrationInvocationService({
     integrations,
     approvals: stores.approvals,
@@ -553,6 +562,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   const agentToolOrchestration = new AgentToolOrchestrationService({
     agentGateway,
     toolInvocation,
+    agentMessages,
     integrationInvocation,
     integrations,
     tools: builtinTools.tools,
