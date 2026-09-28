@@ -1,6 +1,11 @@
 import type { AgentId, DomainEvent, Message } from "@polyon/contracts";
 import type { AgentRegistry } from "@polyon/agents";
-import type { DomainUnitOfWork, EventStore, MessageStore, ConversationStore } from "@polyon/storage";
+import type {
+  ConversationStore,
+  DomainUnitOfWork,
+  EventStore,
+  MessageStore,
+} from "@polyon/storage";
 
 import type {
   CollectiveExecutionResult,
@@ -137,13 +142,15 @@ export class DeepAnalysisOrchestrationService {
       createdAt: now(),
     });
 
-    const debate = await this.dependencies.debates.run({
-      debateId,
-      requiredCapabilityIds: input.requiredCapabilityIds,
-      adjudicatorAgentId: synthesizerAgentId,
-      now,
-      context,
-    }).catch((error) => {
+    const debate = await this.dependencies.debates
+      .run({
+        debateId,
+        requiredCapabilityIds: input.requiredCapabilityIds,
+        adjudicatorAgentId: synthesizerAgentId,
+        now,
+        context,
+      })
+      .catch((error) => {
       this.persistError(
         input,
         deepAnalysisId,
