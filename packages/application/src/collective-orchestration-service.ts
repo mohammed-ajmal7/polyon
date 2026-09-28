@@ -61,6 +61,7 @@ export type CollectiveExecutionStatus = "SUCCEEDED" | "PARTIAL" | "FAILED";
 
 export interface CollectiveExecutionResult {
   readonly collectiveId: string;
+  readonly conversationId: string;
   readonly status: CollectiveExecutionStatus;
   readonly synthesizerAgentId: AgentId;
   readonly contributions: readonly CollectiveContribution[];
@@ -240,6 +241,7 @@ export class CollectiveOrchestrationService {
       );
       return {
         collectiveId,
+        conversationId: input.command.conversation.id,
         status: "FAILED",
         synthesizerAgentId,
         contributions,
@@ -278,6 +280,7 @@ export class CollectiveOrchestrationService {
       );
       return {
         collectiveId,
+        conversationId: input.command.conversation.id,
         status: "FAILED",
         synthesizerAgentId,
         contributions,
@@ -297,6 +300,7 @@ export class CollectiveOrchestrationService {
       );
       return {
         collectiveId,
+        conversationId: input.command.conversation.id,
         status: "FAILED",
         synthesizerAgentId,
         contributions,
@@ -319,6 +323,7 @@ export class CollectiveOrchestrationService {
 
     return {
       collectiveId,
+      conversationId: input.command.conversation.id,
       status: failures.length === 0 ? "SUCCEEDED" : "PARTIAL",
       synthesizerAgentId,
       contributions,
