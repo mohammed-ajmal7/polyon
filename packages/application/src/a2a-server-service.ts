@@ -389,11 +389,7 @@ function parseTaskStateFilter(value: unknown): {
   }
 }
 
-function isTaskVisible(
-  task: Task,
-  actorId: string,
-  executions: readonly Execution[],
-): boolean {
+function isTaskVisible(task: Task, actorId: string, executions: readonly Execution[]): boolean {
   return executions.some(
     (execution) => execution.taskId === task.id && execution.actorId === actorId,
   );
