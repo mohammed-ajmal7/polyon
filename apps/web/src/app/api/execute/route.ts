@@ -140,7 +140,13 @@ export async function POST(request: Request): Promise<Response> {
 }
 
 function parseMode(value: unknown): CommandMode {
-  if (value === "Direct" || value === "Broadcast" || value === "Debate" || value === "Mission")
+  if (
+    value === "Direct" ||
+    value === "Broadcast" ||
+    value === "Collaborative" ||
+    value === "Debate" ||
+    value === "Mission"
+  )
     return value;
   throw new Error("Invalid command mode.");
 }
@@ -177,16 +183,18 @@ function resolveTargets(
   mode: CommandMode,
   polyon: ReturnType<typeof getPolyonComposition>,
 ) {
-  const ids =
-    value === undefined
-      ? mode === "Collaborative"
+  let ids: readonly string[];
+
+  if (value === undefined) {
+    ids =
+      mode === "Collaborative"
         ? polyon.agents.list().slice(0, 8).map((agent) => agent.id)
-        : [polyon.agents.list()[0]?.id].filter((id): id is string => id !== undefined)
-      : Array.isArray(value)
-        ? value.map((id) => parseString(id, 200, "agentId"))
-        : (() => {
-            throw new Error("agentIds must be an array.");
-          })();
+        : [polyon.agents.list()[0]?.id].filter((id): id is string => id !== undefined);
+  } else if (Array.isArray(value)) {
+    ids = value.map((id) => parseString(id, 200, "agentId"));
+  } else {
+    throw new Error("agentIds must be an array.");
+  }
 
   if (ids.length === 0 || ids.length > 8)
     throw new Error("agentIds must contain between 1 and 8 agents.");
