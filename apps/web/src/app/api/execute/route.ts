@@ -188,7 +188,10 @@ function resolveTargets(
   if (value === undefined) {
     ids =
       mode === "Collaborative"
-        ? polyon.agents.list().slice(0, 8).map((agent) => agent.id)
+        ? polyon.agents
+            .list()
+            .slice(0, 8)
+            .map((agent) => agent.id)
         : [polyon.agents.list()[0]?.id].filter((id): id is string => id !== undefined);
   } else if (Array.isArray(value)) {
     ids = value.map((id) => parseString(id, 200, "agentId"));
