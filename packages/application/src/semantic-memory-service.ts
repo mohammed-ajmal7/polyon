@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import type { MemoryEmbedding, MemoryEntry, MemoryScope } from "@polyon/contracts";
 import type { EmbeddingGateway } from "@polyon/providers";
 import type { DomainUnitOfWork, EntityStore, MemoryStore } from "@polyon/storage";
+import type { SemanticVectorIndex } from "./semantic-vector-index";
 
 export interface SemanticMemorySearchInput {
   readonly query: string;
@@ -25,7 +26,10 @@ export class SemanticMemoryService {
     private readonly embeddings: EntityStore<MemoryEmbedding>,
     private readonly embeddingGateway: EmbeddingGateway,
     private readonly unitOfWork?: DomainUnitOfWork,
-  ) {}
+    private readonly vectorIndex?: SemanticVectorIndex,
+  ) {
+    this.vectorIndex?.rebuild(this.embeddings.list());
+  }
 
   async index(memory: MemoryEntry, modelId: string, now: string): Promise<MemoryEmbedding> {
     const response = await this.embeddingGateway.embed(modelId, { input: [memory.text] });
@@ -57,11 +61,15 @@ export class SemanticMemoryService {
       return embedding;
     };
 
-    return this.unitOfWork === undefined
-      ? operation({ memories: this.memories, embeddings: this.embeddings })
-      : this.unitOfWork.transaction((context) =>
-          operation({ memories: context.memory, embeddings: context.memoryEmbeddings }),
-        );
+    const persisted =
+      this.unitOfWork === undefined
+        ? operation({ memories: this.memories, embeddings: this.embeddings })
+        : this.unitOfWork.transaction((context) =>
+            operation({ memories: context.memory, embeddings: context.memoryEmbeddings }),
+          );
+
+    this.vectorIndex?.upsert(persisted);
+    return persisted;
   }
 
   async reindex(
@@ -112,12 +120,13 @@ export class SemanticMemoryService {
       }
 
       const operation = (embeddingStore: EntityStore<MemoryEmbedding>) => {
+        const persisted: MemoryEmbedding[] = [];
         for (let index = 0; index < batch.length; index += 1) {
           const memory = batch[index]!.memory;
           const vector = response.vectors[index];
           if (vector === undefined) throw new Error("Embedding reindex returned a missing vector.");
 
-          embeddingStore.save({
+          const embedding: MemoryEmbedding = {
             id: this.embeddingId(memory.id, modelId),
             memoryId: memory.id,
             modelId,
@@ -126,12 +135,19 @@ export class SemanticMemoryService {
             contentHash: this.contentHash(memory.text),
             createdAt: memory.createdAt,
             updatedAt: input.now,
-          });
+          };
+          embeddingStore.save(embedding);
+          persisted.push(embedding);
         }
+        return persisted;
       };
 
-      if (this.unitOfWork === undefined) operation(this.embeddings);
-      else this.unitOfWork.transaction((context) => operation(context.memoryEmbeddings));
+      const persisted =
+        this.unitOfWork === undefined
+          ? operation(this.embeddings)
+          : this.unitOfWork.transaction((context) => operation(context.memoryEmbeddings));
+
+      for (const embedding of persisted) this.vectorIndex?.upsert(embedding);
       indexed += batch.length;
     }
 
@@ -156,11 +172,20 @@ export class SemanticMemoryService {
     const queryVector = queryResponse.vectors[0];
     if (queryVector === undefined) throw new Error("Embedding provider returned no query vector.");
 
-    const results = this.embeddings
-      .list()
-      .filter((embedding) => embedding.modelId === input.modelId)
-      .filter((embedding) => embedding.dimensions === queryVector.length)
-      .map((embedding) => {
+    const candidateEmbeddings =
+      this.vectorIndex === undefined
+        ? this.embeddings
+            .list()
+            .filter((embedding) => embedding.modelId === input.modelId)
+            .filter((embedding) => embedding.dimensions === queryVector.length)
+            .map((embedding) => ({
+              embedding,
+              score: cosineSimilarity(queryVector, embedding.vector),
+            }))
+        : this.vectorIndex.search(input.modelId, queryVector);
+
+    const results = candidateEmbeddings
+      .map(({ embedding, score }) => {
         const memory = this.memories.get(embedding.memoryId);
         if (memory === undefined) return undefined;
         if (input.scope !== undefined && memory.scope !== input.scope) return undefined;
@@ -175,10 +200,7 @@ export class SemanticMemoryService {
           return undefined;
         if (embedding.contentHash !== this.contentHash(memory.text)) return undefined;
 
-        return {
-          memory,
-          score: cosineSimilarity(queryVector, embedding.vector),
-        };
+        return { memory, score };
       })
       .filter((result): result is SemanticMemorySearchResult => result !== undefined)
       .sort(
@@ -212,6 +234,7 @@ function cosineSimilarity(left: readonly number[], right: readonly number[]): nu
   for (let index = 0; index < left.length; index += 1) {
     const leftValue = left[index]!;
     const rightValue = right[index]!;
+    if (!Number.isFinite(leftValue) || !Number.isFinite(rightValue)) return 0;
     dot += leftValue * rightValue;
     leftMagnitude += leftValue * leftValue;
     rightMagnitude += rightValue * rightValue;

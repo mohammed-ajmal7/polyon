@@ -25,6 +25,7 @@ import {
   ArtifactCatalogService,
   SemanticMemoryService,
   createSemanticMemoryIndexer,
+  ExactNormalizedSemanticVectorIndex,
   type SemanticMemoryIndexer,
   CommandIngressService,
   CodingAgentService,

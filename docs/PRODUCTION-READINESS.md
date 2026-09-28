@@ -24,7 +24,7 @@ Current capabilities:
 
 ## Remaining production-depth work
 
-1. Automatic durable semantic-memory indexing/reindex recovery is implemented with bounded cycles, restart cancellation, and configurable autostart; deployment-specific ANN/vector-store acceleration remains separate.
+1. Automatic durable indexing/reindex recovery and a replaceable vector acceleration strategy are implemented: semantic indexing can run on startup, and the default exact local vector index caches normalized vectors while preserving an adapter boundary for ANN/pgvector implementations.
 2. Advanced MCP/A2A features such as streaming, push, subscriptions, and broader spec coverage.
 3. Multi-user/enterprise identity and tenancy, outside the personal deployment scope.
 4. Large-scale performance/load testing and broader adversarial E2E coverage.
