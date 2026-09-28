@@ -136,20 +136,18 @@ describe("POLYON collective composition", () => {
         "researcher",
         "analyst",
         "skeptic",
-        "synthesizer",
       ]);
       expect(result.contributions.map((item) => item.modelId)).toEqual([
         "model.researcher",
         "model.analyst",
         "model.skeptic",
-        "model.synthesizer",
       ]);
       expect(result.challenges).toHaveLength(4);
       expect(result.synthesis?.actorId).toBe("synthesizer");
       expect(result.synthesis?.content).toContain("Conclusion:");
 
       const conversation = composition.stores.conversations.get(command.conversation.id);
-      expect(conversation?.messageIds).toHaveLength(10);
+      expect(conversation?.messageIds).toHaveLength(9);
 
       expect(
         composition.stores.events.list().filter((event) => event.kind === "COLLECTIVE_CONTRIBUTION"),
