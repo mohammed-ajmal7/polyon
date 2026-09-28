@@ -324,3 +324,12 @@ export {
   type SemanticVectorIndex,
   type SemanticVectorSearchHit,
 } from "./semantic-vector-index";
+
+
+export {
+  AgentRunService,
+  type AgentRunServiceDependencies,
+  type CompleteAgentRunInput,
+  type CreateAgentRunInput,
+  type FailAgentRunInput,
+} from "./agent-run-service";
