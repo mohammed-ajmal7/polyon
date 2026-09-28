@@ -1,7 +1,16 @@
-import type { ArtifactKind, ArtifactStatus, ToolId } from "@polyon/contracts";
+import type { ActorId, AgentId, ArtifactKind, ArtifactStatus, ToolId } from "@polyon/contracts";
+
+export interface ToolInvocationContext {
+  readonly actorId?: ActorId;
+  readonly agentId?: AgentId;
+  readonly missionId?: string;
+  readonly taskId?: string;
+  readonly executionId?: string;
+}
 
 export interface ToolInvocationRequest<TInput = unknown> {
   readonly input: TInput;
+  readonly context?: ToolInvocationContext;
 }
 
 export interface ToolArtifactResult {
