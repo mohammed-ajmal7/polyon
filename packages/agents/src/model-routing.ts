@@ -148,7 +148,7 @@ function healthPenalty(health: ProviderHealth): number {
     case "degraded":
       return 25;
     case "quota_limited":
-      return 100;
+      return Number.POSITIVE_INFINITY;
     case "unavailable":
     case "misconfigured":
       return Number.POSITIVE_INFINITY;
