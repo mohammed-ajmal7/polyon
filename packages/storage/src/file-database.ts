@@ -171,6 +171,8 @@ const STALE_LOCK_AFTER_MS = 5 * 60 * 1000;
 function acquireCommitLock(filePath: string): string {
   const lockPath = `${filePath}.lock`;
 
+  mkdirSync(dirname(lockPath), { recursive: true });
+
   try {
     const descriptor = openSync(lockPath, "wx");
     closeSync(descriptor);

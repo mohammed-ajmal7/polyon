@@ -1,6 +1,6 @@
 /// <reference path="./node-runtime.d.ts" />
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -88,6 +88,24 @@ describe("FileDomainDatabase migrations", () => {
       expect(readFileSync(filePath, "utf8")).toBe(legacyRaw);
     } finally {
       rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("creates the parent directory before the first durable write", () => {
+    const root = mkdtempSync(join(tmpdir(), "polyon-database-"));
+    const filePath = join(root, "nested", "domain-state.json");
+
+    try {
+      const database = new FileDomainDatabase(filePath);
+
+      expect(existsSync(join(root, "nested"))).toBe(false);
+
+      database.replace(database.snapshot());
+
+      expect(existsSync(filePath)).toBe(true);
+      expect(existsSync(`${filePath}.lock`)).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
     }
   });
 });
