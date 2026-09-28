@@ -1,5 +1,7 @@
+import { randomUUID } from "node:crypto";
+
 import { isAuthenticated } from "@/server/auth";
-import { getPolyonComposition } from "@/server/polyon-server";
+import { getPolyonActorId, getPolyonComposition, getPolyonPolicy } from "@/server/polyon-server";
 
 export const runtime = "nodejs";
 
@@ -15,11 +17,11 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   const polyon = getPolyonComposition();
-  const mode = optional(url.searchParams.get("mode")) ?? "lexical";
+  const mode = optionalString(url.searchParams.get("mode")) ?? "lexical";
 
   if (mode === "semantic") {
     const modelId =
-      optional(url.searchParams.get("modelId")) ??
+      optionalString(url.searchParams.get("modelId")) ??
       process.env.POLYON_EMBEDDING_MODEL_ID?.trim();
 
     if (modelId === undefined || polyon.semanticMemory === undefined) {
@@ -32,9 +34,9 @@ export async function GET(request: Request): Promise<Response> {
     try {
       const results = await polyon.semanticMemory.search({
         query,
-        scope: optional(url.searchParams.get("scope")) as never,
-        missionId: optional(url.searchParams.get("missionId")),
-        taskId: optional(url.searchParams.get("taskId")),
+        scope: optionalString(url.searchParams.get("scope")) as never,
+        missionId: optionalString(url.searchParams.get("missionId")),
+        taskId: optionalString(url.searchParams.get("taskId")),
         limit,
         modelId,
       });
@@ -56,18 +58,22 @@ export async function GET(request: Request): Promise<Response> {
 
   const memories = polyon.memory.search({
     query,
-    scope: optional(url.searchParams.get("scope")) as never,
-    missionId: optional(url.searchParams.get("missionId")),
-    taskId: optional(url.searchParams.get("taskId")),
+    scope: optionalString(url.searchParams.get("scope")) as never,
+    missionId: optionalString(url.searchParams.get("missionId")),
+    taskId: optionalString(url.searchParams.get("taskId")),
     limit,
   });
 
   return Response.json({ memories });
 }
 
-function optional(value: string | null): string | undefined {
+function optionalString(value: string | null): string | undefined {
   const trimmed = value?.trim() ?? "";
   return trimmed === "" ? undefined : trimmed;
+}
+
+function optionalUnknown(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
 }
 
 
@@ -92,8 +98,8 @@ export async function POST(request: Request): Promise<Response> {
     const text = boundedString(input.text, 50_000, "text");
     const tags = parseBoundedStrings(input.tags, 32, 100);
     const sourceIds = parseBoundedStrings(input.sourceIds, 100, 200);
-    const missionId = optional(input.missionId);
-    const taskId = optional(input.taskId);
+    const missionId = optionalUnknown(input.missionId);
+    const taskId = optionalUnknown(input.taskId);
     const now = new Date().toISOString();
     const result = await getPolyonComposition().toolInvocation.invoke({
       invocationId: "web-memory:" + randomUUID(),
