@@ -152,9 +152,9 @@ export class A2AServerService {
       pageToken.cursor === undefined
         ? 0
         : filtered.findIndex(
-              (task) =>
-                task.updatedAt === pageToken.cursor!.updatedAt && task.id === pageToken.cursor!.id,
-            ) + 1;
+            (task) =>
+              task.updatedAt === pageToken.cursor!.updatedAt && task.id === pageToken.cursor!.id,
+          ) + 1;
 
     if (pageToken.cursor !== undefined && startIndex === 0) {
       return error(request.id, -32602, "A2A task page token is out of range.");
@@ -319,12 +319,7 @@ function compareTasks(left: Task, right: Task): number {
 }
 
 function encodeTaskPageToken(task: Task): string {
-  return (
-    "a2a-tasks:" +
-    encodeURIComponent(task.updatedAt) +
-    ":" +
-    encodeURIComponent(task.id)
-  );
+  return "a2a-tasks:" + encodeURIComponent(task.updatedAt) + ":" + encodeURIComponent(task.id);
 }
 
 function decodeTaskPageToken(value: unknown): {

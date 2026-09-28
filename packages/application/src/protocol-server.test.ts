@@ -268,9 +268,7 @@ describe("A2A task listing", () => {
     };
     expect(firstResult.pageSize).toBe(2);
     expect(firstResult.totalSize).toBe(3);
-    expect(
-      firstResult.tasks.map((task) => ({ id: task.id, state: task.status.state })),
-    ).toEqual([
+    expect(firstResult.tasks.map((task) => ({ id: task.id, state: task.status.state }))).toEqual([
       { id: "task-new", state: "TASK_STATE_WORKING" },
       { id: "task-other", state: "TASK_STATE_FAILED" },
     ]);
@@ -295,9 +293,9 @@ describe("A2A task listing", () => {
     expect(secondResult.pageSize).toBe(2);
     expect(secondResult.totalSize).toBe(3);
     expect(secondResult.nextPageToken).toBe("");
-    expect(
-      secondResult.tasks.map((task) => ({ id: task.id, state: task.status.state })),
-    ).toEqual([{ id: "task-old", state: "TASK_STATE_COMPLETED" }]);
+    expect(secondResult.tasks.map((task) => ({ id: task.id, state: task.status.state }))).toEqual([
+      { id: "task-old", state: "TASK_STATE_COMPLETED" },
+    ]);
   });
 
   it("filters tasks by context and status", async () => {
