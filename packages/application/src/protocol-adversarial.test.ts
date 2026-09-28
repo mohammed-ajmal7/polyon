@@ -37,7 +37,7 @@ describe("protocol adversarial boundaries", () => {
       },
     );
 
-    expect(response.error?.code).toBe(-32602);
+    expect(response?.error?.code).toBe(-32602);
   });
 
   it("does not expose unknown MCP tools", async () => {
@@ -70,6 +70,6 @@ describe("protocol adversarial boundaries", () => {
       { protocolVersion: "2026-07-28", method: "tools/call", name: "shell.exec" },
     );
 
-    expect(response.error?.code).toBe(-32602);
+    expect(response?.error?.code).toBe(-32602);
   });
 });
