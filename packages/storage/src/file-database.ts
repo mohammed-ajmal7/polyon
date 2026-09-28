@@ -16,6 +16,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { dirname } from "node:path";
 
 import type {
+  AgentRun,
   ApprovalRequest,
   Artifact,
   Conversation,
@@ -43,7 +44,8 @@ import {
 import { StorageConcurrencyError } from "./transaction";
 
 export interface DurableDomainState {
-  readonly version: 3;
+  readonly version: 4;
+  agentRuns: AgentRun[];
   approvals: ApprovalRequest[];
   debates: Debate[];
   evidence: Evidence[];
@@ -72,7 +74,8 @@ function clone<T>(value: T): T {
 
 function emptyState(): DurableDomainState {
   return {
-    version: 3,
+    version: 4,
+    agentRuns: [],
     approvals: [],
     debates: [],
     evidence: [],
@@ -106,12 +109,13 @@ function validateState(filePath: string, value: unknown): DurableDomainState {
     throw new Error(`Invalid durable domain snapshot: ${filePath}.`);
   }
 
-  if (!("version" in value) || value.version !== 3) {
+  if (!("version" in value) || value.version !== 4) {
     throw new Error(`Unsupported durable domain snapshot version: ${filePath}.`);
   }
 
   const record = value as Record<string, unknown>;
   const collectionNames: readonly (keyof Omit<DurableDomainState, "version">)[] = [
+    "agentRuns",
     "approvals",
     "debates",
     "evidence",
