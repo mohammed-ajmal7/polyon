@@ -20,10 +20,11 @@ export async function GET(
     return Response.json({ error: "Invalid conversation id." }, { status: 400 });
   }
 
+  const stores = getPolyonComposition().stores;
   const snapshot = new ConversationQueryService({
-    conversations: getPolyonComposition().stores.conversations,
-    messages: getPolyonComposition().stores.messages,
-    events: getPolyonComposition().stores.events,
+    conversations: stores.conversations,
+    messages: stores.messages,
+    events: stores.events,
   }).get(id);
 
   if (snapshot === undefined) {
