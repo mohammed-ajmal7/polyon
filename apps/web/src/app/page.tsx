@@ -4,13 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 type Mode =
-  | "Direct"
-  | "Broadcast"
-  | "Collaborative"
-  | "Research"
-  | "DeepAnalysis"
-  | "Debate"
-  | "Mission";
+  "Direct" | "Broadcast" | "Collaborative" | "Research" | "DeepAnalysis" | "Debate" | "Mission";
 type ActivityKind = "SYSTEM" | "APPROVAL" | "EXECUTION" | "AGENT";
 
 interface Overview {

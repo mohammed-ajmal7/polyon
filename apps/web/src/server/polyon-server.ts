@@ -128,6 +128,7 @@ function buildConfiguredModelRegistrations() {
     providerId,
     providerName: process.env.POLYON_PROVIDER_NAME?.trim() || "Configured model provider",
     endpoint,
+    apiKeyEnv: "POLYON_MODEL_API_KEY",
   };
 
   if ((process.env.POLYON_COLLECTIVE_PRESET?.trim() || "default").toLowerCase() !== "default") {
