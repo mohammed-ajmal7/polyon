@@ -3,7 +3,14 @@ import type { MissionId } from "../work/ids";
 import type { ConversationId, MessageId } from "./ids";
 
 export type ConversationKind =
-  "DIRECT" | "BROADCAST" | "COLLABORATIVE" | "DEBATE" | "DEEP_ANALYSIS" | "MISSION" | "OTHER";
+  | "DIRECT"
+  | "BROADCAST"
+  | "COLLABORATIVE"
+  | "RESEARCH"
+  | "DEBATE"
+  | "DEEP_ANALYSIS"
+  | "MISSION"
+  | "OTHER";
 
 export type ConversationStatus = "ACTIVE" | "PAUSED" | "COMPLETED" | "CANCELLED";
 

@@ -168,6 +168,17 @@ export {
 } from "./research-service";
 
 export {
+  ResearchOrchestrationService,
+  type ExecuteResearchInput,
+  type ResearchExecutionResult,
+  type ResearchExecutionStatus,
+  type ResearchFailure,
+  type ResearchFinding,
+  type ResearchOrchestrationDependencies,
+  type ResearchTarget,
+} from "./research-orchestration-service";
+
+export {
   BoundedWebResearchRetriever,
   type ResearchSearchResult,
   type BoundedWebResearchRetrieverOptions,
