@@ -1,3 +1,4 @@
+import type { Execution, Task } from "@polyon/contracts";
 import { describe, expect, it, vi } from "vitest";
 
 import { A2AServerService } from "./a2a-server-service";
@@ -162,6 +163,8 @@ describe("protocol servers", () => {
       },
       commandIngress: commandIngress as never,
       conversationOrchestration: conversation as never,
+      executions: { list: () => [] },
+      runtime: { cancel: vi.fn() } as never,
       tasks: {
         list: () => [],
         get: () => undefined,
@@ -233,11 +236,52 @@ describe("A2A task listing", () => {
     },
   ];
 
-  function service() {
+  const executions: Execution[] = [
+    {
+      id: "execution-old",
+      missionId: "mission-1",
+      taskId: "task-old",
+      actorId: "a2a-client",
+      attempt: 1,
+      status: "SUCCEEDED" as const,
+      createdAt: "2026-09-28T00:00:00.000Z",
+      updatedAt: "2026-09-28T00:00:01.000Z",
+    },
+    {
+      id: "execution-new",
+      missionId: "mission-1",
+      taskId: "task-new",
+      actorId: "a2a-client",
+      attempt: 1,
+      status: "RUNNING" as const,
+      createdAt: "2026-09-28T00:00:00.000Z",
+      updatedAt: "2026-09-28T00:00:03.000Z",
+    },
+    {
+      id: "execution-other",
+      missionId: "mission-2",
+      taskId: "task-other",
+      actorId: "a2a-client",
+      attempt: 1,
+      status: "FAILED" as const,
+      createdAt: "2026-09-28T00:00:00.000Z",
+      updatedAt: "2026-09-28T00:00:02.000Z",
+    },
+  ];
+
+  function service(
+    overrides: {
+      readonly executions?: typeof executions;
+      readonly cancel?: ReturnType<typeof vi.fn>;
+    } = {},
+  ) {
+    const cancel = overrides.cancel ?? vi.fn();
     return new A2AServerService({
       agents: { list: () => [] },
       commandIngress: { submit: vi.fn() } as never,
       conversationOrchestration: { execute: vi.fn() } as never,
+      executions: { list: () => overrides.executions ?? executions },
+      runtime: { cancel } as never,
       tasks: {
         list: () => tasks,
         get: (id) => tasks.find((task) => task.id === id),
@@ -330,6 +374,96 @@ describe("A2A task listing", () => {
         state: task.status.state,
       })),
     ).toEqual([{ id: "task-new", contextId: "mission-1", state: "TASK_STATE_WORKING" }]);
+  });
+
+  it("cancels an actor-visible running task through the execution runtime", async () => {
+    let currentTask: Task = {
+      ...tasks[1],
+    };
+    const cancel = vi.fn(() => {
+      currentTask = {
+        ...currentTask,
+        status: "CANCELLED" as const,
+        updatedAt: "2026-09-28T00:00:04.000Z",
+      };
+      return {
+        status: "CANCELLED" as const,
+        execution: {
+          ...executions[1],
+          status: "CANCELLED" as const,
+          updatedAt: "2026-09-28T00:00:04.000Z",
+        },
+      };
+    });
+    const server = new A2AServerService({
+      agents: { list: () => [] },
+      commandIngress: { submit: vi.fn() } as never,
+      conversationOrchestration: { execute: vi.fn() } as never,
+      executions: {
+        list: () => executions,
+      },
+      runtime: { cancel },
+      tasks: {
+        list: () => tasks,
+        get: (id) => (id === currentTask.id ? currentTask : tasks.find((task) => task.id === id)),
+      },
+      policy: policy(),
+      actorId: "a2a-client",
+    });
+
+    const response = await server.handle({
+      jsonrpc: "2.0",
+      id: 6,
+      method: "CancelTask",
+      params: { id: "task-new" },
+    });
+
+    expect(cancel).toHaveBeenCalledWith("execution-new");
+    expect(response?.result).toEqual({
+      id: "task-new",
+      contextId: "mission-1",
+      status: {
+        state: "TASK_STATE_CANCELED",
+        timestamp: "2026-09-28T00:00:04.000Z",
+      },
+      metadata: {
+        polyonTaskKind: "RESEARCH",
+      },
+    });
+  });
+
+  it("does not expose tasks owned by another actor and rejects non-cancelable tasks", async () => {
+    const server = service({
+      executions: [
+        {
+          ...executions[0],
+          actorId: "another-actor",
+        },
+        ...executions.slice(1),
+      ],
+    });
+
+    const hidden = await server.handle({
+      jsonrpc: "2.0",
+      id: 7,
+      method: "GetTask",
+      params: { id: "task-old" },
+    });
+    expect(hidden?.error).toEqual({
+      code: -32001,
+      message: "Task not found.",
+    });
+
+    const terminal = await server.handle({
+      jsonrpc: "2.0",
+      id: 8,
+      method: "CancelTask",
+      params: { id: "task-old" },
+    });
+    expect(terminal?.error).toEqual({
+      code: -32001,
+      message: "Task not found.",
+    });
   });
 
   it("rejects invalid pagination parameters and tokens", async () => {
