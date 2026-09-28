@@ -289,7 +289,6 @@ describe("CollectiveOrchestrationService", () => {
     ).toBe(true);
   });
 
-
   it("runs a bounded peer challenge round before synthesis", async () => {
     const stores = new InMemoryDomainStores();
     stores.conversations.save(command().conversation);
@@ -356,7 +355,9 @@ describe("CollectiveOrchestrationService", () => {
     expect(
       requests.filter((request) =>
         request.messages.some(
-          (message) => message.role === "USER" && message.content.includes("Return the strongest challenges"),
+          (message) =>
+            message.role === "USER" &&
+            message.content.includes("Return the strongest challenges"),
         ),
       ),
     ).toHaveLength(3);
