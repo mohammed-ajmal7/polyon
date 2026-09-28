@@ -249,7 +249,7 @@ export class CollectiveOrchestrationService {
       )
       .map((result) => result.contribution);
 
-    const failures = [
+    const failures: CollectiveFailure[] = [
       ...researchFailures,
       ...contributorResults
         .filter(
@@ -517,6 +517,59 @@ export class CollectiveOrchestrationService {
             "Return useful findings, important assumptions, and uncertainties for another agent to synthesize." +
             (sourceContext === "" ? "" : `\n\nRetrieved sources:\n${sourceContext}`) +
             (evidenceContext === "" ? "" : `\n\nRetrieved evidence:\n${evidenceContext}`),
+        },
+      ],
+    };
+  }
+
+  private buildChallengeRequest(
+    command: string,
+    role: string,
+    agentId: AgentId,
+    round: number,
+    contributions: readonly CollectiveContribution[],
+    challenges: readonly CollectiveChallenge[],
+    research: ResearchContext,
+  ): TextModelRequest {
+    const peerContributions = contributions
+      .filter((item) => item.agentId !== agentId)
+      .map((item) => `[agent=${item.agentId} role=${item.role}]\n${item.content}`)
+      .join("\n\n");
+
+    const priorChallenges = challenges
+      .filter((item) => item.round < round && item.agentId !== agentId)
+      .map((item) => `[challenge agent=${item.agentId} round=${item.round}]\n${item.content}`)
+      .join("\n\n");
+
+    let context = "";
+    for (const block of [peerContributions, priorChallenges]) {
+      if (block === "") continue;
+      if (context.length + block.length + 2 > MAX_CHALLENGE_CONTEXT_CHARACTERS) break;
+      context += (context === "" ? "" : "\n\n") + block;
+    }
+
+    const evidenceContext = formatEvidenceContext(research);
+
+    return {
+      messages: [
+        {
+          role: "SYSTEM",
+          content:
+            "You are a critical reviewer inside POLYON's AI collective. " +
+            "Challenge peer reasoning rather than seeking agreement. Identify unsupported claims, " +
+            "conflicting evidence, hidden assumptions, and plausible alternative explanations. " +
+            "Separate facts from interpretations. Do not invent sources or claim verification " +
+            "you did not receive. Do not take external actions.",
+        },
+        {
+          role: "USER",
+          content:
+            `User request: ${command}\n\nYour role: ${role}\nReviewer: ${agentId}\nRound: ${round}\n\n` +
+            (context === ""
+              ? "There are no peer contributions yet. Critically inspect the available evidence and assumptions."
+              : `Peer contributions:\n${context}`) +
+            (evidenceContext === "" ? "" : `\n\nShared evidence:\n${evidenceContext}`) +
+            "\n\nReturn the strongest challenges and concrete corrections for the synthesis lead.",
         },
       ],
     };
