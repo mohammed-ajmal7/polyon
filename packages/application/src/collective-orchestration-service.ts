@@ -20,6 +20,7 @@ import type {
 } from "@polyon/storage";
 import type { CommandIngressResult } from "./command-ingress";
 import type { ResearchService } from "./research-service";
+import type { AgentRunService } from "./agent-run-service";
 
 const DEFAULT_MAX_PARTICIPANTS = 8;
 const MIN_PARTICIPANTS = 2;
@@ -80,6 +81,7 @@ export type CollectiveExecutionStatus = "SUCCEEDED" | "PARTIAL" | "FAILED";
 
 export interface CollectiveExecutionResult {
   readonly collectiveId: string;
+  readonly runId: string;
   readonly conversationId: string;
   readonly status: CollectiveExecutionStatus;
   readonly synthesizerAgentId: AgentId;
@@ -99,6 +101,7 @@ export interface CollectiveOrchestrationDependencies {
   readonly events: EventStore;
   readonly research?: ResearchService;
   readonly teamPlanner?: (request: AgentTeamPlanningRequest) => AgentTeamPlan;
+  readonly agentRuns?: AgentRunService;
   readonly unitOfWork?: DomainUnitOfWork;
 }
 
@@ -120,6 +123,27 @@ export class CollectiveOrchestrationService {
     const researchEnabled = input.researchEnabled ?? this.dependencies.research !== undefined;
     const researchSourceLimit = input.researchSourceLimit ?? DEFAULT_RESEARCH_SOURCE_LIMIT;
     const maxChallengeRounds = input.maxChallengeRounds ?? DEFAULT_MAX_CHALLENGE_ROUNDS;
+
+    if (this.dependencies.agentRuns !== undefined) {
+      const existingRun = this.dependencies.agentRuns.get(collectiveId);
+      if (existingRun === undefined) {
+        this.dependencies.agentRuns.create({
+          id: collectiveId,
+          userId: input.actorId,
+          task: input.command.message.content,
+          mode: researchEnabled ? "research" : "deep",
+          agentIds: targets.map((target) => target.agentId),
+          createdAt: now(),
+        });
+        this.dependencies.agentRuns.start(collectiveId, now());
+      } else if (existingRun.status === "queued") {
+        this.dependencies.agentRuns.start(collectiveId, now());
+      } else if (existingRun.status !== "running") {
+        throw new Error(
+          `Collective run already reached terminal state: ${collectiveId}.`,
+        );
+      }
+    }
 
     const synthesizer = this.dependencies.agents.get(synthesizerAgentId);
     if (synthesizer === undefined || synthesizer.status !== "ACTIVE") {
@@ -287,8 +311,18 @@ export class CollectiveOrchestrationService {
         "No contributor returned a usable result.",
         now(),
       );
+      if (this.dependencies.agentRuns !== undefined) {
+        this.dependencies.agentRuns.syncMessageIds(collectiveId);
+        this.dependencies.agentRuns.fail({
+          id: collectiveId,
+          error: "No contributor returned a usable result.",
+          completedAt: now(),
+        });
+      }
+
       return {
         collectiveId,
+        runId: collectiveId,
         conversationId: input.command.conversation.id,
         status: "FAILED",
         synthesizerAgentId,
@@ -402,8 +436,18 @@ export class CollectiveOrchestrationService {
         error instanceof Error ? error.message : "Synthesis failed.",
         now(),
       );
+      if (this.dependencies.agentRuns !== undefined) {
+        this.dependencies.agentRuns.syncMessageIds(collectiveId);
+        this.dependencies.agentRuns.fail({
+          id: collectiveId,
+          error: error instanceof Error ? error.message : "Synthesis failed.",
+          completedAt: now(),
+        });
+      }
+
       return {
         collectiveId,
+        runId: collectiveId,
         conversationId: input.command.conversation.id,
         status: "FAILED",
         synthesizerAgentId,
@@ -423,8 +467,18 @@ export class CollectiveOrchestrationService {
         "Synthesis agent returned empty content.",
         now(),
       );
+      if (this.dependencies.agentRuns !== undefined) {
+        this.dependencies.agentRuns.syncMessageIds(collectiveId);
+        this.dependencies.agentRuns.fail({
+          id: collectiveId,
+          error: "Synthesis agent returned empty content.",
+          completedAt: now(),
+        });
+      }
+
       return {
         collectiveId,
+        runId: collectiveId,
         conversationId: input.command.conversation.id,
         status: "FAILED",
         synthesizerAgentId,
@@ -447,8 +501,18 @@ export class CollectiveOrchestrationService {
       now(),
     );
 
+    if (this.dependencies.agentRuns !== undefined) {
+      this.dependencies.agentRuns.syncMessageIds(collectiveId);
+      this.dependencies.agentRuns.complete({
+        id: collectiveId,
+        finalAnswer: synthesis.content,
+        completedAt: now(),
+      });
+    }
+
     return {
       collectiveId,
+      runId: collectiveId,
       conversationId: input.command.conversation.id,
       status: failures.length === 0 ? "SUCCEEDED" : "PARTIAL",
       synthesizerAgentId,
