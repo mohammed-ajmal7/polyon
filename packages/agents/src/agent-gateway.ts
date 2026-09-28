@@ -80,7 +80,6 @@ export class AgentGateway {
       input.agentId,
       input.requiredCapabilityIds,
       input.routing,
-      input.modelOptions,
       (modelId) => this.dependencies.modelGateway.invokeText(modelId, input.request, input.modelOptions),
     );
   }
@@ -92,7 +91,6 @@ export class AgentGateway {
       input.agentId,
       input.requiredCapabilityIds,
       input.routing,
-      input.modelOptions,
       (modelId) =>
         this.dependencies.modelGateway.invoke<TInput, TOutput>(
           modelId,
@@ -106,7 +104,6 @@ export class AgentGateway {
     agentId: AgentId,
     requiredCapabilityIds: readonly CapabilityId[],
     routingOptions: AgentGatewayRoutingOptions | undefined,
-    modelOptions: ModelInvocationOptions | undefined,
     invokeModel: (modelId: ModelId) => Promise<{ output: TOutput }>,
   ): Promise<AgentGatewayInvocationResult<TOutput>> {
     let failedProviderId: ProviderId | undefined;
