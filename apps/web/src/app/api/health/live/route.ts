@@ -2,7 +2,7 @@ import { getPolyonComposition } from "@/server/polyon-server";
 
 export const runtime = "nodejs";
 
-export async function GET(): Promise<Response> {
+export function GET(): Response {
   const runtime = getPolyonComposition().runtime.health;
   return Response.json(
     {
