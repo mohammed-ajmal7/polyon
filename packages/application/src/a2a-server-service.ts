@@ -128,11 +128,7 @@ export class A2AServerService {
     const pageSize = rawPageSize === undefined ? DEFAULT_TASK_PAGE_SIZE : Number(rawPageSize);
 
     if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > MAX_TASK_PAGE_SIZE) {
-      return error(
-        request.id,
-        -32602,
-        "pageSize must be between 1 and 100.",
-      );
+      return error(request.id, -32602, "pageSize must be between 1 and 100.");
     }
 
     const contextId = readOptionalString(params.contextId);
