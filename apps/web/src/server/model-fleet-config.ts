@@ -32,7 +32,9 @@ export function parseModelProfiles(value: string): ModelProfileConfig[] {
     parsed = JSON.parse(value);
   } catch (error) {
     throw new Error(
-      `POLYON_MODEL_PROFILES_JSON must contain valid JSON: ${error instanceof Error ? error.message : "invalid JSON"}.`,
+      `POLYON_MODEL_PROFILES_JSON must contain valid JSON: ${
+        error instanceof Error ? error.message : "invalid JSON"
+      }.`,
       { cause: error },
     );
   }
@@ -156,7 +158,9 @@ function requiredString(value: unknown, field: string, index: number): string {
 
   const trimmed = value.trim();
   if (trimmed.length > MAX_TEXT_LENGTH) {
-    throw new Error(`Model profile ${field} at index ${index} exceeds ${MAX_TEXT_LENGTH} characters.`);
+    throw new Error(
+      `Model profile ${field} at index ${index} exceeds ${MAX_TEXT_LENGTH} characters.`,
+    );
   }
 
   return trimmed;
