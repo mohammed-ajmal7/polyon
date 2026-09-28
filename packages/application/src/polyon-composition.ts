@@ -20,6 +20,7 @@ import {
   InMemoryAgentRegistry,
   InMemoryModelRegistry,
   InMemoryProviderRegistry,
+  planAgentTeam,
 } from "@polyon/agents";
 import {
   ArtifactCatalogService,
@@ -754,6 +755,12 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     messages: stores.messages,
     events: stores.events,
     ...(research === undefined ? {} : { research }),
+    teamPlanner: (request) =>
+      planAgentTeam(request, {
+        agents,
+        models,
+        providers,
+      }),
     unitOfWork: stores,
   });
 
