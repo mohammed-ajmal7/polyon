@@ -1,4 +1,4 @@
-import type { Execution } from "@polyon/contracts";
+import type { Execution, Task } from "@polyon/contracts";
 import { describe, expect, it, vi } from "vitest";
 
 import { A2AServerService } from "./a2a-server-service";
@@ -378,7 +378,7 @@ describe("A2A task listing", () => {
 
 
   it("cancels an actor-visible running task through the execution runtime", async () => {
-    let currentTask = {
+    let currentTask: Task = {
       ...tasks[1],
     };
     const cancel = vi.fn(() => {
