@@ -3,7 +3,6 @@ import type {
   AgentId,
   CapabilityId,
   Model,
-  ModelPrivacyClass,
   Provider,
   ProviderId,
 } from "@polyon/contracts";
@@ -22,7 +21,7 @@ export interface AgentTeamPlanningRequest {
   readonly preferredRoles?: readonly string[];
   readonly maximumAgents?: number;
   readonly minimumAgents?: number;
-  readonly privacyClass?: ModelPrivacyClass;
+  readonly privacyClass?: "local" | "cloud";
   readonly allowPaidModels?: boolean;
   readonly minimumContextWindow?: number;
   readonly requireTools?: boolean;
@@ -95,9 +94,8 @@ export function planAgentTeam(
   validateBounds(minimumAgents, maximumAgents);
 
   const excluded = new Set(request.excludedAgentIds ?? []);
-  const allowed = request.allowedAgentIds === undefined
-    ? undefined
-    : new Set(request.allowedAgentIds);
+  const allowed =
+    request.allowedAgentIds === undefined ? undefined : new Set(request.allowedAgentIds);
   const preferredRoles = request.preferredRoles ?? [];
 
   const ranked: AgentTeamMember[] = [];
@@ -138,7 +136,10 @@ export function planAgentTeam(
       score += preferredRole ? 0 : 20;
     }
 
-    if (request.preferProviderDiversity && ranked.some((member) => member.provider.id === routing.provider.id)) {
+    if (
+      request.preferProviderDiversity &&
+      ranked.some((member) => member.provider.id === routing.provider.id)
+    ) {
       score += 15;
     }
 
