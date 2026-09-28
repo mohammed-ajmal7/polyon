@@ -19,7 +19,10 @@ import type { ResearchService } from "./research-service";
 const DEFAULT_MAX_PARTICIPANTS = 8;
 const MIN_PARTICIPANTS = 2;
 const DEFAULT_RESEARCH_SOURCE_LIMIT = 3;
+const DEFAULT_MAX_CHALLENGE_ROUNDS = 1;
+const MAX_CHALLENGE_ROUNDS = 2;
 const MAX_CONTRIBUTION_CHARACTERS = 12_000;
+const MAX_CHALLENGE_CONTEXT_CHARACTERS = 50_000;
 const MAX_SYNTHESIS_CONTEXT_CHARACTERS = 60_000;
 const MAX_EVIDENCE_CONTEXT_CHARACTERS = 60_000;
 
@@ -35,6 +38,7 @@ export interface ExecuteCollectiveInput {
   readonly requiredCapabilityIds: readonly string[];
   readonly synthesizerAgentId?: AgentId;
   readonly maxParticipants?: number;
+  readonly maxChallengeRounds?: number;
   readonly researchEnabled?: boolean;
   readonly researchSourceLimit?: number;
   readonly now?: () => string;
@@ -51,6 +55,16 @@ export interface CollectiveContribution {
   readonly evidenceIds: readonly string[];
 }
 
+export interface CollectiveChallenge {
+  readonly agentId: AgentId;
+  readonly actorId: string;
+  readonly round: number;
+  readonly modelId: string;
+  readonly providerId: string;
+  readonly targetAgentIds: readonly AgentId[];
+  readonly content: string;
+}
+
 export interface CollectiveFailure {
   readonly agentId: AgentId;
   readonly actorId: string;
@@ -65,6 +79,7 @@ export interface CollectiveExecutionResult {
   readonly status: CollectiveExecutionStatus;
   readonly synthesizerAgentId: AgentId;
   readonly contributions: readonly CollectiveContribution[];
+  readonly challenges: readonly CollectiveChallenge[];
   readonly failures: readonly CollectiveFailure[];
   readonly sourceIds: readonly string[];
   readonly evidenceIds: readonly string[];
@@ -98,6 +113,7 @@ export class CollectiveOrchestrationService {
     const collectiveId = `collective:${input.command.conversation.id}:${input.command.message.id}`;
     const researchEnabled = input.researchEnabled ?? this.dependencies.research !== undefined;
     const researchSourceLimit = input.researchSourceLimit ?? DEFAULT_RESEARCH_SOURCE_LIMIT;
+    const maxChallengeRounds = input.maxChallengeRounds ?? DEFAULT_MAX_CHALLENGE_ROUNDS;
 
     const synthesizer = this.dependencies.agents.get(synthesizerAgentId);
     if (synthesizer === undefined || synthesizer.status !== "ACTIVE") {
@@ -116,6 +132,7 @@ export class CollectiveOrchestrationService {
       now(),
       researchEnabled,
       researchSourceLimit,
+      maxChallengeRounds,
     );
 
     const researchByAgent = new Map<AgentId, ResearchContext>();
