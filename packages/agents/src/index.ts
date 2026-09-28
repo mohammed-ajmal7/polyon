@@ -57,3 +57,10 @@ export {
   type AgentTeamPlannerErrorKind,
   type AgentTeamPlanningRequest,
 } from "./agent-team-planner";
+
+
+export {
+  ProviderHealthTracker,
+  type ProviderHealthSnapshot,
+  type ProviderHealthTrackerOptions,
+} from "./provider-health";
