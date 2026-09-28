@@ -61,15 +61,15 @@ export class McpServerService {
     },
   ): Promise<McpJsonRpcResponse | undefined> {
     if (request.jsonrpc !== "2.0") {
-      return rpcError(request.id, -32600, "Invalid JSON-RPC request.");
+      return rpcError(request.id ?? null, -32600, "Invalid JSON-RPC request.");
     }
 
     if (headers.protocolVersion !== "2026-07-28") {
-      return rpcError(request.id, -32602, "Unsupported MCP protocol version.");
+      return rpcError(request.id ?? null, -32602, "Unsupported MCP protocol version.");
     }
 
     if (headers.method !== request.method) {
-      return rpcError(request.id, -32602, "Mcp-Method must match the JSON-RPC method.");
+      return rpcError(request.id ?? null, -32602, "Mcp-Method must match the JSON-RPC method.");
     }
 
     if (request.method === "notifications/initialized") {
@@ -79,7 +79,7 @@ export class McpServerService {
     if (request.method === "server/discover") {
       return {
         jsonrpc: "2.0",
-        id: request.id,
+        id: request.id ?? null,
         result: {
           protocolVersion: "2026-07-28",
           capabilities: {
@@ -95,15 +95,15 @@ export class McpServerService {
     }
 
     if (request.method !== "tools/call") {
-      return rpcError(request.id, -32601, "MCP method is not supported.");
+      return rpcError(request.id ?? null, -32601, "MCP method is not supported.");
     }
 
     const params = request.params ?? {};
     const name = typeof params.name === "string" ? params.name.trim() : "";
-    if (name === "") return rpcError(request.id, -32602, "tools/call requires params.name.");
+    if (name === "") return rpcError(request.id ?? null, -32602, "tools/call requires params.name.");
 
     if (headers.name !== name) {
-      return rpcError(request.id, -32602, "Mcp-Name must match params.name.");
+      return rpcError(request.id ?? null, -32602, "Mcp-Name must match params.name.");
     }
 
     const input = params.arguments ?? {};
@@ -126,24 +126,24 @@ export class McpServerService {
         actorId: this.dependencies.actorId,
       });
 
-      return toolOutcomeResponse(request.id, outcome);
+      return toolOutcomeResponse(request.id ?? null, outcome);
     }
 
     const integration = parseIntegrationToolId(name);
     if (integration === undefined) {
-      return rpcError(request.id, -32602, "Unknown MCP tool.");
+      return rpcError(request.id ?? null, -32602, "Unknown MCP tool.");
     }
 
     const registered = this.dependencies.integrations.get(integration.integrationId) as
       | { integrationId: string; supportedOperations: readonly string[]; actionKinds: readonly ActionKind[]; sideEffectClass: string }
       | undefined;
-    if (registered === undefined) return rpcError(request.id, -32602, "Unknown MCP integration.");
+    if (registered === undefined) return rpcError(request.id ?? null, -32602, "Unknown MCP integration.");
     if (!registered.supportedOperations.includes(integration.operation)) {
-      return rpcError(request.id, -32602, "Unsupported MCP integration operation.");
+      return rpcError(request.id ?? null, -32602, "Unsupported MCP integration operation.");
     }
 
     const action = registered.actionKinds[0];
-    if (action === undefined) return rpcError(request.id, -32602, "MCP integration has no action classification.");
+    if (action === undefined) return rpcError(request.id ?? null, -32602, "MCP integration has no action classification.");
 
     const outcome = await this.dependencies.integrationInvocation.invoke({
       invocationId: "mcp:" + String(request.id),
