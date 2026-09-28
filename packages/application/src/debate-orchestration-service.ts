@@ -352,7 +352,6 @@ function formatContributions(
   return lines.join("\n");
 }
 
-
 function formatInitialContext(context: string | undefined): string {
   if (context === undefined || context.trim() === "") return "None provided.";
   return context.trim().slice(0, MAX_PROMPT_CONTEXT);
