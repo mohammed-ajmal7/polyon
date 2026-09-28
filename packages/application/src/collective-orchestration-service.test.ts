@@ -361,7 +361,7 @@ describe("CollectiveOrchestrationService", () => {
       ),
     ).toHaveLength(3);
     expect(
-      stores.events.filter((event) => event.kind === "COLLECTIVE_CHALLENGE"),
+      stores.events.list().filter((event) => event.kind === "COLLECTIVE_CHALLENGE"),
     ).toHaveLength(3);
     expect(result.synthesis?.content).toContain("Counterclaims");
   });
