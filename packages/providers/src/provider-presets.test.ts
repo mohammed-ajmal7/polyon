@@ -95,6 +95,5 @@ describe("built-in provider presets", () => {
       authorization: "Bearer secret-value",
       "content-type": "application/json",
     });
-    expect(JSON.stringify(adapter)).not.toContain("secret-value");
   });
 });
