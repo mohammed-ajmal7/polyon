@@ -1,12 +1,10 @@
-import type {
-  ActionKind,
-  Policy,
-  RiskLevel,
-  Tool,
-} from "@polyon/contracts";
+import type { ActionKind, Policy, RiskLevel, Tool } from "@polyon/contracts";
 
 import type { ToolInvocationService, ToolInvocationOutcome } from "./tool-invocation-service";
-import type { IntegrationInvocationService, IntegrationInvocationOutcome } from "./integration-invocation-service";
+import type {
+  IntegrationInvocationService,
+  IntegrationInvocationOutcome,
+} from "./integration-invocation-service";
 
 export interface McpJsonRpcRequest {
   readonly jsonrpc: "2.0";
@@ -100,7 +98,8 @@ export class McpServerService {
 
     const params = request.params ?? {};
     const name = typeof params.name === "string" ? params.name.trim() : "";
-    if (name === "") return rpcError(request.id ?? null, -32602, "tools/call requires params.name.");
+    if (name === "")
+      return rpcError(request.id ?? null, -32602, "tools/call requires params.name.");
 
     if (headers.name !== name) {
       return rpcError(request.id ?? null, -32602, "Mcp-Name must match params.name.");
@@ -135,15 +134,22 @@ export class McpServerService {
     }
 
     const registered = this.dependencies.integrations.get(integration.integrationId) as
-      | { integrationId: string; supportedOperations: readonly string[]; actionKinds: readonly ActionKind[]; sideEffectClass: string }
+      | {
+          integrationId: string;
+          supportedOperations: readonly string[];
+          actionKinds: readonly ActionKind[];
+          sideEffectClass: string;
+        }
       | undefined;
-    if (registered === undefined) return rpcError(request.id ?? null, -32602, "Unknown MCP integration.");
+    if (registered === undefined)
+      return rpcError(request.id ?? null, -32602, "Unknown MCP integration.");
     if (!registered.supportedOperations.includes(integration.operation)) {
       return rpcError(request.id ?? null, -32602, "Unsupported MCP integration operation.");
     }
 
     const action = registered.actionKinds[0];
-    if (action === undefined) return rpcError(request.id ?? null, -32602, "MCP integration has no action classification.");
+    if (action === undefined)
+      return rpcError(request.id ?? null, -32602, "MCP integration has no action classification.");
 
     const outcome = await this.dependencies.integrationInvocation.invoke({
       invocationId: "mcp:" + String(request.id),
@@ -166,7 +172,8 @@ export class McpServerService {
 
   private listTools(request: McpJsonRpcRequest): McpJsonRpcResponse {
     const allTools = [
-      ...this.dependencies.tools.list()
+      ...this.dependencies.tools
+        .list()
         .filter((tool) => tool.enabled)
         .map((tool) => ({
           name: tool.id,
@@ -199,9 +206,7 @@ export class McpServerService {
       id: request.id ?? null,
       result: {
         tools: page,
-        ...(nextOffset < allTools.length
-          ? { nextCursor: encodeToolsCursor(nextOffset) }
-          : {}),
+        ...(nextOffset < allTools.length ? { nextCursor: encodeToolsCursor(nextOffset) } : {}),
         ttlMs: 10_000,
         cacheScope: "private",
       },
@@ -225,25 +230,49 @@ function decodeToolsCursor(value: unknown): number | string {
   return offset;
 }
 
-function toolOutcomeResponse(id: string | number | null, outcome: ToolInvocationOutcome | IntegrationInvocationOutcome): McpJsonRpcResponse {
+function toolOutcomeResponse(
+  id: string | number | null,
+  outcome: ToolInvocationOutcome | IntegrationInvocationOutcome,
+): McpJsonRpcResponse {
   switch (outcome.status) {
     case "SUCCEEDED":
-      return { jsonrpc: "2.0", id, result: { content: [{ type: "text", text: JSON.stringify(outcome.output) }] } };
+      return {
+        jsonrpc: "2.0",
+        id,
+        result: { content: [{ type: "text", text: JSON.stringify(outcome.output) }] },
+      };
     case "APPROVAL_REQUIRED":
-      return { jsonrpc: "2.0", id, result: { isError: true, content: [{ type: "text", text: "Human approval required.", approvalRequestId: outcome.approvalRequest.id }] } };
+      return {
+        jsonrpc: "2.0",
+        id,
+        result: {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: "Human approval required.",
+              approvalRequestId: outcome.approvalRequest.id,
+            },
+          ],
+        },
+      };
     case "REJECTED":
     case "FAILED":
-      return { jsonrpc: "2.0", id, result: { isError: true, content: [{ type: "text", text: outcome.error }] } };
+      return {
+        jsonrpc: "2.0",
+        id,
+        result: { isError: true, content: [{ type: "text", text: outcome.error }] },
+      };
     default:
-      return { jsonrpc: "2.0", id, error: { code: -32000, message: "MCP tool invocation failed." } };
+      return {
+        jsonrpc: "2.0",
+        id,
+        error: { code: -32000, message: "MCP tool invocation failed." },
+      };
   }
 }
 
-function rpcError(
-  id: string | number | null,
-  code: number,
-  message: string,
-): McpJsonRpcResponse {
+function rpcError(id: string | number | null, code: number, message: string): McpJsonRpcResponse {
   return {
     jsonrpc: "2.0",
     id,
@@ -252,10 +281,14 @@ function rpcError(
 }
 
 function integrationToolId(integrationId: string, operation: string): string {
-  return "integration.invoke:" + encodeURIComponent(integrationId) + ":" + encodeURIComponent(operation);
+  return (
+    "integration.invoke:" + encodeURIComponent(integrationId) + ":" + encodeURIComponent(operation)
+  );
 }
 
-function parseIntegrationToolId(value: string): { integrationId: string; operation: string } | undefined {
+function parseIntegrationToolId(
+  value: string,
+): { integrationId: string; operation: string } | undefined {
   const prefix = "integration.invoke:";
   if (!value.startsWith(prefix)) return undefined;
   const remainder = value.slice(prefix.length);
