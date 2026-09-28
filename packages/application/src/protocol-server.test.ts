@@ -257,22 +257,21 @@ describe("A2A task listing", () => {
       params: { pageSize: 2 },
     });
 
-    expect(first?.result).toMatchObject({
-      pageSize: 2,
-      totalSize: 3,
-      tasks: [
-        expect.objectContaining({
-          id: "task-new",
-          status: { state: "TASK_STATE_WORKING" },
-        }),
-        expect.objectContaining({
-          id: "task-other",
-          status: { state: "TASK_STATE_FAILED" },
-        }),
-      ],
-    });
-
-    const firstResult = first?.result as { nextPageToken: string };
+    const firstResult = first?.result as {
+      tasks: readonly {
+        id: string;
+        status: { state: string };
+      }[];
+      nextPageToken: string;
+      pageSize: number;
+      totalSize: number;
+    };
+    expect(firstResult.pageSize).toBe(2);
+    expect(firstResult.totalSize).toBe(3);
+    expect(firstResult.tasks.map((task) => ({ id: task.id, state: task.status.state }))).toEqual([
+      { id: "task-new", state: "TASK_STATE_WORKING" },
+      { id: "task-other", state: "TASK_STATE_FAILED" },
+    ]);
     expect(firstResult.nextPageToken).toMatch(/^a2a-tasks:/u);
 
     const second = await server.handle({
@@ -306,18 +305,15 @@ describe("A2A task listing", () => {
       },
     });
 
-    expect(response?.result).toEqual({
-      tasks: [
-        expect.objectContaining({
-          id: "task-new",
-          contextId: "mission-1",
-          status: expect.objectContaining({ state: "TASK_STATE_WORKING" }),
-        }),
-      ],
+    expect(response?.result).toMatchObject({
       nextPageToken: "",
       pageSize: 50,
-      totalSize: 2,
+      totalSize: 1,
     });
+    expect(
+      ((response?.result as { tasks: readonly { id: string; contextId: string; status: { state: string } }[] }).tasks)
+        .map((task) => ({ id: task.id, contextId: task.contextId, state: task.status.state })),
+    ).toEqual([{ id: "task-new", contextId: "mission-1", state: "TASK_STATE_WORKING" }]);
   });
 
   it("rejects invalid pagination parameters and tokens", async () => {
