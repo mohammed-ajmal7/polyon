@@ -356,8 +356,7 @@ describe("CollectiveOrchestrationService", () => {
       requests.filter((request) =>
         request.messages.some(
           (message) =>
-            message.role === "USER" &&
-            message.content.includes("Return the strongest challenges"),
+            message.role === "USER" && message.content.includes("Return the strongest challenges"),
         ),
       ),
     ).toHaveLength(3);
