@@ -56,3 +56,13 @@ export {
   type OpenAICompatibleEmbeddingFetchInit,
   type OpenAICompatibleEmbeddingResponse,
 } from "./openai-compatible-embedding-adapter";
+
+export {
+  createTextModelProviderAdapter,
+  getBuiltInProviderPreset,
+  resolveProviderApiKeyEnv,
+  resolveProviderEndpoint,
+  type BuiltInProviderId,
+  type BuiltInProviderPreset,
+  type TextModelProviderFactoryOptions,
+} from "./provider-presets";
