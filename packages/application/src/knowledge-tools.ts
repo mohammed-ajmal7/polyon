@@ -158,6 +158,9 @@ export function registerKnowledgeTools(
       const result = await research.conduct({
         query: input.query,
         sourceLimit: input.sourceLimit,
+        actorId: request.context?.actorId,
+        missionId: request.context?.missionId,
+        taskId: request.context?.taskId,
         sourceIdFactory: (index, candidate) =>
           "research-source-" +
           stableId(index + ":" + candidate.locator + ":" + candidate.retrievedAt),
