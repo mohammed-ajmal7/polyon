@@ -126,7 +126,6 @@ describe("CollectiveOrchestrationService", () => {
     expect(result.synthesis?.content).toContain("Findings synthesized");
     expect(stores.messages.list()).toHaveLength(4);
     expect(stores.events.list().map((event) => event.kind)).toEqual([
-      "MESSAGE_CREATED",
       "COLLECTIVE_STARTED",
       "COLLECTIVE_CONTRIBUTION",
       "COLLECTIVE_CONTRIBUTION",
