@@ -49,7 +49,10 @@ describe("DebateOrchestrationService", () => {
 
   it("attaches the conversation and bounded initial context to debate traces", async () => {
     const stores = new InMemoryDomainStores();
-    const requests: Array<{ agentId: string; request: { messages: readonly { content: string }[] } }> = [];
+    const requests: Array<{
+      agentId: string;
+      request: { messages: readonly { content: string }[] };
+    }> = [];
     const invokeText = vi.fn(async (input: {
       agentId: string;
       request: { messages: readonly { content: string }[] };
