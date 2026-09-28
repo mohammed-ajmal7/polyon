@@ -272,6 +272,7 @@ describe("FileDomainStores", () => {
       rmSync(directory, { recursive: true, force: true });
     }
   });
+
   it("commits mission and event changes as one durable transaction", () => {
     const directory = mkdtempSync(join(tmpdir(), "polyon-domain-"));
 
