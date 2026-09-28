@@ -101,7 +101,12 @@ export class DeepAnalysisOrchestrationService {
     });
 
     if (collective.status === "FAILED" || collective.synthesis === undefined) {
-      this.persistError(input, deepAnalysisId, now(), "Collective analysis did not produce a synthesis.");
+      this.persistError(
+        input,
+        deepAnalysisId,
+        now(),
+        "Collective analysis did not produce a synthesis.",
+      );
       return {
         status: "FAILED",
         conversationId: input.command.conversation.id,
@@ -118,7 +123,9 @@ export class DeepAnalysisOrchestrationService {
       maxDebateRounds <= 0 ||
       maxDebateRounds > MAX_DEBATE_ROUNDS
     ) {
-      throw new RangeError("Deep analysis maxDebateRounds must be an integer between 1 and 4.");
+      throw new RangeError(
+        "Deep analysis maxDebateRounds must be an integer between 1 and 4.",
+      );
     }
 
     this.dependencies.debates.create({
