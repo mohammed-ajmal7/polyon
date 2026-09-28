@@ -73,7 +73,9 @@ describe("POLYON server configuration smoke", () => {
       expect(agents.map((agent) => agent.id)).toEqual(["researcher", "analyst"]);
       expect(agents[0]?.fallbackModelIds).toEqual(["analysis-model"]);
       expect(models.map((model) => model.id)).toEqual(["research-model", "analysis-model"]);
-      expect(new Set(models.map((model) => model.providerId))).toEqual(new Set(["shared-provider"]));
+      expect(new Set(models.map((model) => model.providerId))).toEqual(
+        new Set(["shared-provider"]),
+      );
       expect(providers.map((provider) => provider.id)).toEqual(["shared-provider"]);
 
       const command = composition.commandIngress.submit({
