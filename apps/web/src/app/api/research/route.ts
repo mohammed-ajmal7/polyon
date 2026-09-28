@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { isAuthenticated } from "@/server/auth";
-import { executionEnabled, getPolyonActorId, getPolyonComposition, getPolyonPolicy, isSameOrigin } from "@/server/polyon-server";
+import { executionEnabled, getPolyonActorId, getPolyonComposition, isSameOrigin } from "@/server/polyon-server";
 
 export const runtime = "nodejs";
 const MAX_REQUEST_BYTES = 32_768;
