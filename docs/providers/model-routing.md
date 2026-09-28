@@ -12,7 +12,7 @@ The router applies deterministic constraints before selecting a model:
 - minimum context-window requirements must be satisfied;
 - tool-enabled work requires a model that declares tool support;
 - unavailable or misconfigured providers are excluded;
-- quota-limited providers are treated as unusable for that route;
+- quota-limited providers are excluded from that route;
 - degraded providers remain eligible but receive a routing penalty.
 
 Preferred/fallback ordering is preserved when candidates are otherwise equivalent. Provider health can therefore move a healthy fallback ahead of a degraded preferred provider.
