@@ -288,3 +288,9 @@ export {
   type SemanticMemoryIndexerHealth,
   type SemanticMemoryIndexerOptions,
 } from "./semantic-memory-indexer";
+
+export {
+  ExactNormalizedSemanticVectorIndex,
+  type SemanticVectorIndex,
+  type SemanticVectorSearchHit,
+} from "./semantic-vector-index";

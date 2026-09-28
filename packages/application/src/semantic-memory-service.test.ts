@@ -95,6 +95,7 @@ describe("SemanticMemoryService", () => {
     expect(stores.memoryEmbeddings.list()).toHaveLength(2);
   });
 
+
   it("reindexes only missing or stale embeddings in bounded batches", async () => {
     const stores = new InMemoryDomainStores();
     const adapterRegistry = new InMemoryEmbeddingAdapterRegistry();
@@ -173,12 +174,17 @@ describe("SemanticMemoryService", () => {
     expect(calls).toBe(3);
   });
 
-  it("ignores stale embeddings after the source memory changes", async () => {
+  it("does not embed memory scopes outside the explicit indexing allowlist", async () => {
     const stores = new InMemoryDomainStores();
     const adapterRegistry = new InMemoryEmbeddingAdapterRegistry();
+    const embeddedTexts: string[] = [];
+
     adapterRegistry.register({
       providerId: "embedding-provider",
-      embed: async () => ({ output: { vectors: [[1, 0]] } }),
+      embed: async ({ input }) => {
+        embeddedTexts.push(...input.input);
+        return { output: { vectors: input.input.map(() => [1, 0]) } };
+      },
     });
 
     const gateway = new EmbeddingGateway({
@@ -209,6 +215,135 @@ describe("SemanticMemoryService", () => {
       gateway,
       stores,
     );
+
+    stores.memory.save({
+      id: "private-memory",
+      kind: "FACT",
+      scope: "PRIVATE",
+      text: "private secret context",
+      tags: [],
+      createdAt: "2026-09-28T00:00:00.000Z",
+      updatedAt: "2026-09-28T00:00:00.000Z",
+    });
+    stores.memory.save({
+      id: "project-memory",
+      kind: "FACT",
+      scope: "PROJECT",
+      text: "project deployment context",
+      tags: [],
+      createdAt: "2026-09-28T00:00:00.000Z",
+      updatedAt: "2026-09-28T00:00:00.000Z",
+    });
+
+    const result = await service.reindex("embedding-model", {
+      now: "2026-09-28T00:10:00.000Z",
+      allowedScopes: ["PROJECT"],
+    });
+
+    expect(result.indexed).toBe(1);
+    expect(result.skipped).toBe(1);
+    expect(embeddedTexts).toEqual(["project deployment context"]);
+    expect(stores.memoryEmbeddings.get("missing") ?? undefined).toBeUndefined();
+    expect(stores.memoryEmbeddings.list().map((entry) => entry.memoryId)).toEqual(["project-memory"]);
+  });
+
+
+  it("does not update the vector index when the durable transaction fails", async () => {
+    const stores = new InMemoryDomainStores();
+    const adapterRegistry = new InMemoryEmbeddingAdapterRegistry();
+    adapterRegistry.register({
+      providerId: "embedding-provider",
+      embed: async () => ({ output: { vectors: [[1, 0]] } }),
+    });
+
+    const gateway = new EmbeddingGateway({
+      models: {
+        get: () => ({
+          id: "embedding-model",
+          providerId: "embedding-provider",
+          name: "Test embedding",
+          kind: "EMBEDDING",
+          capabilityIds: [],
+          enabled: true,
+        }),
+      },
+      providers: {
+        get: () => ({
+          id: "embedding-provider",
+          providerId: "embedding-provider",
+          name: "Test provider",
+          kind: "HOSTED_MODEL",
+          enabled: true,
+        }),
+      },
+      adapters: adapterRegistry,
+    });
+
+    const vectorIndex = new ExactNormalizedSemanticVectorIndex();
+    const failingUnitOfWork = {
+      transaction<T>(work: () => T): T {
+        work();
+        throw new Error("commit failed");
+      },
+    };
+
+    const service = new SemanticMemoryService(
+      stores.memory,
+      stores.memoryEmbeddings,
+      gateway,
+      failingUnitOfWork as never,
+      vectorIndex,
+    );
+
+    const memory = {
+      id: "m-transaction-fail",
+      kind: "FACT" as const,
+      scope: "PROJECT" as const,
+      text: "transactional memory",
+      tags: [],
+      createdAt: "2026-09-28T00:00:00.000Z",
+      updatedAt: "2026-09-28T00:00:00.000Z",
+    };
+    stores.memory.save(memory);
+
+    await expect(
+      service.index(memory, "embedding-model", "2026-09-28T00:01:00.000Z"),
+    ).rejects.toThrow("commit failed");
+
+    expect(vectorIndex.search("embedding-model", [1, 0])).toEqual([]);
+  });
+
+  it("ignores stale embeddings after the source memory changes", async () => {
+    const stores = new InMemoryDomainStores();
+    const adapterRegistry = new InMemoryEmbeddingAdapterRegistry();
+    adapterRegistry.register({
+      providerId: "embedding-provider",
+      embed: async () => ({ output: { vectors: [[1, 0]] } }),
+    });
+
+    const gateway = new EmbeddingGateway({
+      models: {
+        get: () => ({
+          id: "embedding-model",
+          providerId: "embedding-provider",
+          name: "Test embedding",
+          kind: "EMBEDDING",
+          capabilityIds: [],
+          enabled: true,
+        }),
+      },
+      providers: {
+        get: () => ({
+          id: "embedding-provider",
+          name: "Test provider",
+          kind: "HOSTED_MODEL",
+          enabled: true,
+        }),
+      },
+      adapters: adapterRegistry,
+    });
+
+    const service = new SemanticMemoryService(stores.memory, stores.memoryEmbeddings, gateway, stores);
     const memory: MemoryEntry = {
       id: "m1",
       kind: "FACT",
