@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 type Mode = "Direct" | "Broadcast" | "Debate" | "Mission";
@@ -242,27 +243,34 @@ export default function Home() {
               </p>
             </div>
             <nav className="mt-8 space-y-1.5">
-              {["Command", "Missions", "Agents", "Evidence", "Artifacts", "Activity"].map(
-                (item, index) => (
-                  <div
-                    key={item}
-                    className={
-                      "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm " +
-                      (index === 0 ? "bg-white/7 text-white" : "text-slate-400")
-                    }
-                  >
-                    <span>{item}</span>
-                    {item === "Activity" ? (
-                      <span className="rounded-full bg-white/7 px-2 py-0.5 text-[10px] text-slate-400">
-                        {activities.length}
-                      </span>
-                    ) : null}
-                  </div>
-                ),
-              )}
+              {[
+                ["Command", "/"],
+                ["Missions", "/missions"],
+                ["Approvals", "/approvals"],
+                ["Agents", "/agents"],
+                ["Memory", "/memory"],
+                ["Research", "/research"],
+                ["Artifacts", "/artifacts"],
+                ["Evidence", "/evidence"],
+                ["Activity", "/activity"],
+                ["Settings", "/settings"],
+              ].map(([item, href]) => (
+                <Link
+                  key={item}
+                  href={href}
+                  className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm text-slate-400 transition hover:bg-white/[0.035] hover:text-slate-200"
+                >
+                  <span>{item}</span>
+                  {item === "Activity" ? (
+                    <span className="rounded-full bg-white/7 px-2 py-0.5 text-[10px] text-slate-400">
+                      {activities.length}
+                    </span>
+                  ) : null}
+                </Link>
+              ))}
             </nav>
             <div className="mt-auto border-t border-white/8 pt-4 text-xs text-slate-600">
-              v0.2 live application foundation
+              v0.1 release-candidate workspace
             </div>
           </aside>
 
