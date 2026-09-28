@@ -749,6 +749,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     conversations: stores.conversations,
     messages: stores.messages,
     events: stores.events,
+    ...(research === undefined ? {} : { research }),
     unitOfWork: stores,
   });
 

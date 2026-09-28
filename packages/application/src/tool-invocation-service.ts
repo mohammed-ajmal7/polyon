@@ -629,7 +629,10 @@ export class ToolInvocationService {
     });
 
     try {
-      const result = await adapter.invoke({ input: input.input });
+      const result = await adapter.invoke({
+        input: input.input,
+        context,
+      });
 
       this.withStores((stores) => {
         for (const artifactResult of result.artifacts ?? []) {
