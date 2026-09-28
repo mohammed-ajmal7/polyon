@@ -1,14 +1,16 @@
-import type { ActionKind, Policy, RiskLevel, Tool } from "@polyon/contracts";
+import type {
+  ActionKind,
+  Policy,
+  RiskLevel,
+  Tool,
+} from "@polyon/contracts";
 
 import type { ToolInvocationService, ToolInvocationOutcome } from "./tool-invocation-service";
-import type {
-  IntegrationInvocationService,
-  IntegrationInvocationOutcome,
-} from "./integration-invocation-service";
+import type { IntegrationInvocationService, IntegrationInvocationOutcome } from "./integration-invocation-service";
 
 export interface McpJsonRpcRequest {
   readonly jsonrpc: "2.0";
-  readonly id: string | number | null;
+  readonly id?: string | number | null;
   readonly method: string;
   readonly params?: Record<string, unknown>;
 }
@@ -45,6 +47,8 @@ export interface McpServerDependencies {
   readonly actorId: string;
 }
 
+const MCP_TOOLS_PAGE_SIZE = 50;
+
 export class McpServerService {
   constructor(private readonly dependencies: McpServerDependencies) {}
 
@@ -55,7 +59,7 @@ export class McpServerService {
       readonly method?: string;
       readonly name?: string;
     },
-  ): Promise<McpJsonRpcResponse> {
+  ): Promise<McpJsonRpcResponse | undefined> {
     if (request.jsonrpc !== "2.0") {
       return rpcError(request.id, -32600, "Invalid JSON-RPC request.");
     }
@@ -66,6 +70,10 @@ export class McpServerService {
 
     if (headers.method !== request.method) {
       return rpcError(request.id, -32602, "Mcp-Method must match the JSON-RPC method.");
+    }
+
+    if (request.method === "notifications/initialized") {
+      return undefined;
     }
 
     if (request.method === "server/discover") {
@@ -83,31 +91,7 @@ export class McpServerService {
     }
 
     if (request.method === "tools/list") {
-      return {
-        jsonrpc: "2.0",
-        id: request.id,
-        result: {
-          tools: [
-            ...this.dependencies.tools
-              .list()
-              .filter((tool) => tool.enabled)
-              .map((tool) => ({
-                name: tool.id,
-                description: tool.description,
-                inputSchema: tool.inputSchema ?? { type: "object", additionalProperties: true },
-              })),
-            ...this.dependencies.integrations.list().flatMap((integration) =>
-              integration.supportedOperations.map((operation) => ({
-                name: integrationToolId(integration.integrationId, operation),
-                description: integration.kind + " integration " + operation,
-                inputSchema: { type: "object", additionalProperties: true },
-              })),
-            ),
-          ],
-          ttlMs: 10_000,
-          cacheScope: "private",
-        },
-      };
+      return this.listTools(request);
     }
 
     if (request.method !== "tools/call") {
@@ -151,12 +135,7 @@ export class McpServerService {
     }
 
     const registered = this.dependencies.integrations.get(integration.integrationId) as
-      | {
-          integrationId: string;
-          supportedOperations: readonly string[];
-          actionKinds: readonly ActionKind[];
-          sideEffectClass: string;
-        }
+      | { integrationId: string; supportedOperations: readonly string[]; actionKinds: readonly ActionKind[]; sideEffectClass: string }
       | undefined;
     if (registered === undefined) return rpcError(request.id, -32602, "Unknown MCP integration.");
     if (!registered.supportedOperations.includes(integration.operation)) {
@@ -164,8 +143,7 @@ export class McpServerService {
     }
 
     const action = registered.actionKinds[0];
-    if (action === undefined)
-      return rpcError(request.id, -32602, "MCP integration has no action classification.");
+    if (action === undefined) return rpcError(request.id, -32602, "MCP integration has no action classification.");
 
     const outcome = await this.dependencies.integrationInvocation.invoke({
       invocationId: "mcp:" + String(request.id),
@@ -184,52 +162,86 @@ export class McpServerService {
     });
 
     return toolOutcomeResponse(request.id, outcome);
+  private listTools(request: McpJsonRpcRequest): McpJsonRpcResponse {
+    const allTools = [
+      ...this.dependencies.tools.list()
+        .filter((tool) => tool.enabled)
+        .map((tool) => ({
+          name: tool.id,
+          description: tool.description,
+          inputSchema: tool.inputSchema ?? { type: "object", additionalProperties: true },
+        })),
+      ...this.dependencies.integrations.list().flatMap((integration) =>
+        integration.supportedOperations.map((operation) => ({
+          name: integrationToolId(integration.integrationId, operation),
+          description: integration.kind + " integration " + operation,
+          inputSchema: { type: "object", additionalProperties: true },
+        })),
+      ),
+    ];
+
+    const offsetResult = decodeToolsCursor(request.params?.cursor);
+    if (typeof offsetResult !== "number") {
+      return rpcError(request.id ?? null, -32602, offsetResult);
+    }
+
+    if (offsetResult > allTools.length) {
+      return rpcError(request.id ?? null, -32602, "MCP tools/list cursor is out of range.");
+    }
+
+    const page = allTools.slice(offsetResult, offsetResult + MCP_TOOLS_PAGE_SIZE);
+    const nextOffset = offsetResult + page.length;
+
+    return {
+      jsonrpc: "2.0",
+      id: request.id ?? null,
+      result: {
+        tools: page,
+        ...(nextOffset < allTools.length
+          ? { nextCursor: encodeToolsCursor(nextOffset) }
+          : {}),
+        ttlMs: 10_000,
+        cacheScope: "private",
+      },
+    };
   }
 }
 
-function toolOutcomeResponse(
-  id: string | number | null,
-  outcome: ToolInvocationOutcome | IntegrationInvocationOutcome,
-): McpJsonRpcResponse {
+function encodeToolsCursor(offset: number): string {
+  return "mcp-tools:" + offset;
+}
+
+function decodeToolsCursor(value: unknown): number | string {
+  if (value === undefined) return 0;
+  if (typeof value !== "string" || !/^mcp-tools:\\d+$/u.test(value)) {
+    return "MCP tools/list cursor is invalid.";
+  }
+  const offset = Number(value.slice("mcp-tools:".length));
+  if (!Number.isSafeInteger(offset) || offset < 0) {
+    return "MCP tools/list cursor is invalid.";
+  }
+  return offset;
+}
+
+function toolOutcomeResponse(id: string | number | null, outcome: ToolInvocationOutcome | IntegrationInvocationOutcome): McpJsonRpcResponse {
   switch (outcome.status) {
     case "SUCCEEDED":
-      return {
-        jsonrpc: "2.0",
-        id,
-        result: { content: [{ type: "text", text: JSON.stringify(outcome.output) }] },
-      };
+      return { jsonrpc: "2.0", id, result: { content: [{ type: "text", text: JSON.stringify(outcome.output) }] } };
     case "APPROVAL_REQUIRED":
-      return {
-        jsonrpc: "2.0",
-        id,
-        result: {
-          isError: true,
-          content: [
-            {
-              type: "text",
-              text: "Human approval required.",
-              approvalRequestId: outcome.approvalRequest.id,
-            },
-          ],
-        },
-      };
+      return { jsonrpc: "2.0", id, result: { isError: true, content: [{ type: "text", text: "Human approval required.", approvalRequestId: outcome.approvalRequest.id }] } };
     case "REJECTED":
     case "FAILED":
-      return {
-        jsonrpc: "2.0",
-        id,
-        result: { isError: true, content: [{ type: "text", text: outcome.error }] },
-      };
+      return { jsonrpc: "2.0", id, result: { isError: true, content: [{ type: "text", text: outcome.error }] } };
     default:
-      return {
-        jsonrpc: "2.0",
-        id,
-        error: { code: -32000, message: "MCP tool invocation failed." },
-      };
+      return { jsonrpc: "2.0", id, error: { code: -32000, message: "MCP tool invocation failed." } };
   }
 }
 
-function rpcError(id: string | number | null, code: number, message: string): McpJsonRpcResponse {
+function rpcError(
+  id: string | number | null,
+  code: number,
+  message: string,
+): McpJsonRpcResponse {
   return {
     jsonrpc: "2.0",
     id,
@@ -238,14 +250,10 @@ function rpcError(id: string | number | null, code: number, message: string): Mc
 }
 
 function integrationToolId(integrationId: string, operation: string): string {
-  return (
-    "integration.invoke:" + encodeURIComponent(integrationId) + ":" + encodeURIComponent(operation)
-  );
+  return "integration.invoke:" + encodeURIComponent(integrationId) + ":" + encodeURIComponent(operation);
 }
 
-function parseIntegrationToolId(
-  value: string,
-): { integrationId: string; operation: string } | undefined {
+function parseIntegrationToolId(value: string): { integrationId: string; operation: string } | undefined {
   const prefix = "integration.invoke:";
   if (!value.startsWith(prefix)) return undefined;
   const remainder = value.slice(prefix.length);
