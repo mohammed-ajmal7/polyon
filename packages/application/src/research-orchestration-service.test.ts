@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { Agent } from "@polyon/contracts";
+import type { Agent, TextModelRequest } from "@polyon/contracts";
 import { InMemoryAgentRegistry } from "@polyon/agents";
 import { InMemoryDomainStores } from "@polyon/storage";
 
@@ -96,7 +96,7 @@ describe("ResearchOrchestrationService", () => {
       stores.events,
       stores,
     );
-    const invokeText = vi.fn(async ({ agentId }: { agentId: string }) => ({
+    const invokeText = vi.fn(async ({ agentId, request }: { agentId: string; request: TextModelRequest }) => ({
       agentId,
       modelId: agentId + "-model",
       providerId: "provider-" + agentId,
