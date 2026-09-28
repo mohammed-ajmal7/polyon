@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { Agent } from "@polyon/contracts";
+import type { Agent, TextModelRequest } from "@polyon/contracts";
 import { InMemoryAgentRegistry } from "@polyon/agents";
 import { InMemoryDomainStores } from "@polyon/storage";
 
