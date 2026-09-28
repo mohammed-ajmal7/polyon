@@ -1,5 +1,10 @@
 import type { Artifact, ArtifactKind, DomainEvent } from "@polyon/contracts";
-import type { ArtifactStore, DomainUnitOfWork, EventStore } from "@polyon/storage";
+import type {
+  ArtifactStore,
+  DomainStoreTransactionContext,
+  DomainUnitOfWork,
+  EventStore,
+} from "@polyon/storage";
 
 export type CreativeOperation = "IMAGE" | "VIDEO" | "AUDIO" | "VOICE" | "EDIT";
 
@@ -53,11 +58,11 @@ export class CreativeJobService {
       updatedAt: request.createdAt,
     };
 
-    const operation = () => {
-      if (this.artifacts.get(artifact.id) !== undefined) {
+    const operation = (stores: Pick<DomainStoreTransactionContext, "artifacts" | "events">) => {
+      if (stores.artifacts.get(artifact.id) !== undefined) {
         throw new Error(`Creative artifact already exists: ${artifact.id}.`);
       }
-      this.artifacts.save(artifact);
+      stores.artifacts.save(artifact);
       const event: DomainEvent = {
         id: `CREATIVE_ARTIFACT_CREATED:${artifact.id}`,
         kind: "ARTIFACT_CREATED",
@@ -71,11 +76,14 @@ export class CreativeJobService {
           mimeType: artifact.mimeType,
         },
       };
-      this.events.append(event);
+      stores.events.append(event);
     };
 
-    if (this.unitOfWork === undefined) operation();
-    else this.unitOfWork.transaction(operation);
+    if (this.unitOfWork === undefined) {
+      operation({ artifacts: this.artifacts, events: this.events });
+    } else {
+      this.unitOfWork.transaction(operation);
+    }
 
     return artifact;
   }

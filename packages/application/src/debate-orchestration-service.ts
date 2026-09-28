@@ -6,7 +6,12 @@ import type {
   TextModelRequest,
 } from "@polyon/contracts";
 import { advanceDebatePhase, createDebate, decideDebate, startDebate } from "@polyon/core";
-import type { DebateStore, DomainUnitOfWork, EventStore } from "@polyon/storage";
+import type {
+  DebateStore,
+  DomainStoreTransactionContext,
+  DomainUnitOfWork,
+  EventStore,
+} from "@polyon/storage";
 
 import type { AgentGateway } from "@polyon/agents";
 
@@ -53,12 +58,12 @@ export class DebateOrchestrationService {
 
   create(input: CreateDebateInput): Debate {
     const debate = createDebate(input);
-    const operation = () => {
-      if (this.debates.get(debate.id) !== undefined) {
+    const operation = (stores: Pick<DomainStoreTransactionContext, "debates" | "events">) => {
+      if (stores.debates.get(debate.id) !== undefined) {
         throw new Error(`Debate already exists: ${debate.id}.`);
       }
-      this.debates.save(debate);
-      this.events.append(
+      stores.debates.save(debate);
+      stores.events.append(
         this.debateEvent("DEBATE_STATUS_CHANGED", debate, debate.createdAt, {
           from: "NONE",
           to: "DRAFT",
@@ -66,7 +71,9 @@ export class DebateOrchestrationService {
       );
       return debate;
     };
-    return this.unitOfWork === undefined ? operation() : this.unitOfWork.transaction(operation);
+    return this.unitOfWork === undefined
+      ? operation({ debates: this.debates, events: this.events })
+      : this.unitOfWork.transaction(operation);
   }
 
   async run(input: RunDebateInput): Promise<DebateRunResult> {
@@ -227,9 +234,9 @@ export class DebateOrchestrationService {
   }
 
   private persistStatus(debate: Debate, now: string, from: Debate["status"]): void {
-    const operation = () => {
-      this.debates.save(debate);
-      this.events.append(
+    const operation = (stores: Pick<DomainStoreTransactionContext, "debates" | "events">) => {
+      stores.debates.save(debate);
+      stores.events.append(
         this.debateEvent("DEBATE_STATUS_CHANGED", debate, now, {
           from,
           to: debate.status,
@@ -238,8 +245,11 @@ export class DebateOrchestrationService {
         }),
       );
     };
-    if (this.unitOfWork === undefined) operation();
-    else this.unitOfWork.transaction(operation);
+    if (this.unitOfWork === undefined) {
+      operation({ debates: this.debates, events: this.events });
+    } else {
+      this.unitOfWork.transaction(operation);
+    }
   }
 
   private persistContribution(
@@ -264,16 +274,19 @@ export class DebateOrchestrationService {
   }
 
   private persistDecision(debate: Debate, now: string, decision: string): void {
-    const operation = () => {
-      this.debates.save(debate);
-      this.events.append(
+    const operation = (stores: Pick<DomainStoreTransactionContext, "debates" | "events">) => {
+      stores.debates.save(debate);
+      stores.events.append(
         this.debateEvent("DEBATE_DECIDED", debate, now, {
           decision,
         }),
       );
     };
-    if (this.unitOfWork === undefined) operation();
-    else this.unitOfWork.transaction(operation);
+    if (this.unitOfWork === undefined) {
+      operation({ debates: this.debates, events: this.events });
+    } else {
+      this.unitOfWork.transaction(operation);
+    }
   }
 
   private debateEvent(

@@ -7,6 +7,7 @@ import type {
 import type { CommandIngressResult } from "./command-ingress";
 import type {
   ConversationStore,
+  DomainStoreTransactionContext,
   DomainUnitOfWork,
   EventStore,
   MessageStore,
@@ -94,15 +95,17 @@ export class ConversationAgentOrchestrationService {
           createdAt: new Date().toISOString(),
         };
 
-        const operation = () => {
-          if (this.messages.get(message.id) !== undefined) return;
-          const conversation = this.conversations.get(input.command.conversation.id);
+        const operation = (
+          stores: Pick<DomainStoreTransactionContext, "conversations" | "messages" | "events">,
+        ) => {
+          if (stores.messages.get(message.id) !== undefined) return;
+          const conversation = stores.conversations.get(input.command.conversation.id);
           if (conversation === undefined) {
             throw new Error(`Conversation not found: ${input.command.conversation.id}.`);
           }
 
-          this.messages.save(message);
-          this.conversations.save({
+          stores.messages.save(message);
+          stores.conversations.save({
             ...conversation,
             messageIds: [...conversation.messageIds, message.id],
             updatedAt: message.createdAt,
@@ -123,12 +126,19 @@ export class ConversationAgentOrchestrationService {
               kind: message.kind,
             },
           };
-          this.events.append(event);
+          stores.events.append(event);
           persistedMessages.push(message);
         };
 
-        if (this.unitOfWork === undefined) operation();
-        else this.unitOfWork.transaction(operation);
+        if (this.unitOfWork === undefined) {
+          operation({
+            conversations: this.conversations,
+            messages: this.messages,
+            events: this.events,
+          });
+        } else {
+          this.unitOfWork.transaction(operation);
+        }
       }
     }
 
