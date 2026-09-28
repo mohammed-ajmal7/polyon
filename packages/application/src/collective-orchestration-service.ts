@@ -422,6 +422,7 @@ export class CollectiveOrchestrationService {
         status: "FAILED",
         synthesizerAgentId,
         contributions,
+        challenges,
         failures,
         sourceIds: researchContext.sources.map((source) => source.id),
         evidenceIds: researchContext.evidence.map((evidence) => evidence.id),
