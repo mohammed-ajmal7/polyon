@@ -61,10 +61,16 @@ export class DebateOrchestrationService {
       }
       this.debates.save(debate);
       this.events.append(
-        this.debateEvent("DEBATE_STATUS_CHANGED", debate, debate.createdAt, {
-          from: "NONE",
-          to: "DRAFT",
-        }),
+        this.debateEvent(
+          "DEBATE_STATUS_CHANGED",
+          debate,
+          debate.createdAt,
+          {
+            from: "NONE",
+            to: "DRAFT",
+          },
+          input.conversationId,
+        ),
       );
       return debate;
     };
