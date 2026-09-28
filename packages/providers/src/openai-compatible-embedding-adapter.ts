@@ -81,10 +81,31 @@ export class OpenAICompatibleEmbeddingAdapter implements EmbeddingProviderAdapte
         throw new ProviderInvocationError("UNKNOWN", this.providerId, modelId, "Invalid embedding vector.", false);
       }
       const vector = (item as { embedding: unknown[] }).embedding;
-      if (vector.length === 0 || vector.length > 16_384 || vector.some((value) => typeof value !== "number" || !Number.isFinite(value))) {
-        throw new ProviderInvocationError("UNKNOWN", this.providerId, modelId, "Embedding vector is invalid or exceeds bounds.", false);
+      if (vector.length === 0 || vector.length > 16_384) {
+        throw new ProviderInvocationError(
+          "UNKNOWN",
+          this.providerId,
+          modelId,
+          "Embedding vector is invalid or exceeds bounds.",
+          false,
+        );
       }
-      return vector;
+
+      const numericVector: number[] = [];
+      for (const value of vector) {
+        if (typeof value !== "number" || !Number.isFinite(value)) {
+          throw new ProviderInvocationError(
+            "UNKNOWN",
+            this.providerId,
+            modelId,
+            "Embedding vector is invalid or exceeds bounds.",
+            false,
+          );
+        }
+        numericVector.push(value);
+      }
+
+      return numericVector;
     });
 
     if (vectors.length !== input.input.length) {
