@@ -133,9 +133,7 @@ export default function Home() {
         "Let a coordinated AI team contribute distinct perspectives and " + "synthesize one answer."
       );
     if (mode === "DeepAnalysis")
-      return (
-        "Research collectively, challenge the findings, debate the strongest claims, then synthesize."
-      );
+      return "Research collectively, challenge the findings, debate the strongest claims, then synthesize.";
     if (mode === "Debate")
       return "Run a bounded proposal, criticism, evidence and adjudication flow.";
     return "Turn a larger objective into governed, executable work.";
