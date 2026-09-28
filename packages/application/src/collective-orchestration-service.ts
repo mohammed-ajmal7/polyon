@@ -274,12 +274,9 @@ export class CollectiveOrchestrationService {
     failures: readonly CollectiveFailure[],
   ): TextModelRequest {
     const lines = contributions.map(
-      (item) =>
-        `[agent=${item.agentId} role=${item.role}]\n${item.content}`,
+      (item) => `[agent=${item.agentId} role=${item.role}]\n${item.content}`,
     );
-    const failureLines = failures.map(
-      (item) => `[agent=${item.agentId}] failed: ${item.error}`,
-    );
+    const failureLines = failures.map((item) => `[agent=${item.agentId}] failed: ${item.error}`);
 
     let context = "";
     for (const line of [...lines, ...failureLines]) {
