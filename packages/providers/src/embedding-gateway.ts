@@ -17,6 +17,18 @@ export class EmbeddingGateway {
     input: EmbeddingRequest,
     options: { readonly retries?: number; readonly signal?: AbortSignal } = {},
   ): Promise<EmbeddingResponse> {
+    if (input.input.length === 0 || input.input.length > 32) {
+      throw new RangeError("Embedding requests must contain between 1 and 32 inputs.");
+    }
+    if (input.input.some((value) => value.trim() === "" || value.length > 16_000)) {
+      throw new RangeError("Embedding inputs must be non-empty and at most 16000 characters.");
+    }
+
+    const retries = options.retries ?? 0;
+    if (!Number.isInteger(retries) || retries < 0 || retries > 3) {
+      throw new RangeError("Embedding retries must be an integer between 0 and 3.");
+    }
+
     const model = this.dependencies.models.get(modelId);
     if (model === undefined) throw new EmbeddingGatewayError("MODEL_NOT_FOUND", modelId);
     if (model.kind !== "EMBEDDING") throw new EmbeddingGatewayError("MODEL_KIND_UNSUPPORTED", modelId);
@@ -29,18 +41,6 @@ export class EmbeddingGateway {
     const adapter = this.dependencies.adapters.get(provider.id);
     if (adapter === undefined) {
       throw new EmbeddingGatewayError("PROVIDER_ADAPTER_NOT_FOUND", modelId);
-    }
-
-    if (input.input.length === 0 || input.input.length > 32) {
-      throw new RangeError("Embedding requests must contain between 1 and 32 inputs.");
-    }
-    if (input.input.some((value) => value.trim() === "" || value.length > 16_000)) {
-      throw new RangeError("Embedding inputs must be non-empty and at most 16000 characters.");
-    }
-
-    const retries = options.retries ?? 0;
-    if (!Number.isInteger(retries) || retries < 0 || retries > 3) {
-      throw new RangeError("Embedding retries must be an integer between 0 and 3.");
     }
 
     let attempt = 0;
