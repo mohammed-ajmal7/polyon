@@ -1,7 +1,19 @@
-import type { AgentId, Task } from "@polyon/contracts";
+import type { AgentId, Execution, Task } from "@polyon/contracts";
 
 import type { ConversationAgentOrchestrationService } from "./conversation-agent-orchestration-service";
 import type { CommandIngressService } from "./command-ingress";
+
+type A2ATaskState =
+  | "TASK_STATE_SUBMITTED"
+  | "TASK_STATE_WORKING"
+  | "TASK_STATE_COMPLETED"
+  | "TASK_STATE_FAILED"
+  | "TASK_STATE_CANCELED"
+  | "TASK_STATE_INPUT_REQUIRED"
+  | "TASK_STATE_REJECTED";
+
+const DEFAULT_TASK_PAGE_SIZE = 50;
+const MAX_TASK_PAGE_SIZE = 100;
 
 export interface A2AJsonRpcRequest {
   readonly jsonrpc: "2.0";
@@ -17,6 +29,15 @@ export interface A2AJsonRpcResponse {
   readonly error?: { readonly code: number; readonly message: string };
 }
 
+export interface A2AExecutionRuntime {
+  cancel(
+    executionId: string,
+  ):
+    | { readonly status: "CANCELLED"; readonly execution: Execution }
+    | { readonly status: "NOT_FOUND"; readonly executionId: string }
+    | { readonly status: "NOT_CANCELLABLE"; readonly execution: Execution };
+}
+
 export interface A2AServerDependencies {
   readonly agents: {
     list(): readonly {
@@ -29,6 +50,10 @@ export interface A2AServerDependencies {
   };
   readonly commandIngress: CommandIngressService;
   readonly conversationOrchestration: ConversationAgentOrchestrationService;
+  readonly executions: {
+    list(): readonly Execution[];
+  };
+  readonly runtime: A2AExecutionRuntime;
   readonly tasks: {
     list(): readonly Task[];
     get(taskId: string): Task | undefined;
@@ -52,6 +77,9 @@ export class A2AServerService {
       case "GetTask":
       case "tasks/get":
         return this.getTask(request);
+      case "CancelTask":
+      case "tasks/cancel":
+        return this.cancelTask(request);
       case "ListTasks":
       case "tasks/list":
         return this.listTasks(request);
@@ -101,7 +129,12 @@ export class A2AServerService {
     if (taskId === "") return error(request.id, -32602, "Task id is required.");
 
     const task = this.dependencies.tasks.get(taskId);
-    if (task === undefined) return error(request.id, -32004, "Task not found.");
+    if (
+      task === undefined ||
+      !isTaskVisible(task, this.dependencies.actorId, this.dependencies.executions.list())
+    ) {
+      return error(request.id, -32001, "Task not found.");
+    }
 
     return {
       jsonrpc: "2.0",
@@ -110,18 +143,113 @@ export class A2AServerService {
     };
   }
 
-  private listTasks(request: A2AJsonRpcRequest): A2AJsonRpcResponse {
-    const rawLimit = request.params?.limit;
-    const limit = rawLimit === undefined ? 50 : Number(rawLimit);
-    if (!Number.isInteger(limit) || limit <= 0 || limit > 100) {
-      return error(request.id, -32602, "limit must be between 1 and 100.");
+  private cancelTask(request: A2AJsonRpcRequest): A2AJsonRpcResponse {
+    const params = request.params ?? {};
+    const taskId =
+      typeof params.id === "string"
+        ? params.id.trim()
+        : typeof params.taskId === "string"
+          ? params.taskId.trim()
+          : "";
+
+    if (taskId === "") return error(request.id, -32602, "Task id is required.");
+
+    const task = this.dependencies.tasks.get(taskId);
+    const executions = this.dependencies.executions.list();
+
+    if (task === undefined || !isTaskVisible(task, this.dependencies.actorId, executions)) {
+      return error(request.id, -32001, "Task not found.");
+    }
+
+    const execution = executions
+      .filter(
+        (candidate) =>
+          candidate.taskId === task.id &&
+          candidate.actorId === this.dependencies.actorId &&
+          (candidate.status === "QUEUED" || candidate.status === "RUNNING"),
+      )
+      .sort(compareExecutions)[0];
+
+    if (execution === undefined) {
+      return error(request.id, -32002, "Task cannot be canceled.");
+    }
+
+    const cancellation = this.dependencies.runtime.cancel(execution.id);
+
+    if (cancellation.status === "NOT_FOUND") {
+      return error(request.id, -32001, "Task not found.");
+    }
+
+    if (cancellation.status === "NOT_CANCELLABLE") {
+      return error(request.id, -32002, "Task cannot be canceled.");
+    }
+
+    const updatedTask = this.dependencies.tasks.get(task.id);
+    if (updatedTask === undefined) {
+      return error(request.id, -32001, "Task not found.");
     }
 
     return {
       jsonrpc: "2.0",
       id: request.id,
+      result: mapTask(updatedTask),
+    };
+  }
+
+  private listTasks(request: A2AJsonRpcRequest): A2AJsonRpcResponse {
+    const params = request.params ?? {};
+    const rawPageSize = params.pageSize ?? params.limit;
+    const pageSize = rawPageSize === undefined ? DEFAULT_TASK_PAGE_SIZE : Number(rawPageSize);
+
+    if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > MAX_TASK_PAGE_SIZE) {
+      return error(request.id, -32602, "pageSize must be between 1 and 100.");
+    }
+
+    const contextId = readOptionalString(params.contextId);
+    const status = parseTaskStateFilter(params.status);
+    if (status.error !== undefined) {
+      return error(request.id, -32602, status.error);
+    }
+
+    const pageToken = decodeTaskPageToken(params.pageToken);
+    if (pageToken.error !== undefined) {
+      return error(request.id, -32602, pageToken.error);
+    }
+
+    const executions = this.dependencies.executions.list();
+    const filtered = this.dependencies.tasks
+      .list()
+      .filter((task) => isTaskVisible(task, this.dependencies.actorId, executions))
+      .filter((task) => contextId === undefined || task.missionId === contextId)
+      .filter((task) => status.state === undefined || mapTaskState(task.status) === status.state)
+      .sort(compareTasks);
+
+    const startIndex =
+      pageToken.cursor === undefined
+        ? 0
+        : filtered.findIndex(
+            (task) =>
+              task.updatedAt === pageToken.cursor!.updatedAt && task.id === pageToken.cursor!.id,
+          ) + 1;
+
+    if (pageToken.cursor !== undefined && startIndex === 0) {
+      return error(request.id, -32602, "A2A task page token is out of range.");
+    }
+
+    const page = filtered.slice(startIndex, startIndex + pageSize);
+    const nextPageToken =
+      startIndex + page.length < filtered.length && page.length > 0
+        ? encodeTaskPageToken(page[page.length - 1]!)
+        : "";
+
+    return {
+      jsonrpc: "2.0",
+      id: request.id,
       result: {
-        tasks: this.dependencies.tasks.list().slice(-limit).map(mapTask),
+        tasks: page.map(mapTask),
+        nextPageToken,
+        pageSize,
+        totalSize: filtered.length,
       },
     };
   }
@@ -205,25 +333,116 @@ function mapTask(task: Task): Record<string, unknown> {
   };
 }
 
-function mapTaskState(status: Task["status"]): string {
+function mapTaskState(status: Task["status"]): A2ATaskState {
   switch (status) {
     case "PENDING":
     case "BLOCKED":
     case "READY":
     case "APPROVAL_REQUIRED":
     case "APPROVED":
-      return "submitted";
+      return "TASK_STATE_SUBMITTED";
     case "RUNNING":
     case "PAUSED":
-      return "working";
+      return "TASK_STATE_WORKING";
     case "SUCCEEDED":
-      return "completed";
+      return "TASK_STATE_COMPLETED";
     case "CANCELLED":
-      return "canceled";
+      return "TASK_STATE_CANCELED";
     case "FAILED":
+      return "TASK_STATE_FAILED";
     case "REJECTED":
-      return "failed";
+      return "TASK_STATE_REJECTED";
   }
+}
+
+function parseTaskStateFilter(value: unknown): {
+  readonly state?: A2ATaskState;
+  readonly error?: string;
+} {
+  if (value === undefined) return {};
+
+  const normalized = typeof value === "string" ? value.trim() : "";
+  switch (normalized) {
+    case "TASK_STATE_SUBMITTED":
+    case "submitted":
+      return { state: "TASK_STATE_SUBMITTED" };
+    case "TASK_STATE_WORKING":
+    case "working":
+      return { state: "TASK_STATE_WORKING" };
+    case "TASK_STATE_COMPLETED":
+    case "completed":
+      return { state: "TASK_STATE_COMPLETED" };
+    case "TASK_STATE_FAILED":
+    case "failed":
+      return { state: "TASK_STATE_FAILED" };
+    case "TASK_STATE_CANCELED":
+    case "canceled":
+      return { state: "TASK_STATE_CANCELED" };
+    case "TASK_STATE_INPUT_REQUIRED":
+    case "input-required":
+      return { state: "TASK_STATE_INPUT_REQUIRED" };
+    case "TASK_STATE_REJECTED":
+    case "rejected":
+      return { state: "TASK_STATE_REJECTED" };
+    default:
+      return { error: "Unsupported A2A task status filter." };
+  }
+}
+
+function isTaskVisible(task: Task, actorId: string, executions: readonly Execution[]): boolean {
+  return executions.some(
+    (execution) => execution.taskId === task.id && execution.actorId === actorId,
+  );
+}
+
+function compareTasks(left: Task, right: Task): number {
+  const byUpdatedAt = right.updatedAt.localeCompare(left.updatedAt);
+  return byUpdatedAt !== 0 ? byUpdatedAt : right.id.localeCompare(left.id);
+}
+
+function compareExecutions(left: Execution, right: Execution): number {
+  const byUpdatedAt = right.updatedAt.localeCompare(left.updatedAt);
+  return byUpdatedAt !== 0 ? byUpdatedAt : right.id.localeCompare(left.id);
+}
+
+function encodeTaskPageToken(task: Task): string {
+  return "a2a-tasks:" + encodeURIComponent(task.updatedAt) + ":" + encodeURIComponent(task.id);
+}
+
+function decodeTaskPageToken(value: unknown): {
+  readonly cursor?: { readonly updatedAt: string; readonly id: string };
+  readonly error?: string;
+} {
+  if (value === undefined) return {};
+
+  if (typeof value !== "string" || !value.startsWith("a2a-tasks:")) {
+    return { error: "A2A task page token is invalid." };
+  }
+
+  const remainder = value.slice("a2a-tasks:".length);
+  const separator = remainder.indexOf(":");
+  if (separator <= 0) return { error: "A2A task page token is invalid." };
+
+  try {
+    const updatedAt = decodeURIComponent(remainder.slice(0, separator));
+    const id = decodeURIComponent(remainder.slice(separator + 1));
+    if (updatedAt === "" || id === "") {
+      return { error: "A2A task page token is invalid." };
+    }
+    if (Number.isNaN(Date.parse(updatedAt))) {
+      return { error: "A2A task page token is invalid." };
+    }
+    return { cursor: { updatedAt, id } };
+  } catch {
+    return { error: "A2A task page token is invalid." };
+  }
+}
+
+function readOptionalString(value: unknown): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") return "";
+  const normalized = value.trim();
+  return normalized === "" ? "" : normalized;
 }
 
 function extractText(message: Record<string, unknown>): string {

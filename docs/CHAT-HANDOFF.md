@@ -6,9 +6,12 @@
 ## Current repository state
 
 - Repository: `mohammed-ajmal7/polyon`
-- Branch: `feature/core-architecture`
-- Current implementation head at handoff update: **d4b4986791a60bb2c1f5d8625cbbd6b48185bc0d**
-- CI is the source of truth for verification. Do not call the current branch green until the latest run for the exact head succeeds.
+- Integration branch: `develop`
+- Historical architecture branch: `feature/core-architecture`
+- Release branch for the first release candidate: `release/0.1.0`
+- Current `develop` head: **48d6361f20c50642c5508083954dd752550f3ea6**
+- Historical architecture/release baseline head: **2c84f17060ea468105395ef264d4f6a7bed95002**
+- CI is the source of truth for verification. Do not call any branch green until the latest run for the exact head succeeds.
 
 ## Implemented operating loop
 
@@ -36,7 +39,10 @@
 - Google Drive READ integration;
 - Telegram SEND_MESSAGE integration;
 - Email SEND_EMAIL through provider-neutral SMTP with TLS/STARTTLS, AUTH LOGIN, MIME and protocol bounds;
-- all consequential integration/tool execution remains behind policy/approval/audit.
+- all consequential integration/tool execution remains behind policy/approval/audit;
+- MCP HTTP handling supports initialization notifications without a JSON-RPC response and bounded `tools/list` pagination with opaque cursors;
+- A2A HTTP handling supports agent card, SendMessage, GetTask, ListTasks, and CancelTask with actor-scoped task visibility;
+- AI HQ workspace routes cover Missions, Executions, Approvals, Agents, Memory, Research, Evidence, Artifacts, Activity, and Settings.
 
 ### Memory, research, evidence
 
@@ -45,7 +51,11 @@
 - bounded configurable web research retriever;
 - evidence-grounded research synthesis into SUMMARY memory;
 - redacted trace query API;
-- memory/evidence/source/artifact APIs.
+- memory/evidence/source/artifact APIs;
+- provider-independent embeddings through a bounded gateway;
+- durable versioned memory vectors with content hashes;
+- privacy-scoped automatic semantic indexing;
+- exact normalized vector indexing with durable rebuild and fallback search.
 
 ### Security and operations
 
@@ -56,19 +66,28 @@
 - explicit model/SMTP/research environment configuration;
 - file-backed durable state with migrations, atomic replacement, optimistic concurrency and backup/restore;
 - self-hosted Dockerfile + compose configuration;
-- CI typecheck/test/lint/format/build gates.
-- Readiness health checks fail closed on composition/configuration initialization errors and return a stable `503` response without leaking initialization details.
-- Optional semantic memory now has a provider-independent embedding gateway, durable versioned vectors with content hashes, bounded cosine search, an authenticated memory API mode, and a bounded reindex operation; automatic startup/recovery scheduling and vector-scale optimization remain.
+- CI typecheck/test/lint/format/build gates;
+- readiness health checks fail closed on composition/configuration initialization errors and return a stable `503` response without leaking initialization details.
 
 ## Intentional remaining work
 
-1. Richer semantic/embedding retrieval beyond the deterministic local path.
+1. Release-candidate deployment validation: real model configuration, approval/execution smoke tests, backup/restore, and authenticated self-hosted deployment.
 2. Advanced MCP/A2A features beyond the implemented HTTP baseline.
 3. Multi-user/enterprise identity and tenancy, outside the current personal deployment scope.
-4. Production-scale performance and broader adversarial E2E coverage.
+4. Sustained production-scale load/profiling and broader adversarial E2E coverage.
 5. Target-specific deployment automation beyond self-hosted Docker/Compose.
 
 A2A is the current agent-to-agent interoperability path; the former ACP line is not duplicated as an independent modern transport.
+
+## Branch workflow
+
+Use:
+
+```
+feature/* -> develop -> release/* -> main
+```
+
+Always create a feature branch for a coherent implementation slice. Merge features into `develop` only through CI-backed pull requests. Use `release/0.1.0` for stabilization and final release verification; `main` is reserved for released code.
 
 ## Continuation rules
 
@@ -84,5 +103,3 @@ Always:
 8. report exact verification status.
 
 The repository code and tests outrank this handoff if they differ.
-
-- Semantic memory now uses a bounded exact normalized vector index that caches normalized embeddings, preserves cosine-equivalent scoring, rebuilds from durable vectors on startup, and keeps the service fallback path available.

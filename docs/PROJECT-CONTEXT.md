@@ -493,7 +493,9 @@ Add context assembly, long-term memory, evidence retrieval, and privacy-aware kn
 
 ### Phase 11 — AI HQ web interface
 
-Build the finished Next.js product around the stable application APIs.
+Status: implemented for the first release candidate.
+
+The current workspace includes Command, Missions, Executions, Approvals, Agents, Memory, Research, Evidence, Artifacts, Activity, and Settings views around the stable application APIs. Further UX refinement can continue after the release candidate.
 
 ### Phase 12 — Observability, security, evals, hardening
 
@@ -559,7 +561,7 @@ Use this when opening a new chat:
 >
 > First read `AGENTS.md`, `docs/PROJECT-CONTEXT.md`, and `docs/architecture/001-system-architecture.md`.
 >
-> The GitHub repository is `mohammed-ajmal7/polyon`, branch `feature/core-architecture`.
+> The GitHub repository is `mohammed-ajmal7/polyon`, with `develop` as the active integration branch.
 >
 > Treat the repository and these documents as the source of truth, not the previous chat transcript.
 >
@@ -598,9 +600,9 @@ The system must remain understandable, testable, replaceable, private by default
 
 ## Current project status note
 
-The repository is actively under development on `feature/core-architecture`.
+The repository is actively developed on `develop`; `feature/core-architecture` is retained as the historical architecture baseline.
 
-The codebase currently includes the Phase 3 durable-storage foundation and the beginning of Phase 4 real-intelligence execution work. In particular, durable file-backed storage, transactional application write paths, restart-safe execution queue recovery, result replay idempotency, formal snapshot migrations, optimistic concurrency protection, provider invocation reliability controls, a concrete OpenAI-compatible text-model adapter, and a model-backed execution runner have been implemented.
+The codebase now contains the durable persistence, governed execution, provider adapters, tools/integrations, research/evidence, semantic memory, interoperability baselines, and AI HQ web workspace needed for the first self-hosted release candidate. The remaining pre-release work is primarily deployment validation, real-configuration smoke testing, backup/restore verification, and release branching.
 
 The exact implementation state must always be re-read from the repository before continuing. Do not rely on this paragraph as a substitute for inspecting the current code, tests, and git history.
 

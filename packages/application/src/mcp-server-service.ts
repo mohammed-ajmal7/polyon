@@ -8,7 +8,7 @@ import type {
 
 export interface McpJsonRpcRequest {
   readonly jsonrpc: "2.0";
-  readonly id: string | number | null;
+  readonly id?: string | number | null;
   readonly method: string;
   readonly params?: Record<string, unknown>;
 }
@@ -45,6 +45,8 @@ export interface McpServerDependencies {
   readonly actorId: string;
 }
 
+const MCP_TOOLS_PAGE_SIZE = 50;
+
 export class McpServerService {
   constructor(private readonly dependencies: McpServerDependencies) {}
 
@@ -55,23 +57,27 @@ export class McpServerService {
       readonly method?: string;
       readonly name?: string;
     },
-  ): Promise<McpJsonRpcResponse> {
+  ): Promise<McpJsonRpcResponse | undefined> {
     if (request.jsonrpc !== "2.0") {
-      return rpcError(request.id, -32600, "Invalid JSON-RPC request.");
+      return rpcError(request.id ?? null, -32600, "Invalid JSON-RPC request.");
     }
 
     if (headers.protocolVersion !== "2026-07-28") {
-      return rpcError(request.id, -32602, "Unsupported MCP protocol version.");
+      return rpcError(request.id ?? null, -32602, "Unsupported MCP protocol version.");
     }
 
     if (headers.method !== request.method) {
-      return rpcError(request.id, -32602, "Mcp-Method must match the JSON-RPC method.");
+      return rpcError(request.id ?? null, -32602, "Mcp-Method must match the JSON-RPC method.");
+    }
+
+    if (request.method === "notifications/initialized") {
+      return undefined;
     }
 
     if (request.method === "server/discover") {
       return {
         jsonrpc: "2.0",
-        id: request.id,
+        id: request.id ?? null,
         result: {
           protocolVersion: "2026-07-28",
           capabilities: {
@@ -83,43 +89,20 @@ export class McpServerService {
     }
 
     if (request.method === "tools/list") {
-      return {
-        jsonrpc: "2.0",
-        id: request.id,
-        result: {
-          tools: [
-            ...this.dependencies.tools
-              .list()
-              .filter((tool) => tool.enabled)
-              .map((tool) => ({
-                name: tool.id,
-                description: tool.description,
-                inputSchema: tool.inputSchema ?? { type: "object", additionalProperties: true },
-              })),
-            ...this.dependencies.integrations.list().flatMap((integration) =>
-              integration.supportedOperations.map((operation) => ({
-                name: integrationToolId(integration.integrationId, operation),
-                description: integration.kind + " integration " + operation,
-                inputSchema: { type: "object", additionalProperties: true },
-              })),
-            ),
-          ],
-          ttlMs: 10_000,
-          cacheScope: "private",
-        },
-      };
+      return this.listTools(request);
     }
 
     if (request.method !== "tools/call") {
-      return rpcError(request.id, -32601, "MCP method is not supported.");
+      return rpcError(request.id ?? null, -32601, "MCP method is not supported.");
     }
 
     const params = request.params ?? {};
     const name = typeof params.name === "string" ? params.name.trim() : "";
-    if (name === "") return rpcError(request.id, -32602, "tools/call requires params.name.");
+    if (name === "")
+      return rpcError(request.id ?? null, -32602, "tools/call requires params.name.");
 
     if (headers.name !== name) {
-      return rpcError(request.id, -32602, "Mcp-Name must match params.name.");
+      return rpcError(request.id ?? null, -32602, "Mcp-Name must match params.name.");
     }
 
     const input = params.arguments ?? {};
@@ -142,12 +125,12 @@ export class McpServerService {
         actorId: this.dependencies.actorId,
       });
 
-      return toolOutcomeResponse(request.id, outcome);
+      return toolOutcomeResponse(request.id ?? null, outcome);
     }
 
     const integration = parseIntegrationToolId(name);
     if (integration === undefined) {
-      return rpcError(request.id, -32602, "Unknown MCP tool.");
+      return rpcError(request.id ?? null, -32602, "Unknown MCP tool.");
     }
 
     const registered = this.dependencies.integrations.get(integration.integrationId) as
@@ -158,14 +141,15 @@ export class McpServerService {
           sideEffectClass: string;
         }
       | undefined;
-    if (registered === undefined) return rpcError(request.id, -32602, "Unknown MCP integration.");
+    if (registered === undefined)
+      return rpcError(request.id ?? null, -32602, "Unknown MCP integration.");
     if (!registered.supportedOperations.includes(integration.operation)) {
-      return rpcError(request.id, -32602, "Unsupported MCP integration operation.");
+      return rpcError(request.id ?? null, -32602, "Unsupported MCP integration operation.");
     }
 
     const action = registered.actionKinds[0];
     if (action === undefined)
-      return rpcError(request.id, -32602, "MCP integration has no action classification.");
+      return rpcError(request.id ?? null, -32602, "MCP integration has no action classification.");
 
     const outcome = await this.dependencies.integrationInvocation.invoke({
       invocationId: "mcp:" + String(request.id),
@@ -183,8 +167,67 @@ export class McpServerService {
       actorId: this.dependencies.actorId,
     });
 
-    return toolOutcomeResponse(request.id, outcome);
+    return toolOutcomeResponse(request.id ?? null, outcome);
   }
+
+  private listTools(request: McpJsonRpcRequest): McpJsonRpcResponse {
+    const allTools = [
+      ...this.dependencies.tools
+        .list()
+        .filter((tool) => tool.enabled)
+        .map((tool) => ({
+          name: tool.id,
+          description: tool.description,
+          inputSchema: tool.inputSchema ?? { type: "object", additionalProperties: true },
+        })),
+      ...this.dependencies.integrations.list().flatMap((integration) =>
+        integration.supportedOperations.map((operation) => ({
+          name: integrationToolId(integration.integrationId, operation),
+          description: integration.kind + " integration " + operation,
+          inputSchema: { type: "object", additionalProperties: true },
+        })),
+      ),
+    ];
+
+    const offsetResult = decodeToolsCursor(request.params?.cursor);
+    if (typeof offsetResult !== "number") {
+      return rpcError(request.id ?? null, -32602, offsetResult);
+    }
+
+    if (offsetResult > allTools.length) {
+      return rpcError(request.id ?? null, -32602, "MCP tools/list cursor is out of range.");
+    }
+
+    const page = allTools.slice(offsetResult, offsetResult + MCP_TOOLS_PAGE_SIZE);
+    const nextOffset = offsetResult + page.length;
+
+    return {
+      jsonrpc: "2.0",
+      id: request.id ?? null,
+      result: {
+        tools: page,
+        ...(nextOffset < allTools.length ? { nextCursor: encodeToolsCursor(nextOffset) } : {}),
+        ttlMs: 10_000,
+        cacheScope: "private",
+      },
+    };
+  }
+}
+
+function encodeToolsCursor(offset: number): string {
+  return "mcp-tools:" + offset;
+}
+
+function decodeToolsCursor(value: unknown): number | string {
+  if (value === undefined) return 0;
+  if (typeof value !== "string" || !/^mcp-tools:\d+$/u.test(value)) {
+    return "MCP tools/list cursor is invalid.";
+  }
+  const offset = Number(value.slice("mcp-tools:".length));
+  if (!Number.isSafeInteger(offset) || offset < 0) {
+    return "MCP tools/list cursor is invalid.";
+  }
+  return offset;
 }
 
 function toolOutcomeResponse(
