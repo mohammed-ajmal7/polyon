@@ -72,3 +72,8 @@ Thumbs.db
 # ==========================
 *.min.js
 *.min.css
+# ==========================
+# GitHub Workflows
+# ==========================
+.github/workflows/*.yml
+.github/workflows/*.yaml
