@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
-type Mode = "Direct" | "Broadcast" | "Collaborative" | "Debate" | "Mission";
+type Mode = "Direct" | "Broadcast" | "Collaborative" | "DeepAnalysis" | "Debate" | "Mission";
 type ActivityKind = "SYSTEM" | "APPROVAL" | "EXECUTION" | "AGENT";
 
 interface Overview {
@@ -132,6 +132,8 @@ export default function Home() {
       return (
         "Let a coordinated AI team contribute distinct perspectives and " + "synthesize one answer."
       );
+    if (mode === "DeepAnalysis")
+      return "Research collectively, challenge the findings, debate the strongest claims, then synthesize.";
     if (mode === "Debate")
       return "Run a bounded proposal, criticism, evidence and adjudication flow.";
     return "Turn a larger objective into governed, executable work.";
@@ -199,7 +201,10 @@ export default function Home() {
       result?: { status?: string; conversationId?: string };
     };
     setLastExecution(result.result?.status ?? "SUBMITTED");
-    if (mode === "Collaborative" && result.result?.conversationId !== undefined) {
+    if (
+      (mode === "Collaborative" || mode === "DeepAnalysis") &&
+      result.result?.conversationId !== undefined
+    ) {
       await loadCollectiveConversation(result.result.conversationId);
     }
     setCommand("");
@@ -420,7 +425,12 @@ export default function Home() {
                         TRACE & SYNTHESIS
                       </div>
                       {collectiveInspection.events
-                        .filter((event) => event.kind.startsWith("COLLECTIVE_"))
+                        .filter(
+                          (event) =>
+                            event.kind.startsWith("COLLECTIVE_") ||
+                            event.kind.startsWith("DEBATE_") ||
+                            event.kind.startsWith("DEEP_ANALYSIS_"),
+                        )
                         .map((event) => (
                           <article
                             key={event.id}
@@ -475,7 +485,14 @@ export default function Home() {
                       </div>
                       <div className="mt-5 flex flex-wrap gap-2">
                         {(
-                          ["Direct", "Broadcast", "Collaborative", "Debate", "Mission"] as Mode[]
+                          [
+                            "Direct",
+                            "Broadcast",
+                            "Collaborative",
+                            "DeepAnalysis",
+                            "Debate",
+                            "Mission",
+                          ] as Mode[]
                         ).map((entry) => (
                           <button
                             key={entry}

@@ -17,13 +17,15 @@ import type {
   MessageStore,
 } from "@polyon/storage";
 
-export type CommandMode = "Direct" | "Broadcast" | "Collaborative" | "Debate" | "Mission";
+export type CommandMode =
+  "Direct" | "Broadcast" | "Collaborative" | "Debate" | "DeepAnalysis" | "Mission";
 
 const modeToConversationKind: Record<CommandMode, Conversation["kind"]> = {
   Direct: "DIRECT",
   Broadcast: "BROADCAST",
   Collaborative: "COLLABORATIVE",
   Debate: "DEBATE",
+  DeepAnalysis: "DEEP_ANALYSIS",
   Mission: "MISSION",
 };
 
@@ -137,7 +139,8 @@ export class CommandIngressService {
     if (existing.status !== "ACTIVE") {
       throw new CommandIngressError(
         "CONVERSATION_NOT_ACTIVE",
-        `Cannot submit a command to conversation ${existing.id} while status is ${existing.status}.`,
+        `Cannot submit a command to conversation ${existing.id} while ` +
+          `status is ${existing.status}.`,
       );
     }
 

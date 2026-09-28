@@ -179,6 +179,14 @@ export {
   type DebateRunResult,
 } from "./debate-orchestration-service";
 
+export {
+  DeepAnalysisOrchestrationService,
+  type DeepAnalysisExecutionResult,
+  type DeepAnalysisExecutionStatus,
+  type ExecuteDeepAnalysisInput,
+  type DeepAnalysisOrchestrationDependencies,
+} from "./deep-analysis-orchestration-service";
+
 export { registerKnowledgeTools } from "./knowledge-tools";
 
 export {

@@ -19,7 +19,10 @@ import type { ResearchService } from "./research-service";
 const DEFAULT_MAX_PARTICIPANTS = 8;
 const MIN_PARTICIPANTS = 2;
 const DEFAULT_RESEARCH_SOURCE_LIMIT = 3;
+const DEFAULT_MAX_CHALLENGE_ROUNDS = 1;
+const MAX_CHALLENGE_ROUNDS = 2;
 const MAX_CONTRIBUTION_CHARACTERS = 12_000;
+const MAX_CHALLENGE_CONTEXT_CHARACTERS = 50_000;
 const MAX_SYNTHESIS_CONTEXT_CHARACTERS = 60_000;
 const MAX_EVIDENCE_CONTEXT_CHARACTERS = 60_000;
 
@@ -35,6 +38,7 @@ export interface ExecuteCollectiveInput {
   readonly requiredCapabilityIds: readonly string[];
   readonly synthesizerAgentId?: AgentId;
   readonly maxParticipants?: number;
+  readonly maxChallengeRounds?: number;
   readonly researchEnabled?: boolean;
   readonly researchSourceLimit?: number;
   readonly now?: () => string;
@@ -51,6 +55,16 @@ export interface CollectiveContribution {
   readonly evidenceIds: readonly string[];
 }
 
+export interface CollectiveChallenge {
+  readonly agentId: AgentId;
+  readonly actorId: string;
+  readonly round: number;
+  readonly modelId: string;
+  readonly providerId: string;
+  readonly targetAgentIds: readonly AgentId[];
+  readonly content: string;
+}
+
 export interface CollectiveFailure {
   readonly agentId: AgentId;
   readonly actorId: string;
@@ -65,6 +79,7 @@ export interface CollectiveExecutionResult {
   readonly status: CollectiveExecutionStatus;
   readonly synthesizerAgentId: AgentId;
   readonly contributions: readonly CollectiveContribution[];
+  readonly challenges: readonly CollectiveChallenge[];
   readonly failures: readonly CollectiveFailure[];
   readonly sourceIds: readonly string[];
   readonly evidenceIds: readonly string[];
@@ -98,6 +113,7 @@ export class CollectiveOrchestrationService {
     const collectiveId = `collective:${input.command.conversation.id}:${input.command.message.id}`;
     const researchEnabled = input.researchEnabled ?? this.dependencies.research !== undefined;
     const researchSourceLimit = input.researchSourceLimit ?? DEFAULT_RESEARCH_SOURCE_LIMIT;
+    const maxChallengeRounds = input.maxChallengeRounds ?? DEFAULT_MAX_CHALLENGE_ROUNDS;
 
     const synthesizer = this.dependencies.agents.get(synthesizerAgentId);
     if (synthesizer === undefined || synthesizer.status !== "ACTIVE") {
@@ -116,6 +132,7 @@ export class CollectiveOrchestrationService {
       now(),
       researchEnabled,
       researchSourceLimit,
+      maxChallengeRounds,
     );
 
     const researchByAgent = new Map<AgentId, ResearchContext>();
@@ -232,7 +249,7 @@ export class CollectiveOrchestrationService {
       )
       .map((result) => result.contribution);
 
-    const failures = [
+    const failures: CollectiveFailure[] = [
       ...researchFailures,
       ...contributorResults
         .filter(
@@ -242,9 +259,20 @@ export class CollectiveOrchestrationService {
         .map((result) => result.failure),
     ];
 
-    this.persistContributions(collectiveId, input, contributions, failures, now());
+    const researchContext = mergeResearchContext([...researchByAgent.values()]);
+
+    if (
+      !Number.isInteger(maxChallengeRounds) ||
+      maxChallengeRounds < 0 ||
+      maxChallengeRounds > MAX_CHALLENGE_ROUNDS
+    ) {
+      throw new RangeError("Collective maxChallengeRounds must be an integer between 0 and 2.");
+    }
+
+    const challenges: CollectiveChallenge[] = [];
 
     if (contributions.length === 0) {
+      this.persistContributions(collectiveId, input, contributions, failures, now());
       this.persistFailure(
         collectiveId,
         input,
@@ -258,13 +286,88 @@ export class CollectiveOrchestrationService {
         status: "FAILED",
         synthesizerAgentId,
         contributions,
+        challenges,
         failures,
         sourceIds: [],
         evidenceIds: [],
       };
     }
 
-    const researchContext = mergeResearchContext([...researchByAgent.values()]);
+    for (let round = 1; round <= maxChallengeRounds; round += 1) {
+      const results = await Promise.all(
+        targets.map(async (target) => {
+          const agent = this.dependencies.agents.get(target.agentId);
+          const role = agent?.role ?? "Generalist";
+          const targetAgentIds = contributors
+            .filter((candidate) => candidate.agentId !== target.agentId)
+            .map((candidate) => candidate.agentId);
+
+          try {
+            const response = await this.dependencies.agentGateway.invokeText({
+              agentId: target.agentId,
+              requiredCapabilityIds: input.requiredCapabilityIds,
+              request: this.buildChallengeRequest(
+                input.command.message.content,
+                role,
+                target.agentId,
+                round,
+                contributions,
+                challenges,
+                researchContext,
+              ),
+            });
+
+            const content = response.output.content.trim().slice(0, MAX_CONTRIBUTION_CHARACTERS);
+            if (content === "") throw new Error("Challenge agent returned empty content.");
+
+            return {
+              kind: "success" as const,
+              challenge: {
+                agentId: target.agentId,
+                actorId: target.actorId,
+                round,
+                modelId: response.modelId,
+                providerId: response.providerId,
+                targetAgentIds,
+                content,
+              },
+            };
+          } catch (error) {
+            return {
+              kind: "failure" as const,
+              failure: {
+                agentId: target.agentId,
+                actorId: target.actorId,
+                error:
+                  error instanceof Error
+                    ? `Challenge failed: ${error.message}`
+                    : "Challenge invocation failed.",
+              },
+            };
+          }
+        }),
+      );
+
+      const roundChallenges = results
+        .filter(
+          (result): result is Extract<(typeof results)[number], { kind: "success" }> =>
+            result.kind === "success",
+        )
+        .map((result) => result.challenge);
+      const roundFailures = results
+        .filter(
+          (result): result is Extract<(typeof results)[number], { kind: "failure" }> =>
+            result.kind === "failure",
+        )
+        .map((result) => result.failure);
+
+      challenges.push(...roundChallenges);
+      failures.push(...roundFailures);
+      this.persistChallenges(collectiveId, input, roundChallenges, roundFailures, now());
+    }
+
+    this.persistContributions(collectiveId, input, contributions, [], now());
+
     let synthesisContent: string;
     let synthesisModelId: string;
     let synthesisProviderId: string;
@@ -276,6 +379,7 @@ export class CollectiveOrchestrationService {
         request: this.buildSynthesisRequest(
           input.command.message.content,
           contributions,
+          challenges,
           failures,
           researchContext,
         ),
@@ -297,6 +401,7 @@ export class CollectiveOrchestrationService {
         status: "FAILED",
         synthesizerAgentId,
         contributions,
+        challenges,
         failures,
         sourceIds: researchContext.sources.map((source) => source.id),
         evidenceIds: researchContext.evidence.map((evidence) => evidence.id),
@@ -317,6 +422,7 @@ export class CollectiveOrchestrationService {
         status: "FAILED",
         synthesizerAgentId,
         contributions,
+        challenges,
         failures,
         sourceIds: researchContext.sources.map((source) => source.id),
         evidenceIds: researchContext.evidence.map((evidence) => evidence.id),
@@ -340,6 +446,7 @@ export class CollectiveOrchestrationService {
       status: failures.length === 0 ? "SUCCEEDED" : "PARTIAL",
       synthesizerAgentId,
       contributions,
+      challenges,
       failures,
       sourceIds: researchContext.sources.map((source) => source.id),
       evidenceIds: researchContext.evidence.map((evidence) => evidence.id),
@@ -408,9 +515,66 @@ export class CollectiveOrchestrationService {
           content:
             `User request: ${command}\n\nYour role: ${role}\nAgent: ${agentName}\n\n` +
             "Analyze the request from your specialist perspective. " +
-            "Return useful findings, important assumptions, and uncertainties for another agent to synthesize." +
+            "Return useful findings, important assumptions, and uncertainties for another agent " +
+            "to synthesize." +
             (sourceContext === "" ? "" : `\n\nRetrieved sources:\n${sourceContext}`) +
             (evidenceContext === "" ? "" : `\n\nRetrieved evidence:\n${evidenceContext}`),
+        },
+      ],
+    };
+  }
+
+  private buildChallengeRequest(
+    command: string,
+    role: string,
+    agentId: AgentId,
+    round: number,
+    contributions: readonly CollectiveContribution[],
+    challenges: readonly CollectiveChallenge[],
+    research: ResearchContext,
+  ): TextModelRequest {
+    const peerContributions = contributions
+      .filter((item) => item.agentId !== agentId)
+      .map((item) => `[agent=${item.agentId} role=${item.role}]\n${item.content}`)
+      .join("\n\n");
+
+    const priorChallenges = challenges
+      .filter((item) => item.round < round && item.agentId !== agentId)
+      .map((item) => `[challenge agent=${item.agentId} round=${item.round}]\n${item.content}`)
+      .join("\n\n");
+
+    let context = "";
+    for (const block of [peerContributions, priorChallenges]) {
+      if (block === "") continue;
+      if (context.length + block.length + 2 > MAX_CHALLENGE_CONTEXT_CHARACTERS) break;
+      context += (context === "" ? "" : "\n\n") + block;
+    }
+
+    const evidenceContext = formatEvidenceContext(research);
+
+    return {
+      messages: [
+        {
+          role: "SYSTEM",
+          content:
+            "You are a critical reviewer inside POLYON's AI collective. " +
+            "Challenge peer reasoning rather than seeking agreement. " +
+            "Identify unsupported claims, " +
+            "conflicting evidence, hidden assumptions, and plausible alternative explanations. " +
+            "Separate facts from interpretations. Do not invent sources or claim verification " +
+            "you did not receive. Do not take external actions.",
+        },
+        {
+          role: "USER",
+          content:
+            `User request: ${command}\n\nYour role: ${role}\nReviewer: ${agentId}\n` +
+            `Round: ${round}\n\n` +
+            (context === ""
+              ? "There are no peer contributions yet. Critically inspect the available evidence " +
+                "and assumptions."
+              : `Peer contributions:\n${context}`) +
+            (evidenceContext === "" ? "" : `\n\nShared evidence:\n${evidenceContext}`) +
+            "\n\nReturn the strongest challenges and concrete corrections for the synthesis lead.",
         },
       ],
     };
@@ -419,18 +583,26 @@ export class CollectiveOrchestrationService {
   private buildSynthesisRequest(
     command: string,
     contributions: readonly CollectiveContribution[],
+    challenges: readonly CollectiveChallenge[],
     failures: readonly CollectiveFailure[],
     research: ResearchContext,
   ): TextModelRequest {
     const lines = contributions.map(
       (item) =>
-        `[agent=${item.agentId} role=${item.role} model=${item.modelId} provider=${item.providerId}]\n${item.content}`,
+        `[agent=${item.agentId} role=${item.role} model=${item.modelId} ` +
+        `provider=${item.providerId}]\n${item.content}`,
+    );
+    const challengeLines = challenges.map(
+      (item) =>
+        `[challenge agent=${item.agentId} round=${item.round} targets=${item.targetAgentIds.join(
+          ",",
+        )}]\n${item.content}`,
     );
     const failureLines = failures.map((item) => `[agent=${item.agentId}] failed: ${item.error}`);
     const evidenceContext = formatEvidenceContext(research);
 
     let context = "";
-    for (const line of [...lines, ...failureLines]) {
+    for (const line of [...lines, ...challengeLines, ...failureLines]) {
       if (context.length + line.length + 2 > MAX_SYNTHESIS_CONTEXT_CHARACTERS) break;
       context += (context === "" ? "" : "\n\n") + line;
     }
@@ -450,10 +622,10 @@ export class CollectiveOrchestrationService {
         {
           role: "USER",
           content:
-            `User request: ${command}\n\nCollective findings:\n${context}` +
+            `User request: ${command}\n\nCollective findings and challenges:\n${context}` +
             (evidenceContext === "" ? "" : `\n\nShared evidence:\n${evidenceContext}`) +
             "\n\nFormat the response with these sections: Findings, Evidence, Agreements, " +
-            "Disagreements, Uncertainty, Conclusion.",
+            "Disagreements, Counterclaims, Uncertainty, Conclusion.",
         },
       ],
     };
@@ -466,6 +638,7 @@ export class CollectiveOrchestrationService {
     occurredAt: string,
     researchEnabled: boolean,
     researchSourceLimit: number,
+    maxChallengeRounds: number,
   ): void {
     this.withStores((stores) => {
       stores.events.append({
@@ -481,6 +654,7 @@ export class CollectiveOrchestrationService {
           commandMessageId: input.command.message.id,
           researchEnabled,
           researchSourceLimit,
+          maxChallengeRounds,
         },
       });
     });
@@ -530,7 +704,8 @@ export class CollectiveOrchestrationService {
 
       for (const failure of failures) {
         stores.events.append({
-          id: `COLLECTIVE_CONTRIBUTION:${collectiveId}:${failure.agentId}:${stableId(failure.error)}`,
+          id:
+            `COLLECTIVE_CONTRIBUTION:${collectiveId}:${failure.agentId}:` + stableId(failure.error),
           kind: "COLLECTIVE_CONTRIBUTION",
           actorId: failure.actorId,
           conversationId: input.command.conversation.id,
@@ -557,6 +732,83 @@ export class CollectiveOrchestrationService {
         messageIds: [
           ...conversation.messageIds,
           ...contributionMessageIds.filter((id) => !conversation.messageIds.includes(id)),
+        ],
+        updatedAt: occurredAt,
+      });
+    });
+  }
+
+  private persistChallenges(
+    collectiveId: string,
+    input: ExecuteCollectiveInput,
+    challenges: readonly CollectiveChallenge[],
+    failures: readonly CollectiveFailure[],
+    occurredAt: string,
+  ): void {
+    this.withStores((stores) => {
+      for (const challenge of challenges) {
+        const messageId = `collective:${collectiveId}:challenge:${challenge.round}:${challenge.agentId}`;
+        if (stores.messages.get(messageId) === undefined) {
+          stores.messages.save({
+            id: messageId,
+            conversationId: input.command.conversation.id,
+            actorId: challenge.actorId,
+            role: "AGENT",
+            kind: "TEXT",
+            content: challenge.content,
+            createdAt: occurredAt,
+          });
+        }
+
+        stores.events.append({
+          id: `COLLECTIVE_CHALLENGE:${collectiveId}:r${challenge.round}:${challenge.agentId}`,
+          kind: "COLLECTIVE_CHALLENGE",
+          actorId: challenge.actorId,
+          conversationId: input.command.conversation.id,
+          occurredAt,
+          data: {
+            collectiveId,
+            agentId: challenge.agentId,
+            round: challenge.round,
+            modelId: challenge.modelId,
+            providerId: challenge.providerId,
+            targetAgentIds: [...challenge.targetAgentIds],
+            messageId,
+            status: "SUCCEEDED",
+          },
+        });
+      }
+
+      for (const failure of failures) {
+        stores.events.append({
+          id: `COLLECTIVE_CHALLENGE:${collectiveId}:${failure.agentId}:${stableId(failure.error)}`,
+          kind: "COLLECTIVE_CHALLENGE",
+          actorId: failure.actorId,
+          conversationId: input.command.conversation.id,
+          occurredAt,
+          data: {
+            collectiveId,
+            agentId: failure.agentId,
+            status: "FAILED",
+            error: failure.error,
+          },
+        });
+      }
+
+      const conversation = stores.conversations.get(input.command.conversation.id);
+      if (conversation === undefined) {
+        throw new Error(`Conversation not found: ${input.command.conversation.id}.`);
+      }
+
+      const challengeMessageIds = challenges.map(
+        (challenge) =>
+          `collective:${collectiveId}:challenge:${challenge.round}:${challenge.agentId}`,
+      );
+      stores.conversations.save({
+        ...conversation,
+        messageIds: [
+          ...conversation.messageIds,
+          ...challengeMessageIds.filter((id) => !conversation.messageIds.includes(id)),
         ],
         updatedAt: occurredAt,
       });
