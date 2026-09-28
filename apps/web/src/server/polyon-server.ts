@@ -1,16 +1,13 @@
 import { join } from "node:path";
 
-import type { Agent, Model, Policy, Provider, SecretReference } from "@polyon/contracts";
+import type { Model, Policy, Provider, SecretReference } from "@polyon/contracts";
 import {
   BoundedHttpClient,
   EnvironmentSecretResolver,
   SmtpTransport,
   type EmailTransport,
 } from "@polyon/integrations";
-import {
-  OpenAICompatibleEmbeddingAdapter,
-  OpenAICompatibleTextModelAdapter,
-} from "@polyon/providers";
+import { OpenAICompatibleEmbeddingAdapter } from "@polyon/providers";
 import { EncryptedFileSecretResolver, NodeSmtpConnectionFactory } from "@polyon/runtime";
 import {
   BoundedWebResearchRetriever,
@@ -18,8 +15,12 @@ import {
   ConfiguredHttpResearchProvider,
   createPolyonComposition,
   type PolyonComposition,
-  type PolyonProviderRegistration,
 } from "@polyon/application";
+import {
+  buildModelRegistrations,
+  parseModelProfiles,
+  type ModelProfileConfig,
+} from "./model-fleet-config";
 
 const globalState = globalThis as typeof globalThis & { __polyonComposition?: PolyonComposition };
 
@@ -40,7 +41,7 @@ export function getPolyonComposition(): PolyonComposition {
 }
 
 function buildOptions() {
-  const model = buildModelRegistrations();
+  const model = buildConfiguredModelRegistrations();
   const embedding = buildEmbeddingRegistration();
   const email = buildEmailRegistration();
   const secretResolver = email === undefined ? undefined : buildSecretResolver();
@@ -104,13 +105,12 @@ function buildEmbeddingRegistration() {
   return { provider, model, adapter };
 }
 
-function buildModelRegistrations():
-  | {
-      agents: Agent[];
-      models: Model[];
-      providers: PolyonProviderRegistration[];
-    }
-  | undefined {
+function buildConfiguredModelRegistrations() {
+  const profilesJson = process.env.POLYON_MODEL_PROFILES_JSON?.trim();
+  if (profilesJson !== undefined && profilesJson !== "") {
+    return buildModelRegistrations(parseModelProfiles(profilesJson), process.env);
+  }
+
   const endpoint = process.env.POLYON_MODEL_ENDPOINT?.trim();
   const modelId = process.env.POLYON_MODEL_ID?.trim();
   if (endpoint === undefined || endpoint === "" || modelId === undefined || modelId === "")
@@ -118,49 +118,20 @@ function buildModelRegistrations():
 
   const providerId = process.env.POLYON_PROVIDER_ID?.trim() || "configured-model-provider";
   const baseAgentId = process.env.POLYON_AGENT_ID?.trim() || "primary";
-  const now = new Date().toISOString();
-  const provider: Provider = {
-    id: providerId,
-    name: process.env.POLYON_PROVIDER_NAME?.trim() || "Configured model provider",
-    kind: "HOSTED_MODEL",
-    enabled: true,
-  };
-  const model: Model = {
-    id: modelId,
+  const profile: ModelProfileConfig = {
+    agentId: baseAgentId,
+    agentName: process.env.POLYON_AGENT_NAME?.trim() || "Primary",
+    agentRole: process.env.POLYON_AGENT_ROLE?.trim() || "General operations",
+    agentDescription: "Server-configured POLYON agent.",
+    modelId,
+    modelName: process.env.POLYON_MODEL_NAME?.trim() || modelId,
     providerId,
-    name: process.env.POLYON_MODEL_NAME?.trim() || modelId,
-    kind: "TEXT",
-    capabilityIds: [],
-    enabled: true,
-  };
-  const adapter = new OpenAICompatibleTextModelAdapter({
-    providerId,
+    providerName: process.env.POLYON_PROVIDER_NAME?.trim() || "Configured model provider",
     endpoint,
-    ...(process.env.POLYON_MODEL_API_KEY === undefined
-      ? {}
-      : { apiKey: process.env.POLYON_MODEL_API_KEY }),
-  });
-  const registration = { provider, adapter } satisfies PolyonProviderRegistration;
-
-  const agent = {
-    id: baseAgentId,
-    name: process.env.POLYON_AGENT_NAME?.trim() || "Primary",
-    role: process.env.POLYON_AGENT_ROLE?.trim() || "General operations",
-    description: "Server-configured POLYON agent.",
-    status: "ACTIVE" as const,
-    capabilityIds: [],
-    preferredModelId: modelId,
-    fallbackModelIds: [],
-    createdAt: now,
-    updatedAt: now,
   };
 
   if ((process.env.POLYON_COLLECTIVE_PRESET?.trim() || "default").toLowerCase() !== "default") {
-    return {
-      agents: [agent],
-      models: [model],
-      providers: [registration],
-    };
+    return buildModelRegistrations([profile], process.env);
   }
 
   const roles = [
@@ -190,22 +161,16 @@ function buildModelRegistrations():
     },
   ];
 
-  const agents = roles.map((role) => ({
-    ...role,
-    id: baseAgentId + "-" + role.id,
-    status: "ACTIVE" as const,
-    capabilityIds: [],
-    preferredModelId: modelId,
-    fallbackModelIds: [],
-    createdAt: now,
-    updatedAt: now,
-  }));
-
-  return {
-    agents,
-    models: [model],
-    providers: [registration],
-  };
+  return buildModelRegistrations(
+    roles.map((role) => ({
+      ...profile,
+      agentId: baseAgentId + "-" + role.id,
+      agentName: role.name,
+      agentRole: role.role,
+      agentDescription: role.description,
+    })),
+    process.env,
+  );
 }
 
 function buildEmailRegistration():
