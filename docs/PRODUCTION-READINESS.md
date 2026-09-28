@@ -27,7 +27,7 @@ Current capabilities:
 1. Automatic durable indexing/reindex recovery and a replaceable vector acceleration strategy are implemented: semantic indexing can run on startup, and the default exact local vector index caches normalized vectors while preserving an adapter boundary for ANN/pgvector implementations.
 2. Advanced MCP/A2A features such as streaming, push, subscriptions, and broader spec coverage.
 3. Multi-user/enterprise identity and tenancy, outside the personal deployment scope.
-4. Large-scale performance/load testing and broader adversarial E2E coverage.
+4. Production-scale coverage is expanded with deterministic 10k-memory retrieval and 250-item durable restart tests; sustained load testing, profiling, and broader adversarial E2E coverage remain.
 5. Deployment automation for a specific infrastructure target beyond self-hosted Docker/Compose.
 
 Do not fake provider/protocol support to close these items. Keep adapters replaceable.
