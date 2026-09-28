@@ -45,7 +45,7 @@ describe("protocol servers", () => {
       { protocolVersion: "2026-07-28", method: "tools/list" },
     );
 
-    expect(response.result).toMatchObject({
+    expect(response?.result).toMatchObject({
       tools: [{ name: "filesystem.read.scoped" }],
       ttlMs: 10_000,
       cacheScope: "private",
@@ -90,14 +90,14 @@ describe("protocol servers", () => {
       { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: tool.id, arguments: {} } },
       { protocolVersion: "2026-07-28", method: "tools/list", name: tool.id },
     );
-    expect(mismatch.error?.code).toBe(-32602);
+    expect(mismatch?.error?.code).toBe(-32602);
 
     const response = await service.handle(
       { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: tool.id, arguments: {} } },
       { protocolVersion: "2026-07-28", method: "tools/call", name: tool.id },
     );
     expect(invoke).toHaveBeenCalledTimes(1);
-    expect(response.result).toMatchObject({
+    expect(response?.result).toMatchObject({
       content: [{ type: "text", text: JSON.stringify({ ok: true }) }],
     });
   });
@@ -189,7 +189,7 @@ describe("protocol servers", () => {
     });
 
     expect(conversation.execute).toHaveBeenCalledTimes(1);
-    expect(response.result).toEqual({
+    expect(response?.result).toEqual({
       role: "agent",
       parts: [{ kind: "text", text: "world" }],
     });
@@ -228,7 +228,7 @@ describe("A2A task status", () => {
       method: "GetTask",
       params: { id: "task-1" },
     });
-    expect(getResponse.result).toEqual({
+    expect(getResponse?.result).toEqual({
       id: "task-1",
       contextId: "mission-1",
       status: {
@@ -246,7 +246,7 @@ describe("A2A task status", () => {
       method: "ListTasks",
       params: { limit: 1 },
     });
-    expect(listResponse.result).toMatchObject({
+    expect(listResponse?.result).toMatchObject({
       tasks: [
         expect.objectContaining({
           id: "task-1",

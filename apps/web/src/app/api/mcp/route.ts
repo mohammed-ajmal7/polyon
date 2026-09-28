@@ -50,6 +50,7 @@ export async function POST(request: Request): Promise<Response> {
       name: request.headers.get("Mcp-Name") ?? undefined,
     });
 
+    if (result === undefined) return new Response(null, { status: 204 });
     return Response.json(result);
   } catch (error) {
     return Response.json(

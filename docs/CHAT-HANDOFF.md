@@ -38,7 +38,8 @@
 - Google Drive READ integration;
 - Telegram SEND_MESSAGE integration;
 - Email SEND_EMAIL through provider-neutral SMTP with TLS/STARTTLS, AUTH LOGIN, MIME and protocol bounds;
-- all consequential integration/tool execution remains behind policy/approval/audit.
+- all consequential integration/tool execution remains behind policy/approval/audit;
+- MCP HTTP handling supports initialization notifications without a JSON-RPC response and bounded `tools/list` pagination with opaque cursors.
 
 ### Memory, research, evidence
 
