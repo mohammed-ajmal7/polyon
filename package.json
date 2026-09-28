@@ -13,8 +13,8 @@
     "format:check": "prettier . --check"
   },
   "keywords": [],
-  "author": "",
-  "license": "UNLICENSED",
+  "author": "Mohammed Ajmal",
+  "license": "MIT",
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
