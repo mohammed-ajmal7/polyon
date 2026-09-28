@@ -161,11 +161,7 @@ describe("AgentToolOrchestrationService", () => {
     }));
     const gateway = { invokeText } as unknown as AgentGateway;
 
-    const knowledge = new KnowledgeContextService(
-      stores.memory,
-      stores.evidence,
-      stores.sources,
-    );
+    const knowledge = new KnowledgeContextService(stores.memory, stores.evidence, stores.sources);
 
     const orchestrator = new AgentToolOrchestrationService({
       agentGateway: gateway,
@@ -210,7 +206,6 @@ describe("AgentToolOrchestrationService", () => {
     expect(request.messages[0]?.content).toContain("project-memory");
     expect(request.messages[0]?.content).not.toContain("private-memory");
   });
-
 
   it("bounds large tool output before returning it to the model", async () => {
     const root = mkdtempSync(join(tmpdir(), "polyon-tool-output-limit-"));

@@ -61,6 +61,7 @@ pnpm dev
 For self-hosted deployment:
 
 ```docker compose up --build
+
 ```
 
 Persistent application state is stored in the configured `POLYON_DATA_DIR`.
@@ -91,6 +92,7 @@ The core POLYON operating loop is implemented. Remaining work is primarily depth
 - target-specific deployment automation beyond self-hosted Docker/Compose.
 
 ACP is treated as the legacy line absorbed into the current A2A interoperability path, not as a separate modern transport to duplicate.
+
 ## Quality bar
 
 Before a feature is considered complete:

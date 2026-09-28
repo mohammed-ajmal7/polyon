@@ -5,17 +5,8 @@ import type {
   ModelMessage,
   TextModelRequest,
 } from "@polyon/contracts";
-import {
-  advanceDebatePhase,
-  createDebate,
-  decideDebate,
-  startDebate,
-} from "@polyon/core";
-import type {
-  DebateStore,
-  DomainUnitOfWork,
-  EventStore,
-} from "@polyon/storage";
+import { advanceDebatePhase, createDebate, decideDebate, startDebate } from "@polyon/core";
+import type { DebateStore, DomainUnitOfWork, EventStore } from "@polyon/storage";
 
 import type { AgentGateway } from "@polyon/agents";
 
@@ -66,10 +57,12 @@ export class DebateOrchestrationService {
         throw new Error(`Debate already exists: ${debate.id}.`);
       }
       this.debates.save(debate);
-      this.events.append(this.debateEvent("DEBATE_STATUS_CHANGED", debate, debate.createdAt, {
-        from: "NONE",
-        to: "DRAFT",
-      }));
+      this.events.append(
+        this.debateEvent("DEBATE_STATUS_CHANGED", debate, debate.createdAt, {
+          from: "NONE",
+          to: "DRAFT",
+        }),
+      );
       return debate;
     };
     return this.unitOfWork === undefined ? operation() : this.unitOfWork.transaction(operation);
@@ -87,11 +80,14 @@ export class DebateOrchestrationService {
     const contributions: DebateRunResult["contributions"][number][] = [...persistedContributions];
 
     if (debate.status === "DECIDED") {
-      const decisionEvent = this.events.list().find((event) =>
-        event.kind === "DEBATE_DECIDED" &&
-        event.data.debateId === debate.id &&
-        typeof event.data.decision === "string",
-      );
+      const decisionEvent = this.events
+        .list()
+        .find(
+          (event) =>
+            event.kind === "DEBATE_DECIDED" &&
+            event.data.debateId === debate.id &&
+            typeof event.data.decision === "string",
+        );
       if (decisionEvent === undefined) throw new Error("Decided debate has no decision trace.");
       return { debate, decision: String(decisionEvent.data.decision), contributions };
     }
@@ -103,10 +99,11 @@ export class DebateOrchestrationService {
 
     while (debate.status === "RUNNING") {
       for (const agentId of debate.participantAgentIds) {
-        const existing = contributions.find((candidate) =>
-          candidate.agentId === agentId &&
-          candidate.round === debate.currentRound &&
-          candidate.phase === debate.phase,
+        const existing = contributions.find(
+          (candidate) =>
+            candidate.agentId === agentId &&
+            candidate.round === debate.currentRound &&
+            candidate.phase === debate.phase,
         );
         if (existing !== undefined) continue;
 
@@ -124,14 +121,20 @@ export class DebateOrchestrationService {
       throw new Error(`Debate ${debate.id} did not reach adjudication.`);
     }
 
-    const decision = await this.invokeAdjudication(debate, input.adjudicatorAgentId, contributions, input);
+    const decision = await this.invokeAdjudication(
+      debate,
+      input.adjudicatorAgentId,
+      contributions,
+      input,
+    );
     const decided = decideDebate(debate, input.now());
     this.persistDecision(decided, input.now(), decision);
     return { debate: decided, decision, contributions };
   }
 
   private loadContributions(debateId: string): DebateRunResult["contributions"] {
-    return this.events.list()
+    return this.events
+      .list()
       .filter((event) => event.kind === "DEBATE_CONTRIBUTION" && event.data.debateId === debateId)
       .map((event) => ({
         agentId: String(event.data.agentId),
@@ -139,7 +142,10 @@ export class DebateOrchestrationService {
         phase: event.data.phase as Debate["phase"],
         content: String(event.data.content),
       }))
-      .sort((a, b) => a.round - b.round || a.phase.localeCompare(b.phase) || a.agentId.localeCompare(b.agentId));
+      .sort(
+        (a, b) =>
+          a.round - b.round || a.phase.localeCompare(b.phase) || a.agentId.localeCompare(b.agentId),
+      );
   }
 
   private async invokeContribution(
@@ -160,8 +166,7 @@ export class DebateOrchestrationService {
         },
         {
           role: "USER",
-          content:
-            `Objective: ${debate.objective}\nRound: ${debate.currentRound}\nPhase: ${debate.phase}\nRole: ${role}\n\nPrior contributions:\n${context}`,
+          content: `Objective: ${debate.objective}\nRound: ${debate.currentRound}\nPhase: ${debate.phase}\nRole: ${role}\n\nPrior contributions:\n${context}`,
         },
       ],
     };
@@ -199,8 +204,7 @@ export class DebateOrchestrationService {
         },
         {
           role: "USER",
-          content:
-            `Objective: ${debate.objective}\nDebate transcript:\n${context}\n\nReturn a reasoned adjudication.`,
+          content: `Objective: ${debate.objective}\nDebate transcript:\n${context}\n\nReturn a reasoned adjudication.`,
         },
       ],
     };
@@ -217,12 +221,14 @@ export class DebateOrchestrationService {
   private persistStatus(debate: Debate, now: string, from: Debate["status"]): void {
     const operation = () => {
       this.debates.save(debate);
-      this.events.append(this.debateEvent("DEBATE_STATUS_CHANGED", debate, now, {
-        from,
-        to: debate.status,
-        phase: debate.phase,
-        round: debate.currentRound,
-      }));
+      this.events.append(
+        this.debateEvent("DEBATE_STATUS_CHANGED", debate, now, {
+          from,
+          to: debate.status,
+          phase: debate.phase,
+          round: debate.currentRound,
+        }),
+      );
     };
     if (this.unitOfWork === undefined) operation();
     else this.unitOfWork.transaction(operation);
@@ -233,8 +239,7 @@ export class DebateOrchestrationService {
     contribution: DebateRunResult["contributions"][number],
   ): void {
     const event: DomainEvent = {
-      id:
-        `DEBATE_CONTRIBUTION:${debate.id}:r${contribution.round}:${contribution.phase}:${contribution.agentId}`,
+      id: `DEBATE_CONTRIBUTION:${debate.id}:r${contribution.round}:${contribution.phase}:${contribution.agentId}`,
       kind: "DEBATE_CONTRIBUTION",
       data: {
         debateId: debate.id,
@@ -251,9 +256,11 @@ export class DebateOrchestrationService {
   private persistDecision(debate: Debate, now: string, decision: string): void {
     const operation = () => {
       this.debates.save(debate);
-      this.events.append(this.debateEvent("DEBATE_DECIDED", debate, now, {
-        decision,
-      }));
+      this.events.append(
+        this.debateEvent("DEBATE_DECIDED", debate, now, {
+          decision,
+        }),
+      );
     };
     if (this.unitOfWork === undefined) operation();
     else this.unitOfWork.transaction(operation);
@@ -276,7 +283,8 @@ export class DebateOrchestrationService {
       occurredAt,
       data: { debateId: debate.id, ...data },
     };
-  }}
+  }
+}
 
 function phaseInstruction(phase: Debate["phase"]): string {
   switch (phase) {
@@ -293,7 +301,9 @@ function phaseInstruction(phase: Debate["phase"]): string {
   }
 }
 
-function formatContributions(contributions: readonly DebateRunResult["contributions"][number][]): string {
+function formatContributions(
+  contributions: readonly DebateRunResult["contributions"][number][],
+): string {
   const lines: string[] = [];
   let total = 0;
   for (const item of contributions) {

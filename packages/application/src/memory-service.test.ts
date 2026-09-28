@@ -46,9 +46,9 @@ describe("MemoryService", () => {
       now: "2026-09-28T00:00:01.000Z",
     });
 
-    expect(service.search({ query: "approval email", scope: "PRIVATE" }).map((entry) => entry.id)).toEqual([
-      "m1",
-    ]);
+    expect(
+      service.search({ query: "approval email", scope: "PRIVATE" }).map((entry) => entry.id),
+    ).toEqual(["m1"]);
     expect(service.search({ query: "email" }).map((entry) => entry.id)).toEqual(["m2", "m1"]);
   });
 
@@ -74,8 +74,6 @@ describe("MemoryService", () => {
       }),
     ).toThrow("Memory already exists");
 
-    expect(() => service.search({ query: "fact", limit: 101 })).toThrow(
-      "between 1 and 100",
-    );
+    expect(() => service.search({ query: "fact", limit: 101 })).toThrow("between 1 and 100");
   });
 });

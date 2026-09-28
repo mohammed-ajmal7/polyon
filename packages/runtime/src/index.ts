@@ -61,4 +61,11 @@ export {
   type EncryptedFileSecretResolverOptions,
 } from "./encrypted-file-secret-resolver";
 
-export { BoundedProcessAgentAdapter, BoundedProcessAgentError, type BoundedProcessAgentRequest, type BoundedProcessAgentResponse, type BoundedProcessAgentAdapterOptions, type BoundedProcessAgentErrorKind } from "./bounded-process-agent-adapter";
+export {
+  BoundedProcessAgentAdapter,
+  BoundedProcessAgentError,
+  type BoundedProcessAgentRequest,
+  type BoundedProcessAgentResponse,
+  type BoundedProcessAgentAdapterOptions,
+  type BoundedProcessAgentErrorKind,
+} from "./bounded-process-agent-adapter";

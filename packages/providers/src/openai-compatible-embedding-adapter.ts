@@ -34,7 +34,8 @@ export class OpenAICompatibleEmbeddingAdapter implements EmbeddingProviderAdapte
   private readonly fetchImpl: OpenAICompatibleEmbeddingFetch;
 
   constructor(options: OpenAICompatibleEmbeddingAdapterOptions) {
-    if (options.endpoint.trim() === "") throw new RangeError("Embedding endpoint must not be empty.");
+    if (options.endpoint.trim() === "")
+      throw new RangeError("Embedding endpoint must not be empty.");
     const protocol = new URL(options.endpoint).protocol;
     if (protocol !== "http:" && protocol !== "https:") {
       throw new RangeError("Embedding endpoint must use HTTP(S).");
@@ -42,11 +43,24 @@ export class OpenAICompatibleEmbeddingAdapter implements EmbeddingProviderAdapte
     this.providerId = options.providerId;
     this.endpoint = options.endpoint;
     this.apiKey = options.apiKey;
-    this.fetchImpl = options.fetch ?? ((input, init) =>
-      globalThis.fetch(input, init as unknown as RequestInit) as Promise<OpenAICompatibleEmbeddingResponse>);
+    this.fetchImpl =
+      options.fetch ??
+      ((input, init) =>
+        globalThis.fetch(
+          input,
+          init as unknown as RequestInit,
+        ) as Promise<OpenAICompatibleEmbeddingResponse>);
   }
 
-  async embed({ modelId, input, signal }: { readonly modelId: ModelId; readonly input: EmbeddingRequest; readonly signal?: AbortSignal }): Promise<{ readonly output: EmbeddingResponse }> {
+  async embed({
+    modelId,
+    input,
+    signal,
+  }: {
+    readonly modelId: ModelId;
+    readonly input: EmbeddingRequest;
+    readonly signal?: AbortSignal;
+  }): Promise<{ readonly output: EmbeddingResponse }> {
     const headers: Record<string, string> = { "content-type": "application/json" };
     if (this.apiKey !== undefined) headers.authorization = `Bearer ${this.apiKey}`;
 
@@ -59,12 +73,17 @@ export class OpenAICompatibleEmbeddingAdapter implements EmbeddingProviderAdapte
     const payload = await response.json();
     if (!response.ok) {
       const message =
-        typeof payload === "object" && payload !== null &&
+        typeof payload === "object" &&
+        payload !== null &&
         typeof (payload as { error?: { message?: unknown } }).error?.message === "string"
           ? (payload as { error: { message: string } }).error.message
           : `Embedding provider request failed with HTTP ${response.status}.`;
       throw new ProviderInvocationError(
-        response.status === 429 ? "RATE_LIMITED" : response.status >= 500 ? "UNAVAILABLE" : "INVALID_REQUEST",
+        response.status === 429
+          ? "RATE_LIMITED"
+          : response.status >= 500
+            ? "UNAVAILABLE"
+            : "INVALID_REQUEST",
         this.providerId,
         modelId,
         message,
@@ -72,13 +91,33 @@ export class OpenAICompatibleEmbeddingAdapter implements EmbeddingProviderAdapte
       );
     }
 
-    if (typeof payload !== "object" || payload === null || !Array.isArray((payload as { data?: unknown }).data)) {
-      throw new ProviderInvocationError("UNKNOWN", this.providerId, modelId, "Invalid embedding response.", false);
+    if (
+      typeof payload !== "object" ||
+      payload === null ||
+      !Array.isArray((payload as { data?: unknown }).data)
+    ) {
+      throw new ProviderInvocationError(
+        "UNKNOWN",
+        this.providerId,
+        modelId,
+        "Invalid embedding response.",
+        false,
+      );
     }
 
     const vectors = (payload as { data: unknown[] }).data.map((item) => {
-      if (typeof item !== "object" || item === null || !Array.isArray((item as { embedding?: unknown }).embedding)) {
-        throw new ProviderInvocationError("UNKNOWN", this.providerId, modelId, "Invalid embedding vector.", false);
+      if (
+        typeof item !== "object" ||
+        item === null ||
+        !Array.isArray((item as { embedding?: unknown }).embedding)
+      ) {
+        throw new ProviderInvocationError(
+          "UNKNOWN",
+          this.providerId,
+          modelId,
+          "Invalid embedding vector.",
+          false,
+        );
       }
       const vector = (item as { embedding: unknown[] }).embedding;
       if (vector.length === 0 || vector.length > 16_384) {
@@ -109,7 +148,13 @@ export class OpenAICompatibleEmbeddingAdapter implements EmbeddingProviderAdapte
     });
 
     if (vectors.length !== input.input.length) {
-      throw new ProviderInvocationError("UNKNOWN", this.providerId, modelId, "Embedding provider returned an unexpected vector count.", false);
+      throw new ProviderInvocationError(
+        "UNKNOWN",
+        this.providerId,
+        modelId,
+        "Embedding provider returned an unexpected vector count.",
+        false,
+      );
     }
 
     return { output: { vectors } };

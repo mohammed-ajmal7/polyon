@@ -22,7 +22,8 @@ export class DurableBackupService {
     if (destination === "") throw new RangeError("Backup destination must not be empty.");
 
     const source = this.database.path;
-    if (!existsSync(source)) throw new Error("Cannot back up a durable database that does not exist.");
+    if (!existsSync(source))
+      throw new Error("Cannot back up a durable database that does not exist.");
 
     mkdirSync(dirname(destination), { recursive: true });
     const temp = destination + ".tmp";

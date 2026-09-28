@@ -1,15 +1,6 @@
-import type {
-  Evidence,
-  MemoryEntry,
-  MemoryScope,
-  Source,
-} from "@polyon/contracts";
+import type { Evidence, MemoryEntry, MemoryScope, Source } from "@polyon/contracts";
 
-import type {
-  EvidenceStore,
-  MemoryStore,
-  SourceStore,
-} from "@polyon/storage";
+import type { EvidenceStore, MemoryStore, SourceStore } from "@polyon/storage";
 
 export interface KnowledgeContextInput {
   readonly query: string;
@@ -77,19 +68,20 @@ export class KnowledgeContextService {
       .sort(compareMemory)
       .slice(0, memoryLimit);
 
-    const evidenceItems = input.includeEvidence === false
-      ? []
-      : this.evidence
-          .list()
-          .filter((item) => input.missionId === undefined || item.missionId === input.missionId)
-          .filter((item) => input.taskId === undefined || item.taskId === input.taskId)
-          .map((item) => ({
-            entry: item,
-            score: scoreText(queryTokens, normalizedQuery, item.claim, []),
-          }))
-          .filter((item) => item.score > 0)
-          .sort(compareEvidence)
-          .slice(0, evidenceLimit);
+    const evidenceItems =
+      input.includeEvidence === false
+        ? []
+        : this.evidence
+            .list()
+            .filter((item) => input.missionId === undefined || item.missionId === input.missionId)
+            .filter((item) => input.taskId === undefined || item.taskId === input.taskId)
+            .map((item) => ({
+              entry: item,
+              score: scoreText(queryTokens, normalizedQuery, item.claim, []),
+            }))
+            .filter((item) => item.score > 0)
+            .sort(compareEvidence)
+            .slice(0, evidenceLimit);
 
     const items: KnowledgeContextItem[] = [];
     const sourceIds = new Set<string>();
@@ -97,13 +89,20 @@ export class KnowledgeContextService {
 
     for (const item of memoryItems) {
       const text = formatMemory(item.entry);
-      if (!appendWithinBudget(items, {
-        kind: "MEMORY",
-        id: item.entry.id,
-        text,
-        memoryId: item.entry.id,
-        score: item.score,
-      }, maxCharacters, usedCharacters)) {
+      if (
+        !appendWithinBudget(
+          items,
+          {
+            kind: "MEMORY",
+            id: item.entry.id,
+            text,
+            memoryId: item.entry.id,
+            score: item.score,
+          },
+          maxCharacters,
+          usedCharacters,
+        )
+      ) {
         break;
       }
       usedCharacters += text.length + 1;
@@ -113,13 +112,20 @@ export class KnowledgeContextService {
     for (const item of evidenceItems) {
       const source = this.sources.get(item.entry.sourceId);
       const text = formatEvidence(item.entry, source);
-      if (!appendWithinBudget(items, {
-        kind: "EVIDENCE",
-        id: item.entry.id,
-        text,
-        sourceId: item.entry.sourceId,
-        score: item.score,
-      }, maxCharacters, usedCharacters)) {
+      if (
+        !appendWithinBudget(
+          items,
+          {
+            kind: "EVIDENCE",
+            id: item.entry.id,
+            text,
+            sourceId: item.entry.sourceId,
+            score: item.score,
+          },
+          maxCharacters,
+          usedCharacters,
+        )
+      ) {
         continue;
       }
       usedCharacters += text.length + 1;
@@ -154,8 +160,10 @@ function formatMemory(memory: MemoryEntry): string {
 }
 
 function formatEvidence(evidence: Evidence, source: Source | undefined): string {
-  return `[evidence:${evidence.id} source:${evidence.sourceId} ${source?.title ?? "unknown"}]` +
-    ` ${evidence.kind}: ${evidence.claim}\n${evidence.supportingContent}`;
+  return (
+    `[evidence:${evidence.id} source:${evidence.sourceId} ${source?.title ?? "unknown"}]` +
+    ` ${evidence.kind}: ${evidence.claim}\n${evidence.supportingContent}`
+  );
 }
 
 function scoreText(
@@ -176,18 +184,22 @@ function compareMemory(
   left: { entry: MemoryEntry; score: number },
   right: { entry: MemoryEntry; score: number },
 ): number {
-  return right.score - left.score ||
+  return (
+    right.score - left.score ||
     right.entry.updatedAt.localeCompare(left.entry.updatedAt) ||
-    left.entry.id.localeCompare(right.entry.id);
+    left.entry.id.localeCompare(right.entry.id)
+  );
 }
 
 function compareEvidence(
   left: { entry: Evidence; score: number },
   right: { entry: Evidence; score: number },
 ): number {
-  return right.score - left.score ||
+  return (
+    right.score - left.score ||
     right.entry.capturedAt.localeCompare(left.entry.capturedAt) ||
-    left.entry.id.localeCompare(right.entry.id);
+    left.entry.id.localeCompare(right.entry.id)
+  );
 }
 
 function normalize(value: string): string {
@@ -200,12 +212,7 @@ function tokenize(value: string): string[] {
     .filter((token) => token.length >= 2);
 }
 
-function assertBound(
-  value: number,
-  minimum: number,
-  maximum: number,
-  field: string,
-): void {
+function assertBound(value: number, minimum: number, maximum: number, field: string): void {
   if (!Number.isInteger(value) || value < minimum || value > maximum) {
     throw new RangeError(`${field} must be an integer between ${minimum} and ${maximum}.`);
   }

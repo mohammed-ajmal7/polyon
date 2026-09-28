@@ -9,15 +9,17 @@ describe("ConfiguredHttpCreativeAdapter", () => {
       status: 200,
       statusText: "OK",
       headers: { "content-type": "application/json" },
-      body: new TextEncoder().encode(JSON.stringify({
-        artifact: {
-          kind: "IMAGE",
-          name: "generated.png",
-          status: "AVAILABLE",
-          location: "https://cdn.example.com/generated.png",
-          mimeType: "image/png",
-        },
-      })),
+      body: new TextEncoder().encode(
+        JSON.stringify({
+          artifact: {
+            kind: "IMAGE",
+            name: "generated.png",
+            status: "AVAILABLE",
+            location: "https://cdn.example.com/generated.png",
+            mimeType: "image/png",
+          },
+        }),
+      ),
     }));
 
     const adapter = new ConfiguredHttpCreativeAdapter({
@@ -54,9 +56,11 @@ describe("ConfiguredHttpCreativeAdapter", () => {
           status: 200,
           statusText: "OK",
           headers: {},
-          body: new TextEncoder().encode(JSON.stringify({
-            artifact: { kind: "VIDEO", name: "bad", status: "AVAILABLE", location: "x" },
-          })),
+          body: new TextEncoder().encode(
+            JSON.stringify({
+              artifact: { kind: "VIDEO", name: "bad", status: "AVAILABLE", location: "x" },
+            }),
+          ),
         })),
       } as never,
     });

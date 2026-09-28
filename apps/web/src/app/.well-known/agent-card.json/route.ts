@@ -5,7 +5,8 @@ import { A2AServerService } from "@polyon/application";
 export const runtime = "nodejs";
 
 export async function GET(request: Request): Promise<Response> {
-  if (!(await authenticateRequest(request))) return Response.json({ error: "Authentication required." }, { status: 401 });
+  if (!(await authenticateRequest(request)))
+    return Response.json({ error: "Authentication required." }, { status: 401 });
 
   const polyon = getPolyonComposition();
   const service = new A2AServerService({

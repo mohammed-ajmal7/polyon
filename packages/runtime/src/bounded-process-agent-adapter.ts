@@ -46,11 +46,7 @@ export class BoundedProcessAgentError extends Error {
   readonly kind: BoundedProcessAgentErrorKind;
   readonly executable: string;
 
-  constructor(
-    kind: BoundedProcessAgentErrorKind,
-    executable: string,
-    message: string,
-  ) {
+  constructor(kind: BoundedProcessAgentErrorKind, executable: string, message: string) {
     super(message);
     this.name = "BoundedProcessAgentError";
     this.kind = kind;
@@ -92,10 +88,18 @@ export class BoundedProcessAgentAdapter {
 
     const absoluteRoot = resolve(options.rootDir);
     if (!existsSync(absoluteRoot)) {
-      throw new BoundedProcessAgentError("NOT_FOUND", "", `Agent root does not exist: ${absoluteRoot}.`);
+      throw new BoundedProcessAgentError(
+        "NOT_FOUND",
+        "",
+        `Agent root does not exist: ${absoluteRoot}.`,
+      );
     }
     if (!statSync(absoluteRoot).isDirectory()) {
-      throw new BoundedProcessAgentError("NOT_A_DIRECTORY", "", `Agent root is not a directory: ${absoluteRoot}.`);
+      throw new BoundedProcessAgentError(
+        "NOT_A_DIRECTORY",
+        "",
+        `Agent root is not a directory: ${absoluteRoot}.`,
+      );
     }
 
     this.rootDir = realpathSync(absoluteRoot);
@@ -104,13 +108,27 @@ export class BoundedProcessAgentAdapter {
     this.maxTimeoutMs = maxTimeoutMs;
     this.defaultMaxOutputBytes = defaultMaxOutputBytes;
     this.maxInputBytes = maxInputBytes;
-    this.environmentKeys = options.environmentKeys ?? ["PATH", "HOME", "USER", "USERNAME", "SystemRoot", "ComSpec", "PATHEXT", "TEMP", "TMP"];
+    this.environmentKeys = options.environmentKeys ?? [
+      "PATH",
+      "HOME",
+      "USER",
+      "USERNAME",
+      "SystemRoot",
+      "ComSpec",
+      "PATHEXT",
+      "TEMP",
+      "TMP",
+    ];
   }
 
   async invoke(request: BoundedProcessAgentRequest): Promise<BoundedProcessAgentResponse> {
     const executable = request.executable.trim();
     if (executable === "") {
-      throw new BoundedProcessAgentError("INVALID_INPUT", "", "Agent executable must not be empty.");
+      throw new BoundedProcessAgentError(
+        "INVALID_INPUT",
+        "",
+        "Agent executable must not be empty.",
+      );
     }
     if (!this.allowedExecutables.has(executable)) {
       throw new BoundedProcessAgentError(
@@ -181,11 +199,13 @@ export class BoundedProcessAgentAdapter {
       const timeout = setTimeout(() => {
         timedOut = true;
         child.kill("SIGTERM");
-        finishError(new BoundedProcessAgentError(
-          "TIMEOUT",
-          executable,
-          `Agent process exceeded the ${timeoutMs}-millisecond timeout.`,
-        ));
+        finishError(
+          new BoundedProcessAgentError(
+            "TIMEOUT",
+            executable,
+            `Agent process exceeded the ${timeoutMs}-millisecond timeout.`,
+          ),
+        );
       }, timeoutMs);
 
       const finish = (error?: unknown): void => {
@@ -194,11 +214,9 @@ export class BoundedProcessAgentAdapter {
         clearTimeout(timeout);
 
         if (error !== undefined) {
-          rejectResult(new BoundedProcessAgentError(
-            "START_FAILED",
-            executable,
-            "Agent process failed.",
-          ));
+          rejectResult(
+            new BoundedProcessAgentError("START_FAILED", executable, "Agent process failed."),
+          );
           return;
         }
 
@@ -208,11 +226,13 @@ export class BoundedProcessAgentAdapter {
 
         if (timedOut) return;
         if (exitCode !== 0) {
-          rejectResult(new BoundedProcessAgentError(
-            "NON_ZERO_EXIT",
-            executable,
-            "Agent process exited unsuccessfully.",
-          ));
+          rejectResult(
+            new BoundedProcessAgentError(
+              "NON_ZERO_EXIT",
+              executable,
+              "Agent process exited unsuccessfully.",
+            ),
+          );
           return;
         }
 
@@ -235,11 +255,13 @@ export class BoundedProcessAgentAdapter {
         stdoutBytes += chunk.byteLength;
         if (stdoutBytes > maxOutputBytes) {
           child.kill("SIGTERM");
-          finishError(new BoundedProcessAgentError(
-            "OUTPUT_TOO_LARGE",
-            executable,
-            `Agent output exceeds the ${maxOutputBytes}-byte limit.`,
-          ));
+          finishError(
+            new BoundedProcessAgentError(
+              "OUTPUT_TOO_LARGE",
+              executable,
+              `Agent output exceeds the ${maxOutputBytes}-byte limit.`,
+            ),
+          );
           return;
         }
         stdoutChunks.push(chunk);
@@ -248,18 +270,22 @@ export class BoundedProcessAgentAdapter {
         stderrBytes += chunk.byteLength;
         if (stdoutBytes + stderrBytes > maxOutputBytes) {
           child.kill("SIGTERM");
-          finishError(new BoundedProcessAgentError(
-            "OUTPUT_TOO_LARGE",
-            executable,
-            `Agent output exceeds the ${maxOutputBytes}-byte limit.`,
-          ));
+          finishError(
+            new BoundedProcessAgentError(
+              "OUTPUT_TOO_LARGE",
+              executable,
+              `Agent output exceeds the ${maxOutputBytes}-byte limit.`,
+            ),
+          );
           return;
         }
         stderrChunks.push(chunk);
       });
 
       child.stdin.on("error", () => {
-        finishError(new BoundedProcessAgentError("START_FAILED", executable, "Agent input failed."));
+        finishError(
+          new BoundedProcessAgentError("START_FAILED", executable, "Agent input failed."),
+        );
       });
       child.stdin.end(request.input);
     });
@@ -278,10 +304,18 @@ export class BoundedProcessAgentAdapter {
     }
 
     if (!existsSync(candidate)) {
-      throw new BoundedProcessAgentError("NOT_FOUND", "", `Agent working directory does not exist: ${candidate}.`);
+      throw new BoundedProcessAgentError(
+        "NOT_FOUND",
+        "",
+        `Agent working directory does not exist: ${candidate}.`,
+      );
     }
     if (!statSync(candidate).isDirectory()) {
-      throw new BoundedProcessAgentError("NOT_A_DIRECTORY", "", `Agent working directory is not a directory: ${candidate}.`);
+      throw new BoundedProcessAgentError(
+        "NOT_A_DIRECTORY",
+        "",
+        `Agent working directory is not a directory: ${candidate}.`,
+      );
     }
 
     return realpathSync(candidate);
@@ -304,11 +338,14 @@ function isInsideRoot(rootDir: string, candidate: string): boolean {
 }
 
 function assertPositiveInteger(value: number, field: string): void {
-  if (!Number.isInteger(value) || value <= 0) throw new RangeError(`${field} must be a positive integer.`);
+  if (!Number.isInteger(value) || value <= 0)
+    throw new RangeError(`${field} must be a positive integer.`);
 }
 
 function pickEnvironment(keys: readonly string[]): Record<string, string | undefined> {
-  const runtime = globalThis as unknown as { readonly process?: { readonly env?: Readonly<Record<string, string | undefined>> } };
+  const runtime = globalThis as unknown as {
+    readonly process?: { readonly env?: Readonly<Record<string, string | undefined>> };
+  };
   const env: Record<string, string | undefined> = {};
   for (const key of keys) {
     const value = runtime.process?.env?.[key];

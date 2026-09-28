@@ -8,12 +8,22 @@ const MAX_BYTES = 256_000;
 
 export async function POST(request: Request): Promise<Response> {
   if (!(await authenticateRequest(request))) {
-    return Response.json({ jsonrpc: "2.0", id: null, error: { code: -32001, message: "Authentication required." } }, { status: 401 });
+    return Response.json(
+      { jsonrpc: "2.0", id: null, error: { code: -32001, message: "Authentication required." } },
+      { status: 401 },
+    );
   }
 
   const raw = await request.text();
   if (new TextEncoder().encode(raw).byteLength > MAX_BYTES) {
-    return Response.json({ jsonrpc: "2.0", id: null, error: { code: -32600, message: "MCP request exceeds its byte limit." } }, { status: 413 });
+    return Response.json(
+      {
+        jsonrpc: "2.0",
+        id: null,
+        error: { code: -32600, message: "MCP request exceeds its byte limit." },
+      },
+      { status: 413 },
+    );
   }
 
   try {
@@ -43,14 +53,22 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json(result);
   } catch (error) {
     return Response.json(
-      { jsonrpc: "2.0", id: null, error: { code: -32600, message: error instanceof Error ? error.message : "Invalid MCP request." } },
+      {
+        jsonrpc: "2.0",
+        id: null,
+        error: {
+          code: -32600,
+          message: error instanceof Error ? error.message : "Invalid MCP request.",
+        },
+      },
       { status: 400 },
     );
   }
 }
 
 export async function GET(request: Request): Promise<Response> {
-  if (!(await authenticateRequest(request))) return new Response("Authentication required.", { status: 401 });
+  if (!(await authenticateRequest(request)))
+    return new Response("Authentication required.", { status: 401 });
   return Response.json({
     protocolVersion: "2026-07-28",
     methods: ["tools/list", "tools/call"],

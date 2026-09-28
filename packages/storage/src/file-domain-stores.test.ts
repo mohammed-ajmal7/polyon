@@ -244,7 +244,9 @@ describe("FileDomainStores", () => {
         }),
       ).toThrow("rollback");
 
-      expect(new FileDomainStores(directory).missions.get("mission-context-rollback")).toBeUndefined();
+      expect(
+        new FileDomainStores(directory).missions.get("mission-context-rollback"),
+      ).toBeUndefined();
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

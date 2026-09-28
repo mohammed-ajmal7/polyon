@@ -66,7 +66,9 @@ export class MemoryService {
       return entry;
     };
 
-    return this.unitOfWork === undefined ? operation() : this.unitOfWork.transaction(() => operation());
+    return this.unitOfWork === undefined
+      ? operation()
+      : this.unitOfWork.transaction(() => operation());
   }
 
   search(input: SearchMemoryInput): readonly MemoryEntry[] {
@@ -86,10 +88,14 @@ export class MemoryService {
       .map((entry) => {
         const tokens = new Set([...tokenize(entry.text), ...entry.tags.map(normalizeToken)]);
         const overlap = queryTokens.filter((token) => tokens.has(token)).length;
-        const tagBoost = [...requestedTags].filter((tag) => entry.tags.map(normalizeToken).includes(tag)).length;
+        const tagBoost = [...requestedTags].filter((tag) =>
+          entry.tags.map(normalizeToken).includes(tag),
+        ).length;
         const normalizedQuery = normalizeSearchText(input.query);
         const phraseBoost =
-          normalizedQuery !== "" && normalizeSearchText(entry.text).includes(normalizedQuery) ? 2 : 0;
+          normalizedQuery !== "" && normalizeSearchText(entry.text).includes(normalizedQuery)
+            ? 2
+            : 0;
         return { entry, score: overlap + tagBoost * 2 + phraseBoost };
       })
       .filter((item) => item.score > 0 || queryTokens.length === 0)

@@ -2,11 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Model, Provider } from "@polyon/contracts";
 
-import {
-  EmbeddingGateway,
-  EmbeddingGatewayError,
-  InMemoryEmbeddingAdapterRegistry,
-} from "./index";
+import { EmbeddingGateway, EmbeddingGatewayError, InMemoryEmbeddingAdapterRegistry } from "./index";
 
 describe("EmbeddingGateway", () => {
   const model: Model = {
@@ -27,7 +23,12 @@ describe("EmbeddingGateway", () => {
   it("routes embedding models through a separate provider adapter registry", async () => {
     const adapters = new InMemoryEmbeddingAdapterRegistry();
     const embed = vi.fn(async () => ({
-      output: { vectors: [[1, 0], [0, 1]] },
+      output: {
+        vectors: [
+          [1, 0],
+          [0, 1],
+        ],
+      },
     }));
     adapters.register({ providerId: "provider-1", embed });
 
@@ -37,9 +38,12 @@ describe("EmbeddingGateway", () => {
       adapters,
     });
 
-    await expect(
-      gateway.embed(model.id, { input: ["first", "second"] }),
-    ).resolves.toEqual({ vectors: [[1, 0], [0, 1]] });
+    await expect(gateway.embed(model.id, { input: ["first", "second"] })).resolves.toEqual({
+      vectors: [
+        [1, 0],
+        [0, 1],
+      ],
+    });
     expect(embed).toHaveBeenCalledTimes(1);
   });
 

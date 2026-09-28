@@ -124,11 +124,7 @@ export class SmtpTransport implements EmailTransport {
         );
       }
 
-      await authenticate(
-        connection,
-        this.options.authMechanism,
-        credential,
-      );
+      await authenticate(connection, this.options.authMechanism, credential);
       await envelopeCommand(connection, `MAIL FROM:<${credential.username}>`, 250);
 
       for (const recipient of [...input.to, ...(input.cc ?? []), ...(input.bcc ?? [])]) {
@@ -343,11 +339,7 @@ function hasSmtpAuthMechanism(response: string, mechanism: SmtpAuthMechanism): b
   });
 }
 
-function buildMessage(
-  input: EmailSendInput,
-  sender: string,
-  messageIdDomain: string,
-): string {
+function buildMessage(input: EmailSendInput, sender: string, messageIdDomain: string): string {
   const messageId = `<${Date.now()}-${Math.random().toString(16).slice(2)}@${messageIdDomain}>`;
   const headers = [
     `Message-ID: ${messageId}`,
@@ -360,13 +352,15 @@ function buildMessage(
   ];
 
   if (input.html === undefined) {
-    return [
-      ...headers,
-      "Content-Type: text/plain; charset=utf-8",
-      "Content-Transfer-Encoding: base64",
-      "",
-      encodeMimeBody(input.text),
-    ].join("\r\n") + "\r\n";
+    return (
+      [
+        ...headers,
+        "Content-Type: text/plain; charset=utf-8",
+        "Content-Transfer-Encoding: base64",
+        "",
+        encodeMimeBody(input.text),
+      ].join("\r\n") + "\r\n"
+    );
   }
 
   const boundary = `=_POLYON_${messageId.slice(1, -1).replace(/[^A-Za-z0-9]/g, "")}`;
@@ -501,7 +495,6 @@ function bytesToBase64(bytes: Uint8Array): string {
 
   return btoa(binary);
 }
-
 
 function extractMessageId(message: string): string {
   const match = /^Message-ID:\s*(<[^>]+>)/m.exec(message);

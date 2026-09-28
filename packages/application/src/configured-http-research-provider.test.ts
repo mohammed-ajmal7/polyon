@@ -9,15 +9,17 @@ describe("ConfiguredHttpResearchProvider", () => {
       status: 200,
       statusText: "OK",
       headers: { "content-type": "application/json" },
-      body: new TextEncoder().encode(JSON.stringify({
-        results: [
-          {
-            title: "Result 1",
-            locator: "https://example.com/1",
-            kind: "WEB",
-          },
-        ],
-      })),
+      body: new TextEncoder().encode(
+        JSON.stringify({
+          results: [
+            {
+              title: "Result 1",
+              locator: "https://example.com/1",
+              kind: "WEB",
+            },
+          ],
+        }),
+      ),
     }));
 
     const provider = new ConfiguredHttpResearchProvider({
@@ -60,8 +62,6 @@ describe("ConfiguredHttpResearchProvider", () => {
       } as never,
     });
 
-    await expect(provider.search("hello", { limit: 1 })).rejects.toThrow(
-      "invalid result envelope",
-    );
+    await expect(provider.search("hello", { limit: 1 })).rejects.toThrow("invalid result envelope");
   });
 });

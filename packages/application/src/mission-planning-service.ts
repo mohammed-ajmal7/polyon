@@ -1,10 +1,4 @@
-import type {
-  AgentId,
-  DomainEvent,
-  Mission,
-  Task,
-  TaskKind,
-} from "@polyon/contracts";
+import type { AgentId, DomainEvent, Mission, Task, TaskKind } from "@polyon/contracts";
 import { validateTaskGraph } from "@polyon/core";
 import type { AgentGateway } from "@polyon/agents";
 import type { DomainUnitOfWork, EventStore, TaskStore } from "@polyon/storage";
@@ -82,7 +76,9 @@ export class MissionPlanningService {
       title: task.title,
       description: task.description,
       status: "PENDING" as const,
-      dependsOn: task.dependsOn.map((dependencyId) => missionTaskId(input.mission.id, dependencyId)),
+      dependsOn: task.dependsOn.map((dependencyId) =>
+        missionTaskId(input.mission.id, dependencyId),
+      ),
       createdAt: input.now,
       updatedAt: input.now,
     }));
@@ -187,7 +183,9 @@ function parseGeneratedPlan(content: string): {
     if (!Array.isArray(dependsOnValue) || dependsOnValue.length > MAX_DEPENDENCIES) {
       throw new Error(`Task ${id} must contain at most ${MAX_DEPENDENCIES} dependencies.`);
     }
-    const dependsOn = dependsOnValue.map((dependency) => readBoundedId(dependency, "dependency id"));
+    const dependsOn = dependsOnValue.map((dependency) =>
+      readBoundedId(dependency, "dependency id"),
+    );
     tasks.push({ id, kind, title, description, dependsOn });
   }
 
@@ -206,7 +204,8 @@ function readBoundedId(value: unknown, field: string): string {
 }
 
 function readBoundedString(value: unknown, max: number, field: string): string {
-  if (typeof value !== "string" || value.trim() === "") throw new Error(`Generated ${field} must not be empty.`);
+  if (typeof value !== "string" || value.trim() === "")
+    throw new Error(`Generated ${field} must not be empty.`);
   if (Array.from(value).length > max) throw new Error(`Generated ${field} exceeds its bound.`);
   return value.trim();
 }

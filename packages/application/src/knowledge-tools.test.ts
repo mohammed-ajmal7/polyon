@@ -47,15 +47,15 @@ describe("knowledge tool adapters", () => {
         },
       ]),
     };
-    const research = new ResearchService(
-      retriever,
-      stores.sources,
-      stores.evidence,
-      stores.events,
-    );
+    const research = new ResearchService(retriever, stores.sources, stores.evidence, stores.events);
     const tools = new InMemoryToolRegistry();
     const adapters = new InMemoryToolAdapterRegistry();
-    registerKnowledgeTools(tools, adapters, new MemoryService(stores.memory, stores.events), research);
+    registerKnowledgeTools(
+      tools,
+      adapters,
+      new MemoryService(stores.memory, stores.events),
+      research,
+    );
 
     const adapter = adapters.get("research.search.bounded");
     const result = await adapter?.invoke({ input: { query: "query", sourceLimit: 1 } });
@@ -93,5 +93,4 @@ describe("knowledge tool adapters", () => {
     });
     expect(stores.memory.get("memory-write-1")).toBeDefined();
   });
-
 });

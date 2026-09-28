@@ -81,7 +81,8 @@ export class SemanticMemoryService {
       .map((memory) => {
         const id = this.embeddingId(memory.id, modelId);
         const existing = this.embeddings.get(id);
-        const stale = existing === undefined || existing.contentHash !== this.contentHash(memory.text);
+        const stale =
+          existing === undefined || existing.contentHash !== this.contentHash(memory.text);
         return { memory, stale };
       })
       .filter((candidate) => candidate.stale)
@@ -154,7 +155,13 @@ export class SemanticMemoryService {
         if (input.scope !== undefined && memory.scope !== input.scope) return undefined;
         if (input.missionId !== undefined && memory.missionId !== input.missionId) return undefined;
         if (input.taskId !== undefined && memory.taskId !== input.taskId) return undefined;
-        if (input.tags !== undefined && !input.tags.every((tag) => memory.tags.some((candidate) => candidate.toLowerCase() === tag.toLowerCase()))) return undefined;
+        if (
+          input.tags !== undefined &&
+          !input.tags.every((tag) =>
+            memory.tags.some((candidate) => candidate.toLowerCase() === tag.toLowerCase()),
+          )
+        )
+          return undefined;
         if (embedding.contentHash !== this.contentHash(memory.text)) return undefined;
 
         return {
@@ -163,17 +170,20 @@ export class SemanticMemoryService {
         };
       })
       .filter((result): result is SemanticMemorySearchResult => result !== undefined)
-      .sort((left, right) =>
-        right.score - left.score ||
-        right.memory.updatedAt.localeCompare(left.memory.updatedAt) ||
-        left.memory.id.localeCompare(right.memory.id),
+      .sort(
+        (left, right) =>
+          right.score - left.score ||
+          right.memory.updatedAt.localeCompare(left.memory.updatedAt) ||
+          left.memory.id.localeCompare(right.memory.id),
       );
 
     return results.slice(0, limit);
   }
 
   private embeddingId(memoryId: string, modelId: string): string {
-    return createHash("sha256").update(memoryId + "\0" + modelId).digest("hex");
+    return createHash("sha256")
+      .update(memoryId + "\0" + modelId)
+      .digest("hex");
   }
 
   private contentHash(text: string): string {

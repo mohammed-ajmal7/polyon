@@ -62,7 +62,9 @@ describe("migrateDurableSnapshot", () => {
   });
 
   it("returns the current snapshot without applying migrations", () => {
-    expect(migrateDurableSnapshot({ version: 3, events: [], memoryEmbeddings: [] }, 3, migrations)).toEqual({
+    expect(
+      migrateDurableSnapshot({ version: 3, events: [], memoryEmbeddings: [] }, 3, migrations),
+    ).toEqual({
       value: { version: 3, events: [], memoryEmbeddings: [] },
       migrated: false,
       fromVersion: 3,

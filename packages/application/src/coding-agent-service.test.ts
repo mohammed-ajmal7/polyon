@@ -14,7 +14,11 @@ describe("CodingAgentService", () => {
       modelToolDefinitions: () => [
         { toolId: "filesystem.read.scoped", name: "read", description: "read" },
         { toolId: "terminal.execute.scoped", name: "terminal", description: "terminal" },
-        { toolId: "integration.invoke:email-primary:SEND_EMAIL", name: "email", description: "email" },
+        {
+          toolId: "integration.invoke:email-primary:SEND_EMAIL",
+          name: "email",
+          description: "email",
+        },
       ],
       invoke,
     } as never;

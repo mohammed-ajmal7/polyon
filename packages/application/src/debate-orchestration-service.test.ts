@@ -40,7 +40,9 @@ describe("DebateOrchestrationService", () => {
     expect(result.debate.status).toBe("DECIDED");
     expect(result.decision).toBe("agent-a response");
     expect(result.contributions).toHaveLength(8);
-    expect(stores.events.list().filter((event) => event.kind === "DEBATE_CONTRIBUTION")).toHaveLength(8);
+    expect(
+      stores.events.list().filter((event) => event.kind === "DEBATE_CONTRIBUTION"),
+    ).toHaveLength(8);
     expect(stores.events.list().filter((event) => event.kind === "DEBATE_DECIDED")).toHaveLength(1);
     expect(invokeText).toHaveBeenCalledTimes(9);
   });

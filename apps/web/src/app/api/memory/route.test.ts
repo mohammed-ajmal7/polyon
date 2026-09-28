@@ -74,9 +74,7 @@ describe("memory API", () => {
     });
 
     const response = await GET(
-      new Request(
-        "http://localhost:3000/api/memory?q=test&mode=semantic",
-      ),
+      new Request("http://localhost:3000/api/memory?q=test&mode=semantic"),
     );
 
     expect(response.status).toBe(503);
@@ -91,11 +89,7 @@ describe("memory API", () => {
       memory: { search: vi.fn() },
     });
 
-    const response = await GET(
-      new Request(
-        "http://localhost:3000/api/memory?q=test&mode=other",
-      ),
-    );
+    const response = await GET(new Request("http://localhost:3000/api/memory?q=test&mode=other"));
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({

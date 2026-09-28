@@ -14,7 +14,11 @@ import type {
 import { BUILTIN_TOOL_IDS } from "@polyon/tools";
 import { describe, expect, it, vi } from "vitest";
 
-import { createPolyonComposition, type PolyonEmbeddingProviderRegistration, type PolyonProviderRegistration } from "./polyon-composition";
+import {
+  createPolyonComposition,
+  type PolyonEmbeddingProviderRegistration,
+  type PolyonProviderRegistration,
+} from "./polyon-composition";
 
 const now = "2026-09-27T12:00:00.000Z";
 
@@ -33,7 +37,6 @@ function registration(): PolyonProviderRegistration {
   };
   return { provider, adapter };
 }
-
 
 function embeddingRegistration(): PolyonEmbeddingProviderRegistration {
   const provider: Provider = {
@@ -287,11 +290,7 @@ describe("createPolyonComposition", () => {
       };
       composition.stores.memory.save(memory);
 
-      const result = await composition.semanticMemory!.index(
-        memory,
-        "embedding-model.test",
-        now,
-      );
+      const result = await composition.semanticMemory!.index(memory, "embedding-model.test", now);
 
       expect(result.memoryId).toBe(memory.id);
       expect(composition.stores.memoryEmbeddings.get(result.id)?.modelId).toBe(

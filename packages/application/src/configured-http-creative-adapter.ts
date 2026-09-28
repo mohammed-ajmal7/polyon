@@ -100,7 +100,13 @@ function parseResponse(
 }
 
 function isCreativeArtifactKind(value: unknown): value is CreativeJobRequest["outputKind"] {
-  return value === "IMAGE" || value === "VIDEO" || value === "AUDIO" || value === "CODE" || value === "DOCUMENT";
+  return (
+    value === "IMAGE" ||
+    value === "VIDEO" ||
+    value === "AUDIO" ||
+    value === "CODE" ||
+    value === "DOCUMENT"
+  );
 }
 
 function stringField(value: unknown, field: string, maxLength: number): string {

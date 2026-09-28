@@ -8,10 +8,7 @@ interface RouteContext {
   params: Promise<{ executionId: string }>;
 }
 
-export async function GET(
-  _request: Request,
-  context: RouteContext,
-): Promise<Response> {
+export async function GET(_request: Request, context: RouteContext): Promise<Response> {
   if (!(await isAuthenticated())) {
     return Response.json({ error: "Authentication required." }, { status: 401 });
   }

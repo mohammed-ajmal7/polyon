@@ -40,9 +40,7 @@ describe("readiness endpoint", () => {
   it("returns ready when the runtime is running", async () => {
     getPolyonComposition.mockReturnValue({
       agents: {
-        list: () => [
-          { status: "ACTIVE", preferredModelId: "model-1" },
-        ],
+        list: () => [{ status: "ACTIVE", preferredModelId: "model-1" }],
       },
       integrations: {
         list: () => [{ kind: "EMAIL" }],

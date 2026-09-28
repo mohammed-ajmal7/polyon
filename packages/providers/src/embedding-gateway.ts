@@ -1,4 +1,10 @@
-import type { EmbeddingRequest, EmbeddingResponse, Model, ModelId, Provider } from "@polyon/contracts";
+import type {
+  EmbeddingRequest,
+  EmbeddingResponse,
+  Model,
+  ModelId,
+  Provider,
+} from "@polyon/contracts";
 
 import type { EmbeddingAdapterRegistry } from "./embedding-adapter";
 import { normalizeProviderInvocationError } from "./provider-errors";
@@ -31,7 +37,8 @@ export class EmbeddingGateway {
 
     const model = this.dependencies.models.get(modelId);
     if (model === undefined) throw new EmbeddingGatewayError("MODEL_NOT_FOUND", modelId);
-    if (model.kind !== "EMBEDDING") throw new EmbeddingGatewayError("MODEL_KIND_UNSUPPORTED", modelId);
+    if (model.kind !== "EMBEDDING")
+      throw new EmbeddingGatewayError("MODEL_KIND_UNSUPPORTED", modelId);
     if (!model.enabled) throw new EmbeddingGatewayError("MODEL_DISABLED", modelId);
 
     const provider = this.dependencies.providers.get(model.providerId);

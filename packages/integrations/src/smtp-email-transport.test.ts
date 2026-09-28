@@ -250,7 +250,6 @@ describe("SmtpTransport", () => {
     expect(connection.close).toHaveBeenCalledTimes(1);
   });
 
-
   it("builds UTF-8-safe MIME content and a complete DATA terminator", async () => {
     const connection = createConnection([
       "220 ready",
@@ -384,9 +383,7 @@ describe("SmtpTransport", () => {
       .map(([value]) => value)
       .filter(
         (value) =>
-          value.includes("Message-ID:") ||
-          value.includes("Subject:") ||
-          value.includes("To:"),
+          value.includes("Message-ID:") || value.includes("Subject:") || value.includes("To:"),
       );
     const message = messageWrites.join("");
     expect(

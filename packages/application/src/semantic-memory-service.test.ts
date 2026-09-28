@@ -95,7 +95,6 @@ describe("SemanticMemoryService", () => {
     expect(stores.memoryEmbeddings.list()).toHaveLength(2);
   });
 
-
   it("reindexes only missing or stale embeddings in bounded batches", async () => {
     const stores = new InMemoryDomainStores();
     const adapterRegistry = new InMemoryEmbeddingAdapterRegistry();
@@ -204,7 +203,12 @@ describe("SemanticMemoryService", () => {
       adapters: adapterRegistry,
     });
 
-    const service = new SemanticMemoryService(stores.memory, stores.memoryEmbeddings, gateway, stores);
+    const service = new SemanticMemoryService(
+      stores.memory,
+      stores.memoryEmbeddings,
+      gateway,
+      stores,
+    );
     const memory: MemoryEntry = {
       id: "m1",
       kind: "FACT",

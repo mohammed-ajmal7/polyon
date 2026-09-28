@@ -19,7 +19,13 @@ export interface A2AJsonRpcResponse {
 
 export interface A2AServerDependencies {
   readonly agents: {
-    list(): readonly { id: AgentId; name: string; role: string; status: string; description?: string }[];
+    list(): readonly {
+      id: AgentId;
+      name: string;
+      role: string;
+      status: string;
+      description?: string;
+    }[];
   };
   readonly commandIngress: CommandIngressService;
   readonly conversationOrchestration: ConversationAgentOrchestrationService;
@@ -135,9 +141,11 @@ export class A2AServerService {
     const agent =
       requestedAgentId === undefined
         ? this.dependencies.agents.list().find((candidate) => candidate.status === "ACTIVE")
-        : this.dependencies.agents.list().find(
-            (candidate) => candidate.id === requestedAgentId && candidate.status === "ACTIVE",
-          );
+        : this.dependencies.agents
+            .list()
+            .find(
+              (candidate) => candidate.id === requestedAgentId && candidate.status === "ACTIVE",
+            );
 
     if (agent === undefined) {
       return error(request.id, -32602, "No active A2A agent is available.");

@@ -62,7 +62,9 @@ describe("MissionPlanningService", () => {
       "mission-1:task:implementation",
     ]);
     expect(result.tasks[1]?.dependsOn).toEqual(["mission-1:task:research"]);
-    expect(stores.events.get("MISSION_PLAN_GENERATED:mission-1:2026-09-28T00:00:00.000Z")).toBeDefined();
+    expect(
+      stores.events.get("MISSION_PLAN_GENERATED:mission-1:2026-09-28T00:00:00.000Z"),
+    ).toBeDefined();
   });
 
   it("rejects cyclic plans before persistence", async () => {

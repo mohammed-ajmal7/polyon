@@ -62,9 +62,7 @@ export class ConfiguredHttpResearchProvider implements ResearchSearchProvider {
       throw new Error("Research search provider returned an invalid result envelope.");
     }
 
-    return payload.results
-      .slice(0, options.limit)
-      .map(parseResult);
+    return payload.results.slice(0, options.limit).map(parseResult);
   }
 }
 
@@ -74,10 +72,7 @@ function parseResult(value: unknown): ResearchSearchResult {
   const title = stringField(value.title, "title", 1_000);
   const locator = stringField(value.locator, "locator", 2_000);
   const rawKind = value.kind;
-  const kind =
-    rawKind === undefined
-      ? undefined
-      : parseSourceKind(rawKind);
+  const kind = rawKind === undefined ? undefined : parseSourceKind(rawKind);
 
   return kind === undefined ? { title, locator } : { title, locator, kind };
 }
