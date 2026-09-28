@@ -1,9 +1,11 @@
+import type { MemoryScope } from "@polyon/contracts";
 import type { SemanticMemoryService } from "./semantic-memory-service";
 
 export interface SemanticMemoryIndexerOptions {
   readonly intervalMs?: number;
   readonly batchSize?: number;
   readonly maxEntries?: number;
+  readonly allowedScopes?: readonly MemoryScope[];
   readonly onError?: (error: unknown) => void;
 }
 
@@ -88,6 +90,7 @@ export function createSemanticMemoryIndexer(
         now: new Date().toISOString(),
         batchSize,
         maxEntries,
+        allowedScopes: options.allowedScopes,
         signal,
       });
       indexedCount += result.indexed;
