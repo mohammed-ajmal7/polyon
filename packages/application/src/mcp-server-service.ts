@@ -215,7 +215,7 @@ function encodeToolsCursor(offset: number): string {
 
 function decodeToolsCursor(value: unknown): number | string {
   if (value === undefined) return 0;
-  if (typeof value !== "string" || !/^mcp-tools:\\d+$/u.test(value)) {
+  if (typeof value !== "string" || !/^mcp-tools:\d+$/u.test(value)) {
     return "MCP tools/list cursor is invalid.";
   }
   const offset = Number(value.slice("mcp-tools:".length));
