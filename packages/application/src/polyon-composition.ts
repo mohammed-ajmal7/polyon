@@ -21,6 +21,7 @@ import {
   InMemoryModelRegistry,
   InMemoryProviderRegistry,
   planAgentTeam,
+  ProviderHealthTracker,
 } from "@polyon/agents";
 import {
   ArtifactCatalogService,
@@ -217,6 +218,7 @@ export interface PolyonComposition {
   readonly modelGateway: ModelGateway;
   readonly embeddingGateway?: EmbeddingGateway;
   readonly agentGateway: AgentGateway;
+  readonly providerHealth: ProviderHealthTracker;
   readonly tools: ToolRegistry;
   readonly toolAdapters: ToolAdapterRegistry;
   readonly executionDispatch: ExecutionDispatchService;
@@ -343,6 +345,8 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     integrations.register(integration);
   }
 
+  const providerHealth = new ProviderHealthTracker();
+
   const modelGateway = new ModelGateway({
     models,
     providers,
@@ -353,7 +357,13 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     options.embeddingProvider === undefined
       ? undefined
       : new EmbeddingGateway({ models, providers, adapters: embeddingAdapters });
-  const agentGateway = new AgentGateway({ agents, models, providers, modelGateway });
+  const agentGateway = new AgentGateway({
+    agents,
+    models,
+    providers,
+    modelGateway,
+    providerHealth,
+  });
 
   const commandIngress = new CommandIngressService({
     conversations: stores.conversations,
@@ -867,6 +877,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     modelGateway,
     ...(embeddingGateway === undefined ? {} : { embeddingGateway }),
     agentGateway,
+    providerHealth,
     tools: builtinTools.tools,
     toolAdapters: builtinTools.adapters,
     executionDispatch,
