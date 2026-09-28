@@ -6,7 +6,7 @@ import type { Conversation, AgentMessageType } from "@polyon/contracts";
 import { describe, expect, it } from "vitest";
 
 import { AgentMessageService } from "./agent-message-service";
-import { InMemoryDomainStores } from "@polyon/storage";
+import { FileDomainStores, InMemoryDomainStores } from "@polyon/storage";
 
 const conversation: Conversation = {
   id: "conversation.agent-message",
@@ -202,7 +202,7 @@ describe("AgentMessageService", () => {
     const root = mkdtempSync(join(tmpdir(), "polyon-agent-message-"));
 
     try {
-      const durable = new (require("@polyon/storage").FileDomainStores)(root);
+      const durable = new FileDomainStores(root);
       durable.conversations.save(conversation);
       const service = new AgentMessageService({
         conversations: durable.conversations,
@@ -223,7 +223,7 @@ describe("AgentMessageService", () => {
         createdAt: "2026-09-29T00:06:00.000Z",
       });
 
-      const reopened = new (require("@polyon/storage").FileDomainStores)(root);
+      const reopened = new FileDomainStores(root);
       expect(
         reopened.messages.get("agent-message-durable"),
       ).toMatchObject({
