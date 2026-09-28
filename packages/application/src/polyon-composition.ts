@@ -753,6 +753,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     models,
     providers,
     providerAdapters,
+    embeddingAdapters,
     integrations,
     ...(options.secretResolver === undefined ? {} : { secretResolver: options.secretResolver }),
     modelGateway,
