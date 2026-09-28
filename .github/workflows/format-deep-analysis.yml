@@ -1,0 +1,59 @@
+name: format-deep-analysis
+
+on:
+  push:
+    branches:
+      - feature/end-to-end-deep-analysis
+
+permissions:
+  contents: write
+
+jobs:
+  format-and-commit:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v5
+        with:
+          ref: feature/end-to-end-deep-analysis
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24.13.1
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Format affected files
+        run: |
+          pnpm exec prettier \
+            packages/application/src/creative-job-service.ts \
+            packages/application/src/debate-orchestration-service.ts \
+            packages/application/src/mission-planning-service.ts \
+            packages/application/src/polyon-deep-analysis-composition.test.ts \
+            packages/application/src/research-service.ts \
+            --write
+
+      - name: Commit formatting and remove workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            packages/application/src/creative-job-service.ts \
+            packages/application/src/debate-orchestration-service.ts \
+            packages/application/src/mission-planning-service.ts \
+            packages/application/src/polyon-deep-analysis-composition.test.ts \
+            packages/application/src/research-service.ts \
+            .github/workflows/format-deep-analysis.yml
+          git rm .github/workflows/format-deep-analysis.yml
+          git commit -m "style: format deep-analysis transaction changes"
+          git push origin HEAD:feature/end-to-end-deep-analysis
