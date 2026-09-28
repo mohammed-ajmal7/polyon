@@ -376,7 +376,6 @@ describe("A2A task listing", () => {
     ).toEqual([{ id: "task-new", contextId: "mission-1", state: "TASK_STATE_WORKING" }]);
   });
 
-
   it("cancels an actor-visible running task through the execution runtime", async () => {
     let currentTask: Task = {
       ...tasks[1],
