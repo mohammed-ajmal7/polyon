@@ -1,10 +1,4 @@
-import type {
-  AgentId,
-  Conversation,
-  DomainEvent,
-  Message,
-  TextModelRequest,
-} from "@polyon/contracts";
+import type { AgentId, DomainEvent, Message } from "@polyon/contracts";
 import type { AgentRegistry } from "@polyon/agents";
 import type { DomainUnitOfWork, EventStore, MessageStore, ConversationStore } from "@polyon/storage";
 
@@ -119,7 +113,11 @@ export class DeepAnalysisOrchestrationService {
     const context = buildDebateContext(collective);
 
     const maxDebateRounds = input.maxDebateRounds ?? DEFAULT_MAX_DEBATE_ROUNDS;
-    if (!Number.isInteger(maxDebateRounds) || maxDebateRounds <= 0 || maxDebateRounds > MAX_DEBATE_ROUNDS) {
+    if (
+      !Number.isInteger(maxDebateRounds) ||
+      maxDebateRounds <= 0 ||
+      maxDebateRounds > MAX_DEBATE_ROUNDS
+    ) {
       throw new RangeError("Deep analysis maxDebateRounds must be an integer between 1 and 4.");
     }
 
@@ -251,20 +249,6 @@ export class DeepAnalysisOrchestrationService {
         ...conversation,
         messageIds,
         updatedAt: decision.createdAt,
-      });
-
-      stores.events.append({
-        id: "DEEP_ANALYSIS_DECISION:" + deepAnalysisId,
-        kind: "DEEP_ANALYSIS_COMPLETED",
-        actorId: decision.actorId,
-        conversationId: conversation.id,
-        occurredAt: decision.createdAt,
-        data: {
-          deepAnalysisId,
-          debateId: debate.debate.id,
-          decisionMessageId: decision.id,
-          contributionCount: debate.contributions.length,
-        },
       });
 
       return decision;
