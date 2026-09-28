@@ -186,9 +186,7 @@ describe("DeepAnalysisOrchestrationService", () => {
     expect(result.status).toBe("SUCCEEDED");
     expect(result.decision?.content).toContain("conditional");
     expect(stores.messages.get(result.decision!.id)?.content).toContain("conditional");
-    expect(
-      stores.events.list().map((event) => event.kind),
-    ).toEqual([
+    expect(stores.events.list().map((event) => event.kind)).toEqual([
       "DEEP_ANALYSIS_STARTED",
       "DEEP_ANALYSIS_COMPLETED",
     ]);
