@@ -73,9 +73,9 @@
 
 1. Release-candidate deployment validation: real model configuration, approval/execution smoke tests, backup/restore, and authenticated self-hosted deployment.
 2. Advanced MCP/A2A features beyond the implemented HTTP baseline.
-2. Multi-user/enterprise identity and tenancy, outside the current personal deployment scope.
-3. Sustained production-scale load/profiling and broader adversarial E2E coverage.
-4. Target-specific deployment automation beyond self-hosted Docker/Compose.
+3. Multi-user/enterprise identity and tenancy, outside the current personal deployment scope.
+4. Sustained production-scale load/profiling and broader adversarial E2E coverage.
+5. Target-specific deployment automation beyond self-hosted Docker/Compose.
 
 A2A is the current agent-to-agent interoperability path; the former ACP line is not duplicated as an independent modern transport.
 
