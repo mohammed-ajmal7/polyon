@@ -89,6 +89,22 @@ export async function POST(request: Request): Promise<Response> {
       return Response.json({ mode, result }, { status: 201 });
     }
 
+    if (mode === "Research") {
+      if (polyon.researchOrchestration === undefined) {
+        throw new Error("Research is not configured. Set POLYON_RESEARCH_SEARCH_ENDPOINT and allowed hosts.");
+      }
+      const result = await polyon.researchOrchestration.execute({
+        command: commandResult,
+        targets,
+        requiredCapabilityIds,
+        actorId,
+        synthesizerAgentId: parseOptionalString(input.synthesizerAgentId),
+        maxParticipants: parsePositiveInteger(input.maxParticipants, 8, 8),
+        sourceLimit: parsePositiveInteger(input.researchSourceLimit, 5, 20),
+      });
+      return Response.json({ mode, result }, { status: 201 });
+    }
+
     if (mode === "DeepAnalysis") {
       const result = await polyon.deepAnalysisOrchestration.execute({
         command: commandResult,
@@ -210,7 +226,10 @@ function resolveTargets(
 
   if (value === undefined) {
     ids =
-      mode === "Collaborative"
+      mode === "Collaborative" ||
+      mode === "Research" ||
+      mode === "DeepAnalysis" ||
+      mode === "Debate"
         ? polyon.agents
             .list()
             .slice(0, 8)
