@@ -339,6 +339,26 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     embeddingGateway === undefined
       ? undefined
       : new SemanticMemoryService(stores.memory, stores.memoryEmbeddings, embeddingGateway, stores);
+  const semanticMemoryIndexer =
+    semanticMemory === undefined ||
+    embeddingGateway === undefined ||
+    options.semanticMemoryIndexingEnabled === false
+      ? undefined
+      : createSemanticMemoryIndexer(
+          semanticMemory,
+          options.embeddingProvider!.model.id,
+          {
+            ...(options.semanticMemoryIndexIntervalMs === undefined
+              ? {}
+              : { intervalMs: options.semanticMemoryIndexIntervalMs }),
+            ...(options.semanticMemoryIndexBatchSize === undefined
+              ? {}
+              : { batchSize: options.semanticMemoryIndexBatchSize }),
+            ...(options.semanticMemoryIndexMaxEntries === undefined
+              ? {}
+              : { maxEntries: options.semanticMemoryIndexMaxEntries }),
+          },
+        );
   const debates = new DebateOrchestrationService(
     agentGateway,
     stores.debates,
