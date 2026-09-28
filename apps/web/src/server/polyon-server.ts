@@ -250,9 +250,7 @@ function buildCreativeAdapter() {
   });
 }
 
-function parseMemoryScopes(
-  value: string | undefined,
-): import("@polyon/contracts").MemoryScope[] {
+function parseMemoryScopes(value: string | undefined): import("@polyon/contracts").MemoryScope[] {
   if (value === undefined || value.trim() === "") return [];
 
   const allowed = new Set<import("@polyon/contracts").MemoryScope>([
@@ -261,7 +259,14 @@ function parseMemoryScopes(
     "MISSION",
     "TASK",
   ]);
-  const values = [...new Set(value.split(",").map((item) => item.trim()).filter(Boolean))];
+  const values = [
+    ...new Set(
+      value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ];
 
   for (const item of values) {
     if (!allowed.has(item as import("@polyon/contracts").MemoryScope)) {

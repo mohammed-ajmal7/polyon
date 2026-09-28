@@ -1,4 +1,11 @@
-import type { Agent, MemoryScope, Model, Policy, Provider, SecretReference } from "@polyon/contracts";
+import type {
+  Agent,
+  MemoryScope,
+  Model,
+  Policy,
+  Provider,
+  SecretReference,
+} from "@polyon/contracts";
 import {
   EmailIntegrationAdapter,
   GoogleDriveIntegrationAdapter,
