@@ -39,3 +39,12 @@ export {
   type AgentGatewayInvocationResult,
   type AgentGatewayTextInvocationInput,
 } from "./agent-gateway";
+
+export {
+  ModelRoutingError,
+  routeAgentModel,
+  type ModelRoutingErrorKind,
+  type ModelRoutingRequest,
+  type ProviderHealth,
+  type RoutedAgentModel,
+} from "./model-routing";
