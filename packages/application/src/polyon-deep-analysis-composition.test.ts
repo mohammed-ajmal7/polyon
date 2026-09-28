@@ -183,6 +183,12 @@ describe("POLYON deep-analysis composition", () => {
       expect(events.filter((event) => event.kind === "DEBATE_CONTRIBUTION")).toHaveLength(12);
       expect(events.filter((event) => event.kind === "DEBATE_DECIDED")).toHaveLength(1);
       expect(events.filter((event) => event.kind === "DEEP_ANALYSIS_COMPLETED")).toHaveLength(1);
+      const completion = events.find((event) => event.kind === "DEEP_ANALYSIS_COMPLETED");
+      expect(completion?.data).toMatchObject({
+        collectiveId: result.collective.collectiveId,
+        debateId: result.debate?.debate.id,
+        decisionMessageId: result.decision?.id,
+      });
 
       const conversation = composition.stores.conversations.get(command.conversation.id);
       expect(conversation?.messageIds).toHaveLength(20);
