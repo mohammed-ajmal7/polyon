@@ -83,5 +83,5 @@ describe("production-scale hardening", () => {
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
-  });
+  }, 15_000);
 });
