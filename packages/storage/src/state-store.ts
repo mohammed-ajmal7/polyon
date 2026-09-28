@@ -1,4 +1,5 @@
 import type {
+  AgentRun,
   ApprovalRequest,
   Artifact,
   Debate,
@@ -142,6 +143,7 @@ export function createStateContext(
   const getState = () => state;
 
   return {
+    agentRuns: new StateEntityStore<AgentRun>(getState, persist, "agentRuns"),
     approvals: new StateEntityStore<ApprovalRequest>(getState, persist, "approvals"),
     debates: new StateEntityStore<Debate>(getState, persist, "debates"),
     evidence: new StateEntityStore<Evidence>(getState, persist, "evidence"),
