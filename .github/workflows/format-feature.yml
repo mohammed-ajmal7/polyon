@@ -1,0 +1,62 @@
+name: format-feature
+
+on:
+  push:
+    branches:
+      - feature/end-to-end-ai-collective
+
+permissions:
+  contents: write
+
+jobs:
+  format-and-commit:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v5
+        with:
+          ref: feature/end-to-end-ai-collective
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24.13.1
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Format affected files
+        run: |
+          pnpm exec prettier \
+            apps/web/src/app/api/execute/route.ts \
+            apps/web/src/app/page.tsx \
+            packages/application/src/polyon-collective-composition.test.ts \
+            packages/application/src/research-orchestration-service.test.ts \
+            packages/application/src/research-orchestration-service.ts \
+            --write
+
+      - name: Commit formatting
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "Already formatted."
+            exit 0
+          fi
+          git add \
+            apps/web/src/app/api/execute/route.ts \
+            apps/web/src/app/page.tsx \
+            packages/application/src/polyon-collective-composition.test.ts \
+            packages/application/src/research-orchestration-service.test.ts \
+            packages/application/src/research-orchestration-service.ts
+          git rm .github/workflows/format-feature.yml
+          git commit -m "style: apply repository formatting"
+          git push origin HEAD:feature/end-to-end-ai-collective
