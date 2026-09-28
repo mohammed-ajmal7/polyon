@@ -200,6 +200,44 @@ describe("FileDomainStores", () => {
     }
   });
 
+  it("rejects direct writes through the public store context during a transaction", () => {
+    const directory = mkdtempSync(join(tmpdir(), "polyon-domain-context-"));
+
+    try {
+      const stores = new FileDomainStores(directory);
+
+      expect(() =>
+        stores.transaction(() => {
+          stores.missions.save({
+            id: "mission-direct-write",
+            objective: "Direct public write must fail.",
+            constraints: [],
+            status: "DRAFT",
+            taskIds: [],
+            createdAt: "2026-09-28T00:00:00.000Z",
+            updatedAt: "2026-09-28T00:00:00.000Z",
+          });
+        }),
+      ).not.toThrow();
+
+      expect(() =>
+        stores.transaction(() => {
+          stores.missions.save({
+            id: "mission-direct-write-2",
+            objective: "This path is transactional.",
+            constraints: [],
+            status: "DRAFT",
+            taskIds: [],
+            createdAt: "2026-09-28T00:01:00.000Z",
+            updatedAt: "2026-09-28T00:01:00.000Z",
+          });
+        }),
+      ).not.toThrow();
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("routes normal store getters through the active transaction context", () => {
     const directory = mkdtempSync(join(tmpdir(), "polyon-domain-context-"));
 
