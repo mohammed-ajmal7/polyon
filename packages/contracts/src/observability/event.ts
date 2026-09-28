@@ -1,6 +1,6 @@
 import type { ActorId } from "../actor/ids";
 import type { ConversationId } from "../communication/ids";
-import type { ExecutionId, MissionId, TaskId } from "../work/ids";
+import type { AgentRunId, ExecutionId, MissionId, TaskId } from "../work/ids";
 import type { EventId } from "./ids";
 
 export type EventKind =
@@ -13,6 +13,8 @@ export type EventKind =
   | "APPROVAL_REQUESTED"
   | "APPROVAL_RESOLVED"
   | "EXECUTION_CREATED"
+  | "AGENT_RUN_CREATED"
+  | "AGENT_RUN_STATUS_CHANGED"
   | "EXECUTION_ROUTED"
   | "EXECUTION_RECOVERED"
   | "EXECUTION_STATUS_CHANGED"
@@ -49,6 +51,7 @@ export interface DomainEvent {
   readonly missionId?: MissionId;
   readonly taskId?: TaskId;
   readonly executionId?: ExecutionId;
+  readonly agentRunId?: AgentRunId;
 
   readonly traceId?: string;
   readonly causedByEventId?: EventId;
