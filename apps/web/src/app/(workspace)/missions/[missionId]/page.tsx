@@ -59,9 +59,9 @@ export default async function MissionDetailPage({
                     </div>
                     <Tag label={task.status} />
                   </div>
-                  {task.dependsOnTaskIds.length > 0 ? (
+                  {task.dependsOn.length > 0 ? (
                     <div className="mt-3 text-xs text-slate-500">
-                      Depends on: {task.dependsOnTaskIds.join(", ")}
+                      Depends on: {task.dependsOn.join(", ")}
                     </div>
                   ) : null}
                 </div>
