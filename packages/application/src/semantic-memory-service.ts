@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import type { MemoryEmbedding, MemoryEntry } from "@polyon/contracts";
+import type { MemoryEmbedding, MemoryEntry, MemoryScope } from "@polyon/contracts";
 import type { EmbeddingGateway } from "@polyon/providers";
 import type { DomainUnitOfWork, EntityStore, MemoryStore } from "@polyon/storage";
 
@@ -70,6 +70,7 @@ export class SemanticMemoryService {
       readonly now: string;
       readonly batchSize?: number;
       readonly maxEntries?: number;
+      readonly allowedScopes?: readonly MemoryScope[];
       readonly signal?: AbortSignal;
     },
   ): Promise<{ readonly indexed: number; readonly stale: number; readonly skipped: number }> {
@@ -83,6 +84,9 @@ export class SemanticMemoryService {
 
     const candidates = this.memories
       .list()
+      .filter((memory) =>
+        input.allowedScopes === undefined ? true : input.allowedScopes.includes(memory.scope),
+      )
       .map((memory) => {
         const id = this.embeddingId(memory.id, modelId);
         const existing = this.embeddings.get(id);

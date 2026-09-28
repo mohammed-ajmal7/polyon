@@ -45,6 +45,9 @@ function buildOptions() {
   const secretResolver = email === undefined ? undefined : buildSecretResolver();
   const researchRetriever = buildResearchRetriever();
   const creativeAdapter = buildCreativeAdapter();
+  const semanticMemoryIndexAllowedScopes = parseMemoryScopes(
+    process.env.POLYON_SEMANTIC_INDEX_ALLOWED_SCOPES,
+  );
   return {
     storageRoot: process.env.POLYON_DATA_DIR?.trim() || join(process.cwd(), ".polyon-data"),
     ...(model === undefined
@@ -54,6 +57,8 @@ function buildOptions() {
     ...(secretResolver === undefined ? {} : { secretResolver }),
     ...(researchRetriever === undefined ? {} : { researchRetriever }),
     ...(creativeAdapter === undefined ? {} : { creativeAdapter }),
+    semanticMemoryIndexAllowedScopes,
+    semanticMemoryIndexingEnabled: semanticMemoryIndexAllowedScopes.length > 0,
     ...(email === undefined
       ? {}
       : {
@@ -243,6 +248,33 @@ function buildCreativeAdapter() {
     endpointByOperation,
     http,
   });
+}
+
+function parseMemoryScopes(value: string | undefined): import("@polyon/contracts").MemoryScope[] {
+  if (value === undefined || value.trim() === "") return [];
+
+  const allowed = new Set<import("@polyon/contracts").MemoryScope>([
+    "PRIVATE",
+    "PROJECT",
+    "MISSION",
+    "TASK",
+  ]);
+  const values = [
+    ...new Set(
+      value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ];
+
+  for (const item of values) {
+    if (!allowed.has(item as import("@polyon/contracts").MemoryScope)) {
+      throw new Error("POLYON_SEMANTIC_INDEX_ALLOWED_SCOPES contains an invalid memory scope.");
+    }
+  }
+
+  return values as import("@polyon/contracts").MemoryScope[];
 }
 
 function buildSecretResolver() {

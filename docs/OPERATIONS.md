@@ -109,3 +109,7 @@ Before enabling consequential execution:
 - verify approval resolution and execution recovery;
 - verify trace APIs do not disclose secrets;
 - run the CI quality gate against the exact deployed commit.
+
+### Semantic indexing privacy
+
+Semantic indexing is optional; lexical memory search remains available without an embedding provider. Automatic embedding indexing is double opt-in: `POLYON_SEMANTIC_INDEXING_AUTOSTART` must permit startup and `POLYON_SEMANTIC_INDEX_ALLOWED_SCOPES` must explicitly name the memory scopes allowed to leave the local process. An empty scope allowlist disables automatic outbound memory indexing.
