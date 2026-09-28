@@ -39,14 +39,10 @@ describe("createSemanticMemoryIndexer", () => {
       .mockRejectedValueOnce(new Error("embedding unavailable"))
       .mockResolvedValue({ indexed: 0, stale: 0, skipped: 1 });
 
-    const indexer = createSemanticMemoryIndexer(
-      { reindex } as never,
-      "embedding-model",
-      {
-        intervalMs: 1_000,
-        onError,
-      },
-    );
+    const indexer = createSemanticMemoryIndexer({ reindex } as never, "embedding-model", {
+      intervalMs: 1_000,
+      onError,
+    });
 
     indexer.start();
     indexer.start();
@@ -66,12 +62,10 @@ describe("createSemanticMemoryIndexer", () => {
     const pending = new Promise<void>((resolve) => {
       release = resolve;
     });
-    const reindex = vi.fn(
-      async () => {
-        await pending;
-        return { indexed: 1, stale: 0, skipped: 0 };
-      },
-    );
+    const reindex = vi.fn(async () => {
+      await pending;
+      return { indexed: 1, stale: 0, skipped: 0 };
+    });
 
     const indexer = createSemanticMemoryIndexer({ reindex } as never, "embedding-model", {
       intervalMs: 1_000,

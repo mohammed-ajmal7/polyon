@@ -44,7 +44,11 @@ export function createSemanticMemoryIndexer(
   const batchSize = options.batchSize ?? DEFAULT_BATCH_SIZE;
   const maxEntries = options.maxEntries ?? DEFAULT_MAX_ENTRIES;
 
-  if (!Number.isInteger(intervalMs) || intervalMs < MIN_INTERVAL_MS || intervalMs > MAX_INTERVAL_MS) {
+  if (
+    !Number.isInteger(intervalMs) ||
+    intervalMs < MIN_INTERVAL_MS ||
+    intervalMs > MAX_INTERVAL_MS
+  ) {
     throw new RangeError(
       `Semantic memory indexing interval must be an integer between ${MIN_INTERVAL_MS} and ${MAX_INTERVAL_MS} milliseconds.`,
     );
@@ -73,7 +77,9 @@ export function createSemanticMemoryIndexer(
     }, intervalMs);
   };
 
-  const executeCycle = async (signal?: AbortSignal): Promise<{ readonly indexed: number; readonly stale: number; readonly skipped: number }> => {
+  const executeCycle = async (
+    signal?: AbortSignal,
+  ): Promise<{ readonly indexed: number; readonly stale: number; readonly skipped: number }> => {
     cycleActive = true;
     lastCycleAt = new Date().toISOString();
 
