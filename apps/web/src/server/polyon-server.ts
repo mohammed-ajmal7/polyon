@@ -18,6 +18,7 @@ import {
   ConfiguredHttpResearchProvider,
   createPolyonComposition,
   type PolyonComposition,
+  type PolyonProviderRegistration,
 } from "@polyon/application";
 
 const globalState = globalThis as typeof globalThis & { __polyonComposition?: PolyonComposition };
