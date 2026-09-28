@@ -134,6 +134,34 @@ describe("model fleet configuration", () => {
     ]);
   });
 
+  it("allows multiple models to share one provider endpoint", () => {
+    const profiles = parseModelProfiles(
+      JSON.stringify([
+        {
+          agentId: "researcher",
+          modelId: "research-model",
+          providerId: "ollama",
+          endpoint: "http://127.0.0.1:11434/v1/chat/completions",
+        },
+        {
+          agentId: "analyst",
+          modelId: "analyst-model",
+          providerId: "ollama",
+          endpoint: "http://127.0.0.1:11434/v1/chat/completions",
+        },
+      ]),
+    );
+
+    const result = buildModelRegistrations(profiles, {});
+
+    expect(result.models.map((model) => model.id)).toEqual([
+      "research-model",
+      "analyst-model",
+    ]);
+    expect(result.providers).toHaveLength(1);
+    expect(result.providers[0]?.provider.id).toBe("ollama");
+  });
+
   it("rejects inconsistent shared model/provider configuration", () => {
     expect(() =>
       parseModelProfiles(
