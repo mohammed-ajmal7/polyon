@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { InMemoryDomainStores } from "@polyon/storage";
+import { FileDomainStores, InMemoryDomainStores } from "@polyon/storage";
 
 import { DebateOrchestrationService } from "./debate-orchestration-service";
 
