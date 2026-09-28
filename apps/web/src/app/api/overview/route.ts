@@ -1,6 +1,5 @@
 import { isAuthenticated } from "@/server/auth";
 import { getPolyonActorId, getPolyonComposition, sanitizeEventData } from "@/server/polyon-server";
-import { TraceQueryService } from "@polyon/application";
 
 export const runtime = "nodejs";
 
