@@ -266,7 +266,7 @@ export class UsageGovernor {
     const next: ProviderCounter = {
       day,
       month,
-      dailyRequests: current?.month === month ? 0 : 0,
+      dailyRequests: current?.day === day ? current.dailyRequests : 0,
       monthlyRequests: current?.month === month ? current.monthlyRequests : 0,
     };
     this.providers.set(providerId, next);
