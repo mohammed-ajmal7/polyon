@@ -172,6 +172,43 @@ describe("CommandIngressService", () => {
     );
   });
 
+  it("creates a deep analysis conversation kind", () => {
+    const { stores, service } = dependencies();
+
+    const result = service.submit({
+      mode: "DeepAnalysis",
+      command: "Investigate this deeply.",
+      actorId: "user-1",
+      conversationId: "conversation-deep-analysis",
+      messageId: "message-deep-analysis",
+      eventId: "event-deep-analysis",
+      participantIds: ["user-1", "agent-a", "agent-b"],
+      createdAt,
+    });
+
+    expect(result.conversation.kind).toBe("DEEP_ANALYSIS");
+    expect(result.event.data.mode).toBe("DEEP_ANALYSIS");
+    expect(stores.conversations.get("conversation-deep-analysis")).toEqual(result.conversation);
+  });
+
+  it("creates a research conversation kind", () => {
+    const { service } = dependencies();
+
+    const result = service.submit({
+      mode: "Research",
+      command: "Research this question.",
+      actorId: "user-1",
+      conversationId: "conversation-research",
+      messageId: "message-research",
+      eventId: "event-research",
+      participantIds: ["user-1", "researcher"],
+      createdAt,
+    });
+
+    expect(result.conversation.kind).toBe("RESEARCH");
+    expect(result.event.data.mode).toBe("RESEARCH");
+  });
+
   it("rejects a mode that does not match the conversation kind", () => {
     const { stores, service } = dependencies();
 
