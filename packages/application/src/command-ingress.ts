@@ -24,6 +24,7 @@ const modeToConversationKind: Record<CommandMode, Conversation["kind"]> = {
   Direct: "DIRECT",
   Broadcast: "BROADCAST",
   Collaborative: "COLLABORATIVE",
+  Research: "RESEARCH",
   Debate: "DEBATE",
   DeepAnalysis: "DEEP_ANALYSIS",
   Mission: "MISSION",
