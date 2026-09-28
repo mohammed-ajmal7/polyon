@@ -14,6 +14,7 @@ import type {
   MessageStore,
 } from "@polyon/storage";
 import type { CommandIngressResult } from "./command-ingress";
+import type { DebateRunResult } from "./debate-orchestration-service";
 import type { ResearchService } from "./research-service";
 
 const DEFAULT_MAX_PARTICIPANTS = 8;
@@ -37,6 +38,8 @@ export interface ExecuteCollectiveInput {
   readonly maxParticipants?: number;
   readonly researchEnabled?: boolean;
   readonly researchSourceLimit?: number;
+  readonly debateEnabled?: boolean;
+  readonly debateMaxRounds?: number;
   readonly now?: () => string;
 }
 
@@ -68,6 +71,8 @@ export interface CollectiveExecutionResult {
   readonly failures: readonly CollectiveFailure[];
   readonly sourceIds: readonly string[];
   readonly evidenceIds: readonly string[];
+  readonly debateId?: string;
+  readonly debateDecision?: string;
   readonly synthesis?: Message;
 }
 
@@ -78,6 +83,7 @@ export interface CollectiveOrchestrationDependencies {
   readonly messages: MessageStore;
   readonly events: EventStore;
   readonly research?: ResearchService;
+  readonly debates: import("./debate-orchestration-service").DebateOrchestrationService;
   readonly unitOfWork?: DomainUnitOfWork;
 }
 
