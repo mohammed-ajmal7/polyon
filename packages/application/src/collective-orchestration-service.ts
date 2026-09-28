@@ -475,6 +475,7 @@ export class CollectiveOrchestrationService {
     contributions: readonly CollectiveContribution[],
     failures: readonly CollectiveFailure[],
     research: ResearchContext,
+    debate?: DebateRunResult,
   ): TextModelRequest {
     const lines = contributions.map(
       (item) =>
@@ -482,6 +483,7 @@ export class CollectiveOrchestrationService {
     );
     const failureLines = failures.map((item) => `[agent=${item.agentId}] failed: ${item.error}`);
     const evidenceContext = formatEvidenceContext(research);
+    const debateContext = debate === undefined ? "" : formatDebateContext(debate);
 
     let context = "";
     for (const line of [...lines, ...failureLines]) {
@@ -506,6 +508,7 @@ export class CollectiveOrchestrationService {
           content:
             `User request: ${command}\n\nCollective findings:\n${context}` +
             (evidenceContext === "" ? "" : `\n\nShared evidence:\n${evidenceContext}`) +
+            (debateContext === "" ? "" : `\n\nDebate outcome:\n${debateContext}`) +
             "\n\nFormat the response with these sections: Findings, Evidence, Agreements, " +
             "Disagreements, Uncertainty, Conclusion.",
         },
@@ -760,4 +763,27 @@ function stableId(value: string): string {
     hash = Math.imul(hash, 16777619);
   }
   return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+
+function formatDebateContext(debate: DebateRunResult): string {
+  const transcript = formatDebateContributions(debate.contributions);
+  return (
+    `Decision: ${debate.decision}` +
+    (transcript === "" ? "" : `\n\nTranscript:\n${transcript}`)
+  ).slice(0, MAX_SYNTHESIS_CONTEXT_CHARACTERS);
+}
+
+function formatDebateContributions(
+  contributions: readonly DebateRunResult["contributions"][number][],
+): string {
+  const lines: string[] = [];
+  let total = 0;
+  for (const item of contributions) {
+    const line = `[${item.round}/${item.phase}/${item.agentId}] ${item.content}`;
+    if (total + line.length > MAX_SYNTHESIS_CONTEXT_CHARACTERS) break;
+    lines.push(line);
+    total += line.length + 1;
+  }
+  return lines.join("\n");
 }
