@@ -781,8 +781,7 @@ export class CollectiveOrchestrationService {
 
       for (const failure of failures) {
         stores.events.append({
-          id:
-            `COLLECTIVE_CHALLENGE:${collectiveId}:${failure.agentId}:${stableId(failure.error)}`,
+          id: `COLLECTIVE_CHALLENGE:${collectiveId}:${failure.agentId}:${stableId(failure.error)}`,
           kind: "COLLECTIVE_CHALLENGE",
           actorId: failure.actorId,
           conversationId: input.command.conversation.id,
