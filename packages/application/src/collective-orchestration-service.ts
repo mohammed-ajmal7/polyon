@@ -538,6 +538,9 @@ export class CollectiveOrchestrationService {
           commandMessageId: input.command.message.id,
           researchEnabled,
           researchSourceLimit,
+          analysisMode: input.debateEnabled === true ? "DEEP_ANALYSIS" : "COLLABORATIVE",
+          debateEnabled: input.debateEnabled === true,
+          debateMaxRounds: input.debateMaxRounds ?? null,
         },
       });
     });
