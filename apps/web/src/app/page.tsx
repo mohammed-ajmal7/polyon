@@ -133,7 +133,9 @@ export default function Home() {
         "Let a coordinated AI team contribute distinct perspectives and " + "synthesize one answer."
       );
     if (mode === "DeepAnalysis")
-      return "Research collectively, challenge the findings, debate the strongest claims, then synthesize.";
+      return (
+        "Research collectively, challenge the findings, debate the strongest claims, then synthesize."
+      );
     if (mode === "Debate")
       return "Run a bounded proposal, criticism, evidence and adjudication flow.";
     return "Turn a larger objective into governed, executable work.";
@@ -485,7 +487,14 @@ export default function Home() {
                       </div>
                       <div className="mt-5 flex flex-wrap gap-2">
                         {(
-                          ["Direct", "Broadcast", "Collaborative", "DeepAnalysis", "Debate", "Mission"] as Mode[]
+                          [
+                            "Direct",
+                            "Broadcast",
+                            "Collaborative",
+                            "DeepAnalysis",
+                            "Debate",
+                            "Mission",
+                          ] as Mode[]
                         ).map((entry) => (
                           <button
                             key={entry}
