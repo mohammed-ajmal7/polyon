@@ -76,9 +76,7 @@ describe("ResearchOrchestrationService", () => {
     const { stores, agents } = dependencies();
     const search = vi.fn(async (query: string) => [
       {
-        title: query.includes("Macro")
-          ? "Macro source"
-          : "Company source",
+        title: query.includes("Macro") ? "Macro source" : "Company source",
         locator: query.includes("Macro")
           ? "https://example.com/macro"
           : "https://example.com/company",
@@ -96,21 +94,23 @@ describe("ResearchOrchestrationService", () => {
       stores.events,
       stores,
     );
-    const invokeText = vi.fn(async ({ agentId, request }: { agentId: string; request: TextModelRequest }) => {
-      void request;
-      return {
-      agentId,
-      modelId: agentId + "-model",
-      providerId: "provider-" + agentId,
-      source: "preferred" as const,
-      output: {
-        content:
-          agentId === "synthesizer"
-            ? "Findings\nTwo independent signals were found.\nEvidence\n[source:research-evidence]"
-            : agentId + " found a supported signal and identified uncertainty.",
+    const invokeText = vi.fn(
+      async ({ agentId, request }: { agentId: string; request: TextModelRequest }) => {
+        void request;
+        return {
+          agentId,
+          modelId: agentId + "-model",
+          providerId: "provider-" + agentId,
+          source: "preferred" as const,
+          output: {
+            content:
+              agentId === "synthesizer"
+                ? "Findings\nTwo independent signals were found.\nEvidence\n[source:research-evidence]"
+                : agentId + " found a supported signal and identified uncertainty.",
+          },
+        };
       },
-      };
-    });
+    );
 
     const service = new ResearchOrchestrationService({
       agents,
@@ -145,12 +145,12 @@ describe("ResearchOrchestrationService", () => {
     expect(result.evidenceIds).toHaveLength(2);
     expect(result.synthesis?.actorId).toBe("synthesizer");
     expect(stores.messages.get(result.synthesis!.id)?.content).toContain("Two independent signals");
-    expect(
-      stores.events.list().filter((event) => event.kind === "RESEARCH_FINDING"),
-    ).toHaveLength(2);
-    expect(stores.events.list().filter((event) => event.kind === "RESEARCH_COMPLETED")).toHaveLength(
-      1,
+    expect(stores.events.list().filter((event) => event.kind === "RESEARCH_FINDING")).toHaveLength(
+      2,
     );
+    expect(
+      stores.events.list().filter((event) => event.kind === "RESEARCH_COMPLETED"),
+    ).toHaveLength(1);
     expect(search).toHaveBeenCalledTimes(2);
     expect(invokeText).toHaveBeenCalledTimes(3);
 

@@ -91,7 +91,9 @@ export async function POST(request: Request): Promise<Response> {
 
     if (mode === "Research") {
       if (polyon.researchOrchestration === undefined) {
-        throw new Error("Research is not configured. Set POLYON_RESEARCH_SEARCH_ENDPOINT and allowed hosts.");
+        throw new Error(
+          "Research is not configured. Set POLYON_RESEARCH_SEARCH_ENDPOINT and allowed hosts.",
+        );
       }
       const result = await polyon.researchOrchestration.execute({
         command: commandResult,

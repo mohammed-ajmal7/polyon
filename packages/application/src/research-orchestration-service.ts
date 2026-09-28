@@ -102,8 +102,7 @@ export class ResearchOrchestrationService {
 
     const now = input.now ?? (() => new Date().toISOString());
     const targets = [...input.targets];
-    const synthesizerAgentId =
-      input.synthesizerAgentId ?? targets[targets.length - 1]!.agentId;
+    const synthesizerAgentId = input.synthesizerAgentId ?? targets[targets.length - 1]!.agentId;
     const researchId = `research:${input.command.conversation.id}:${input.command.message.id}:${randomUUID()}`;
     const sourceLimit = input.sourceLimit ?? DEFAULT_SOURCE_LIMIT;
 
@@ -116,7 +115,9 @@ export class ResearchOrchestrationService {
 
     const contributors = targets.filter((target) => target.agentId !== synthesizerAgentId);
     const results = await Promise.all(
-      contributors.map((target) => this.executeResearcher(researchId, input, target, sourceLimit, now)),
+      contributors.map((target) =>
+        this.executeResearcher(researchId, input, target, sourceLimit, now),
+      ),
     );
 
     const findings = results
@@ -241,8 +242,16 @@ export class ResearchOrchestrationService {
     sourceLimit: number,
     now: () => string,
   ): Promise<
-    | { readonly kind: "success"; readonly finding: ResearchFinding; readonly research: ResearchContext }
-    | { readonly kind: "failure"; readonly failure: ResearchFailure; readonly research: ResearchContext }
+    | {
+        readonly kind: "success";
+        readonly finding: ResearchFinding;
+        readonly research: ResearchContext;
+      }
+    | {
+        readonly kind: "failure";
+        readonly failure: ResearchFailure;
+        readonly research: ResearchContext;
+      }
   > {
     const agent = this.dependencies.agents.get(target.agentId);
     const role = agent?.role ?? "Research specialist";
@@ -408,7 +417,9 @@ export class ResearchOrchestrationService {
       )
       .join("\n\n");
     const failureContext = failures
-      .map((failure) => `[agent=${failure.agentId} stage=${failure.stage}] failed: ${failure.error}`)
+      .map(
+        (failure) => `[agent=${failure.agentId} stage=${failure.stage}] failed: ${failure.error}`,
+      )
       .join("\n\n");
     const evidenceContext = formatEvidenceContext(research);
 
@@ -661,8 +672,7 @@ function formatEvidenceContext(context: ResearchContext): string {
   let total = 0;
 
   for (const item of context.evidence) {
-    const line =
-      `[evidence:${item.id} source:${item.sourceId}]${item.kind}: ${item.claim}\n${item.supportingContent}`;
+    const line = `[evidence:${item.id} source:${item.sourceId}]${item.kind}: ${item.claim}\n${item.supportingContent}`;
     if (total + line.length + 2 > MAX_CONTEXT_CHARACTERS) break;
     lines.push(line);
     total += line.length + 2;
