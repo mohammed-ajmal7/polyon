@@ -160,9 +160,7 @@ function sameModelConfiguration(a: ModelProfileConfig, b: ModelProfileConfig): b
 
 function sameProviderConfiguration(a: ModelProfileConfig, b: ModelProfileConfig): boolean {
   return (
-    a.providerName === b.providerName &&
-    a.endpoint === b.endpoint &&
-    a.apiKeyEnv === b.apiKeyEnv
+    a.providerName === b.providerName && a.endpoint === b.endpoint && a.apiKeyEnv === b.apiKeyEnv
   );
 }
 
