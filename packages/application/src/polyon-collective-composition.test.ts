@@ -100,7 +100,7 @@ describe("POLYON collective composition", () => {
         makeAgent("skeptic", "model.skeptic", "Skeptic"),
         makeAgent("synthesizer", "model.synthesizer", "Synthesizer"),
       ];
-      const models = agents.map((agent) => makeModel(agent.preferredModelId));
+      const models = agents.map((agent) => makeModel(agent.preferredModelId!));
 
       const composition = createPolyonComposition({
         storageRoot: root,
