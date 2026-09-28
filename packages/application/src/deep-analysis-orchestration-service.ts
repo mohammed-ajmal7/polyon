@@ -94,7 +94,7 @@ export class DeepAnalysisOrchestrationService {
       requiredCapabilityIds: input.requiredCapabilityIds,
       synthesizerAgentId,
       maxParticipants: input.maxParticipants,
-      maxChallengeRounds: input.maxChallengeRounds,
+      maxChallengeRounds: input.maxChallengeRounds ?? 0,
       researchEnabled: input.researchEnabled,
       researchSourceLimit: input.researchSourceLimit,
       now,
