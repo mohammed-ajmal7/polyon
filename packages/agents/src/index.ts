@@ -39,3 +39,13 @@ export {
   type AgentGatewayInvocationResult,
   type AgentGatewayTextInvocationInput,
 } from "./agent-gateway";
+
+
+export {
+  AgentTeamPlannerError,
+  planAgentTeam,
+  type AgentTeamMember,
+  type AgentTeamPlan,
+  type AgentTeamPlannerErrorKind,
+  type AgentTeamPlanningRequest,
+} from "./agent-team-planner";
