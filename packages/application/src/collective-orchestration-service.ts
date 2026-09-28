@@ -381,8 +381,7 @@ export class CollectiveOrchestrationService {
       now(),
     );
 
-    const allFailures =
-      debateFailure === undefined ? failures : [...failures, debateFailure];
+    const allFailures = debateFailure === undefined ? failures : [...failures, debateFailure];
 
     return {
       collectiveId,
@@ -786,7 +785,6 @@ function stableId(value: string): string {
   }
   return (hash >>> 0).toString(16).padStart(8, "0");
 }
-
 
 function formatDebateContext(debate: DebateRunResult): string {
   const transcript = formatDebateContributions(debate.contributions);
