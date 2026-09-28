@@ -363,7 +363,13 @@ export class CollectiveOrchestrationService {
 
       challenges.push(...roundChallenges);
       failures.push(...roundFailures);
-      this.persistChallenges(collectiveId, input, roundChallenges, roundFailures, now());
+      this.persistChallenges(
+        collectiveId,
+        input,
+        roundChallenges,
+        roundFailures,
+        now(),
+      );
     }
 
     this.persistContributions(collectiveId, input, contributions, [], now());
@@ -589,7 +595,9 @@ export class CollectiveOrchestrationService {
     );
     const challengeLines = challenges.map(
       (item) =>
-        `[challenge agent=${item.agentId} round=${item.round} targets=${item.targetAgentIds.join(",")}]\n${item.content}`,
+        `[challenge agent=${item.agentId} round=${item.round} targets=${item.targetAgentIds.join(
+          ",",
+        )}]\n${item.content}`,
     );
     const failureLines = failures.map((item) => `[agent=${item.agentId}] failed: ${item.error}`);
     const evidenceContext = formatEvidenceContext(research);
