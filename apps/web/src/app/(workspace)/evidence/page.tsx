@@ -19,7 +19,7 @@ export default function EvidencePage() {
           {sources.map((source) => (
             <article key={source.id} className="p-5">
               <div className="text-sm font-medium text-slate-100">{source.title}</div>
-              <div className="mt-1 break-all text-xs text-slate-600">{source.uri}</div>
+              <div className="mt-1 break-all text-xs text-slate-600">{source.locator}</div>
               <div className="mt-3 text-[11px] text-slate-600">{source.id}</div>
             </article>
           ))}
@@ -28,7 +28,7 @@ export default function EvidencePage() {
           {evidence.map((item) => (
             <article key={item.id} className="p-5">
               <div className="text-sm font-medium text-slate-100">{item.claim}</div>
-              <div className="mt-2 text-xs leading-5 text-slate-500">{item.excerpt}</div>
+              <div className="mt-2 text-xs leading-5 text-slate-500">{item.supportingContent}</div>
               <div className="mt-3 text-[11px] text-slate-600">{item.id}</div>
             </article>
           ))}
