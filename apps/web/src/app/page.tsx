@@ -42,7 +42,27 @@ interface ActivityEvent {
   readonly id: string;
   readonly kind: string;
   readonly occurredAt: string;
+  readonly conversationId?: string;
   readonly data: Readonly<Record<string, unknown>>;
+}
+
+interface CollectiveInspection {
+  readonly conversationId: string;
+  readonly messages: readonly {
+    readonly id: string;
+    readonly conversationId: string;
+    readonly actorId: string;
+    readonly role: string;
+    readonly kind: string;
+    readonly content: string;
+    readonly createdAt: string;
+  }[];
+  readonly events: readonly {
+    readonly id: string;
+    readonly kind: string;
+    readonly occurredAt: string;
+    readonly data: Readonly<Record<string, unknown>>;
+  }[];
 }
 
 function statusClass(status: string) {
@@ -87,6 +107,9 @@ export default function Home() {
   const [authRequired, setAuthRequired] = useState(false);
   const [authToken, setAuthToken] = useState("");
   const [lastExecution, setLastExecution] = useState<string | null>(null);
+  const [collectiveInspection, setCollectiveInspection] = useState<CollectiveInspection | null>(
+    null,
+  );
   const agents = overview?.agents ?? [];
   const approvals = overview?.approvals ?? [];
   const counts = overview?.counts ?? {
@@ -107,8 +130,7 @@ export default function Home() {
     if (mode === "Broadcast") return "Send one request to multiple agents independently.";
     if (mode === "Collaborative")
       return (
-        "Let a coordinated AI team contribute distinct perspectives and " +
-        "synthesize one answer."
+        "Let a coordinated AI team contribute distinct perspectives and " + "synthesize one answer."
       );
     if (mode === "Debate")
       return "Run a bounded proposal, criticism, evidence and adjudication flow.";
@@ -152,6 +174,14 @@ export default function Home() {
     return () => window.clearInterval(interval);
   }, []);
 
+  async function loadCollectiveConversation(conversationId: string) {
+    const response = await fetch("/api/conversations/" + encodeURIComponent(conversationId), {
+      cache: "no-store",
+    });
+    if (!response.ok) throw new Error("Unable to load the collective inspection.");
+    setCollectiveInspection((await response.json()) as CollectiveInspection);
+  }
+
   async function submitCommand() {
     const trimmed = command.trim();
     if (!trimmed) return;
@@ -165,8 +195,13 @@ export default function Home() {
       const body = (await response.json().catch(() => ({}))) as { error?: string };
       throw new Error(body.error ?? "Execution submission failed.");
     }
-    const result = (await response.json().catch(() => ({}))) as { result?: { status?: string } };
+    const result = (await response.json().catch(() => ({}))) as {
+      result?: { status?: string; conversationId?: string };
+    };
     setLastExecution(result.result?.status ?? "SUBMITTED");
+    if (mode === "Collaborative" && result.result?.conversationId !== undefined) {
+      await loadCollectiveConversation(result.result.conversationId);
+    }
     setCommand("");
     await refreshOverview();
   }
@@ -322,6 +357,103 @@ export default function Home() {
                 <div className="mb-5 rounded-2xl border border-cyan-300/10 bg-cyan-300/5 px-4 py-3 text-sm text-cyan-100">
                   Last governed submission: {lastExecution}
                 </div>
+              ) : null}
+              {collectiveInspection ? (
+                <section className="mb-6 overflow-hidden rounded-3xl border border-violet-300/15 bg-[#0b0d14] shadow-2xl shadow-black/20">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/7 px-5 py-4 sm:px-6">
+                    <div>
+                      <div className="text-xs font-medium tracking-[0.16em] text-violet-300/70">
+                        COLLECTIVE INSPECTION
+                      </div>
+                      <h2 className="mt-1 text-base font-semibold text-white">
+                        See how the team worked
+                      </h2>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setCollectiveInspection(null)}
+                      className="rounded-lg border border-white/8 px-2.5 py-1.5 text-[11px] text-slate-500 transition hover:text-slate-200"
+                    >
+                      Hide
+                    </button>
+                  </div>
+                  <div className="grid gap-4 p-5 sm:p-6 xl:grid-cols-2">
+                    <div className="space-y-3">
+                      <div className="text-xs font-medium tracking-[0.14em] text-slate-500">
+                        AGENT CONTRIBUTIONS
+                      </div>
+                      {collectiveInspection.messages.filter((message) => message.role === "AGENT")
+                        .length === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-white/8 p-4 text-sm text-slate-500">
+                          No agent messages were persisted.
+                        </div>
+                      ) : (
+                        collectiveInspection.messages
+                          .filter((message) => message.role === "AGENT")
+                          .map((message) => (
+                            <article
+                              key={message.id}
+                              className="rounded-2xl border border-white/7 bg-white/[0.018] p-4"
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div>
+                                  <div className="text-xs font-medium text-violet-200">
+                                    {message.actorId}
+                                  </div>
+                                  <div className="mt-1 text-[10px] tracking-[0.12em] text-slate-600 uppercase">
+                                    {message.kind}
+                                  </div>
+                                </div>
+                                <div className="text-[10px] text-slate-600">
+                                  {formatTime(message.createdAt)}
+                                </div>
+                              </div>
+                              <p className="mt-2 text-sm leading-6 whitespace-pre-wrap text-slate-300">
+                                {message.content}
+                              </p>
+                            </article>
+                          ))
+                      )}
+                    </div>
+                    <div className="space-y-3">
+                      <div className="text-xs font-medium tracking-[0.14em] text-slate-500">
+                        TRACE & SYNTHESIS
+                      </div>
+                      {collectiveInspection.events
+                        .filter((event) => event.kind.startsWith("COLLECTIVE_"))
+                        .map((event) => (
+                          <article
+                            key={event.id}
+                            className="rounded-2xl border border-white/7 bg-black/15 p-4"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="text-xs font-medium text-slate-200">
+                                {event.kind.replaceAll("_", " ")}
+                              </div>
+                              <div className="text-[10px] text-slate-600">
+                                {formatTime(event.occurredAt)}
+                              </div>
+                            </div>
+                            <div className="mt-2 text-xs leading-5 text-slate-500">
+                              {summarize(event.data)}
+                            </div>
+                          </article>
+                        ))}
+                      <div className="rounded-2xl border border-violet-300/10 bg-violet-300/[0.025] p-4">
+                        <div className="text-xs font-medium text-violet-100">
+                          Evidence stays inspectable
+                        </div>
+                        <p className="mt-2 text-xs leading-5 text-slate-500">
+                          Research sources and evidence are persisted with the collective and remain
+                          available in the Evidence and Research workspace views.
+                        </p>
+                        <div className="mt-3 text-[10px] text-slate-600">
+                          Conversation: {collectiveInspection.conversationId}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
               ) : null}
               <div className="grid gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(340px,0.75fr)]">
                 <div className="space-y-6">

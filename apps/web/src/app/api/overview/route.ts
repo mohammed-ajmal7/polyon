@@ -62,6 +62,7 @@ export async function GET(): Promise<Response> {
       missionId: event.missionId,
       taskId: event.taskId,
       executionId: event.executionId,
+      conversationId: event.conversationId,
       data: sanitizeEventData(event.data),
     })),
   });

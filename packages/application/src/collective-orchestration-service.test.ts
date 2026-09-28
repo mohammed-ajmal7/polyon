@@ -59,9 +59,7 @@ function command(): CommandIngressResult {
 }
 
 describe("CollectiveOrchestrationService", () => {
-  it(
-    "runs contributor agents in parallel and persists one synthesized conversation result",
-    async () => {
+  it("runs contributor agents in parallel and persists one synthesized conversation result", async () => {
     const stores = new InMemoryDomainStores();
     stores.conversations.save(command().conversation);
     stores.messages.save(command().message);
@@ -126,6 +124,7 @@ describe("CollectiveOrchestrationService", () => {
     const result = await resultPromise;
 
     expect(result.status).toBe("SUCCEEDED");
+    expect(result.conversationId).toBe("conversation.collective");
     expect(result.failures).toEqual([]);
     expect(result.contributions.map((item) => item.agentId)).toEqual(["researcher", "analyst"]);
     expect(result.synthesis?.content).toContain("Findings synthesized");
@@ -195,9 +194,7 @@ describe("CollectiveOrchestrationService", () => {
     expect(result.synthesis?.content).toContain("failed researcher");
   });
 
-  it(
-    "researches per contributor and gives source-backed evidence to the synthesizer",
-    async () => {
+  it("researches per contributor and gives source-backed evidence to the synthesizer", async () => {
     const stores = new InMemoryDomainStores();
     stores.conversations.save(command().conversation);
     stores.messages.save(command().message);
@@ -275,15 +272,11 @@ describe("CollectiveOrchestrationService", () => {
     expect(result.status).toBe("SUCCEEDED");
     expect(result.sourceIds).toHaveLength(2);
     expect(result.evidenceIds).toHaveLength(2);
-    expect(
-      stores.evidence.list().every((item) => item.taskId === result.collectiveId),
-    ).toBe(true);
+    expect(stores.evidence.list().every((item) => item.taskId === result.collectiveId)).toBe(true);
 
     const synthesisRequest = requests.find((request) =>
       request.messages.some(
-        (message) =>
-          message.role === "USER" &&
-          message.content.includes("Shared evidence"),
+        (message) => message.role === "USER" && message.content.includes("Shared evidence"),
       ),
     );
     expect(
