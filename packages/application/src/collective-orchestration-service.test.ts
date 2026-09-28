@@ -126,7 +126,7 @@ describe("CollectiveOrchestrationService", () => {
     const result = await resultPromise;
 
     expect(result.status).toBe("SUCCEEDED");
-    expect(result.conversationId).toBe("conversation-1");
+    expect(result.conversationId).toBe("conversation.collective");
     expect(result.failures).toEqual([]);
     expect(result.contributions.map((item) => item.agentId)).toEqual(["researcher", "analyst"]);
     expect(result.synthesis?.content).toContain("Findings synthesized");
