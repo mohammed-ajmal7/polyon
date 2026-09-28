@@ -154,10 +154,7 @@ describe("model fleet configuration", () => {
 
     const result = buildModelRegistrations(profiles, {});
 
-    expect(result.models.map((model) => model.id)).toEqual([
-      "research-model",
-      "analyst-model",
-    ]);
+    expect(result.models.map((model) => model.id)).toEqual(["research-model", "analyst-model"]);
     expect(result.providers).toHaveLength(1);
     expect(result.providers[0]?.provider.id).toBe("ollama");
   });
