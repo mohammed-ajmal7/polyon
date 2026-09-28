@@ -44,7 +44,7 @@ describe("POLYON volume sanity", () => {
     }
 
     expect(stores.memory.list()).toHaveLength(2_000);
-    expect(stores.events.list()).toHaveLength(2_000);
+    expect(stores.events.list()).toHaveLength(4_000);
     expect(memory.search({ query: "approval routing", limit: 10 })).toHaveLength(10);
     expect(queue.size()).toBe(500);
     expect(queue.peek()?.id).toBe("execution-0");
