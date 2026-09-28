@@ -30,7 +30,9 @@ export default function MemoryPage() {
   }
 
   useEffect(() => {
-    void search().catch((cause) => setError(cause instanceof Error ? cause.message : "Memory search failed."));
+    void search().catch((cause) =>
+      setError(cause instanceof Error ? cause.message : "Memory search failed."),
+    );
   }, []);
 
   async function save(event: FormEvent) {
@@ -55,7 +57,9 @@ export default function MemoryPage() {
     };
     if (!response.ok) throw new Error(body.error ?? "Memory write failed.");
     setText("");
-    setMessage(body.result?.status === "APPROVAL_REQUIRED" ? "Waiting for approval." : "Memory saved.");
+    setMessage(
+      body.result?.status === "APPROVAL_REQUIRED" ? "Waiting for approval." : "Memory saved.",
+    );
     await search();
   }
 
@@ -71,7 +75,14 @@ export default function MemoryPage() {
       {error ? <Banner tone="error">{error}</Banner> : null}
       {message ? <Banner tone="info">{message}</Banner> : null}
       <div className="grid gap-6 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
-        <form onSubmit={(event) => void save(event).catch((cause) => setError(cause instanceof Error ? cause.message : "Memory write failed."))} className="rounded-3xl border border-white/8 bg-[#0c1017] p-5">
+        <form
+          onSubmit={(event) =>
+            void save(event).catch((cause) =>
+              setError(cause instanceof Error ? cause.message : "Memory write failed."),
+            )
+          }
+          className="rounded-3xl border border-white/8 bg-[#0c1017] p-5"
+        >
           <h2 className="text-sm font-semibold text-white">Remember something</h2>
           <p className="mt-1 text-xs leading-5 text-slate-500">
             Writes remain subject to policy and approval.
@@ -98,14 +109,20 @@ export default function MemoryPage() {
               onChange={(event) => setQuery(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter")
-                  void search().catch((cause) => setError(cause instanceof Error ? cause.message : "Search failed."));
+                  void search().catch((cause) =>
+                    setError(cause instanceof Error ? cause.message : "Search failed."),
+                  );
               }}
               placeholder="Search memory"
               className="min-w-0 flex-1 rounded-xl border border-white/8 bg-black/20 px-3 py-2.5 text-sm text-slate-100 outline-none"
             />
             <button
               type="button"
-              onClick={() => void search().catch((cause) => setError(cause instanceof Error ? cause.message : "Search failed."))}
+              onClick={() =>
+                void search().catch((cause) =>
+                  setError(cause instanceof Error ? cause.message : "Search failed."),
+                )
+              }
               className="rounded-xl border border-white/8 bg-white/[0.03] px-4 py-2.5 text-xs text-slate-300"
             >
               Search
@@ -118,10 +135,16 @@ export default function MemoryPage() {
               memories.map((memory) => (
                 <article key={memory.id} className="p-5">
                   <div className="flex gap-2">
-                    <span className="rounded-full bg-violet-300/10 px-2 py-1 text-[10px] text-violet-200">{memory.kind}</span>
-                    <span className="rounded-full bg-white/6 px-2 py-1 text-[10px] text-slate-400">{memory.scope}</span>
+                    <span className="rounded-full bg-violet-300/10 px-2 py-1 text-[10px] text-violet-200">
+                      {memory.kind}
+                    </span>
+                    <span className="rounded-full bg-white/6 px-2 py-1 text-[10px] text-slate-400">
+                      {memory.scope}
+                    </span>
                   </div>
-                  <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-200">{memory.text}</p>
+                  <p className="mt-3 text-sm leading-6 whitespace-pre-wrap text-slate-200">
+                    {memory.text}
+                  </p>
                   <div className="mt-3 text-[11px] text-slate-600">{memory.createdAt}</div>
                 </article>
               ))
@@ -135,10 +158,14 @@ export default function MemoryPage() {
 
 function Banner({ children, tone }: { children: string; tone: "error" | "info" }) {
   return (
-    <div className={
-      "rounded-2xl border p-4 text-sm " +
-      (tone === "error" ? "border-rose-300/15 bg-rose-300/5 text-rose-200" : "border-cyan-300/10 bg-cyan-300/5 text-cyan-100")
-    }>
+    <div
+      className={
+        "rounded-2xl border p-4 text-sm " +
+        (tone === "error"
+          ? "border-rose-300/15 bg-rose-300/5 text-rose-200"
+          : "border-cyan-300/10 bg-cyan-300/5 text-cyan-100")
+      }
+    >
       {children}
     </div>
   );

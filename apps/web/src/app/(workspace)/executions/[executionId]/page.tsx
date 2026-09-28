@@ -75,7 +75,7 @@ export default async function ExecutionDetailPage({
                   </span>
                   <span className="text-[11px] text-slate-600">{event.occurredAt}</span>
                 </div>
-                <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-[11px] leading-5 text-slate-500">
+                <pre className="mt-2 overflow-x-auto text-[11px] leading-5 whitespace-pre-wrap text-slate-500">
                   {JSON.stringify(sanitizeEventData(event.data), null, 2)}
                 </pre>
               </div>

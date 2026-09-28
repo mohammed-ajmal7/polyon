@@ -20,7 +20,9 @@ export default function ActivityPage() {
             events.map((event) => (
               <article key={event.id} className="p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="text-sm font-medium text-slate-100">{event.kind.replaceAll("_", " ")}</div>
+                  <div className="text-sm font-medium text-slate-100">
+                    {event.kind.replaceAll("_", " ")}
+                  </div>
                   <div className="text-[11px] text-slate-600">{event.occurredAt}</div>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-4 text-[11px] text-slate-600">
@@ -28,7 +30,7 @@ export default function ActivityPage() {
                   {event.taskId ? <span>task {event.taskId}</span> : null}
                   {event.executionId ? <span>execution {event.executionId}</span> : null}
                 </div>
-                <pre className="mt-3 overflow-x-auto whitespace-pre-wrap rounded-2xl bg-black/15 p-3 text-[11px] leading-5 text-slate-500">
+                <pre className="mt-3 overflow-x-auto rounded-2xl bg-black/15 p-3 text-[11px] leading-5 whitespace-pre-wrap text-slate-500">
                   {JSON.stringify(sanitizeEventData(event.data), null, 2)}
                 </pre>
               </article>

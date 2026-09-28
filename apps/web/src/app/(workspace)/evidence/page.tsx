@@ -19,7 +19,7 @@ export default function EvidencePage() {
           {sources.map((source) => (
             <article key={source.id} className="p-5">
               <div className="text-sm font-medium text-slate-100">{source.title}</div>
-              <div className="mt-1 break-all text-xs text-slate-600">{source.locator}</div>
+              <div className="mt-1 text-xs break-all text-slate-600">{source.locator}</div>
               <div className="mt-3 text-[11px] text-slate-600">{source.id}</div>
             </article>
           ))}
@@ -38,7 +38,15 @@ export default function EvidencePage() {
   );
 }
 
-function Collection({ title, empty, children }: { title: string; empty: string; children: React.ReactNode }) {
+function Collection({
+  title,
+  empty,
+  children,
+}: {
+  title: string;
+  empty: string;
+  children: React.ReactNode;
+}) {
   return (
     <section className="rounded-3xl border border-white/8 bg-[#0a0d13]">
       <div className="border-b border-white/7 px-5 py-4">

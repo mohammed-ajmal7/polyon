@@ -29,7 +29,11 @@ export default function ResearchPage() {
           Gather bounded sources and optionally produce a grounded synthesis.
         </p>
       </header>
-      {error ? <div className="rounded-2xl border border-rose-300/15 bg-rose-300/5 p-4 text-sm text-rose-200">{error}</div> : null}
+      {error ? (
+        <div className="rounded-2xl border border-rose-300/15 bg-rose-300/5 p-4 text-sm text-rose-200">
+          {error}
+        </div>
+      ) : null}
       <section className="rounded-3xl border border-white/8 bg-[#0c1017] p-5">
         <textarea
           value={query}
@@ -41,7 +45,11 @@ export default function ResearchPage() {
           <button
             type="button"
             disabled={!query.trim()}
-            onClick={() => void runResearch(false).catch((cause) => setError(cause instanceof Error ? cause.message : "Research failed."))}
+            onClick={() =>
+              void runResearch(false).catch((cause) =>
+                setError(cause instanceof Error ? cause.message : "Research failed."),
+              )
+            }
             className="rounded-xl border border-white/8 bg-white/[0.03] px-4 py-2.5 text-xs text-slate-300 disabled:opacity-40"
           >
             Gather sources
@@ -49,7 +57,11 @@ export default function ResearchPage() {
           <button
             type="button"
             disabled={!query.trim()}
-            onClick={() => void runResearch(true).catch((cause) => setError(cause instanceof Error ? cause.message : "Research failed."))}
+            onClick={() =>
+              void runResearch(true).catch((cause) =>
+                setError(cause instanceof Error ? cause.message : "Research failed."),
+              )
+            }
             className="rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-semibold text-slate-900 disabled:opacity-40"
           >
             Research + synthesize
@@ -59,7 +71,7 @@ export default function ResearchPage() {
       {result ? (
         <section className="rounded-3xl border border-white/8 bg-[#0a0d13] p-5">
           <h2 className="text-sm font-semibold text-white">Result</h2>
-          <pre className="mt-4 max-h-[60vh] overflow-auto whitespace-pre-wrap rounded-2xl bg-black/15 p-4 text-xs leading-6 text-slate-400">
+          <pre className="mt-4 max-h-[60vh] overflow-auto rounded-2xl bg-black/15 p-4 text-xs leading-6 whitespace-pre-wrap text-slate-400">
             {JSON.stringify(result, null, 2)}
           </pre>
         </section>

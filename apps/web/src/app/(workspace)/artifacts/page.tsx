@@ -27,7 +27,9 @@ export default function ArtifactsPage() {
                     <div className="text-sm font-medium text-slate-100">{artifact.name}</div>
                     <div className="mt-1 text-xs text-slate-600">{artifact.id}</div>
                   </div>
-                  <span className="rounded-full bg-white/6 px-2.5 py-1 text-[10px] text-slate-300">{artifact.kind}</span>
+                  <span className="rounded-full bg-white/6 px-2.5 py-1 text-[10px] text-slate-300">
+                    {artifact.kind}
+                  </span>
                 </div>
                 <div className="mt-4 grid gap-2 text-xs text-slate-600 sm:grid-cols-2">
                   <span>Mission: {artifact.missionId ?? "—"}</span>

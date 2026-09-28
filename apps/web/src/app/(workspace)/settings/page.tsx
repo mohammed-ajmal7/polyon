@@ -11,13 +11,28 @@ export default function SettingsPage() {
   const rows = [
     ["Execution", executionEnabled() ? "Enabled" : "Disabled"],
     ["Approval mode", policy.approvalMode],
-    ["API authentication", isConfigured(process.env.POLYON_API_TOKEN) ? "Configured" : "Open/local"],
-    ["Model endpoint", isConfigured(process.env.POLYON_MODEL_ENDPOINT) ? "Configured" : "Not configured"],
-    ["Embedding provider", isConfigured(process.env.POLYON_EMBEDDING_ENDPOINT) ? "Configured" : "Not configured"],
+    [
+      "API authentication",
+      isConfigured(process.env.POLYON_API_TOKEN) ? "Configured" : "Open/local",
+    ],
+    [
+      "Model endpoint",
+      isConfigured(process.env.POLYON_MODEL_ENDPOINT) ? "Configured" : "Not configured",
+    ],
+    [
+      "Embedding provider",
+      isConfigured(process.env.POLYON_EMBEDDING_ENDPOINT) ? "Configured" : "Not configured",
+    ],
     ["Research provider", polyon.research ? "Configured" : "Not configured"],
     ["Creative providers", polyon.creative ? "Configured" : "Not configured"],
-    ["Semantic auto-index scopes", process.env.POLYON_SEMANTIC_INDEX_ALLOWED_SCOPES?.trim() || "Disabled"],
-    ["Runtime autostart", process.env.POLYON_RUNTIME_AUTOSTART === "false" ? "Disabled" : "Enabled"],
+    [
+      "Semantic auto-index scopes",
+      process.env.POLYON_SEMANTIC_INDEX_ALLOWED_SCOPES?.trim() || "Disabled",
+    ],
+    [
+      "Runtime autostart",
+      process.env.POLYON_RUNTIME_AUTOSTART === "false" ? "Disabled" : "Enabled",
+    ],
     ["Data directory", process.env.POLYON_DATA_DIR?.trim() || ".polyon-data"],
   ];
 
@@ -39,7 +54,7 @@ export default function SettingsPage() {
               className="flex flex-col gap-2 p-5 sm:flex-row sm:items-center sm:justify-between"
             >
               <span className="text-sm text-slate-400">{label}</span>
-              <span className="max-w-xl break-words text-sm text-slate-200">{value}</span>
+              <span className="max-w-xl text-sm break-words text-slate-200">{value}</span>
             </div>
           ))}
         </div>

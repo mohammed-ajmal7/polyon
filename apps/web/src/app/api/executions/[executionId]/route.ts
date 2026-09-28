@@ -30,7 +30,6 @@ export async function GET(_request: Request, context: RouteContext): Promise<Res
   return Response.json({ execution, task, trace });
 }
 
-
 export async function POST(request: Request, context: RouteContext): Promise<Response> {
   if (!(await isAuthenticated())) {
     return Response.json({ error: "Authentication required." }, { status: 401 });
