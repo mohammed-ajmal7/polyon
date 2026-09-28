@@ -167,17 +167,17 @@ describe("model fleet configuration", () => {
   });
 
   it("requires an endpoint for unknown providers", () => {
-    expect(() =>
-      parseModelProfiles(
-        JSON.stringify([
-          {
-            agentId: "custom",
-            modelId: "custom-model",
-            providerId: "custom-provider",
-          },
-        ]),
-      ),
-    ).toThrow("Provider endpoint is required");
+    const profiles = parseModelProfiles(
+      JSON.stringify([
+        {
+          agentId: "custom",
+          modelId: "custom-model",
+          providerId: "custom-provider",
+        },
+      ]),
+    );
+
+    expect(() => buildModelRegistrations(profiles, {})).toThrow("Provider endpoint is required");
   });
 
   it("allows multiple models to share one provider endpoint", () => {
