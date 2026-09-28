@@ -184,8 +184,7 @@ export class CollectiveOrchestrationService {
           researchFailures.push({
             agentId: target.agentId,
             actorId: target.actorId,
-            error:
-              `Research failed: ${error instanceof Error ? error.message : "Unknown research error."}`,
+            error: `Research failed: ${error instanceof Error ? error.message : "Unknown research error."}`,
           });
         }
       }
@@ -364,13 +363,7 @@ export class CollectiveOrchestrationService {
 
       challenges.push(...roundChallenges);
       failures.push(...roundFailures);
-      this.persistChallenges(
-        collectiveId,
-        input,
-        roundChallenges,
-        roundFailures,
-        now(),
-      );
+      this.persistChallenges(collectiveId, input, roundChallenges, roundFailures, now());
     }
 
     this.persistContributions(collectiveId, input, contributions, [], now());
@@ -712,8 +705,7 @@ export class CollectiveOrchestrationService {
       for (const failure of failures) {
         stores.events.append({
           id:
-            `COLLECTIVE_CONTRIBUTION:${collectiveId}:${failure.agentId}:` +
-            stableId(failure.error),
+            `COLLECTIVE_CONTRIBUTION:${collectiveId}:${failure.agentId}:` + stableId(failure.error),
           kind: "COLLECTIVE_CONTRIBUTION",
           actorId: failure.actorId,
           conversationId: input.command.conversation.id,
@@ -755,8 +747,7 @@ export class CollectiveOrchestrationService {
   ): void {
     this.withStores((stores) => {
       for (const challenge of challenges) {
-        const messageId =
-          `collective:${collectiveId}:challenge:${challenge.round}:${challenge.agentId}`;
+        const messageId = `collective:${collectiveId}:challenge:${challenge.round}:${challenge.agentId}`;
         if (stores.messages.get(messageId) === undefined) {
           stores.messages.save({
             id: messageId,
