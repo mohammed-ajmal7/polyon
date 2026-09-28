@@ -46,15 +46,22 @@ export class SemanticMemoryService {
       updatedAt: now,
     };
 
-    const operation = () => {
-      if (this.memories.get(memory.id) === undefined) {
+    const operation = (stores: {
+      readonly memories: MemoryStore;
+      readonly embeddings: EntityStore<MemoryEmbedding>;
+    }) => {
+      if (stores.memories.get(memory.id) === undefined) {
         throw new Error(`Memory not found: ${memory.id}.`);
       }
-      this.embeddings.save(embedding);
+      stores.embeddings.save(embedding);
       return embedding;
     };
 
-    return this.unitOfWork === undefined ? operation() : this.unitOfWork.transaction(() => operation());
+    return this.unitOfWork === undefined
+      ? operation({ memories: this.memories, embeddings: this.embeddings })
+      : this.unitOfWork.transaction((context) =>
+          operation({ memories: context.memory, embeddings: context.memoryEmbeddings }),
+        );
   }
 
   async reindex(
@@ -92,13 +99,13 @@ export class SemanticMemoryService {
         throw new Error("Embedding reindex returned an unexpected vector count.");
       }
 
-      const operation = () => {
+      const operation = (embeddingStore: EntityStore<MemoryEmbedding>) => {
         for (let index = 0; index < batch.length; index += 1) {
           const memory = batch[index]!.memory;
           const vector = response.vectors[index];
           if (vector === undefined) throw new Error("Embedding reindex returned a missing vector.");
 
-          this.embeddings.save({
+          embeddingStore.save({
             id: this.embeddingId(memory.id, modelId),
             memoryId: memory.id,
             modelId,
@@ -111,8 +118,8 @@ export class SemanticMemoryService {
         }
       };
 
-      if (this.unitOfWork === undefined) operation();
-      else this.unitOfWork.transaction(operation);
+      if (this.unitOfWork === undefined) operation(this.embeddings);
+      else this.unitOfWork.transaction((context) => operation(context.memoryEmbeddings));
       indexed += batch.length;
     }
 
