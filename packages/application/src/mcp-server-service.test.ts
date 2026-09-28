@@ -55,10 +55,15 @@ describe("MCP notification and pagination handling", () => {
       { protocolVersion: "2026-07-28", method: "tools/list" },
     );
 
-    expect(first?.result).toMatchObject({
-      tools: expect.arrayContaining([{ name: "tool-0" }, { name: "tool-49" }]),
-      nextCursor: expect.stringMatching(/^mcp-tools:/u),
-    });
+    const firstResult = first?.result as {
+      tools: readonly { name: string }[];
+      nextCursor?: string;
+    };
+
+    expect(firstResult.tools).toHaveLength(50);
+    expect(firstResult.tools[0]?.name).toBe("tool-0");
+    expect(firstResult.tools[49]?.name).toBe("tool-49");
+    expect(firstResult.nextCursor).toMatch(/^mcp-tools:/u);
 
     const cursor = (first?.result as { nextCursor: string }).nextCursor;
     const second = await server.handle(
