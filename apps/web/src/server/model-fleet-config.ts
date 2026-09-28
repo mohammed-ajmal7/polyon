@@ -76,7 +76,7 @@ export function parseModelProfiles(value: string): ModelProfileConfig[] {
 
   for (const profile of profiles) {
     for (const fallbackId of profile.fallbackModelIds ?? []) {
-      if (!modelIds.has(fallbackId)) {
+      if (!modelsById.has(fallbackId)) {
         throw new Error(
           `Model profile ${profile.agentId} references an unknown fallback model: ${fallbackId}.`,
         );
@@ -155,10 +155,7 @@ function profilesByProviderId(profiles: readonly ModelProfileConfig[]): ModelPro
 }
 
 function sameModelConfiguration(a: ModelProfileConfig, b: ModelProfileConfig): boolean {
-  return (
-    a.modelName === b.modelName &&
-    a.providerId === b.providerId
-  );
+  return a.modelName === b.modelName && a.providerId === b.providerId;
 }
 
 function sameProviderConfiguration(a: ModelProfileConfig, b: ModelProfileConfig): boolean {
