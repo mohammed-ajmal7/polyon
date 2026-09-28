@@ -225,8 +225,12 @@ function validateCreateInput(input: CreateAgentRunInput): void {
     );
   }
 
-  if (!Number.isInteger(input.agentIds.length) || input.agentIds.length > MAX_AGENTS) {
-    throw new RangeError(`Agent run must contain at most ${MAX_AGENTS} agents.`);
+  if (
+    !Number.isInteger(input.agentIds.length) ||
+    input.agentIds.length < 1 ||
+    input.agentIds.length > MAX_AGENTS
+  ) {
+    throw new RangeError(`Agent run must contain 1-${MAX_AGENTS} agents.`);
   }
 
   if (new Set(input.agentIds).size !== input.agentIds.length) {
