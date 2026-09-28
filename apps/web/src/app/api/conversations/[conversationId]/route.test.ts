@@ -74,12 +74,9 @@ describe("conversation inspection API", () => {
       },
     });
 
-    const response = await GET(
-      new Request("http://localhost:3000/api/conversations/missing"),
-      {
-        params: Promise.resolve({ conversationId: "missing" }),
-      },
-    );
+    const response = await GET(new Request("http://localhost:3000/api/conversations/missing"), {
+      params: Promise.resolve({ conversationId: "missing" }),
+    });
 
     expect(response.status).toBe(404);
     await expect(response.json()).resolves.toEqual({
