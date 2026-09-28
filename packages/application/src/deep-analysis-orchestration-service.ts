@@ -216,9 +216,7 @@ export class DeepAnalysisOrchestrationService {
       const decision: Message = {
         id: decisionMessageId,
         conversationId: conversation.id,
-        actorId: debate.debate.participantAgentIds.includes(debate.debate.participantAgentIds[0]!)
-          ? debate.debate.participantAgentIds[0]!
-          : input.actorId,
+        actorId: input.synthesizerAgentId ?? debate.debate.participantAgentIds[0] ?? input.actorId,
         role: "AGENT",
         kind: "TEXT",
         content: debate.decision,
@@ -301,22 +299,9 @@ function buildDebateContext(collective: CollectiveExecutionResult): string {
       "]\n" +
       item.content,
   );
-  const challengeEvents = collective.challenges.map(
-    (item) =>
-      "[challenge agent=" +
-      item.agentId +
-      " round=" +
-      item.round +
-      " targets=" +
-      item.targetAgentIds.join(",") +
-      "]\n" +
-      item.content,
-  );
-
   const blocks = [
     "Collective synthesis:\n" + (collective.synthesis?.content ?? ""),
     "Independent findings:\n" + contributionLines.join("\n\n"),
-    "Collective challenges:\n" + challengeEvents.join("\n\n"),
   ];
 
   let context = "";
