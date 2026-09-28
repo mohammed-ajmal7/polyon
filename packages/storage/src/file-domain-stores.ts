@@ -32,9 +32,7 @@ export class FileDomainStores implements DurableDomainStores {
     this.revision = snapshot.revision;
     this.context = createStateContext(this.state, (nextState) => {
       if (this.transactionActive) {
-        throw new DomainTransactionError(
-          "A direct store write is not allowed while a storage transaction is active.",
-        );
+        throw new DomainTransactionError();
       }
 
       this.persistAndPublish(nextState);
