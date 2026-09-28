@@ -118,15 +118,27 @@ export class DeepAnalysisOrchestrationService {
     const debateId = deepAnalysisId + ":debate";
     const context = buildDebateContext(collective);
 
-    const debate = await this.dependencies.debates.run(
-      {
-        debateId: debateId,
-        requiredCapabilityIds: input.requiredCapabilityIds,
-        adjudicatorAgentId: synthesizerAgentId,
-        now,
-        context,
-      },
-    ).catch((error) => {
+    const maxDebateRounds = input.maxDebateRounds ?? DEFAULT_MAX_DEBATE_ROUNDS;
+    if (!Number.isInteger(maxDebateRounds) || maxDebateRounds <= 0 || maxDebateRounds > MAX_DEBATE_ROUNDS) {
+      throw new RangeError("Deep analysis maxDebateRounds must be an integer between 1 and 4.");
+    }
+
+    this.dependencies.debates.create({
+      id: debateId,
+      objective: input.command.message.content,
+      participantAgentIds: input.targets.map((target) => target.agentId),
+      maxParticipants: input.maxParticipants ?? Math.min(input.targets.length, 8),
+      maxRounds: maxDebateRounds,
+      createdAt: now(),
+    });
+
+    const debate = await this.dependencies.debates.run({
+      debateId,
+      requiredCapabilityIds: input.requiredCapabilityIds,
+      adjudicatorAgentId: synthesizerAgentId,
+      now,
+      context,
+    }).catch((error) => {
       this.persistError(
         input,
         deepAnalysisId,
@@ -144,7 +156,13 @@ export class DeepAnalysisOrchestrationService {
       };
     }
 
-    const decision = this.persistDebateTranscript(input, deepAnalysisId, debate, now());
+    const decision = this.persistDebateTranscript(
+      input,
+      deepAnalysisId,
+      synthesizerAgentId,
+      debate,
+      now,
+    );
 
     this.persistEvent({
       id: "DEEP_ANALYSIS_COMPLETED:" + deepAnalysisId,
@@ -173,6 +191,7 @@ export class DeepAnalysisOrchestrationService {
   private persistDebateTranscript(
     input: ExecuteDeepAnalysisInput,
     deepAnalysisId: string,
+    adjudicatorAgentId: AgentId,
     debate: DebateRunResult,
     now: () => string,
   ): Message {
@@ -216,7 +235,7 @@ export class DeepAnalysisOrchestrationService {
       const decision: Message = {
         id: decisionMessageId,
         conversationId: conversation.id,
-        actorId: input.synthesizerAgentId ?? debate.debate.participantAgentIds[0] ?? input.actorId,
+        actorId: adjudicatorAgentId,
         role: "AGENT",
         kind: "TEXT",
         content: debate.decision,
