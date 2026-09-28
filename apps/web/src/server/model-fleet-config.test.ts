@@ -78,44 +78,126 @@ describe("model fleet configuration", () => {
     ).toThrow("unknown fallback model");
   });
 
-  it("builds one model and provider registration per configured agent", () => {
+  it("builds one model/provider registration while multiple agents share it", () => {
     const profiles = parseModelProfiles(
       JSON.stringify([
         {
           agentId: "researcher",
+          agentName: "Researcher",
           modelId: "qwen3:8b",
-          providerId: "ollama-research",
+          modelName: "Qwen 3 8B",
+          providerId: "ollama",
+          providerName: "Ollama",
           endpoint: "http://127.0.0.1:11434/v1/chat/completions",
         },
         {
           agentId: "analyst",
+          agentName: "Analyst",
+          modelId: "qwen3:8b",
+          modelName: "Qwen 3 8B",
+          providerId: "ollama",
+          providerName: "Ollama",
+          endpoint: "http://127.0.0.1:11434/v1/chat/completions",
+        },
+        {
+          agentId: "fact-checker",
+          agentName: "Fact Checker",
           modelId: "another-model",
-          providerId: "other-provider",
+          providerId: "cloud",
+          providerName: "Cloud",
           endpoint: "https://example.com/v1/chat/completions",
         },
       ]),
     );
 
-    const result = buildModelRegistrations(profiles, {
-      RESEARCH_API_KEY: "not-used",
-    });
+    const result = buildModelRegistrations(profiles, {});
 
-    expect(result.agents.map((agent) => agent.id)).toEqual(["researcher", "analyst"]);
+    expect(result.agents.map((agent) => agent.id)).toEqual([
+      "researcher",
+      "analyst",
+      "fact-checker",
+    ]);
     expect(result.agents.map((agent) => agent.preferredModelId)).toEqual([
+      "qwen3:8b",
       "qwen3:8b",
       "another-model",
     ]);
-    expect(result.models.map((model) => model.providerId)).toEqual([
-      "ollama-research",
-      "other-provider",
-    ]);
+    expect(result.models.map((model) => model.id)).toEqual(["qwen3:8b", "another-model"]);
+    expect(result.models.map((model) => model.providerId)).toEqual(["ollama", "cloud"]);
     expect(result.providers.map((registration) => registration.provider.id)).toEqual([
-      "ollama-research",
-      "other-provider",
+      "ollama",
+      "cloud",
     ]);
     expect(result.providers.map((registration) => registration.adapter.providerId)).toEqual([
-      "ollama-research",
-      "other-provider",
+      "ollama",
+      "cloud",
     ]);
+  });
+
+  it("allows multiple models to share one provider endpoint", () => {
+    const profiles = parseModelProfiles(
+      JSON.stringify([
+        {
+          agentId: "researcher",
+          modelId: "research-model",
+          providerId: "ollama",
+          endpoint: "http://127.0.0.1:11434/v1/chat/completions",
+        },
+        {
+          agentId: "analyst",
+          modelId: "analyst-model",
+          providerId: "ollama",
+          endpoint: "http://127.0.0.1:11434/v1/chat/completions",
+        },
+      ]),
+    );
+
+    const result = buildModelRegistrations(profiles, {});
+
+    expect(result.models.map((model) => model.id)).toEqual(["research-model", "analyst-model"]);
+    expect(result.providers).toHaveLength(1);
+    expect(result.providers[0]?.provider.id).toBe("ollama");
+  });
+
+  it("rejects inconsistent shared model/provider configuration", () => {
+    expect(() =>
+      parseModelProfiles(
+        JSON.stringify([
+          {
+            agentId: "researcher",
+            modelId: "shared-model",
+            modelName: "Shared Model",
+            providerId: "ollama",
+            endpoint: "http://127.0.0.1:11434/v1/chat/completions",
+          },
+          {
+            agentId: "analyst",
+            modelId: "shared-model",
+            modelName: "Different Model Name",
+            providerId: "ollama",
+            endpoint: "http://127.0.0.1:11434/v1/chat/completions",
+          },
+        ]),
+      ),
+    ).toThrow("inconsistently");
+
+    expect(() =>
+      parseModelProfiles(
+        JSON.stringify([
+          {
+            agentId: "researcher",
+            modelId: "research-model",
+            providerId: "ollama",
+            endpoint: "http://127.0.0.1:11434/v1/chat/completions",
+          },
+          {
+            agentId: "analyst",
+            modelId: "analyst-model",
+            providerId: "ollama",
+            endpoint: "http://different.example/v1/chat/completions",
+          },
+        ]),
+      ),
+    ).toThrow("inconsistently");
   });
 });
