@@ -68,6 +68,7 @@ import {
   InMemoryEmbeddingAdapterRegistry,
   InMemoryProviderAdapterRegistry,
   ModelGateway,
+  UsageGovernor,
   type EmbeddingProviderAdapter,
   type ModelProviderAdapter,
 } from "@polyon/providers";
@@ -104,6 +105,7 @@ export interface PolyonCompositionOptions {
   readonly agents?: readonly Agent[];
   readonly models?: readonly Model[];
   readonly providers?: readonly PolyonProviderRegistration[];
+  readonly usageGovernor?: UsageGovernor;
   readonly embeddingProvider?: PolyonEmbeddingProviderRegistration;
   readonly semanticMemoryIndexingEnabled?: boolean;
   readonly semanticMemoryIndexIntervalMs?: number;
@@ -205,6 +207,7 @@ export interface PolyonComposition {
   readonly models: InMemoryModelRegistry;
   readonly providers: InMemoryProviderRegistry;
   readonly providerAdapters: InMemoryProviderAdapterRegistry;
+  readonly usageGovernor?: UsageGovernor;
   readonly embeddingAdapters: InMemoryEmbeddingAdapterRegistry;
   readonly integrations: InMemoryIntegrationAdapterRegistry;
   readonly secretResolver?: SecretResolver;
@@ -335,7 +338,12 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     integrations.register(integration);
   }
 
-  const modelGateway = new ModelGateway({ models, providers, adapters: providerAdapters });
+  const modelGateway = new ModelGateway({
+    models,
+    providers,
+    adapters: providerAdapters,
+    ...(options.usageGovernor === undefined ? {} : { usageGovernor: options.usageGovernor }),
+  });
   const embeddingGateway =
     options.embeddingProvider === undefined
       ? undefined
@@ -823,6 +831,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     models,
     providers,
     providerAdapters,
+    ...(options.usageGovernor === undefined ? {} : { usageGovernor: options.usageGovernor }),
     embeddingAdapters,
     integrations,
     ...(options.secretResolver === undefined ? {} : { secretResolver: options.secretResolver }),
