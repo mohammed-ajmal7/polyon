@@ -153,7 +153,7 @@ describe("ResearchOrchestrationService", () => {
 
     const synthesisCall = invokeText.mock.calls.at(-1)?.[0];
     expect(synthesisCall?.request.messages[1]?.content).toContain("Bounded evidence excerpt.");
-    expect(synthesisRequest.request.messages[1]?.content).toContain("Research workspace:");
+    expect(synthesisCall?.request.messages[1]?.content).toContain("Research workspace:");
   });
 
   it("keeps successful research when one researcher fails", async () => {
