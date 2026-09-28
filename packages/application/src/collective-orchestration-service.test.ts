@@ -6,6 +6,7 @@ import { InMemoryDomainStores } from "@polyon/storage";
 
 import type { CommandIngressResult } from "./command-ingress";
 import { CollectiveOrchestrationService } from "./collective-orchestration-service";
+import { DebateOrchestrationService } from "./debate-orchestration-service";
 import { ResearchService } from "./research-service";
 
 const now = "2026-09-28T13:00:00.000Z";
@@ -101,6 +102,7 @@ describe("CollectiveOrchestrationService", () => {
       conversations: stores.conversations,
       messages: stores.messages,
       events: stores.events,
+      debates: new DebateOrchestrationService({ invokeText } as never, stores.debates, stores.events, stores),
       unitOfWork: stores,
     });
 
@@ -167,6 +169,7 @@ describe("CollectiveOrchestrationService", () => {
       conversations: stores.conversations,
       messages: stores.messages,
       events: stores.events,
+      debates: new DebateOrchestrationService({ invokeText } as never, stores.debates, stores.events, stores),
       unitOfWork: stores,
     });
 
@@ -250,6 +253,7 @@ describe("CollectiveOrchestrationService", () => {
       conversations: stores.conversations,
       messages: stores.messages,
       events: stores.events,
+      debates: new DebateOrchestrationService({ invokeText } as never, stores.debates, stores.events, stores),
       research,
       unitOfWork: stores,
     });
@@ -297,6 +301,7 @@ describe("CollectiveOrchestrationService", () => {
       conversations: stores.conversations,
       messages: stores.messages,
       events: stores.events,
+      debates: new DebateOrchestrationService({ invokeText } as never, stores.debates, stores.events, stores),
       unitOfWork: stores,
     });
 
