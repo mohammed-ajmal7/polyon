@@ -525,6 +525,7 @@ export class CollectiveOrchestrationService {
   private buildSynthesisRequest(
     command: string,
     contributions: readonly CollectiveContribution[],
+    challenges: readonly CollectiveChallenge[],
     failures: readonly CollectiveFailure[],
     research: ResearchContext,
   ): TextModelRequest {
@@ -532,11 +533,16 @@ export class CollectiveOrchestrationService {
       (item) =>
         `[agent=${item.agentId} role=${item.role} model=${item.modelId} provider=${item.providerId}]\n${item.content}`,
     );
+    const challengeLines = challenges.map(
+      (item) =>
+        `[challenge agent=${item.agentId} round=${item.round} targets=${item.targetAgentIds.join(",")}]
+${item.content}`,
+    );
     const failureLines = failures.map((item) => `[agent=${item.agentId}] failed: ${item.error}`);
     const evidenceContext = formatEvidenceContext(research);
 
     let context = "";
-    for (const line of [...lines, ...failureLines]) {
+    for (const line of [...lines, ...challengeLines, ...failureLines]) {
       if (context.length + line.length + 2 > MAX_SYNTHESIS_CONTEXT_CHARACTERS) break;
       context += (context === "" ? "" : "\n\n") + line;
     }
@@ -559,7 +565,7 @@ export class CollectiveOrchestrationService {
             `User request: ${command}\n\nCollective findings:\n${context}` +
             (evidenceContext === "" ? "" : `\n\nShared evidence:\n${evidenceContext}`) +
             "\n\nFormat the response with these sections: Findings, Evidence, Agreements, " +
-            "Disagreements, Uncertainty, Conclusion.",
+            "Disagreements, Counterclaims, Uncertainty, Conclusion.",
         },
       ],
     };
@@ -572,6 +578,7 @@ export class CollectiveOrchestrationService {
     occurredAt: string,
     researchEnabled: boolean,
     researchSourceLimit: number,
+    maxChallengeRounds: number,
   ): void {
     this.withStores((stores) => {
       stores.events.append({
@@ -587,6 +594,7 @@ export class CollectiveOrchestrationService {
           commandMessageId: input.command.message.id,
           researchEnabled,
           researchSourceLimit,
+          maxChallengeRounds,
         },
       });
     });
@@ -663,6 +671,85 @@ export class CollectiveOrchestrationService {
         messageIds: [
           ...conversation.messageIds,
           ...contributionMessageIds.filter((id) => !conversation.messageIds.includes(id)),
+        ],
+        updatedAt: occurredAt,
+      });
+    });
+  }
+
+  private persistChallenges(
+    collectiveId: string,
+    input: ExecuteCollectiveInput,
+    challenges: readonly CollectiveChallenge[],
+    failures: readonly CollectiveFailure[],
+    occurredAt: string,
+  ): void {
+    this.withStores((stores) => {
+      for (const challenge of challenges) {
+        const messageId =
+          `collective:${collectiveId}:challenge:${challenge.round}:${challenge.agentId}`;
+        if (stores.messages.get(messageId) === undefined) {
+          stores.messages.save({
+            id: messageId,
+            conversationId: input.command.conversation.id,
+            actorId: challenge.actorId,
+            role: "AGENT",
+            kind: "TEXT",
+            content: challenge.content,
+            createdAt: occurredAt,
+          });
+        }
+
+        stores.events.append({
+          id: `COLLECTIVE_CHALLENGE:${collectiveId}:r${challenge.round}:${challenge.agentId}`,
+          kind: "COLLECTIVE_CHALLENGE",
+          actorId: challenge.actorId,
+          conversationId: input.command.conversation.id,
+          occurredAt,
+          data: {
+            collectiveId,
+            agentId: challenge.agentId,
+            round: challenge.round,
+            modelId: challenge.modelId,
+            providerId: challenge.providerId,
+            targetAgentIds: [...challenge.targetAgentIds],
+            messageId,
+            status: "SUCCEEDED",
+          },
+        });
+      }
+
+      for (const failure of failures) {
+        stores.events.append({
+          id:
+            `COLLECTIVE_CHALLENGE:${collectiveId}:${failure.agentId}:${stableId(failure.error)}`,
+          kind: "COLLECTIVE_CHALLENGE",
+          actorId: failure.actorId,
+          conversationId: input.command.conversation.id,
+          occurredAt,
+          data: {
+            collectiveId,
+            agentId: failure.agentId,
+            status: "FAILED",
+            error: failure.error,
+          },
+        });
+      }
+
+      const conversation = stores.conversations.get(input.command.conversation.id);
+      if (conversation === undefined) {
+        throw new Error(`Conversation not found: ${input.command.conversation.id}.`);
+      }
+
+      const challengeMessageIds = challenges.map(
+        (challenge) =>
+          `collective:${collectiveId}:challenge:${challenge.round}:${challenge.agentId}`,
+      );
+      stores.conversations.save({
+        ...conversation,
+        messageIds: [
+          ...conversation.messageIds,
+          ...challengeMessageIds.filter((id) => !conversation.messageIds.includes(id)),
         ],
         updatedAt: occurredAt,
       });
