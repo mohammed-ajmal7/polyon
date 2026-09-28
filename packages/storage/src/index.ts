@@ -8,6 +8,7 @@ export {
 
 export {
   InMemoryDomainStores,
+  type AgentRunStore,
   type ApprovalRequestStore,
   type DebateStore,
   type EvidenceStore,

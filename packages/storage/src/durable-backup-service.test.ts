@@ -18,7 +18,7 @@ describe("DurableBackupService", () => {
       db.replace(db.snapshot());
 
       service.backup(backupPath);
-      expect(readFileSync(backupPath, "utf8")).toContain('"version":3');
+      expect(readFileSync(backupPath, "utf8")).toContain('"version":4');
 
       const reopened = new FileDomainDatabase(dbPath);
       service.restore(backupPath);
