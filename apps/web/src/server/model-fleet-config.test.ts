@@ -134,6 +134,52 @@ describe("model fleet configuration", () => {
     ]);
   });
 
+  it("uses the built-in provider endpoint when a known provider omits endpoint", () => {
+    const profiles = parseModelProfiles(
+      JSON.stringify([
+        {
+          agentId: "local-researcher",
+          modelId: "qwen3:8b",
+          providerId: "ollama",
+        },
+        {
+          agentId: "gemini-analyst",
+          modelId: "gemini-test",
+          providerId: "gemini",
+          apiKeyEnv: "GOOGLE_AI_KEY",
+        },
+      ]),
+    );
+
+    const result = buildModelRegistrations(profiles, {
+      GOOGLE_AI_KEY: "test-secret",
+    });
+
+    expect(result.providers).toHaveLength(2);
+    expect(result.providers.map((registration) => registration.provider.kind)).toEqual([
+      "LOCAL_MODEL",
+      "HOSTED_MODEL",
+    ]);
+    expect(result.providers.map((registration) => registration.adapter.providerId)).toEqual([
+      "ollama",
+      "gemini",
+    ]);
+  });
+
+  it("requires an endpoint for unknown providers", () => {
+    expect(() =>
+      parseModelProfiles(
+        JSON.stringify([
+          {
+            agentId: "custom",
+            modelId: "custom-model",
+            providerId: "custom-provider",
+          },
+        ]),
+      ),
+    ).toThrow("Provider endpoint is required");
+  });
+
   it("allows multiple models to share one provider endpoint", () => {
     const profiles = parseModelProfiles(
       JSON.stringify([
