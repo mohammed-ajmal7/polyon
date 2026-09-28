@@ -1,7 +1,12 @@
 import type { AgentId, DomainEvent, Mission, Task, TaskKind } from "@polyon/contracts";
 import { validateTaskGraph } from "@polyon/core";
 import type { AgentGateway } from "@polyon/agents";
-import type { DomainStoreTransactionContext, DomainUnitOfWork, EventStore, TaskStore } from "@polyon/storage";
+import type {
+  DomainStoreTransactionContext,
+  DomainUnitOfWork,
+  EventStore,
+  TaskStore,
+} from "@polyon/storage";
 
 const MAX_TASKS = 20;
 const MAX_TITLE = 300;

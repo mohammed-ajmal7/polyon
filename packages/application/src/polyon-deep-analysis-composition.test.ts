@@ -50,12 +50,7 @@ function makeProvider(
   return { provider, adapter };
 }
 
-function makeAgent(
-  agentId: string,
-  modelId: string,
-  role: string,
-  providerId: string,
-): Agent {
+function makeAgent(agentId: string, modelId: string, role: string, providerId: string): Agent {
   return {
     id: agentId,
     name: agentId,
@@ -97,18 +92,8 @@ describe("POLYON deep-analysis composition", () => {
         makeProvider("provider.synthesis", "Synthesis", invocations.synthesizer),
       ];
       const agents = [
-        makeAgent(
-          "researcher",
-          "model.researcher",
-          "Research specialist",
-          "provider.research",
-        ),
-        makeAgent(
-          "analyst",
-          "model.analyst",
-          "Analytical specialist",
-          "provider.analysis",
-        ),
+        makeAgent("researcher", "model.researcher", "Research specialist", "provider.research"),
+        makeAgent("analyst", "model.analyst", "Analytical specialist", "provider.analysis"),
         makeAgent(
           "synthesizer",
           "model.synthesizer",

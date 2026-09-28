@@ -6,7 +6,12 @@ import type {
   TextModelRequest,
 } from "@polyon/contracts";
 import { advanceDebatePhase, createDebate, decideDebate, startDebate } from "@polyon/core";
-import type { DebateStore, DomainStoreTransactionContext, DomainUnitOfWork, EventStore } from "@polyon/storage";
+import type {
+  DebateStore,
+  DomainStoreTransactionContext,
+  DomainUnitOfWork,
+  EventStore,
+} from "@polyon/storage";
 
 import type { AgentGateway } from "@polyon/agents";
 

@@ -1,5 +1,11 @@
 import type { Evidence, EvidenceKind, Source, SourceKind } from "@polyon/contracts";
-import type { DomainStoreTransactionContext, DomainUnitOfWork, EventStore, EvidenceStore, SourceStore } from "@polyon/storage";
+import type {
+  DomainStoreTransactionContext,
+  DomainUnitOfWork,
+  EventStore,
+  EvidenceStore,
+  SourceStore,
+} from "@polyon/storage";
 
 export interface ResearchSourceCandidate {
   readonly title: string;
