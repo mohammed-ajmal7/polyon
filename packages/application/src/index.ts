@@ -281,3 +281,10 @@ export {
   type SemanticMemorySearchInput,
   type SemanticMemorySearchResult,
 } from "./semantic-memory-service";
+
+export {
+  createSemanticMemoryIndexer,
+  type SemanticMemoryIndexer,
+  type SemanticMemoryIndexerHealth,
+  type SemanticMemoryIndexerOptions,
+} from "./semantic-memory-indexer";
