@@ -60,15 +60,10 @@ export interface TextModelProviderFactoryOptions {
 export function getBuiltInProviderPreset(
   providerId: ProviderId,
 ): BuiltInProviderPreset | undefined {
-  return isBuiltInProviderId(providerId)
-    ? BUILT_IN_PROVIDER_PRESETS[providerId]
-    : undefined;
+  return isBuiltInProviderId(providerId) ? BUILT_IN_PROVIDER_PRESETS[providerId] : undefined;
 }
 
-export function resolveProviderEndpoint(
-  providerId: ProviderId,
-  endpoint?: string,
-): string {
+export function resolveProviderEndpoint(providerId: ProviderId, endpoint?: string): string {
   const explicitEndpoint = endpoint?.trim();
 
   if (explicitEndpoint !== undefined && explicitEndpoint.length > 0) {
@@ -81,9 +76,7 @@ export function resolveProviderEndpoint(
     return preset.defaultEndpoint;
   }
 
-  throw new RangeError(
-    `Provider endpoint is required for provider: ${providerId}.`,
-  );
+  throw new RangeError(`Provider endpoint is required for provider: ${providerId}.`);
 }
 
 export function resolveProviderApiKeyEnv(
