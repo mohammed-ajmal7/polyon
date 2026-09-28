@@ -261,7 +261,7 @@ A concrete bounded filesystem-read tool, an opt-in scoped terminal execution too
 
 Implemented application-level foundations include:
 
-- Direct/Broadcast/Debate/Mission command ingress;
+- Direct/Broadcast/Collaborative/Research/Debate/Deep Analysis/Mission command ingress;
 - conversation creation/validation;
 - participant validation;
 - message persistence;
@@ -271,16 +271,20 @@ Implemented application-level foundations include:
 
 ### Debate domain
 
-A bounded debate domain has been started, including:
+The debate domain and bounded multi-agent debate runtime are implemented, including:
 
 - debate creation;
 - phase transitions;
 - final-round validation;
 - adjudication-state validation;
 - cancellation;
-- decision handling.
+- decision handling;
+- bounded multi-agent proposal, criticism, evidence, rebuttal, and adjudication runtime;
+- durable contribution and decision traces;
+- restart-safe persisted debate recovery;
+- deep-analysis orchestration combining collective analysis and bounded debate.
 
-This is a domain foundation, not yet the complete multi-agent debate runtime.
+The debate runtime operates behind the provider-independent agent gateway and durable storage boundaries.
 
 ### Quality infrastructure
 
@@ -459,7 +463,7 @@ Build the research department with evidence-first output and traceability.
 
 ### Phase 7 — Debate runtime
 
-Connect the bounded debate domain to actual multi-agent execution:
+Status: implemented as a bounded multi-agent runtime. The integrated Deep Analysis flow now combines collective analysis, bounded challenge, finite debate, and adjudication:
 
 - participant selection;
 - proposal;
@@ -469,7 +473,8 @@ Connect the bounded debate domain to actual multi-agent execution:
 - adjudication;
 - finite termination;
 - decision artifact;
-- user approval for consequential decisions.
+- durable contribution/decision trace;
+- restart-safe recovery.
 
 ### Phase 8 — Coding agents and sandboxed execution
 
@@ -606,7 +611,7 @@ The system must remain understandable, testable, replaceable, private by default
 
 The repository is actively developed on `develop`; `feature/core-architecture` is retained as the historical architecture baseline.
 
-The codebase now contains the durable persistence, governed execution, provider adapters, tools/integrations, research/evidence, semantic memory, interoperability baselines, and AI HQ web workspace needed for the first self-hosted release candidate. The remaining pre-release work is primarily deployment validation, real-configuration smoke testing, backup/restore verification, and release branching.
+The codebase now contains durable persistence, governed execution, provider-independent model routing, multi-agent collective orchestration, bounded debate/deep-analysis runtime, tools/integrations, research/evidence, semantic memory, interoperability baselines, and the AI HQ web workspace needed for the first self-hosted release candidate. The remaining pre-release work is primarily deployment validation, real-configuration startup smoke testing, backup/restore verification, and release branching.
 
 The exact implementation state must always be re-read from the repository before continuing. Do not rely on this paragraph as a substitute for inspecting the current code, tests, and git history.
 
