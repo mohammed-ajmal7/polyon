@@ -107,8 +107,9 @@ export default function Home() {
   const [authRequired, setAuthRequired] = useState(false);
   const [authToken, setAuthToken] = useState("");
   const [lastExecution, setLastExecution] = useState<string | null>(null);
-  const [collectiveInspection, setCollectiveInspection] =
-    useState<CollectiveInspection | null>(null);
+  const [collectiveInspection, setCollectiveInspection] = useState<CollectiveInspection | null>(
+    null,
+  );
   const agents = overview?.agents ?? [];
   const approvals = overview?.approvals ?? [];
   const counts = overview?.counts ?? {
@@ -129,8 +130,7 @@ export default function Home() {
     if (mode === "Broadcast") return "Send one request to multiple agents independently.";
     if (mode === "Collaborative")
       return (
-        "Let a coordinated AI team contribute distinct perspectives and " +
-        "synthesize one answer."
+        "Let a coordinated AI team contribute distinct perspectives and " + "synthesize one answer."
       );
     if (mode === "Debate")
       return "Run a bounded proposal, criticism, evidence and adjudication flow.";
@@ -175,10 +175,9 @@ export default function Home() {
   }, []);
 
   async function loadCollectiveConversation(conversationId: string) {
-    const response = await fetch(
-      "/api/conversations/" + encodeURIComponent(conversationId),
-      { cache: "no-store" },
-    );
+    const response = await fetch("/api/conversations/" + encodeURIComponent(conversationId), {
+      cache: "no-store",
+    });
     if (!response.ok) throw new Error("Unable to load the collective inspection.");
     setCollectiveInspection((await response.json()) as CollectiveInspection);
   }
@@ -383,8 +382,8 @@ export default function Home() {
                       <div className="text-xs font-medium tracking-[0.14em] text-slate-500">
                         AGENT CONTRIBUTIONS
                       </div>
-                      {collectiveInspection.messages.filter((message) => message.role === "AGENT").length ===
-                      0 ? (
+                      {collectiveInspection.messages.filter((message) => message.role === "AGENT")
+                        .length === 0 ? (
                         <div className="rounded-2xl border border-dashed border-white/8 p-4 text-sm text-slate-500">
                           No agent messages were persisted.
                         </div>
@@ -401,7 +400,7 @@ export default function Home() {
                                   <div className="text-xs font-medium text-violet-200">
                                     {message.actorId}
                                   </div>
-                                  <div className="mt-1 text-[10px] uppercase tracking-[0.12em] text-slate-600">
+                                  <div className="mt-1 text-[10px] tracking-[0.12em] text-slate-600 uppercase">
                                     {message.kind}
                                   </div>
                                 </div>
@@ -409,7 +408,7 @@ export default function Home() {
                                   {formatTime(message.createdAt)}
                                 </div>
                               </div>
-                              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-300">
+                              <p className="mt-2 text-sm leading-6 whitespace-pre-wrap text-slate-300">
                                 {message.content}
                               </p>
                             </article>
