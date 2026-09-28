@@ -78,7 +78,7 @@ describe("MissionGraphExecutionService", () => {
 
     expect(dispatchReadyTasks).toHaveBeenCalledWith(
       expect.objectContaining({
-        missionId: undefined,
+        missionId: "mission-1",
       }),
     );
     expect(result.dispatched).toHaveLength(1);
