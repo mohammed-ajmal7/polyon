@@ -166,6 +166,23 @@ describe("routeAgentModel", () => {
     expect(result.score).toBeLessThan(25);
   });
 
+  it("skips a quota-limited preferred provider when a healthy fallback exists", () => {
+    const result = routeAgentModel(
+      {
+        agentId: agent.id,
+        requiredCapabilityIds: ["research"],
+        providerHealth: {
+          cloud: "quota_limited",
+          local: "healthy",
+          degraded: "healthy",
+        },
+      },
+      createRegistries(),
+    );
+
+    expect(result.model.id).toBe("model-local");
+  });
+
   it("skips quota-limited and unavailable providers", () => {
     const result = routeAgentModel(
       {

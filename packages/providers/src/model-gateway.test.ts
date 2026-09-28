@@ -387,6 +387,54 @@ describe("ModelGateway", () => {
     );
   });
 
+  it("allows an explicitly free hosted model in zero-cost mode", async () => {
+    const adapters = new InMemoryProviderAdapterRegistry();
+    adapters.register({
+      providerId: "provider-1",
+      async invoke() {
+        return {
+          output: {
+            content: "free hosted response",
+            usage: { totalTokens: 4 },
+          },
+        };
+      },
+    });
+
+    const models = new InMemoryModelRegistry();
+    const providers = new InMemoryProviderRegistry();
+    models.register({
+      id: "model-1",
+      providerId: "provider-1",
+      name: "Free Hosted Model",
+      kind: "TEXT",
+      capabilityIds: [],
+      costClass: "free",
+      enabled: true,
+    });
+    providers.register({
+      id: "provider-1",
+      name: "Hosted Provider",
+      kind: "HOSTED_MODEL",
+      enabled: true,
+    });
+
+    const gateway = new ModelGateway({
+      models,
+      providers,
+      adapters,
+      usageGovernor: new UsageGovernor({ costMode: "zero" }),
+    });
+
+    await expect(
+      gateway.invokeText("model-1", {
+        messages: [{ role: "USER", content: "hello" }],
+      }),
+    ).resolves.toMatchObject({
+      output: { content: "free hosted response" },
+    });
+  });
+
   it("records actual token usage and enforces per-run token budgets", async () => {
     const adapters = new InMemoryProviderAdapterRegistry();
     adapters.register({
