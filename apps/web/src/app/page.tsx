@@ -339,7 +339,9 @@ export default function Home() {
                         </div>
                       </div>
                       <div className="mt-5 flex flex-wrap gap-2">
-                        {(["Direct", "Broadcast", "Collaborative", "Debate", "Mission"] as Mode[]).map((entry) => (
+                        {(
+                          ["Direct", "Broadcast", "Collaborative", "Debate", "Mission"] as Mode[]
+                        ).map((entry) => (
                           <button
                             key={entry}
                             type="button"
