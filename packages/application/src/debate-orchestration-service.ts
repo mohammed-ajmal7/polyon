@@ -168,7 +168,8 @@ export class DebateOrchestrationService {
         {
           role: "USER",
           content:
-            `Objective: ${debate.objective}\nRound: ${debate.currentRound}\nPhase: ${debate.phase}\nRole: ${role}\n\nPrior contributions:\n${context}` +
+            `Objective: ${debate.objective}\nRound: ${debate.currentRound}\n` +
+            `Phase: ${debate.phase}\nRole: ${role}\n\nPrior contributions:\n${context}` +
             (input.context === undefined ? "" : `\n\nShared analysis context:\n${input.context}`),
         },
       ],
@@ -201,7 +202,8 @@ export class DebateOrchestrationService {
         {
           role: "SYSTEM",
           content:
-            "You are the adjudicator for a finite POLYON debate. Evaluate arguments and evidence, " +
+            "You are the adjudicator for a finite POLYON debate. " +
+            "Evaluate arguments and evidence, " +
             "identify uncertainty and conflicts, and produce a concise decision rationale. " +
             "Do not claim external verification you did not receive.",
         },
@@ -245,7 +247,9 @@ export class DebateOrchestrationService {
     contribution: DebateRunResult["contributions"][number],
   ): void {
     const event: DomainEvent = {
-      id: `DEBATE_CONTRIBUTION:${debate.id}:r${contribution.round}:${contribution.phase}:${contribution.agentId}`,
+      id:
+        `DEBATE_CONTRIBUTION:${debate.id}:r${contribution.round}:${contribution.phase}:` +
+        contribution.agentId,
       kind: "DEBATE_CONTRIBUTION",
       data: {
         debateId: debate.id,
