@@ -1,0 +1,49 @@
+name: Merge feature slices once
+
+on:
+  push:
+    branches:
+      - ops/merge-feature-slices
+
+permissions:
+  contents: write
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ops/merge-feature-slices
+          fetch-depth: 0
+
+      - name: Merge feature slices
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin feature/core-architecture
+
+          merge_branch() {
+            target="$1"
+            feature_head="$2"
+            parent="$3"
+            git fetch origin "$parent"
+            git fetch origin "$feature_head"
+            git checkout -B "$target" "$feature_head"
+            git merge --no-ff --no-edit "origin/$parent"
+            git push --force origin "$target:$target"
+          }
+
+          merge_branch feature/memory-auto-indexing 546fb908e8f29bb96f0eb4b03aa544806272eb76 feature/core-architecture
+          merge_branch feature/semantic-memory-privacy 49636b9af885963053da75234b55b575ec6bda6c feature/memory-auto-indexing
+          merge_branch feature/vector-search-scaling bc0346ea3d68f6d67138e4126cd6a52574124361 feature/semantic-memory-privacy
+
+          merge_branch feature/production-scale-hardening f852e91e596622e77675936c3a16f95c01a662df feature/core-architecture
+          merge_branch feature/mcp-a2a-protocol-depth 08111667b084bac4aeb2d94b47efcd8b0d45d2ee feature/core-architecture
+          merge_branch feature/a2a-task-control 7730a72aadee8ca407bc0698d7322691ccaa7ccb feature/core-architecture
+          merge_branch feature/adversarial-recovery-e2e 0314bb3993df4f79d9094bacbfe0b53ef2c30ae4 feature/core-architecture
+          merge_branch feature/readiness-doc-alignment b92a1135ebd321236c90a006d06715afb90ebcf1 feature/core-architecture
+
+          git push origin --delete ops/merge-feature-slices
