@@ -91,7 +91,7 @@ export class AgentMessageService {
           fromAgentId: input.fromAgentId,
           ...(input.toAgentId === undefined ? {} : { toAgentId: input.toAgentId }),
           agentMessageType: input.agentMessageType,
-          payloadSize: JSON.stringify(input.payload).length,
+          payloadSize: serializePayload(input.payload).length,
         },
       };
       stores.events.append(event);
@@ -151,16 +151,25 @@ function validateInput(input: SendAgentMessageInput): void {
     throw new Error(`Target agent is not a participant: ${input.toAgentId}.`);
   }
 
-  let payloadCharacters: number;
-  try {
-    payloadCharacters = JSON.stringify(input.payload).length;
-  } catch (error) {
-    throw new RangeError("Agent message payload must be JSON-serializable.", { cause: error });
-  }
-
-  if (payloadCharacters > MAX_PAYLOAD_CHARACTERS) {
+  const serializedPayload = serializePayload(input.payload);
+  if (serializedPayload.length > MAX_PAYLOAD_CHARACTERS) {
     throw new RangeError(
       `Agent message payload exceeds ${MAX_PAYLOAD_CHARACTERS} serialized characters.`,
     );
+  }
+}
+
+
+function serializePayload(payload: unknown): string {
+  try {
+    const serialized = JSON.stringify(payload);
+
+    if (serialized === undefined) {
+      throw new Error("Payload serializes to undefined.");
+    }
+
+    return serialized;
+  } catch (error) {
+    throw new RangeError("Agent message payload must be JSON-serializable.", { cause: error });
   }
 }
