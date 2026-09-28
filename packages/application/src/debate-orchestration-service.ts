@@ -20,6 +20,7 @@ export interface CreateDebateInput {
   readonly maxParticipants: number;
   readonly maxRounds: number;
   readonly createdAt: string;
+  readonly conversationId?: string;
 }
 
 export interface RunDebateInput {
@@ -29,6 +30,8 @@ export interface RunDebateInput {
   readonly now: () => string;
   readonly modelOptions?: import("@polyon/providers").ModelInvocationOptions;
   readonly signal?: AbortSignal;
+  readonly conversationId?: string;
+  readonly initialContext?: string;
 }
 
 export interface DebateRunResult {
@@ -94,7 +97,7 @@ export class DebateOrchestrationService {
 
     if (debate.status === "DRAFT") {
       debate = startDebate(debate, input.now());
-      this.persistStatus(debate, input.now(), "DRAFT");
+      this.persistStatus(debate, input.now(), "DRAFT", input.conversationId);
     }
 
     while (debate.status === "RUNNING") {
@@ -109,11 +112,11 @@ export class DebateOrchestrationService {
 
         const contribution = await this.invokeContribution(debate, agentId, contributions, input);
         contributions.push(contribution);
-        this.persistContribution(debate, contribution);
+        this.persistContribution(debate, contribution, input.conversationId);
       }
 
       const next = advanceDebatePhase(debate, input.now());
-      this.persistStatus(next, input.now(), debate.status);
+      this.persistStatus(next, input.now(), debate.status, input.conversationId);
       debate = next;
     }
 
@@ -128,7 +131,7 @@ export class DebateOrchestrationService {
       input,
     );
     const decided = decideDebate(debate, input.now());
-    this.persistDecision(decided, input.now(), decision);
+    this.persistDecision(decided, input.now(), decision, input.conversationId);
     return { debate: decided, decision, contributions };
   }
 
@@ -166,7 +169,8 @@ export class DebateOrchestrationService {
         },
         {
           role: "USER",
-          content: `Objective: ${debate.objective}\nRound: ${debate.currentRound}\nPhase: ${debate.phase}\nRole: ${role}\n\nPrior contributions:\n${context}`,
+          content:
+            `Objective: ${debate.objective}\nRound: ${debate.currentRound}\nPhase: ${debate.phase}\nRole: ${role}\n\nInitial context:\n${formatInitialContext(input.initialContext)}\n\nPrior contributions:\n${context}`,
         },
       ],
     };
@@ -204,7 +208,8 @@ export class DebateOrchestrationService {
         },
         {
           role: "USER",
-          content: `Objective: ${debate.objective}\nDebate transcript:\n${context}\n\nReturn a reasoned adjudication.`,
+          content:
+            `Objective: ${debate.objective}\n\nInitial context:\n${formatInitialContext(input.initialContext)}\n\nDebate transcript:\n${context}\n\nReturn a reasoned adjudication.`,
         },
       ],
     };
@@ -218,16 +223,27 @@ export class DebateOrchestrationService {
     return response.output.content.slice(0, MAX_CONTRIBUTION_LENGTH);
   }
 
-  private persistStatus(debate: Debate, now: string, from: Debate["status"]): void {
+  private persistStatus(
+    debate: Debate,
+    now: string,
+    from: Debate["status"],
+    conversationId?: string,
+  ): void {
     const operation = () => {
       this.debates.save(debate);
       this.events.append(
-        this.debateEvent("DEBATE_STATUS_CHANGED", debate, now, {
-          from,
-          to: debate.status,
-          phase: debate.phase,
-          round: debate.currentRound,
-        }),
+        this.debateEvent(
+          "DEBATE_STATUS_CHANGED",
+          debate,
+          now,
+          {
+            from,
+            to: debate.status,
+            phase: debate.phase,
+            round: debate.currentRound,
+          },
+          conversationId,
+        ),
       );
     };
     if (this.unitOfWork === undefined) operation();
@@ -237,10 +253,12 @@ export class DebateOrchestrationService {
   private persistContribution(
     debate: Debate,
     contribution: DebateRunResult["contributions"][number],
+    conversationId?: string,
   ): void {
     const event: DomainEvent = {
       id: `DEBATE_CONTRIBUTION:${debate.id}:r${contribution.round}:${contribution.phase}:${contribution.agentId}`,
       kind: "DEBATE_CONTRIBUTION",
+      ...(conversationId === undefined ? {} : { conversationId }),
       data: {
         debateId: debate.id,
         agentId: contribution.agentId,
@@ -253,13 +271,24 @@ export class DebateOrchestrationService {
     this.events.append(event);
   }
 
-  private persistDecision(debate: Debate, now: string, decision: string): void {
+  private persistDecision(
+    debate: Debate,
+    now: string,
+    decision: string,
+    conversationId?: string,
+  ): void {
     const operation = () => {
       this.debates.save(debate);
       this.events.append(
-        this.debateEvent("DEBATE_DECIDED", debate, now, {
-          decision,
-        }),
+        this.debateEvent(
+          "DEBATE_DECIDED",
+          debate,
+          now,
+          {
+            decision,
+          },
+          conversationId,
+        ),
       );
     };
     if (this.unitOfWork === undefined) operation();
@@ -271,6 +300,7 @@ export class DebateOrchestrationService {
     debate: Debate,
     occurredAt: string,
     data: Record<string, unknown>,
+    conversationId?: string,
   ): DomainEvent {
     const from = typeof data.from === "string" ? data.from : "";
     const to = typeof data.to === "string" ? data.to : "";
@@ -280,6 +310,7 @@ export class DebateOrchestrationService {
     return {
       id: `${kind}:${debate.id}:${occurredAt}:${from}:${to}:${phase}:${round}`,
       kind,
+      ...(conversationId === undefined ? {} : { conversationId }),
       occurredAt,
       data: { debateId: debate.id, ...data },
     };
@@ -313,4 +344,10 @@ function formatContributions(
     total += line.length + 1;
   }
   return lines.join("\n");
+}
+
+
+function formatInitialContext(context: string | undefined): string {
+  if (context === undefined || context.trim() === "") return "None provided.";
+  return context.trim().slice(0, MAX_PROMPT_CONTEXT);
 }
