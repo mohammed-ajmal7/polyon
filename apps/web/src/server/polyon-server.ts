@@ -7,9 +7,7 @@ import {
   SmtpTransport,
   type EmailTransport,
 } from "@polyon/integrations";
-import {
-  OpenAICompatibleEmbeddingAdapter,
-} from "@polyon/providers";
+import { OpenAICompatibleEmbeddingAdapter } from "@polyon/providers";
 import { EncryptedFileSecretResolver, NodeSmtpConnectionFactory } from "@polyon/runtime";
 import {
   BoundedWebResearchRetriever,
@@ -110,10 +108,7 @@ function buildEmbeddingRegistration() {
 function buildConfiguredModelRegistrations() {
   const profilesJson = process.env.POLYON_MODEL_PROFILES_JSON?.trim();
   if (profilesJson !== undefined && profilesJson !== "") {
-    return buildModelRegistrations(
-      parseModelProfiles(profilesJson),
-      process.env,
-    );
+    return buildModelRegistrations(parseModelProfiles(profilesJson), process.env);
   }
 
   const endpoint = process.env.POLYON_MODEL_ENDPOINT?.trim();
