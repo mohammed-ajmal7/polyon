@@ -193,7 +193,6 @@ describe("CollectiveOrchestrationService", () => {
     expect(result.synthesis?.content).toContain("failed researcher");
   });
 
-
   it("researches per contributor and gives source-backed evidence to the synthesizer", async () => {
     const stores = new InMemoryDomainStores();
     stores.conversations.save(command().conversation);
