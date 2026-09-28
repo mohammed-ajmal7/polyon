@@ -33,10 +33,7 @@ jobs:
       - name: Lint
         run: pnpm lint
       - name: Format check
-        run: |
-          pnpm exec prettier . --write
-          git diff --no-color
-          exit 1
+        run: pnpm format:check
 
       - name: Build
         run: pnpm build
