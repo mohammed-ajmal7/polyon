@@ -41,7 +41,7 @@ export async function POST(request: Request): Promise<Response> {
     const command = parseString(input.command, 50_000, "command");
     const polyon = getPolyonComposition();
     const actorId = getPolyonActorId();
-    const targets = resolveTargets(input.agentIds, polyon);
+    const targets = resolveTargets(input.agentIds, mode, polyon);
     const participantIds = [actorId, ...targets.map((target) => target.actorId)];
 
     const commandResult = polyon.commandIngress.submit({
@@ -73,6 +73,18 @@ export async function POST(request: Request): Promise<Response> {
           64 * 1024,
           2 * 1024 * 1024,
         ),
+      });
+      return Response.json({ mode, result }, { status: 201 });
+    }
+
+    if (mode === "Collaborative") {
+      const result = await polyon.collectiveOrchestration.execute({
+        command: commandResult,
+        targets,
+        requiredCapabilityIds,
+        actorId,
+        synthesizerAgentId: parseOptionalString(input.synthesizerAgentId),
+        maxParticipants: parsePositiveInteger(input.maxParticipants, 8, 8),
       });
       return Response.json({ mode, result }, { status: 201 });
     }
@@ -160,10 +172,16 @@ function parseStringArray(value: unknown, max: number): readonly string[] {
   return value.map((item) => parseString(item, 200, "array item"));
 }
 
-function resolveTargets(value: unknown, polyon: ReturnType<typeof getPolyonComposition>) {
+function resolveTargets(
+  value: unknown,
+  mode: CommandMode,
+  polyon: ReturnType<typeof getPolyonComposition>,
+) {
   const ids =
     value === undefined
-      ? [polyon.agents.list()[0]?.id].filter((id): id is string => id !== undefined)
+      ? mode === "Collaborative"
+        ? polyon.agents.list().slice(0, 8).map((agent) => agent.id)
+        : [polyon.agents.list()[0]?.id].filter((id): id is string => id !== undefined)
       : Array.isArray(value)
         ? value.map((id) => parseString(id, 200, "agentId"))
         : (() => {
