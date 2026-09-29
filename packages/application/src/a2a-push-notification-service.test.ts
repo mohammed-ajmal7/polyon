@@ -13,7 +13,12 @@ import {
 const task = {
   id: "task-1",
   missionId: "mission-1",
+  kind: "ANALYSIS",
+  title: "A2A notification task",
+  description: "A task used to exercise A2A notifications.",
   status: "SUCCEEDED",
+  dependsOn: [],
+  createdAt: "2026-09-29T09:59:00.000Z",
   updatedAt: "2026-09-29T10:00:00.000Z",
 } satisfies Task;
 
@@ -259,7 +264,12 @@ describe("A2A push notifications", () => {
     const task = {
       id: "task-1",
       missionId: "mission-1",
+      kind: "ANALYSIS",
+      title: "A2A notification task",
+      description: "A task used to exercise A2A notifications.",
       status: "SUCCEEDED",
+      dependsOn: [],
+      createdAt: "2026-09-29T09:59:00.000Z",
       updatedAt: "2026-09-29T10:00:00.000Z",
     } satisfies Task;
 
@@ -290,7 +300,12 @@ describe("A2A push notifications", () => {
     const task = {
       id: "task-telemetry",
       missionId: "mission-telemetry",
+      kind: "ANALYSIS",
+      title: "Telemetry task",
+      description: "A task used to exercise delivery telemetry handling.",
       status: "SUCCEEDED",
+      dependsOn: [],
+      createdAt: "2026-09-29T09:59:00.000Z",
       updatedAt: "2026-09-29T10:00:00.000Z",
     } satisfies Task;
 
@@ -323,7 +338,12 @@ describe("A2A push notifications", () => {
     const task = {
       id: "task-2",
       missionId: "mission-2",
+      kind: "ANALYSIS",
+      title: "Failed A2A task",
+      description: "A task used to exercise terminal delivery failure handling.",
       status: "FAILED",
+      dependsOn: [],
+      createdAt: "2026-09-29T09:59:00.000Z",
       updatedAt: "2026-09-29T10:00:00.000Z",
     } satisfies Task;
 
