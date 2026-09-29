@@ -27,6 +27,16 @@ export type {
   TextModelUsage,
   EmbeddingRequest,
   EmbeddingResponse,
+  AiCapabilityDefinition,
+  AiCapabilityId,
+  BuiltInAgentRoleDefinition,
+  BuiltInAgentRoleId,
+} from "./agent/index";
+export {
+  AI_CAPABILITY_DEFINITIONS,
+  BUILT_IN_AGENT_ROLES,
+  getBuiltInAgentRole,
+  isAiCapabilityId,
 } from "./agent/index";
 
 export type { DomainEvent, EventId, EventKind } from "./observability/index";

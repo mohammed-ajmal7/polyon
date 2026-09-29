@@ -41,6 +41,7 @@ export interface AgentGatewayRoutingOptions {
 export interface AgentGatewayInvocationInput<TInput = unknown> {
   readonly agentId: AgentId;
   readonly requiredCapabilityIds: readonly CapabilityId[];
+  readonly requiredModelCapabilityIds?: readonly CapabilityId[];
   readonly input: TInput;
   readonly modelOptions?: ModelInvocationOptions;
   readonly routing?: AgentGatewayRoutingOptions;
@@ -57,6 +58,7 @@ export interface AgentGatewayInvocationResult<TOutput = unknown> {
 export interface AgentGatewayTextInvocationInput {
   readonly agentId: AgentId;
   readonly requiredCapabilityIds: readonly CapabilityId[];
+  readonly requiredModelCapabilityIds?: readonly CapabilityId[];
   readonly request: TextModelRequest;
   readonly modelOptions?: ModelInvocationOptions;
   readonly routing?: AgentGatewayRoutingOptions;
@@ -79,6 +81,7 @@ export class AgentGateway {
     return this.invokeWithFailover(
       input.agentId,
       input.requiredCapabilityIds,
+      input.requiredModelCapabilityIds,
       input.routing,
       (modelId) => this.dependencies.modelGateway.invokeText(modelId, input.request, input.modelOptions),
     );
@@ -90,6 +93,7 @@ export class AgentGateway {
     return this.invokeWithFailover(
       input.agentId,
       input.requiredCapabilityIds,
+      input.requiredModelCapabilityIds,
       input.routing,
       (modelId) =>
         this.dependencies.modelGateway.invoke<TInput, TOutput>(
@@ -103,6 +107,7 @@ export class AgentGateway {
   private async invokeWithFailover<TOutput>(
     agentId: AgentId,
     requiredCapabilityIds: readonly CapabilityId[],
+    requiredModelCapabilityIds: readonly CapabilityId[] | undefined,
     routingOptions: AgentGatewayRoutingOptions | undefined,
     invokeModel: (modelId: ModelId) => Promise<{ output: TOutput }>,
   ): Promise<AgentGatewayInvocationResult<TOutput>> {
@@ -112,6 +117,9 @@ export class AgentGateway {
       const request: ModelRoutingRequest = {
         agentId,
         requiredCapabilityIds,
+        ...(requiredModelCapabilityIds === undefined
+          ? {}
+          : { requiredModelCapabilityIds }),
         ...(routingOptions?.privacyClass === undefined
           ? {}
           : { privacyClass: routingOptions.privacyClass }),

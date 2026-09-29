@@ -133,6 +133,35 @@ describe("routeAgentModel", () => {
     expect(result.provider.kind).toBe("LOCAL_MODEL");
   });
 
+  it("treats agent and model capability requirements separately", () => {
+    const agents = new InMemoryAgentRegistry();
+    const models = new InMemoryModelRegistry();
+    const providers = new InMemoryProviderRegistry();
+
+    agents.register({
+      ...agent,
+      preferredModelId: "vision-model",
+      fallbackModelIds: [],
+    });
+    models.register({
+      ...localModel,
+      id: "vision-model",
+      capabilityIds: ["ai.chat", "ai.vision"],
+    });
+    providers.register(local);
+
+    const result = routeAgentModel(
+      {
+        agentId: agent.id,
+        requiredCapabilityIds: ["research"],
+        requiredModelCapabilityIds: ["ai.vision"],
+      },
+      { agents, models, providers },
+    );
+
+    expect(result.model.id).toBe("vision-model");
+  });
+
   it("filters models that cannot satisfy context or tool requirements", () => {
     const result = routeAgentModel(
       {
