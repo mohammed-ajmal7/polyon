@@ -71,6 +71,7 @@ export class ConversationAgentOrchestrationService {
       const result = await this.orchestration.invoke({
         agentId: target.agentId,
         requiredCapabilityIds: input.requiredCapabilityIds,
+        conversationId: input.command.conversation.id,
         request: requestBase,
         policy: input.policy,
         actorId: input.actorId,
@@ -141,4 +142,79 @@ export class ConversationAgentOrchestrationService {
       persistedMessages,
     };
   }
+
+  async resolveToolApproval(input: {
+    readonly approvalId: string;
+    readonly status: "APPROVED";
+    readonly resolvedAt: string;
+    readonly resolvedBy?: ActorId;
+    readonly policy: import("@polyon/contracts").Policy;
+  }): Promise<{
+    readonly status: "SUCCEEDED" | "APPROVAL_REQUIRED" | "REJECTED" | "FAILED";
+    readonly response: import("@polyon/contracts").TextModelResponse;
+    readonly rounds: number;
+    readonly conversationId: string;
+    readonly agentId: string;
+    readonly approval?: Extract<
+      import("./agent-tool-orchestration-service").AgentToolOrchestrationResult,
+      { status: "APPROVAL_REQUIRED" }
+    >["approval"];
+    readonly error?: string;
+  }> {
+    const result = await this.orchestration.resolveConversationToolApproval(
+      {
+        approvalId: input.approvalId,
+        status: input.status,
+        resolvedAt: input.resolvedAt,
+        ...(input.resolvedBy === undefined ? {} : { resolvedBy: input.resolvedBy }),
+      },
+      input.policy,
+    );
+
+    if (result.status === "SUCCEEDED") {
+      const message: Message = {
+        id: `agent-response:${input.approvalId}:${result.agentId}`,
+        conversationId: result.conversationId,
+        actorId: result.agentId,
+        role: "AGENT",
+        kind: "TEXT",
+        content: result.response.content,
+        createdAt: result.response.content === "" ? input.resolvedAt : new Date().toISOString(),
+      };
+
+      const operation = () => {
+        if (this.messages.get(message.id) !== undefined) return;
+        const conversation = this.conversations.get(result.conversationId);
+        if (conversation === undefined) {
+          throw new Error(`Conversation not found: ${result.conversationId}.`);
+        }
+
+        this.messages.save(message);
+        this.conversations.save({
+          ...conversation,
+          messageIds: [...conversation.messageIds, message.id],
+          updatedAt: message.createdAt,
+        });
+        this.events.append({
+          id: `MESSAGE_CREATED:${message.id}`,
+          kind: "MESSAGE_CREATED",
+          actorId: result.agentId,
+          conversationId: message.conversationId,
+          occurredAt: message.createdAt,
+          data: {
+            messageId: message.id,
+            conversationId: message.conversationId,
+            agentId: result.agentId,
+            kind: message.kind,
+          },
+        });
+      };
+
+      if (this.unitOfWork === undefined) operation();
+      else this.unitOfWork.transaction(operation);
+    }
+
+    return result;
+  }
+
 }
