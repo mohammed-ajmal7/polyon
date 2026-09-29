@@ -1,5 +1,8 @@
 import type { ActionKind, Policy, RiskLevel, Tool } from "@polyon/contracts";
 
+import { InMemoryMcpSubscriptionBus } from "./mcp-subscription-bus";
+import type { McpSubscriptionFilter } from "./mcp-subscription-types";
+
 import type { ToolInvocationService, ToolInvocationOutcome } from "./tool-invocation-service";
 import type {
   IntegrationInvocationService,
