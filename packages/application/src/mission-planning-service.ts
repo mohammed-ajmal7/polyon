@@ -82,7 +82,11 @@ export class MissionPlanningService {
     let generatedTasks = buildGeneratedTasks(input, proposal.tasks);
     let validation = validateTaskGraph(generatedTasks);
 
-    for (let attempt = 0; !validation.valid && attempt < MAX_VALIDATION_REPAIR_ATTEMPTS; attempt += 1) {
+    for (
+      let attempt = 0;
+      !validation.valid && attempt < MAX_VALIDATION_REPAIR_ATTEMPTS;
+      attempt += 1
+    ) {
       const repairResponse = await this.agentGateway.invokeText({
         agentId: input.planningAgentId,
         requiredCapabilityIds: input.requiredCapabilityIds,
@@ -233,7 +237,11 @@ function parseGeneratedPlan(content: string): {
 
     const kind = parseTaskKind(rawTask.kind);
     const title = readBoundedString(rawTask.title, MAX_TITLE, "task title");
-    const description = readBoundedString(rawTask.description, MAX_DESCRIPTION, "task description");
+    const description = readBoundedString(
+      rawTask.description,
+      MAX_DESCRIPTION,
+      "task description",
+    );
     const dependsOnValue = rawTask.dependsOn;
     if (!Array.isArray(dependsOnValue) || dependsOnValue.length > MAX_DEPENDENCIES) {
       throw new Error(`Task ${id} must contain at most ${MAX_DEPENDENCIES} dependencies.`);
