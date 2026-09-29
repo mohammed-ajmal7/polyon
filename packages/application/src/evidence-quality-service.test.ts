@@ -76,6 +76,7 @@ describe("evidence quality scoring", () => {
       kind: "USER_PROVIDED" as const,
       title: "User note",
       locator: "memory://note",
+      retrievedAt: now,
     };
 
     const ranked = rankEvidenceQuality(
