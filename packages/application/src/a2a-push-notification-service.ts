@@ -146,23 +146,24 @@ export class A2APushNotificationService {
         const maxDelay = Math.max(initialDelay, this.options.retryBackoffMaxMs ?? 2_000);
         const wait = this.options.wait ?? ((delayMs: number) => new Promise<void>((resolve) => setTimeout(resolve, delayMs)));
 
+        const report = async (outcome: Parameters<NonNullable<A2APushNotificationServiceOptions["onDeliveryOutcome"]>>[0]): Promise<void> => {
+          try {
+            await this.options.onDeliveryOutcome?.(outcome);
+          } catch {
+            // Delivery telemetry is observational and must never change delivery semantics.
+          }
+        };
+
         for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
           try {
             await this.options.sender.send(config, payload);
-            await this.options.onDeliveryOutcome?.({
-              status: "SUCCEEDED",
-              taskId: task.id,
-              configId: config.id,
-              attempts: attempt,
-            });
-            return;
           } catch (error) {
             const retryable =
               error instanceof A2APushNotificationDeliveryError
                 ? error.retryable
                 : true;
             if (!retryable || attempt === maxAttempts) {
-              await this.options.onDeliveryOutcome?.({
+              await report({
                 status: "FAILED",
                 taskId: task.id,
                 configId: config.id,
@@ -177,7 +178,16 @@ export class A2APushNotificationService {
               initialDelay * 2 ** (attempt - 1),
             );
             await wait(delay);
+            continue;
           }
+
+          await report({
+            status: "SUCCEEDED",
+            taskId: task.id,
+            configId: config.id,
+            attempts: attempt,
+          });
+          return;
         }
       }),
     );
