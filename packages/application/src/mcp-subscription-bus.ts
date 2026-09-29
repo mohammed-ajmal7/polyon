@@ -9,6 +9,7 @@ export interface McpSubscriptionHandle {
 
 interface Subscriber {
   readonly subscriptionId: string;
+  readonly requestId: string;
   readonly filter: McpSubscriptionFilter;
   readonly queue: McpSubscriptionNotification[];
   resolve?: (event: IteratorResult<McpSubscriptionNotification>) => void;
@@ -17,22 +18,25 @@ interface Subscriber {
 
 export class InMemoryMcpSubscriptionBus {
   private readonly subscribers = new Map<string, Subscriber>();
+  private readonly requestSubscriptions = new Map<string, Set<string>>();
+  private nextSubscriptionNumber = 1;
 
-  subscribe(
-    subscriptionId: string,
-    filter: McpSubscriptionFilter,
-  ): McpSubscriptionHandle {
-    if (this.subscribers.has(subscriptionId)) {
-      throw new Error(`MCP subscription already exists: ${subscriptionId}.`);
-    }
+  subscribe(requestId: string, filter: McpSubscriptionFilter): McpSubscriptionHandle {
+    const subscriptionId = `mcp-subscription:${this.nextSubscriptionNumber}`;
+    this.nextSubscriptionNumber += 1;
 
     const subscriber: Subscriber = {
       subscriptionId,
+      requestId,
       filter,
       queue: [],
       closed: false,
     };
     this.subscribers.set(subscriptionId, subscriber);
+
+    const ids = this.requestSubscriptions.get(requestId) ?? new Set<string>();
+    ids.add(subscriptionId);
+    this.requestSubscriptions.set(requestId, ids);
 
     const close = (): void => this.close(subscriptionId);
 
@@ -40,10 +44,7 @@ export class InMemoryMcpSubscriptionBus {
       [Symbol.asyncIterator]: (): AsyncIterator<McpSubscriptionNotification> => ({
         next: (): Promise<IteratorResult<McpSubscriptionNotification>> => {
           if (subscriber.queue.length > 0) {
-            return Promise.resolve({
-              done: false,
-              value: subscriber.queue.shift()!,
-            });
+            return Promise.resolve({ done: false, value: subscriber.queue.shift()! });
           }
           if (subscriber.closed) return Promise.resolve({ done: true, value: undefined });
 
@@ -86,11 +87,21 @@ export class InMemoryMcpSubscriptionBus {
   close(subscriptionId: string): void {
     const subscriber = this.subscribers.get(subscriptionId);
     if (subscriber === undefined) return;
+
     this.subscribers.delete(subscriptionId);
     subscriber.closed = true;
+    const ids = this.requestSubscriptions.get(subscriber.requestId);
+    ids?.delete(subscriptionId);
+    if (ids !== undefined && ids.size === 0) this.requestSubscriptions.delete(subscriber.requestId);
+
     const resolve = subscriber.resolve;
     subscriber.resolve = undefined;
     resolve?.({ done: true, value: undefined });
+  }
+
+  closeByRequestId(requestId: string): void {
+    const ids = [...(this.requestSubscriptions.get(requestId) ?? [])];
+    for (const subscriptionId of ids) this.close(subscriptionId);
   }
 }
 
