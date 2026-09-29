@@ -147,6 +147,52 @@ describe("AgentGateway", () => {
     expect(retries).toBe(2);
   });
 
+  it("propagates run and agent identity into the model usage context", async () => {
+    const agents = new InMemoryAgentRegistry();
+    const models = new InMemoryModelRegistry();
+    const providers = new InMemoryProviderRegistry();
+    const adapters = new InMemoryProviderAdapterRegistry();
+    const usageContexts: unknown[] = [];
+
+    agents.register(agent);
+    models.register(model);
+    providers.register(provider);
+    adapters.register({
+      providerId: "provider-1",
+      async invoke({ input }) {
+        return { output: input };
+      },
+    });
+
+    const modelGateway = new ModelGateway({ models, providers, adapters });
+    const originalInvoke = modelGateway.invoke.bind(modelGateway);
+    modelGateway.invoke = async (modelId, input, options) => {
+      usageContexts.push(options.usageContext);
+      return originalInvoke(modelId, input, options);
+    };
+
+    const gateway = new AgentGateway({
+      agents,
+      models,
+      providers,
+      modelGateway,
+    });
+
+    await gateway.invoke({
+      agentId: "agent-1",
+      runId: "run-1",
+      requiredCapabilityIds: ["research"],
+      input: "hello",
+    });
+
+    expect(usageContexts).toEqual([
+      {
+        runId: "run-1",
+        agentId: "agent-1",
+      },
+    ]);
+  });
+
   it("routes an agent invocation through model and provider boundaries", async () => {
     const gateway = createGateway({
       providerId: "provider-1",
