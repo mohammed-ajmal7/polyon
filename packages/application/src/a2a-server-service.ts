@@ -339,8 +339,6 @@ export class A2AServerService {
       result: {
         configs: page.map(redactPushConfig),
         nextPageToken,
-        pageSize,
-        totalSize: configs.length,
       },
     };
   }
