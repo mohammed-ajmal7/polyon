@@ -520,6 +520,102 @@ describe("ModelGateway", () => {
     expect(calls).toBe(1);
   });
 
+  it("emits telemetry with run identity, latency, and token usage", async () => {
+    const telemetry = {
+      record: vi.fn(async () => undefined),
+    };
+    const adapters = new InMemoryProviderAdapterRegistry();
+    adapters.register({
+      providerId: "provider-1",
+      async invoke() {
+        return {
+          output: {
+            content: "ok",
+            usage: { totalTokens: 7 },
+          },
+        };
+      },
+    });
+
+    const gateway = new ModelGateway({
+      ...createCatalogs(),
+      adapters,
+      telemetry,
+    });
+
+    await gateway.invoke("model-1", "hello", {
+      estimatedTokens: 11,
+      usageContext: {
+        runId: "run-1",
+        agentId: "agent-1",
+        costClass: "free",
+      },
+    });
+
+    expect(telemetry.record).toHaveBeenCalledOnce();
+    expect(telemetry.record.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        providerId: "provider-1",
+        modelId: "model-1",
+        runId: "run-1",
+        agentId: "agent-1",
+        attempt: 0,
+        status: "SUCCEEDED",
+        estimatedTokens: 11,
+        actualTokens: 7,
+        costClass: "free",
+      }),
+    );
+  });
+
+  it("records a separate failed attempt before a retry", async () => {
+    let calls = 0;
+    const telemetry = {
+      record: vi.fn(async () => undefined),
+    };
+    const adapters = new InMemoryProviderAdapterRegistry();
+    adapters.register({
+      providerId: "provider-1",
+      async invoke() {
+        calls += 1;
+        if (calls === 1) {
+          throw new ProviderInvocationError(
+            "UNAVAILABLE",
+            "provider-1",
+            "model-1",
+            "temporary",
+            true,
+          );
+        }
+        return { output: "ok" };
+      },
+    });
+
+    const gateway = new ModelGateway({
+      ...createCatalogs(),
+      adapters,
+      telemetry,
+    });
+
+    await gateway.invoke("model-1", "hello", {
+      retries: 1,
+      usageContext: { runId: "run-2", agentId: "agent-2", costClass: "free" },
+    });
+
+    expect(telemetry.record).toHaveBeenCalledTimes(2);
+    expect(telemetry.record.mock.calls.map((call) => call[0])).toEqual([
+      expect.objectContaining({
+        status: "FAILED",
+        attempt: 0,
+        errorKind: "UNAVAILABLE",
+      }),
+      expect.objectContaining({
+        status: "SUCCEEDED",
+        attempt: 1,
+      }),
+    ]);
+  });
+
   it("exposes immutable registry state through gateway dependencies", () => {
     const gateway = createGateway();
 
