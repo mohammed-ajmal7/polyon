@@ -155,12 +155,20 @@ export class ModelGateway {
       throw new RangeError("Model invocation retries must be a non-negative integer.");
     }
 
-    return this.invokeWithRetry<TInput, TOutput>(adapter, provider, modelId, input, options);
+    return this.invokeWithRetry<TInput, TOutput>(
+      adapter,
+      provider,
+      model,
+      modelId,
+      input,
+      options,
+    );
   }
 
   private async invokeWithRetry<TInput, TOutput>(
     adapter: ModelProviderAdapter,
     provider: Provider,
+    model: Model,
     modelId: ModelId,
     input: TInput,
     options: ModelInvocationOptions,
