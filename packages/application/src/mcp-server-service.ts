@@ -24,6 +24,12 @@ export interface McpJsonRpcResponse {
   };
 }
 
+export interface McpRequestHeaders {
+  readonly protocolVersion?: string;
+  readonly method?: string;
+  readonly name?: string;
+}
+
 export interface McpServerDependencies {
   readonly tools: {
     list(): readonly Tool[];
@@ -52,11 +58,7 @@ export class McpServerService {
 
   async handle(
     request: McpJsonRpcRequest,
-    headers: {
-      readonly protocolVersion?: string;
-      readonly method?: string;
-      readonly name?: string;
-    },
+    headers: McpRequestHeaders,
   ): Promise<McpJsonRpcResponse | undefined> {
     if (request.jsonrpc !== "2.0") {
       return rpcError(request.id ?? null, -32600, "Invalid JSON-RPC request.");
@@ -168,6 +170,16 @@ export class McpServerService {
     });
 
     return toolOutcomeResponse(request.id ?? null, outcome);
+  }
+
+  async *stream(
+    request: McpJsonRpcRequest,
+    headers: McpRequestHeaders,
+  ): AsyncIterable<McpJsonRpcResponse> {
+    if (request.method === "notifications/initialized") return;
+
+    const response = await this.handle(request, headers);
+    if (response !== undefined) yield response;
   }
 
   private listTools(request: McpJsonRpcRequest): McpJsonRpcResponse {
