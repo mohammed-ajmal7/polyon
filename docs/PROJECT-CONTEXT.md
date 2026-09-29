@@ -324,7 +324,7 @@ Implemented:
 Remaining depth:
 
 - provider-independent embedding routing, bounded persisted semantic memory search, durable automatic indexing/reindex scheduling, and the exact vector-index scale boundary are implemented.
-- advanced MCP/A2A protocol capabilities;
+- advanced MCP/A2A protocol capabilities beyond the implemented streaming/push interoperability baseline;
 - optional enterprise/multi-user auth;
 - production-scale performance and broader E2E testing;
 - deployment automation for a specific infrastructure target.
