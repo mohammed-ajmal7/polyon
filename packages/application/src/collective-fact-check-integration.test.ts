@@ -16,7 +16,6 @@ function agent(id: string, role: string): Agent {
     name: id,
     role,
     description: role,
-    roleId: role.toLowerCase().replaceAll(" ", "-"),
     status: "ACTIVE",
     capabilityIds: [],
     preferredModelId: id + "-model",
