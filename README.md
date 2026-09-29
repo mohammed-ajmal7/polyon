@@ -103,18 +103,15 @@ The historical `feature/core-architecture` branch contains the architecture buil
 
 ## Verification
 
-CI runs all of:
+POLYON uses a local manual verification path. GitHub-hosted Actions are not required for development or release.
 
-1. frozen-lockfile dependency installation;
-2. TypeScript typecheck;
-3. full Vitest test suite;
-4. ESLint;
-5. Prettier format check;
-6. production build;
-7. Docker image build;
-8. Docker Compose configuration validation.
+Run the repository verification script:
 
-The repository also contains focused integration/recovery/security tests across the core, runtime, storage, tools, providers, integrations, and web layers.
+```bash
+bash scripts/verify-release.sh
+```
+
+Then complete the operational smoke checks in [docs/RELEASE-CHECKLIST.md](docs/RELEASE-CHECKLIST.md) before tagging a release.
 
 ## Remaining work after the v0.1 release candidate
 

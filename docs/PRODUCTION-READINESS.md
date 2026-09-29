@@ -15,7 +15,7 @@ Current capabilities:
 - MCP 2026-07-28 HTTP interoperability with subscriptions/listen plus A2A 1.0 HTTP interoperability with streaming task subscriptions and opt-in push notifications;
 - automatic semantic indexing with explicit scope allowlisting and durable restart-safe recovery behavior;
 - an exact normalized local semantic vector index behind a replaceable boundary, with model/dimension candidate bucketing for lower traversal cost;
-- Docker/Compose deployment with CI verification.
+- Docker/Compose deployment with local manual verification.
 
 ## Safety defaults
 
@@ -32,12 +32,12 @@ Current capabilities:
 3. Sustained load testing, profiling, and broader adversarial E2E coverage beyond the current deterministic production-scale suite.
 4. Deployment automation for a specific infrastructure target beyond self-hosted Docker/Compose.
 
-These items do not block the basic self-hosted release workflow when the documented safety defaults, release checklist, and CI gates are satisfied. They remain explicit depth work rather than reasons to claim unsupported protocol or deployment coverage.
+These items do not block the basic self-hosted release workflow when the documented safety defaults and manual release checklist are satisfied. They remain explicit depth work rather than reasons to claim unsupported protocol or deployment coverage.
 
 Do not fake provider/protocol support to close these items. Keep adapters replaceable.
 
 ## Verification
 
-CI performs frozen-lockfile install, typecheck, full tests, lint, formatting, production build, Docker image build, and Compose validation.
+Release verification is performed locally with `bash scripts/verify-release.sh`, followed by the operational smoke checks in `docs/RELEASE-CHECKLIST.md`.
 
-Always verify the exact current commit before calling the branch green.
+Always verify the exact current commit before calling the release candidate verified.

@@ -296,7 +296,7 @@ The repository contains:
 - Vitest;
 - ESLint;
 - Prettier;
-- CI workflow/quality gates;
+- local manual verification/quality gates;
 - architecture documentation;
 - agent instructions.
 
