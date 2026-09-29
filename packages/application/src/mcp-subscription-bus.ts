@@ -1,5 +1,39 @@
 import type { McpSubscriptionNotification, McpSubscriptionFilter } from "./mcp-subscription-types";
 
+export interface McpSubscriptionPublisher {
+  toolsChanged(): void;
+  promptsChanged(): void;
+  resourcesChanged(): void;
+  resourceUpdated(uri: string): void;
+}
+
+export class McpSubscriptionEventPublisher implements McpSubscriptionPublisher {
+  constructor(private readonly bus: InMemoryMcpSubscriptionBus) {}
+
+  toolsChanged(): void {
+    this.bus.publish({ method: "notifications/tools/list_changed" });
+  }
+
+  promptsChanged(): void {
+    this.bus.publish({ method: "notifications/prompts/list_changed" });
+  }
+
+  resourcesChanged(): void {
+    this.bus.publish({ method: "notifications/resources/list_changed" });
+  }
+
+  resourceUpdated(uri: string): void {
+    const normalizedUri = uri.trim();
+    if (normalizedUri === "") {
+      throw new Error("MCP resource URI is required.");
+    }
+    this.bus.publish({
+      method: "notifications/resources/updated",
+      params: { uri: normalizedUri },
+    });
+  }
+}
+
 export interface McpSubscriptionHandle {
   readonly subscriptionId: string;
   readonly acknowledged: McpSubscriptionFilter;

@@ -380,7 +380,9 @@ export { parseStructuredFinding, type ParseStructuredFindingInput } from "./stru
 
 export {
   InMemoryMcpSubscriptionBus,
+  McpSubscriptionEventPublisher,
   type McpSubscriptionHandle,
+  type McpSubscriptionPublisher,
 } from "./mcp-subscription-bus";
 export type {
   McpSubscriptionFilter,
