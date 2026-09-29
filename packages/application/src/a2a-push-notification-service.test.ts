@@ -119,6 +119,66 @@ describe("A2A push notifications", () => {
     ]);
   });
 
+  it("retries transient push failures with bounded exponential backoff", async () => {
+    let attempts = 0;
+    const delays: number[] = [];
+    const service = new A2APushNotificationService({
+      store: new InMemoryA2APushNotificationStore(),
+      ownerId: "actor-1",
+      sender: {
+        send: async () => {
+          attempts += 1;
+          if (attempts < 3) {
+            throw new A2APushNotificationDeliveryError("temporary", true, 503);
+          }
+        },
+      },
+      validateTask: () => true,
+      maxDeliveryAttempts: 4,
+      retryBackoffInitialMs: 10,
+      retryBackoffMaxMs: 30,
+      wait: async (delayMs) => {
+        delays.push(delayMs);
+      },
+    });
+
+    service.createConfig({
+      taskId: "task-1",
+      url: "https://client.example.test/a2a/push",
+    });
+
+    await service.notifyTask(task);
+
+    expect(attempts).toBe(3);
+    expect(delays).toEqual([10, 20]);
+  });
+
+  it("does not retry non-retryable delivery failures", async () => {
+    let attempts = 0;
+    const service = new A2APushNotificationService({
+      store: new InMemoryA2APushNotificationStore(),
+      ownerId: "actor-1",
+      sender: {
+        send: async () => {
+          attempts += 1;
+          throw new A2APushNotificationDeliveryError("bad request", false, 400);
+        },
+      },
+      validateTask: () => true,
+      maxDeliveryAttempts: 4,
+      wait: async () => undefined,
+    });
+
+    service.createConfig({
+      taskId: "task-1",
+      url: "https://client.example.test/a2a/push",
+    });
+
+    await service.notifyTask(task);
+
+    expect(attempts).toBe(1);
+  });
+
   it("rejects non-HTTPS public webhook URLs", () => {
     const service = new A2APushNotificationService({
       store: new InMemoryA2APushNotificationStore(),
