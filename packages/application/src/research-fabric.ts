@@ -94,14 +94,23 @@ export class ResearchFabric {
   private readonly academicProviders = new Map<string, AcademicProvider>();
 
   register(provider: ResearchFabricProvider): void {
-    const collection = this.collectionFor(provider);
-    if (collection.has(provider.id)) {
-      throw new ResearchFabricError(
-        "PROVIDER_ALREADY_REGISTERED",
-        `Research fabric provider is already registered: ${provider.id}.`,
-      );
+    switch (provider.kind) {
+      case "search":
+        registerProvider(this.searchProviders, provider);
+        return;
+      case "browser":
+        registerProvider(this.browserProviders, provider);
+        return;
+      case "crawler":
+        registerProvider(this.crawlerProviders, provider);
+        return;
+      case "public-data":
+        registerProvider(this.publicDataProviders, provider);
+        return;
+      case "academic":
+        registerProvider(this.academicProviders, provider);
+        return;
     }
-    collection.set(provider.id, provider);
   }
 
   searchProvider(id: string): SearchProvider | undefined {
@@ -144,27 +153,19 @@ export class ResearchFabric {
     return [...this.academicProviders.values()];
   }
 
-  private collectionFor(
-    provider: ResearchFabricProvider,
-  ):
-    | Map<string, SearchProvider>
-    | Map<string, BrowserProvider>
-    | Map<string, CrawlerProvider>
-    | Map<string, PublicDataProvider>
-    | Map<string, AcademicProvider> {
-    switch (provider.kind) {
-      case "search":
-        return this.searchProviders;
-      case "browser":
-        return this.browserProviders;
-      case "crawler":
-        return this.crawlerProviders;
-      case "public-data":
-        return this.publicDataProviders;
-      case "academic":
-        return this.academicProviders;
-    }
+
+
+function registerProvider<T extends { readonly id: string }>(
+  collection: Map<string, T>,
+  provider: T,
+): void {
+  if (collection.has(provider.id)) {
+    throw new ResearchFabricError(
+      "PROVIDER_ALREADY_REGISTERED",
+      `Research fabric provider is already registered: ${provider.id}.`,
+    );
   }
+  collection.set(provider.id, provider);
 }
 
 export type ResearchFabricErrorKind = "PROVIDER_ALREADY_REGISTERED";
