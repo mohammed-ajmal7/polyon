@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { InMemoryEntityStore } from "@polyon/storage";
 
 import {
   A2APushNotificationService,
   InMemoryA2APushNotificationStore,
+  createDurableA2APushNotificationStore,
   createA2AWebhookSender,
 } from "./a2a-push-notification-service";
 
@@ -46,6 +48,25 @@ describe("A2A push notifications", () => {
     expect(store.get("owner-b", "task-1", created.id)).toBeUndefined();
     expect(store.list("owner-b", "task-1")).toEqual([]);
     expect(store.delete("owner-b", "task-1", created.id)).toBe(false);
+  });
+
+  it("persists configurations through the durable storage adapter", () => {
+    const store = new InMemoryEntityStore<{
+      readonly id: string;
+      readonly ownerId: string;
+      readonly taskId: string;
+      readonly url: string;
+    }>();
+    const durable = createDurableA2APushNotificationStore(store as never);
+    const created = durable.create("actor-1", {
+      taskId: "task-1",
+      url: "https://client.example.test/a2a/push",
+    });
+
+    expect(durable.get("actor-1", "task-1", created.id)).toEqual(created);
+    expect(durable.list("actor-1", "task-1")).toEqual([created]);
+    expect(durable.delete("actor-1", "task-1", created.id)).toBe(true);
+    expect(durable.get("actor-1", "task-1", created.id)).toBeUndefined();
   });
 
   it("does not expose configs for tasks outside the caller scope", () => {
