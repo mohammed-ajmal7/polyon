@@ -64,7 +64,11 @@ export class AgentTeamPlannerError extends Error {
 function roleMatches(agent: Agent, preferredRoles: readonly string[]): boolean {
   if (preferredRoles.length === 0) return false;
   const role = agent.role.trim().toLowerCase();
-  return preferredRoles.some((preferred) => role === preferred.trim().toLowerCase());
+  const roleId = agent.roleId?.trim().toLowerCase();
+  return preferredRoles.some((preferred) => {
+    const normalized = preferred.trim().toLowerCase();
+    return role === normalized || roleId === normalized;
+  });
 }
 
 function validateBounds(minimumAgents: number, maximumAgents: number): void {
