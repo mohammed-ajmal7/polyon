@@ -30,7 +30,9 @@ export interface CreateDebateInput {
 export interface RunDebateInput {
   readonly debateId: string;
   readonly requiredCapabilityIds: readonly string[];
+  readonly requiredModelCapabilityIds?: readonly string[];
   readonly adjudicatorAgentId: AgentId;
+  readonly agentRunId?: string;
   readonly now: () => string;
   readonly modelOptions?: import("@polyon/providers").ModelInvocationOptions;
   readonly signal?: AbortSignal;
@@ -102,7 +104,7 @@ export class DebateOrchestrationService {
 
     if (debate.status === "DRAFT") {
       debate = startDebate(debate, input.now());
-      this.persistStatus(debate, input.now(), "DRAFT");
+      this.persistStatus(debate, input.now(), "DRAFT", input.agentRunId);
     }
 
     while (debate.status === "RUNNING") {
@@ -117,11 +119,11 @@ export class DebateOrchestrationService {
 
         const contribution = await this.invokeContribution(debate, agentId, contributions, input);
         contributions.push(contribution);
-        this.persistContribution(debate, contribution);
+        this.persistContribution(debate, contribution, input.agentRunId);
       }
 
       const next = advanceDebatePhase(debate, input.now());
-      this.persistStatus(next, input.now(), debate.status);
+      this.persistStatus(next, input.now(), debate.status, input.agentRunId);
       debate = next;
     }
 
@@ -136,7 +138,7 @@ export class DebateOrchestrationService {
       input,
     );
     const decided = decideDebate(debate, input.now());
-    this.persistDecision(decided, input.now(), decision);
+    this.persistDecision(decided, input.now(), decision, input.agentRunId);
     return { debate: decided, decision, contributions };
   }
 
@@ -185,6 +187,9 @@ export class DebateOrchestrationService {
     const response = await this.agentGateway.invokeText({
       agentId,
       requiredCapabilityIds: input.requiredCapabilityIds,
+      ...(input.requiredModelCapabilityIds === undefined
+        ? {}
+        : { requiredModelCapabilityIds: input.requiredModelCapabilityIds }),
       request,
       modelOptions: input.modelOptions,
     });
@@ -227,17 +232,26 @@ export class DebateOrchestrationService {
     const response = await this.agentGateway.invokeText({
       agentId: adjudicatorAgentId,
       requiredCapabilityIds: input.requiredCapabilityIds,
+      ...(input.requiredModelCapabilityIds === undefined
+        ? {}
+        : { requiredModelCapabilityIds: input.requiredModelCapabilityIds }),
       request,
       modelOptions: input.modelOptions,
     });
     return response.output.content.slice(0, MAX_CONTRIBUTION_LENGTH);
   }
 
-  private persistStatus(debate: Debate, now: string, from: Debate["status"]): void {
+  private persistStatus(
+    debate: Debate,
+    now: string,
+    from: Debate["status"],
+    agentRunId?: string,
+  ): void {
     const operation = (stores: Pick<DomainStoreTransactionContext, "debates" | "events">) => {
       stores.debates.save(debate);
       stores.events.append(
         this.debateEvent("DEBATE_STATUS_CHANGED", debate, now, {
+          ...(agentRunId === undefined ? {} : { agentRunId }),
           from,
           to: debate.status,
           phase: debate.phase,
@@ -255,12 +269,14 @@ export class DebateOrchestrationService {
   private persistContribution(
     debate: Debate,
     contribution: DebateRunResult["contributions"][number],
+    agentRunId?: string,
   ): void {
     const event: DomainEvent = {
       id:
         `DEBATE_CONTRIBUTION:${debate.id}:r${contribution.round}:${contribution.phase}:` +
         contribution.agentId,
       kind: "DEBATE_CONTRIBUTION",
+      ...(agentRunId === undefined ? {} : { agentRunId }),
       data: {
         debateId: debate.id,
         agentId: contribution.agentId,
@@ -273,13 +289,25 @@ export class DebateOrchestrationService {
     this.events.append(event);
   }
 
-  private persistDecision(debate: Debate, now: string, decision: string): void {
+  private persistDecision(
+    debate: Debate,
+    now: string,
+    decision: string,
+    agentRunId?: string,
+  ): void {
     const operation = (stores: Pick<DomainStoreTransactionContext, "debates" | "events">) => {
       stores.debates.save(debate);
       stores.events.append(
-        this.debateEvent("DEBATE_DECIDED", debate, now, {
-          decision,
-        }),
+        this.debateEvent(
+          "DEBATE_DECIDED",
+          debate,
+          now,
+          {
+            decision,
+          },
+          agentRunId,
+        ),
+      );
       );
     };
     if (this.unitOfWork === undefined) {
@@ -294,6 +322,7 @@ export class DebateOrchestrationService {
     debate: Debate,
     occurredAt: string,
     data: Record<string, unknown>,
+    agentRunId?: string,
   ): DomainEvent {
     const from = typeof data.from === "string" ? data.from : "";
     const to = typeof data.to === "string" ? data.to : "";
@@ -303,6 +332,7 @@ export class DebateOrchestrationService {
     return {
       id: `${kind}:${debate.id}:${occurredAt}:${from}:${to}:${phase}:${round}`,
       kind,
+      ...(agentRunId === undefined ? {} : { agentRunId }),
       occurredAt,
       data: { debateId: debate.id, ...data },
     };
