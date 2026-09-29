@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { InMemoryMcpSubscriptionBus } from "./mcp-subscription-bus";
+import { InMemoryMcpSubscriptionBus, McpSubscriptionEventPublisher } from "./mcp-subscription-bus";
 
 const toolsChanged = {
   method: "notifications/tools/list_changed" as const,
@@ -46,6 +46,43 @@ describe("InMemoryMcpSubscriptionBus", () => {
     expect(settled).toBe(false);
     subscription.close();
     await pending;
+  });
+
+  it("publishes typed tool and resource change notifications", async () => {
+    const bus = new InMemoryMcpSubscriptionBus();
+    const publisher = new McpSubscriptionEventPublisher(bus);
+    const tools = bus.subscribe("tools", {
+      notifications: { toolsListChanged: true },
+    });
+    const resources = bus.subscribe("resources", {
+      notifications: { resourceSubscriptions: ["memory://one"] },
+    });
+
+    const toolsIterator = tools.events[Symbol.asyncIterator]();
+    const resourcesIterator = resources.events[Symbol.asyncIterator]();
+
+    publisher.toolsChanged();
+    publisher.resourceUpdated(" memory://one ");
+
+    expect(await toolsIterator.next()).toEqual({
+      done: false,
+      value: { method: "notifications/tools/list_changed" },
+    });
+    expect(await resourcesIterator.next()).toEqual({
+      done: false,
+      value: {
+        method: "notifications/resources/updated",
+        params: { uri: "memory://one" },
+      },
+    });
+
+    tools.close();
+    resources.close();
+  });
+
+  it("rejects empty resource update URIs", () => {
+    const publisher = new McpSubscriptionEventPublisher(new InMemoryMcpSubscriptionBus());
+    expect(() => publisher.resourceUpdated("   ")).toThrow("resource URI is required");
   });
 
   it("isolates matching subscriptions and cancels all streams for one request id", async () => {
