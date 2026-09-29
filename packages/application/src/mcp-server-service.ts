@@ -24,6 +24,26 @@ export interface McpJsonRpcResponse {
   };
 }
 
+export interface McpJsonRpcNotification {
+  readonly jsonrpc: "2.0";
+  readonly method: string;
+  readonly params?: Record<string, unknown>;
+  readonly _meta?: Record<string, unknown>;
+}
+
+export type McpStreamFrame = McpJsonRpcResponse | McpJsonRpcNotification;
+
+export interface McpRequestHeaders {
+  readonly protocolVersion?: string;
+  readonly method?: string;
+  readonly name?: string;
+}
+
+export interface McpServerOptions {
+  readonly subscriptionMaxDurationMs?: number;
+  readonly subscriptionWait?: (milliseconds: number) => Promise<void>;
+}
+
 export interface McpServerDependencies {
   readonly tools: {
     list(): readonly Tool[];
@@ -43,12 +63,36 @@ export interface McpServerDependencies {
   readonly integrationInvocation: IntegrationInvocationService;
   readonly policy: Policy;
   readonly actorId: string;
+  readonly subscriptions: InMemoryMcpSubscriptionBus;
 }
 
 const MCP_TOOLS_PAGE_SIZE = 50;
+const DEFAULT_SUBSCRIPTION_MAX_DURATION_MS = 300_000;
+const MAX_SUBSCRIPTION_FILTER_URIS = 100;
+const SUBSCRIPTION_ID_META_KEY = "io.modelcontextprotocol/subscriptionId";
 
 export class McpServerService {
-  constructor(private readonly dependencies: McpServerDependencies) {}
+  private readonly subscriptionMaxDurationMs: number;
+  private readonly subscriptionWait: (milliseconds: number) => Promise<void>;
+
+  constructor(
+    private readonly dependencies: McpServerDependencies,
+    options: McpServerOptions = {},
+  ) {
+    this.subscriptionMaxDurationMs =
+      options.subscriptionMaxDurationMs ?? DEFAULT_SUBSCRIPTION_MAX_DURATION_MS;
+    this.subscriptionWait =
+      options.subscriptionWait ??
+      ((milliseconds) =>
+        new Promise((resolve) => globalThis.setTimeout(resolve, milliseconds)));
+
+    if (
+      !Number.isInteger(this.subscriptionMaxDurationMs) ||
+      this.subscriptionMaxDurationMs <= 0
+    ) {
+      throw new RangeError("MCP subscription maximum duration must be a positive integer.");
+    }
+  }
 
   async handle(
     request: McpJsonRpcRequest,
@@ -70,7 +114,19 @@ export class McpServerService {
       return rpcError(request.id ?? null, -32602, "Mcp-Method must match the JSON-RPC method.");
     }
 
-    if (request.method === "notifications/initialized") {
+    if (
+      request.method === "notifications/initialized" ||
+      request.method === "notifications/cancelled"
+    ) {
+      if (request.method === "notifications/cancelled") {
+        const requestId =
+          isRecord(request.params) &&
+          (typeof request.params.requestId === "string" ||
+            typeof request.params.requestId === "number")
+            ? String(request.params.requestId)
+            : undefined;
+        if (requestId !== undefined) this.dependencies.subscriptions.close(requestId);
+      }
       return undefined;
     }
 
@@ -81,15 +137,30 @@ export class McpServerService {
         result: {
           protocolVersion: "2026-07-28",
           capabilities: {
-            tools: { listChanged: false },
+            tools: { listChanged: true },
+            prompts: { listChanged: false },
+            resources: { listChanged: false, subscribe: false },
           },
-          methods: ["server/discover", "tools/list", "tools/call"],
+          methods: [
+            "server/discover",
+            "tools/list",
+            "tools/call",
+            "subscriptions/listen",
+          ],
         },
       };
     }
 
     if (request.method === "tools/list") {
       return this.listTools(request);
+    }
+
+    if (request.method === "subscriptions/listen") {
+      return rpcError(
+        request.id ?? null,
+        -32004,
+        "subscriptions/listen requires an SSE response.",
+      );
     }
 
     if (request.method !== "tools/call") {
@@ -170,6 +241,84 @@ export class McpServerService {
     return toolOutcomeResponse(request.id ?? null, outcome);
   }
 
+  async *stream(
+    request: McpJsonRpcRequest,
+    headers: McpRequestHeaders,
+    signal?: AbortSignal,
+  ): AsyncIterable<McpStreamFrame> {
+    if (request.method !== "subscriptions/listen") {
+      const response = await this.handle(request, headers);
+      if (response !== undefined) yield response;
+      return;
+    }
+
+    if (request.id === undefined || request.id === null) {
+      yield rpcError(request.id ?? null, -32602, "subscriptions/listen requires a request id.");
+      return;
+    }
+
+    const parsed = parseSubscriptionFilter(request.params);
+    if (parsed.error !== undefined) {
+      yield rpcError(request.id, -32602, parsed.error);
+      return;
+    }
+
+    const subscriptionId = String(request.id);
+    const subscription = this.dependencies.subscriptions.subscribe(
+      subscriptionId,
+      parsed.filter,
+    );
+
+    yield {
+      jsonrpc: "2.0",
+      method: "notifications/subscriptions/acknowledged",
+      params: { notifications: parsed.filter.notifications ?? {} },
+      _meta: { [SUBSCRIPTION_ID_META_KEY]: request.id },
+    };
+
+    const iterator = subscription.events[Symbol.asyncIterator]();
+    const deadline = Date.now() + this.subscriptionMaxDurationMs;
+
+    try {
+      while (!signal?.aborted) {
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) {
+          yield { jsonrpc: "2.0", id: request.id, result: {} };
+          return;
+        }
+
+        const next = await Promise.race([
+          iterator.next(),
+          this.subscriptionWait(remaining).then(() => ({
+            done: true as const,
+            value: undefined,
+            deadline: true as const,
+          })),
+        ]);
+
+        if ("deadline" in next) {
+          yield { jsonrpc: "2.0", id: request.id, result: {} };
+          return;
+        }
+
+        if (next.done) return;
+
+        const notification = next.value;
+        yield {
+          jsonrpc: "2.0",
+          method: notification.method,
+          ...(notification.params === undefined ? {} : { params: notification.params }),
+          _meta: {
+            ...(notification._meta ?? {}),
+            [SUBSCRIPTION_ID_META_KEY]: request.id,
+          },
+        };
+      }
+    } finally {
+      subscription.close();
+    }
+  }
+
   private listTools(request: McpJsonRpcRequest): McpJsonRpcResponse {
     const allTools = [
       ...this.dependencies.tools
@@ -212,6 +361,90 @@ export class McpServerService {
       },
     };
   }
+}
+
+function parseSubscriptionFilter(value: unknown): {
+  readonly filter: McpSubscriptionFilter;
+  readonly error?: string;
+} {
+  if (!isRecord(value)) {
+    return { filter: {}, error: "subscriptions/listen params are required." };
+  }
+
+  const notificationsValue = value.notifications;
+  if (!isRecord(notificationsValue)) {
+    return { filter: {}, error: "subscriptions/listen notifications are required." };
+  }
+
+  const resourceSubscriptions = notificationsValue.resourceSubscriptions;
+  if (resourceSubscriptions !== undefined) {
+    if (
+      !Array.isArray(resourceSubscriptions) ||
+      resourceSubscriptions.length > MAX_SUBSCRIPTION_FILTER_URIS ||
+      resourceSubscriptions.some(
+        (uri) => typeof uri !== "string" || uri.trim() === "",
+      )
+    ) {
+      return {
+        filter: {},
+        error: `resourceSubscriptions must contain 0-${MAX_SUBSCRIPTION_FILTER_URIS} non-empty strings.`,
+      };
+    }
+  }
+
+  const toolsListChanged = notificationsValue.toolsListChanged;
+  const promptsListChanged = notificationsValue.promptsListChanged;
+  const resourcesListChanged = notificationsValue.resourcesListChanged;
+
+  if (
+    toolsListChanged !== undefined &&
+    typeof toolsListChanged !== "boolean"
+  ) {
+    return { filter: {}, error: "toolsListChanged must be boolean." };
+  }
+  if (
+    promptsListChanged !== undefined &&
+    typeof promptsListChanged !== "boolean"
+  ) {
+    return { filter: {}, error: "promptsListChanged must be boolean." };
+  }
+  if (
+    resourcesListChanged !== undefined &&
+    typeof resourcesListChanged !== "boolean"
+  ) {
+    return { filter: {}, error: "resourcesListChanged must be boolean." };
+  }
+
+  if (promptsListChanged === true || resourcesListChanged === true) {
+    return {
+      filter: {},
+      error: "This MCP server does not support prompt/resource list change subscriptions.",
+    };
+  }
+  if (resourceSubscriptions !== undefined && resourceSubscriptions.length > 0) {
+    return {
+      filter: {},
+      error: "This MCP server does not support resource subscriptions.",
+    };
+  }
+  if (toolsListChanged !== true) {
+    return {
+      filter: {},
+      error: "subscriptions/listen currently requires toolsListChanged: true.",
+    };
+  }
+
+  return {
+    filter: {
+      notifications: {
+        toolsListChanged: true,
+      },
+    },
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function encodeToolsCursor(offset: number): string {
