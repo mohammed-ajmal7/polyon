@@ -37,8 +37,6 @@ export interface ApprovalRequest {
    */
   readonly integrationContinuation?: {
     readonly agentId: string;
-    /** Conversation context used to resume Direct-mode approvals without an Execution. */
-    readonly conversationId?: string;
     readonly requiredCapabilityIds: readonly string[];
     readonly request: TextModelRequest;
     readonly response: TextModelResponse;
@@ -78,6 +76,8 @@ export interface ApprovalRequest {
    */
   readonly toolContinuation?: {
     readonly agentId: string;
+    /** Conversation context used to resume Direct-mode approvals without an Execution. */
+    readonly conversationId?: string;
     readonly requiredCapabilityIds: readonly string[];
     readonly request: TextModelRequest;
     readonly response: TextModelResponse;
