@@ -1,6 +1,7 @@
 import type { AgentId, Evidence, MemoryEntry, Source } from "@polyon/contracts";
 
 import type { AgentGateway } from "@polyon/agents";
+import { rankEvidenceQuality } from "./evidence-quality-service";
 import type {
   DomainStoreTransactionContext,
   DomainUnitOfWork,
@@ -50,8 +51,19 @@ export class ResearchSynthesisService {
       .filter((item) => input.missionId === undefined || item.missionId === input.missionId)
       .filter((item) => input.taskId === undefined || item.taskId === input.taskId)
       .slice(-200);
+    const quality = rankEvidenceQuality(selected, sourcesById, input.now);
+    const qualityByEvidenceId = new Map(
+      quality.map((assessment) => [assessment.evidenceId, assessment]),
+    );
+    const rankedEvidence = [...selected].sort(
+      (left, right) =>
+        (qualityByEvidenceId.get(right.id)?.score ?? 0) -
+          (qualityByEvidenceId.get(left.id)?.score ?? 0) ||
+        right.capturedAt.localeCompare(left.capturedAt) ||
+        left.id.localeCompare(right.id),
+    );
 
-    const context = formatEvidenceContext(selected, sourcesById);
+    const context = formatEvidenceContext(rankedEvidence, sourcesById, qualityByEvidenceId);
     const response = await this.agentGateway.invokeText({
       agentId: input.agentId,
       requiredCapabilityIds: input.requiredCapabilityIds,
@@ -128,13 +140,17 @@ export class ResearchSynthesisService {
 function formatEvidenceContext(
   evidence: readonly Evidence[],
   sources: ReadonlyMap<string, Source>,
+  qualityByEvidenceId: ReadonlyMap<string, ReturnType<typeof rankEvidenceQuality>[number]>,
 ): string {
   const lines: string[] = [];
   let total = 0;
 
   for (const item of evidence) {
     const source = sources.get(item.sourceId);
-    const line = `[evidence:${item.id} source:${item.sourceId} ${source?.title ?? "unknown"}] ${item.kind}: ${item.claim}\n${item.supportingContent}`;
+    const quality = qualityByEvidenceId.get(item.id);
+    const line =
+      `[evidence:${item.id} source:${item.sourceId} ${source?.title ?? "unknown"} quality:${quality?.score ?? 0}]` +
+      ` ${item.kind}: ${item.claim}\n${item.supportingContent}`;
     if (total + line.length > MAX_CONTEXT_CHARS) break;
     lines.push(line);
     total += line.length + 2;
