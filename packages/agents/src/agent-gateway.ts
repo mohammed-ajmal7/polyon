@@ -85,8 +85,20 @@ export class AgentGateway {
       input.requiredCapabilityIds,
       input.requiredModelCapabilityIds,
       input.runId,
+      input.runId,
       input.routing,
-      (modelId) => this.dependencies.modelGateway.invokeText(modelId, input.request, input.modelOptions),
+      (modelId, usageContext) =>
+        this.dependencies.modelGateway.invokeText(modelId, input.request, {
+          ...input.modelOptions,
+          ...(usageContext === undefined
+            ? {}
+            : {
+                usageContext: {
+                  ...input.modelOptions?.usageContext,
+                  ...usageContext,
+                },
+              }),
+        }),
     );
   }
 
@@ -98,13 +110,20 @@ export class AgentGateway {
       input.requiredCapabilityIds,
       input.requiredModelCapabilityIds,
       input.runId,
+      input.runId,
       input.routing,
-      (modelId) =>
-        this.dependencies.modelGateway.invoke<TInput, TOutput>(
-          modelId,
-          input.input,
-          input.modelOptions,
-        ),
+      (modelId, usageContext) =>
+        this.dependencies.modelGateway.invoke<TInput, TOutput>(modelId, input.input, {
+          ...input.modelOptions,
+          ...(usageContext === undefined
+            ? {}
+            : {
+                usageContext: {
+                  ...input.modelOptions?.usageContext,
+                  ...usageContext,
+                },
+              }),
+        }),
     );
   }
 
