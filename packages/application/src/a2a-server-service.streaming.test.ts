@@ -230,7 +230,7 @@ describe("A2A streaming", () => {
       { version: "0.3" },
     );
     expect(version.error).toEqual({
-      code: -32004,
+      code: -32009,
       message: "A2A protocol version 1.0 is required.",
     });
   });
