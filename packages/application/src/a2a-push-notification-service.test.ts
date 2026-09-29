@@ -3,6 +3,7 @@ import type { A2APushNotificationConfig } from "@polyon/contracts";
 import { InMemoryEntityStore } from "@polyon/storage";
 
 import {
+  A2APushNotificationDeliveryError,
   A2APushNotificationService,
   InMemoryA2APushNotificationStore,
   createDurableA2APushNotificationStore,
