@@ -85,7 +85,7 @@ describe("FileDomainDatabase migrations", () => {
 
       const database = new FileDomainDatabase(filePath);
 
-      expect(database.snapshot().state).toMatchObject({
+      expect(database.snapshot()).toMatchObject({
         version: CURRENT_DURABLE_DOMAIN_VERSION,
         a2aPushNotificationConfigs: [],
       });
