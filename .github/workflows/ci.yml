@@ -22,59 +22,22 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        continue-on-error: true
-        run: |
-          mkdir -p ci-debug
-          pnpm install --frozen-lockfile > ci-debug/install.log 2>&1
-          echo $? > ci-debug/install.code
+        run: pnpm install --frozen-lockfile
 
       - name: Typecheck
-        continue-on-error: true
-        run: |
-          pnpm typecheck > ci-debug/typecheck.log 2>&1
-          echo $? > ci-debug/typecheck.code
+        run: pnpm typecheck
 
       - name: Test
-        continue-on-error: true
-        run: |
-          pnpm test > ci-debug/test.log 2>&1
-          echo $? > ci-debug/test.code
+        run: pnpm test
 
       - name: Lint
-        continue-on-error: true
-        run: |
-          pnpm lint > ci-debug/lint.log 2>&1
-          echo $? > ci-debug/lint.code
-
+        run: pnpm lint
       - name: Format check
-        continue-on-error: true
-        run: |
-          pnpm format:check > ci-debug/format.log 2>&1
-          echo $? > ci-debug/format.code
+        run: pnpm format:check
 
       - name: Build
-        continue-on-error: true
-        run: |
-          pnpm build > ci-debug/build.log 2>&1
-          echo $? > ci-debug/build.code
+        run: pnpm build
 
-      - name: Upload diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: a2a-ci-diagnostics
-          path: ci-debug/
-
-      - name: Restore quality failure
-        if: always()
-        run: |
-          status=0
-          for file in ci-debug/*.code; do
-            if [ -f "$file" ] && [ "$(cat "$file")" != "0" ]; then
-              status=1
-            fi
-          done
-          exit "$status"
 
   container:
     runs-on: ubuntu-latest
