@@ -569,17 +569,34 @@ export class CollectiveOrchestrationService {
       throw new RangeError("Collective targets are required when no team planner is configured.");
     }
 
+    const preferredRoles = [
+      ...(input.researchEnabled === false ? [] : ["researcher"]),
+      "analyst",
+      "specialist",
+      "critic",
+      "fact-checker",
+      "judge",
+      "synthesizer",
+    ];
+
     const plan = this.dependencies.teamPlanner({
       requiredCapabilityIds: input.requiredCapabilityIds,
       ...(input.requiredModelCapabilityIds === undefined
         ? {}
         : { requiredModelCapabilityIds: input.requiredModelCapabilityIds }),
+      preferredRoles,
       minimumAgents: MIN_PARTICIPANTS,
       maximumAgents: maxParticipants,
       preferProviderDiversity: true,
     });
 
-    return plan.members.map((member) => ({
+    const synthesizer = plan.members.find((member) => member.agent.roleId === "synthesizer");
+    const members = [
+      ...plan.members.filter((member) => member.agent.id !== synthesizer?.agent.id),
+      ...(synthesizer === undefined ? [] : [synthesizer]),
+    ];
+
+    return members.map((member) => ({
       agentId: member.agent.id,
       actorId: member.agent.id,
     }));
