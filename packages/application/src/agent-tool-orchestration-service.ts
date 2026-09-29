@@ -39,6 +39,7 @@ export interface AgentToolOrchestrationInput {
   readonly missionId?: string;
   readonly taskId?: string;
   readonly executionId?: string;
+  readonly conversationId?: string;
   readonly maxToolRounds?: number;
   readonly maxToolOutputBytes?: number;
   readonly defaultRiskLevel?: RiskLevel;
@@ -246,6 +247,130 @@ export class AgentToolOrchestrationService {
       status: "SUCCEEDED",
       response: currentResponse,
       rounds,
+    };
+  }
+
+  async resolveConversationToolApproval(
+    input: ResolveToolApprovalInput,
+    policy: Policy,
+  ): Promise<{
+    readonly status: "SUCCEEDED" | "APPROVAL_REQUIRED" | "REJECTED" | "FAILED";
+    readonly response: TextModelResponse;
+    readonly rounds: number;
+    readonly conversationId: string;
+    readonly agentId: string;
+    readonly approval?: Extract<
+      AgentToolOrchestrationResult,
+      { status: "APPROVAL_REQUIRED" }
+    >["approval"];
+    readonly error?: string;
+  }> {
+    const storedApproval = this.dependencies.approvals.get(input.approvalId);
+    if (storedApproval === undefined) {
+      throw new Error(`Approval not found: ${input.approvalId}.`);
+    }
+
+    if (storedApproval.executionId !== undefined) {
+      throw new Error(
+        `Approval ${storedApproval.id} is execution-bound and must use execution approval resolution.`,
+      );
+    }
+
+    const continuation = storedApproval.toolContinuation;
+    if (continuation === undefined || continuation.conversationId === undefined) {
+      throw new Error(
+        `Approved tool approval ${storedApproval.id} has no Direct conversation continuation.`,
+      );
+    }
+
+    if (input.status !== "APPROVED") {
+      const resolved = this.dependencies.toolInvocation.resolveApproval(input);
+      return {
+        status: "REJECTED",
+        response: continuation.response,
+        rounds: continuation.rounds,
+        conversationId: continuation.conversationId,
+        agentId: continuation.agentId,
+        error: `Conversation tool approval resolved as ${resolved.status}.`,
+      };
+    }
+
+    const approval = this.dependencies.toolInvocation.resolveApproval(input);
+    if (approval.status !== "APPROVED") {
+      throw new Error(`Conversation tool approval ${approval.id} was not approved.`);
+    }
+
+    const toolCall = continuation.toolCall;
+    const invocationId = toolCall.id.startsWith("tool-call:")
+      ? toolCall.id
+      : `tool-call:${toolCall.id}`;
+    const outcome = await this.dependencies.toolInvocation.invokeApproved({
+      invocationId,
+      approvalId: approval.id,
+      toolId: toolCall.toolId,
+      input: toolCall.input,
+    });
+
+    if (outcome.status !== "SUCCEEDED") {
+      return {
+        status: outcome.status === "REJECTED" ? "REJECTED" : "FAILED",
+        response: continuation.response,
+        rounds: continuation.rounds,
+        conversationId: continuation.conversationId,
+        agentId: continuation.agentId,
+        error:
+          outcome.status === "REJECTED"
+            ? outcome.error
+            : outcome.status === "FAILED"
+              ? outcome.error
+              : "Conversation tool approval remained pending unexpectedly.",
+      };
+    }
+
+    const nextRequest = appendToolResult(
+      continuation.request,
+      continuation.response,
+      toolCall,
+      outcome.output,
+    );
+    const next = await this.dependencies.agentGateway.invokeText({
+      agentId: continuation.agentId,
+      requiredCapabilityIds: continuation.requiredCapabilityIds,
+      request: this.withToolDefinitions(nextRequest),
+    });
+
+    const result = await this.continueFromResponse(
+      {
+        agentId: continuation.agentId,
+        requiredCapabilityIds: continuation.requiredCapabilityIds,
+        request: nextRequest,
+        policy,
+        actorId: approval.requestedBy,
+        conversationId: continuation.conversationId,
+        maxToolRounds: 8,
+        maxToolOutputBytes: DEFAULT_MAX_TOOL_OUTPUT_BYTES,
+      },
+      this.withToolDefinitions(nextRequest),
+      next.output,
+    );
+
+    this.saveContinuation(approval.id, {
+      ...continuation,
+      state: "COMPLETED",
+      response: result.response,
+      nextRequest,
+    });
+
+    return {
+      status: result.status,
+      response: result.response,
+      rounds: continuation.rounds + result.rounds,
+      conversationId: continuation.conversationId,
+      agentId: continuation.agentId,
+      ...(result.status === "APPROVAL_REQUIRED" ? { approval: result.approval } : {}),
+      ...((result.status === "FAILED" || result.status === "REJECTED")
+        ? { error: result.error }
+        : {}),
     };
   }
 
@@ -941,6 +1066,7 @@ export class AgentToolOrchestrationService {
       agentId: input.agentId,
       toolContinuation: {
         agentId: input.agentId,
+        ...(input.conversationId === undefined ? {} : { conversationId: input.conversationId }),
         requiredCapabilityIds: input.requiredCapabilityIds,
         request: continuation.request,
         response: continuation.response,
