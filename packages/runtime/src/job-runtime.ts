@@ -1,7 +1,5 @@
 import type { Job, JobId, JobKind } from "@polyon/contracts";
 
-import type { EventStore } from "@polyon/storage";
-
 import { JobQueue } from "./job-queue";
 import { JobService } from "./job-service";
 
@@ -36,7 +34,6 @@ export interface JobRuntimeHealth {
 
 export interface JobRuntimeDependencies {
   readonly jobs: JobService;
-  readonly events: EventStore;
   readonly handlers?: JobHandlers;
   readonly clock: JobRuntimeClock;
   readonly pollIntervalMs?: number;
