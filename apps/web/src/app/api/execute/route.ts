@@ -1,7 +1,7 @@
 import { isAuthenticated } from "@/server/auth";
 import { randomUUID } from "node:crypto";
 
-import type { CommandMode } from "@polyon/application";
+import { classifyTaskMode, type CommandMode } from "@polyon/application";
 import type { BuiltInAgentRoleId } from "@polyon/contracts";
 
 import {
@@ -39,9 +39,9 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     const input = JSON.parse(raw) as Record<string, unknown>;
-    const mode = parseMode(input.mode);
     const command = parseString(input.command, 50_000, "command");
     const polyon = getPolyonComposition();
+    const { mode, modeReason } = resolveMode(input.mode, command, polyon);
     const actorId = getPolyonActorId();
     const targets = resolveTargets(input.agentIds, mode, polyon);
     const participantIds = [actorId, ...targets.map((target) => target.actorId)];
@@ -76,7 +76,7 @@ export async function POST(request: Request): Promise<Response> {
           2 * 1024 * 1024,
         ),
       });
-      return Response.json({ mode, result }, { status: 201 });
+      return Response.json({ mode, modeReason, result }, { status: 201 });
     }
 
     if (mode === "Collaborative") {
@@ -88,7 +88,7 @@ export async function POST(request: Request): Promise<Response> {
         synthesizerAgentId: parseOptionalString(input.synthesizerAgentId),
         maxParticipants: parsePositiveInteger(input.maxParticipants, 8, 8),
       });
-      return Response.json({ mode, result }, { status: 201 });
+      return Response.json({ mode, modeReason, result }, { status: 201 });
     }
 
     if (mode === "Research") {
@@ -106,7 +106,7 @@ export async function POST(request: Request): Promise<Response> {
         maxParticipants: parsePositiveInteger(input.maxParticipants, 8, 8),
         sourceLimit: parsePositiveInteger(input.researchSourceLimit, 5, 20),
       });
-      return Response.json({ mode, result }, { status: 201 });
+      return Response.json({ mode, modeReason, result }, { status: 201 });
     }
 
     if (mode === "DeepAnalysis") {
@@ -123,7 +123,7 @@ export async function POST(request: Request): Promise<Response> {
         maxChallengeRounds: parseOptionalInteger(input.maxChallengeRounds, 1, 2),
         maxDebateRounds: parsePositiveInteger(input.maxDebateRounds, 2, 4),
       });
-      return Response.json({ mode, result }, { status: 201 });
+      return Response.json({ mode, modeReason, result }, { status: 201 });
     }
 
     if (mode === "Debate") {
@@ -141,7 +141,7 @@ export async function POST(request: Request): Promise<Response> {
         adjudicatorAgentId: first.agentId,
         now: () => new Date().toISOString(),
       });
-      return Response.json({ mode, result }, { status: 201 });
+      return Response.json({ mode, modeReason, result }, { status: 201 });
     }
 
     const now = new Date().toISOString();
@@ -167,7 +167,7 @@ export async function POST(request: Request): Promise<Response> {
       },
     });
 
-    return Response.json({ mode, result }, { status: 201 });
+    return Response.json({ mode, modeReason, result }, { status: 201 });
   } catch (error) {
     if (error instanceof ExecuteRequestError || error instanceof SyntaxError) {
       return Response.json({ error: error.message }, { status: 400 });
@@ -218,6 +218,32 @@ function defaultAgentIds(
     .filter((agent) => agent.status === "ACTIVE")
     .map((agent) => agent.id);
   return single ? active.slice(0, 1) : active.slice(0, 8);
+}
+
+/**
+ * "Auto" (the default) lets POLYON decide how much of the team a request needs, so the user
+ * does not have to choose an orchestration mode.
+ */
+function resolveMode(
+  value: unknown,
+  command: string,
+  polyon: ReturnType<typeof getPolyonComposition>,
+): { mode: CommandMode; modeReason?: string } {
+  if (value !== undefined && value !== "Auto") return { mode: parseMode(value) };
+
+  const classification = classifyTaskMode(command);
+  if (classification.mode === "simple")
+    return { mode: "Direct", modeReason: classification.reason };
+  if (classification.mode === "research") {
+    return polyon.researchOrchestration === undefined
+      ? {
+          mode: "Collaborative",
+          modeReason:
+            classification.reason + " Web research is not configured, so the team answers.",
+        }
+      : { mode: "Research", modeReason: classification.reason };
+  }
+  return { mode: "DeepAnalysis", modeReason: classification.reason };
 }
 
 function parseMode(value: unknown): CommandMode {

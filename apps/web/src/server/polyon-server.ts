@@ -491,10 +491,29 @@ export function getPolyonBaseUrl(request?: Request): string {
   const configured = process.env.POLYON_PUBLIC_BASE_URL?.trim();
   if (configured !== undefined && configured !== "") return configured.replace(/\/$/u, "");
   if (request !== undefined) {
+    // Behind Docker or a proxy, request.url carries the bind address (for example 0.0.0.0),
+    // which clients cannot reach; the Host / X-Forwarded-* headers carry the public origin.
     const url = new URL(request.url);
+    const host =
+      firstHeaderValue(request.headers.get("x-forwarded-host")) ??
+      firstHeaderValue(request.headers.get("host")) ??
+      url.host;
+    const protocol =
+      firstHeaderValue(request.headers.get("x-forwarded-proto")) ?? url.protocol.replace(/:$/u, "");
+    if (
+      /^[a-z0-9.-]+(?::\d+)?$|^\[[0-9a-f:]+\](?::\d+)?$/iu.test(host) &&
+      /^https?$/u.test(protocol)
+    ) {
+      return `${protocol}://${host}`;
+    }
     return url.origin;
   }
   return "http://localhost:3000";
+}
+
+function firstHeaderValue(value: string | null): string | undefined {
+  const first = value?.split(",")[0]?.trim();
+  return first === undefined || first === "" ? undefined : first;
 }
 
 function buildUsageGovernor(): UsageGovernor {

@@ -410,3 +410,5 @@ export {
   type McpSubscriptionPublisher,
 } from "./mcp-subscription-bus";
 export type { McpSubscriptionFilter, McpSubscriptionNotification } from "./mcp-subscription-types";
+
+export { classifyTaskMode, type TaskModeClassification } from "./task-mode-classifier";

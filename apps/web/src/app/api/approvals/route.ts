@@ -5,6 +5,7 @@ import {
   getPolyonPolicy,
   isSameOrigin,
 } from "@/server/polyon-server";
+import { buildApprovalPreview, explainApprovalReason } from "@/server/approval-preview";
 import { readBoundedText } from "@/server/bounded-body";
 
 export const runtime = "nodejs";
@@ -20,13 +21,14 @@ export async function GET(): Promise<Response> {
       id: item.id,
       action: item.action,
       riskLevel: item.riskLevel,
-      reason: item.reason,
+      reason: explainApprovalReason(item.reason),
       requestedAt: item.requestedAt,
       missionId: item.missionId,
       taskId: item.taskId,
       executionId: item.executionId,
       toolId: item.toolId,
       integrationId: item.integrationId,
+      preview: buildApprovalPreview(item),
     }));
   return Response.json({ approvals });
 }

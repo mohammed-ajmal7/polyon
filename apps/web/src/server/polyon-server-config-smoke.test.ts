@@ -4,7 +4,11 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { getPolyonComposition, isUntrustedBrowserProtocolRequest } from "./polyon-server";
+import {
+  getPolyonBaseUrl,
+  getPolyonComposition,
+  isUntrustedBrowserProtocolRequest,
+} from "./polyon-server";
 
 const originalEnvironment = { ...process.env };
 
@@ -146,5 +150,23 @@ describe("POLYON server configuration smoke", () => {
         request({ origin: "http://localhost:3000", "content-type": "text/plain" }),
       ),
     ).toBe(true);
+  });
+
+  it("advertises the public origin instead of the container bind address", () => {
+    delete process.env.POLYON_PUBLIC_BASE_URL;
+    const request = (headers: Record<string, string>) =>
+      new Request("http://0.0.0.0:3000/.well-known/agent-card.json", { headers });
+
+    expect(getPolyonBaseUrl(request({ host: "localhost:3000" }))).toBe("http://localhost:3000");
+    expect(
+      getPolyonBaseUrl(
+        request({
+          host: "0.0.0.0:3000",
+          "x-forwarded-host": "polyon.example",
+          "x-forwarded-proto": "https",
+        }),
+      ),
+    ).toBe("https://polyon.example");
+    expect(getPolyonBaseUrl(request({ host: "bad host/../x" }))).toBe("http://0.0.0.0:3000");
   });
 });
