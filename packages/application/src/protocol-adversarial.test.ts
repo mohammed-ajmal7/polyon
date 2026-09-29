@@ -164,8 +164,7 @@ describe("protocol adversarial boundaries", () => {
             status: "RUNNING",
             createdAt: "2026-09-28T00:00:00.000Z",
             updatedAt: "2026-09-28T00:00:00.000Z",
-
-          },
+          } satisfies Execution,
         ],
       },
       runtime: { cancel: vi.fn() } as never,
