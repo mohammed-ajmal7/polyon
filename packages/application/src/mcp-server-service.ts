@@ -81,9 +81,9 @@ export class McpServerService {
         result: {
           protocolVersion: "2026-07-28",
           capabilities: {
-            tools: { listChanged: false },
+            tools: { listChanged: true },
           },
-          methods: ["server/discover", "tools/list", "tools/call"],
+          methods: ["server/discover", "tools/list", "tools/call", "subscriptions/listen"],
         },
       };
     }
