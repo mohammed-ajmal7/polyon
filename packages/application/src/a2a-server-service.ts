@@ -168,7 +168,9 @@ export class A2AServerService {
         yield {
           jsonrpc: "2.0",
           id: request.id,
-          result: { message: normalizeAgentMessage(message) },
+          result: {
+            message: normalizeAgentMessage(message, "a2a-stream-response-" + String(request.id)),
+          },
         };
         return;
       }
@@ -212,8 +214,9 @@ export class A2AServerService {
       })),
       securitySchemes: {
         bearer: {
-          type: "http",
-          scheme: "bearer",
+          httpAuthSecurityScheme: {
+            scheme: "Bearer",
+          },
         },
       },
     };
@@ -494,6 +497,8 @@ export class A2AServerService {
       id: request.id,
       result: {
         message: {
+          messageId: result.persistedMessages[0]?.id ?? "a2a-response-" + String(request.id),
+          contextId: "a2a-" + String(request.id),
           role: "ROLE_AGENT",
           parts: [{ text: result.persistedMessages[0]?.content ?? "" }],
         },
@@ -505,7 +510,7 @@ export class A2AServerService {
 function mapTask(task: Task): Record<string, unknown> {
   return {
     id: task.id,
-    ...(task.missionId === undefined ? {} : { contextId: task.missionId }),
+    contextId: task.missionId,
     status: {
       state: mapTaskState(task.status),
       timestamp: task.updatedAt,
@@ -519,7 +524,7 @@ function mapTask(task: Task): Record<string, unknown> {
 function mapTaskStatusUpdate(task: Task): Record<string, unknown> {
   return {
     taskId: task.id,
-    ...(task.missionId === undefined ? {} : { contextId: task.missionId }),
+    contextId: task.missionId,
     status: {
       state: mapTaskState(task.status),
       timestamp: task.updatedAt,
@@ -527,9 +532,13 @@ function mapTaskStatusUpdate(task: Task): Record<string, unknown> {
   };
 }
 
-function normalizeAgentMessage(value: unknown): Record<string, unknown> {
+function normalizeAgentMessage(
+  value: unknown,
+  fallbackMessageId: string,
+): Record<string, unknown> {
   if (!isRecord(value)) {
     return {
+      messageId: fallbackMessageId,
       role: "ROLE_AGENT",
       parts: [{ text: "" }],
     };
@@ -545,6 +554,13 @@ function normalizeAgentMessage(value: unknown): Record<string, unknown> {
     : [];
 
   return {
+    messageId:
+      typeof value.messageId === "string" && value.messageId.trim() !== ""
+        ? value.messageId
+        : fallbackMessageId,
+    ...(typeof value.contextId === "string" && value.contextId.trim() !== ""
+      ? { contextId: value.contextId }
+      : {}),
     role: "ROLE_AGENT",
     parts,
   };
