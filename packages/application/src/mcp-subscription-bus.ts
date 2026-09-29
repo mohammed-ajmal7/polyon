@@ -159,11 +159,17 @@ function hasQueuedEquivalent(
   queue: readonly McpSubscriptionNotification[],
   notification: McpSubscriptionNotification,
 ): boolean {
-  return queue.some((candidate) =>
-    candidate.method === notification.method &&
-    (candidate.method !== "notifications/resources/updated" ||
-      candidate.params.uri === notification.params.uri),
-  );
+  return queue.some((candidate) => {
+    if (candidate.method !== notification.method) return false;
+    if (candidate.method !== "notifications/resources/updated") return true;
+
+    const candidateUri = candidate.params?.uri;
+    const notificationUri =
+      notification.method === "notifications/resources/updated"
+        ? notification.params?.uri
+        : undefined;
+    return candidateUri === notificationUri;
+  });
 }
 
 function cloneFilter(filter: McpSubscriptionFilter): McpSubscriptionFilter {
