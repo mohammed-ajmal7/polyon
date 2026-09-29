@@ -11,6 +11,7 @@ export async function GET(request: Request): Promise<Response> {
     missionId: optional(url.searchParams.get("missionId")),
     taskId: optional(url.searchParams.get("taskId")),
     executionId: optional(url.searchParams.get("executionId")),
+    agentRunId: optional(url.searchParams.get("agentRunId")),
     conversationId: optional(url.searchParams.get("conversationId")),
     limit: parseLimit(url.searchParams.get("limit")),
   });
