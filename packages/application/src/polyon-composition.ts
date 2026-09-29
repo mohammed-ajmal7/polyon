@@ -58,6 +58,8 @@ import {
   ResearchSynthesisService,
   CreativeJobService,
   type CreativeAdapter,
+  InMemoryMcpSubscriptionBus,
+  McpSubscriptionEventPublisher,
   type ResearchRetriever,
   type ResearchFabricProvider,
   ResearchFabric,
@@ -270,6 +272,8 @@ export interface PolyonComposition {
   readonly runtime: ExecutionRuntime;
   readonly jobService: JobService;
   readonly jobRuntime: JobRuntime;
+  readonly mcpSubscriptionBus: InMemoryMcpSubscriptionBus;
+  readonly mcpSubscriptionPublisher: McpSubscriptionEventPublisher;
   readonly a2aPushNotifications?: A2APushNotificationService;
 }
 
@@ -286,6 +290,8 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     events: stores.events,
     unitOfWork: stores,
   });
+  const mcpSubscriptionBus = new InMemoryMcpSubscriptionBus();
+  const mcpSubscriptionPublisher = new McpSubscriptionEventPublisher(mcpSubscriptionBus);
   const agents = new InMemoryAgentRegistry();
   const models = new InMemoryModelRegistry();
   const providers = new InMemoryProviderRegistry();
@@ -1051,6 +1057,8 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     runtime,
     jobService,
     jobRuntime,
+    mcpSubscriptionBus,
+    mcpSubscriptionPublisher,
     ...(a2aPushNotifications === undefined ? {} : { a2aPushNotifications }),
   };
 }
