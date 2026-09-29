@@ -64,3 +64,6 @@ export {
   type ProviderHealthSnapshot,
   type ProviderHealthTrackerOptions,
 } from "./provider-health";
+
+
+export { buildAgentRolePrompt, type AgentPromptStage } from "./role-prompts";
