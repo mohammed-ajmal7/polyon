@@ -90,7 +90,12 @@ export function createSemanticMemoryIndexer(
 
   const executeCycle = async (
     signal?: AbortSignal,
-  ): Promise<{ readonly indexed: number; readonly removed: number; readonly stale: number; readonly skipped: number }> => {
+  ): Promise<{
+    readonly indexed: number;
+    readonly removed: number;
+    readonly stale: number;
+    readonly skipped: number;
+  }> => {
     cycleActive = true;
     lastCycleAt = new Date().toISOString();
 
