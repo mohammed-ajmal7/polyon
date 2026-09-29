@@ -73,6 +73,7 @@ function buildOptions() {
     usageGovernor,
     semanticMemoryIndexAllowedScopes,
     semanticMemoryIndexingEnabled: semanticMemoryIndexAllowedScopes.length > 0,
+    semanticMemoryIndexJobUserId: getPolyonActorId(),
     ...(a2aPushNotificationAllowedOrigins.length === 0
       ? {}
       : { a2aPushNotificationAllowedOrigins }),

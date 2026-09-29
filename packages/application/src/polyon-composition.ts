@@ -129,6 +129,7 @@ export interface PolyonCompositionOptions {
   readonly semanticMemoryIndexBatchSize?: number;
   readonly semanticMemoryIndexMaxEntries?: number;
   readonly semanticMemoryIndexAllowedScopes?: readonly MemoryScope[];
+  readonly semanticMemoryIndexJobUserId?: string;
   readonly integrations?: readonly IntegrationAdapter[];
   readonly secretResolver?: SecretResolver;
   readonly googleDriveIntegrationId?: string;
@@ -514,6 +515,8 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
             ? {}
             : { maxEntries: options.semanticMemoryIndexMaxEntries }),
           allowedScopes: options.semanticMemoryIndexAllowedScopes,
+          jobBridge: jobService,
+          jobUserId: options.semanticMemoryIndexJobUserId,
         });
   const debates = new DebateOrchestrationService(
     agentGateway,
@@ -826,9 +829,27 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     unitOfWork: stores,
   });
 
+  const jobHandlers: JobHandlers | undefined =
+    semanticMemoryIndexer === undefined
+      ? options.jobHandlers
+      : {
+          ...(options.jobHandlers ?? {}),
+          scheduled: async (context) => {
+            if (semanticMemoryIndexer.isDurableJob(context.job)) {
+              return semanticMemoryIndexer.runDurableJob(context);
+            }
+
+            if (options.jobHandlers?.scheduled !== undefined) {
+              return options.jobHandlers.scheduled(context);
+            }
+
+            throw new Error(`No handler is registered for scheduled job: ${context.job.id}.`);
+          },
+        };
+
   const jobRuntime = createJobRuntime({
     jobs: jobService,
-    ...(options.jobHandlers === undefined ? {} : { handlers: options.jobHandlers }),
+    ...(jobHandlers === undefined ? {} : { handlers: jobHandlers }),
     clock: options.clock ?? new SystemClock(),
     ...(options.jobPollIntervalMs === undefined
       ? {}
