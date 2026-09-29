@@ -337,6 +337,8 @@ export {
   createSemanticMemoryIndexer,
   type SemanticMemoryIndexer,
   type SemanticMemoryIndexerHealth,
+  type SemanticMemoryIndexJobBridge,
+  type SemanticMemoryIndexJobContext,
   type SemanticMemoryIndexerOptions,
 } from "./semantic-memory-indexer";
 
