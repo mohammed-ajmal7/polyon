@@ -1,4 +1,5 @@
 import type { AgentId, CapabilityId, ModelId } from "./ids";
+import type { BuiltInAgentRoleId } from "./roles";
 
 export type AgentStatus = "DRAFT" | "ACTIVE" | "DISABLED";
 
@@ -6,7 +7,7 @@ export interface Agent {
   readonly id: AgentId;
   readonly name: string;
   readonly role: string;
-  readonly roleId?: import("./roles").BuiltInAgentRoleId;
+  readonly roleId?: BuiltInAgentRoleId;
   readonly description: string;
   readonly status: AgentStatus;
 
