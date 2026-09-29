@@ -733,7 +733,6 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   const agentToolOrchestration = new AgentToolOrchestrationService({
     agentGateway,
     toolInvocation,
-    agentMessages,
     agentRuns,
     integrationInvocation,
     integrations,
@@ -1049,6 +1048,8 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   return {
     commandIngress,
     conversationOrchestration,
+    agentMessages,
+    agentRuns,
     collectiveOrchestration,
     deepAnalysisOrchestration,
     ...(researchOrchestration === undefined ? {} : { researchOrchestration }),

@@ -529,9 +529,9 @@ export class A2AServerService {
     const pageToken = decodePushPageToken(params.pageToken);
     if (pageToken.error !== undefined) return error(request.id, -32602, pageToken.error);
 
-    const configs = service
-      .listConfigs(taskId)
-      .sort((left, right) => left.id.localeCompare(right.id));
+    const configs = [...service.listConfigs(taskId)].sort((left, right) =>
+      left.id.localeCompare(right.id),
+    );
     const startIndex =
       pageToken.configId === undefined
         ? 0

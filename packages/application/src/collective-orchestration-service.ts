@@ -642,7 +642,6 @@ export class CollectiveOrchestrationService {
     role: string,
     agentName: string,
     research: ResearchContext,
-    factChecks: readonly FactCheckResult[],
     rolePrompt: string,
   ): TextModelRequest {
     const evidenceContext = formatEvidenceContext(research);

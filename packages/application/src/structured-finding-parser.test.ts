@@ -22,7 +22,7 @@ describe("parseStructuredFinding", () => {
         {
           id: "evidence-1",
           sourceId: "source-1",
-          kind: "WEB",
+          kind: "SUPPORTING",
           claim: "Revenue increased after the launch.",
           supportingContent: "Revenue was up 12%.",
           capturedAt: "2026-09-29T00:00:00.000Z",

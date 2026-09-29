@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+import type { Execution, Task } from "@polyon/contracts";
+
 import { A2AServerService } from "./a2a-server-service";
 import { McpServerService } from "./mcp-server-service";
 
@@ -155,10 +157,14 @@ describe("protocol adversarial boundaries", () => {
         list: () => [
           {
             id: "execution-visible",
+            missionId: "mission-1",
             taskId: "task-visible",
             actorId: "actor-other",
+            attempt: 1,
+            status: "RUNNING",
+            createdAt: "2026-09-28T00:00:00.000Z",
             updatedAt: "2026-09-28T00:00:00.000Z",
-          },
+          } satisfies Execution,
         ],
       },
       runtime: { cancel: vi.fn() } as never,
@@ -167,16 +173,26 @@ describe("protocol adversarial boundaries", () => {
           {
             id: "task-visible",
             missionId: "mission-1",
+            kind: "ANALYSIS",
+            title: "Visible task",
+            description: "A task used to verify visibility boundaries.",
             status: "RUNNING",
+            dependsOn: [],
+            createdAt: "2026-09-28T00:00:00.000Z",
             updatedAt: "2026-09-28T00:00:00.000Z",
-          },
+          } satisfies Task,
         ],
         get: () => ({
           id: "task-visible",
           missionId: "mission-1",
+          kind: "ANALYSIS",
+          title: "Visible task",
+          description: "A task used to verify visibility boundaries.",
           status: "RUNNING",
+          dependsOn: [],
+          createdAt: "2026-09-28T00:00:00.000Z",
           updatedAt: "2026-09-28T00:00:00.000Z",
-        }) as never,
+        } satisfies Task),
       },
       policy: {} as never,
       actorId: "actor-local",
