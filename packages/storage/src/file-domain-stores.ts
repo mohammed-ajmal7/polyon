@@ -117,6 +117,11 @@ export class FileDomainStores implements DurableDomainStores {
     return this.context.events;
   }
 
+  subscribeCommittedEvents(listener: CommittedEventListener): () => void {
+    this.committedEventListeners.add(listener);
+    return () => this.committedEventListeners.delete(listener);
+  }
+
   transaction<T>(work: (context: DomainStoreTransactionContext) => T): T {
     if (this.transactionActive) {
       throw new DomainTransactionError();
@@ -131,8 +136,10 @@ export class FileDomainStores implements DurableDomainStores {
       const result = work(stagedContext);
 
       const nextRevision = this.database.replaceIfRevision(stagedState, snapshot.revision);
+      const previousEventIds = new Set(this.state.events.map((event) => event.id));
       Object.assign(this.state, stagedState);
       this.revision = nextRevision;
+      this.publishCommittedEvents(stagedState.events, previousEventIds);
 
       return result;
     } finally {
