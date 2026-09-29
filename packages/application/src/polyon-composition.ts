@@ -785,6 +785,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     stores.messages,
     stores.events,
     stores,
+    agentRuns,
   );
 
   const collectiveOrchestration = new CollectiveOrchestrationService({
@@ -824,6 +825,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
           conversations: stores.conversations,
           messages: stores.messages,
           events: stores.events,
+          agentRuns,
           unitOfWork: stores,
         });
 
