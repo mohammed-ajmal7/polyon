@@ -27,9 +27,10 @@ The application uses an in-process notification bus with:
 - unique internal subscription keys so different clients can reuse JSON-RPC ids safely;
 - request-id cancellation mapping;
 - bounded per-subscription buffering;
-- level-trigger deduplication for queued notifications.
+- level-trigger deduplication for queued notifications;
+- an explicit publisher boundary for tools, prompts, resources, and resource-URI updates.
 
-The bus is intentionally replaceable. Multi-process/pub-sub persistence is a later deployment concern.
+The bus and publisher are intentionally replaceable. Application code can publish a typed change through `McpSubscriptionEventPublisher` without depending on wire-level JSON-RPC details. Multi-process/pub-sub persistence is a later deployment concern.
 
 ## Safety boundary
 
