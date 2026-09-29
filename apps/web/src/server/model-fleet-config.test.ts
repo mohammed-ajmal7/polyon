@@ -189,11 +189,7 @@ describe("model fleet configuration", () => {
     const model = result.models[0];
 
     expect(agent?.roleId).toBe("planner");
-    expect(agent?.capabilityIds).toEqual([
-      "ai.chat",
-      "ai.reasoning",
-      "ai.structured-output",
-    ]);
+    expect(agent?.capabilityIds).toEqual(["ai.chat", "ai.reasoning", "ai.structured-output"]);
     expect(model?.capabilityIds).toEqual(["ai.chat", "ai.tool-calling", "ai.vision"]);
     expect(model?.contextWindow).toBe(65536);
     expect(model?.supportsTools).toBe(true);

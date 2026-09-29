@@ -30,7 +30,10 @@ export class ExactNormalizedSemanticVectorIndex implements SemanticVectorIndex {
 
     const existing = this.entries.get(embedding.id);
     if (existing !== undefined) {
-      this.removeFromBucket(bucketKey(existing.embedding.modelId, existing.normalizedVector.length), embedding.id);
+      this.removeFromBucket(
+        bucketKey(existing.embedding.modelId, existing.normalizedVector.length),
+        embedding.id,
+      );
     }
 
     this.entries.set(embedding.id, { embedding, normalizedVector });

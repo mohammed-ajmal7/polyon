@@ -180,32 +180,34 @@ describe("ResearchOrchestrationService", () => {
       stores.events,
       stores,
     );
-    const invokeText = vi.fn(async ({ agentId, request }: { agentId: string; request: TextModelRequest }) => {
-      const evidenceMatch = request.messages[1]?.content.match(/\[evidence:([^\s\]]+)/u);
-      const evidenceId = evidenceMatch?.[1] ?? "missing";
-      return {
-        agentId,
-        modelId: agentId + "-model",
-        providerId: "provider-" + agentId,
-        source: "preferred" as const,
-        output: {
-          content:
-            agentId === "synthesizer"
-              ? "Synthesis from the structured finding."
-              : [
-                  "Researcher explanation.",
-                  JSON.stringify({
-                    claim: "A company-specific signal exists.",
-                    confidence: 0.9,
-                    assumptions: ["The retrieved source is authentic."],
-                    counterarguments: ["The signal may be coincidental."],
-                    disposition: "SUPPORTED",
-                    evidenceIds: [evidenceId],
-                  }),
-                ].join("\n"),
-        },
-      };
-    });
+    const invokeText = vi.fn(
+      async ({ agentId, request }: { agentId: string; request: TextModelRequest }) => {
+        const evidenceMatch = request.messages[1]?.content.match(/\[evidence:([^\s\]]+)/u);
+        const evidenceId = evidenceMatch?.[1] ?? "missing";
+        return {
+          agentId,
+          modelId: agentId + "-model",
+          providerId: "provider-" + agentId,
+          source: "preferred" as const,
+          output: {
+            content:
+              agentId === "synthesizer"
+                ? "Synthesis from the structured finding."
+                : [
+                    "Researcher explanation.",
+                    JSON.stringify({
+                      claim: "A company-specific signal exists.",
+                      confidence: 0.9,
+                      assumptions: ["The retrieved source is authentic."],
+                      counterarguments: ["The signal may be coincidental."],
+                      disposition: "SUPPORTED",
+                      evidenceIds: [evidenceId],
+                    }),
+                  ].join("\n"),
+          },
+        };
+      },
+    );
 
     const service = new ResearchOrchestrationService({
       agents,

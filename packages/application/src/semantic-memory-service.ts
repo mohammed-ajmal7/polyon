@@ -81,7 +81,12 @@ export class SemanticMemoryService {
       readonly allowedScopes?: readonly MemoryScope[];
       readonly signal?: AbortSignal;
     },
-  ): Promise<{ readonly indexed: number; readonly removed: number; readonly stale: number; readonly skipped: number }> {
+  ): Promise<{
+    readonly indexed: number;
+    readonly removed: number;
+    readonly stale: number;
+    readonly skipped: number;
+  }> {
     if (modelId.trim() === "") throw new RangeError("Embedding model ID must not be empty.");
 
     const batchSize = input.batchSize ?? 16;
@@ -112,8 +117,7 @@ export class SemanticMemoryService {
     const orphanedEmbeddings = this.embeddings
       .list()
       .filter(
-        (embedding) =>
-          embedding.modelId === modelId && !validMemoryIds.has(embedding.memoryId),
+        (embedding) => embedding.modelId === modelId && !validMemoryIds.has(embedding.memoryId),
       );
 
     for (const embedding of orphanedEmbeddings) {

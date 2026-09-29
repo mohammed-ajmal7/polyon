@@ -352,5 +352,4 @@ describe("A2A push notifications", () => {
 
     expect(outcomes).toEqual([{ status: "FAILED", attempts: 2 }]);
   });
-
 });

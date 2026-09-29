@@ -64,18 +64,22 @@ describe("AgentRunService", () => {
       completedAt: "2026-09-29T01:02:00.000Z",
       finalAnswer: "Investigation completed.",
     });
-    expect(stores.events.list().filter((event) => event.kind === "AGENT_RUN_STATUS_CHANGED")).toHaveLength(2);
+    expect(
+      stores.events.list().filter((event) => event.kind === "AGENT_RUN_STATUS_CHANGED"),
+    ).toHaveLength(2);
   });
 
   it("rejects invalid lifecycle transitions", () => {
     const { service } = createRunService();
     service.create(baseInput);
 
-    expect(() => service.complete({
-      id: "run-1",
-      finalAnswer: "Too early.",
-      completedAt: "2026-09-29T01:02:00.000Z",
-    })).toThrow("queued -> completed");
+    expect(() =>
+      service.complete({
+        id: "run-1",
+        finalAnswer: "Too early.",
+        completedAt: "2026-09-29T01:02:00.000Z",
+      }),
+    ).toThrow("queued -> completed");
 
     service.start("run-1", "2026-09-29T01:01:00.000Z");
     service.complete({
@@ -168,9 +172,9 @@ describe("AgentRunService", () => {
         status: "running",
         startedAt: "2026-09-29T01:01:00.000Z",
       });
-      expect(
-        reopened.events.list().filter((event) => event.agentRunId === "run-1"),
-      ).toHaveLength(2);
+      expect(reopened.events.list().filter((event) => event.agentRunId === "run-1")).toHaveLength(
+        2,
+      );
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

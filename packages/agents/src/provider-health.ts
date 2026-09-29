@@ -66,10 +66,7 @@ export class ProviderHealthTracker {
     return next;
   }
 
-  recordFailure(
-    providerId: ProviderId,
-    kind: ProviderInvocationErrorKind,
-  ): ProviderHealthSnapshot {
+  recordFailure(providerId: ProviderId, kind: ProviderInvocationErrorKind): ProviderHealthSnapshot {
     const current = this.get(providerId);
 
     if (kind === "CANCELLED") {

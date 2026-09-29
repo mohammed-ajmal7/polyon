@@ -48,7 +48,8 @@ describe("production-scale hardening", () => {
         id: "load-memory-" + index,
         kind: "FACT",
         scope: "PROJECT",
-        text: index % 20 === 0 ? "important retrieval anchor " + index : "background memory " + index,
+        text:
+          index % 20 === 0 ? "important retrieval anchor " + index : "background memory " + index,
         tags: index % 20 === 0 ? ["anchor"] : ["background"],
         now: "2026-09-28T00:00:00.000Z",
       });
@@ -61,7 +62,9 @@ describe("production-scale hardening", () => {
       });
 
       expect(results).toHaveLength(10);
-      expect(results.every((entry) => entry.text.includes("important retrieval anchor"))).toBe(true);
+      expect(results.every((entry) => entry.text.includes("important retrieval anchor"))).toBe(
+        true,
+      );
     }
 
     expect(stores.memory.list()).toHaveLength(2_000);

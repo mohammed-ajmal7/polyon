@@ -146,10 +146,7 @@ describe("planAgentTeam", () => {
       createRegistries(),
     );
 
-    expect(result.members.map((member) => member.agent.id)).toEqual([
-      "analyst",
-      "researcher",
-    ]);
+    expect(result.members.map((member) => member.agent.id)).toEqual(["analyst", "researcher"]);
   });
 
   it("supports an explicit agent allowlist and exclusions", () => {

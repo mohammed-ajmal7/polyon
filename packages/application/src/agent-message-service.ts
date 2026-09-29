@@ -144,10 +144,7 @@ function validateInput(input: SendAgentMessageInput): void {
     throw new Error(`Source agent is not a participant: ${input.fromAgentId}.`);
   }
 
-  if (
-    input.toAgentId !== undefined &&
-    !input.participantAgentIds.includes(input.toAgentId)
-  ) {
+  if (input.toAgentId !== undefined && !input.participantAgentIds.includes(input.toAgentId)) {
     throw new Error(`Target agent is not a participant: ${input.toAgentId}.`);
   }
 
@@ -158,7 +155,6 @@ function validateInput(input: SendAgentMessageInput): void {
     );
   }
 }
-
 
 function serializePayload(payload: unknown): string {
   try {

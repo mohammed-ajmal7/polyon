@@ -73,11 +73,7 @@ describe("migrateDurableSnapshot", () => {
 
   it("returns the current snapshot without applying migrations", () => {
     expect(
-      migrateDurableSnapshot(
-        { version: 3, events: [], memoryEmbeddings: [] },
-        3,
-        migrations,
-      ),
+      migrateDurableSnapshot({ version: 3, events: [], memoryEmbeddings: [] }, 3, migrations),
     ).toEqual({
       value: { version: 3, events: [], memoryEmbeddings: [] },
       migrated: false,
@@ -178,26 +174,21 @@ describe("migrateDurableSnapshot", () => {
   });
 });
 
-
 describe("job migration", () => {
   it("adds the jobs collection when migrating from version 4 to 5", () => {
     expect(
-      migrateDurableSnapshot(
-        { version: 4, events: [], agentRuns: [] },
-        5,
-        [
-          {
-            fromVersion: 4,
-            toVersion: 5,
-            migrate(state) {
-              return {
-                ...state,
-                jobs: [],
-              };
-            },
+      migrateDurableSnapshot({ version: 4, events: [], agentRuns: [] }, 5, [
+        {
+          fromVersion: 4,
+          toVersion: 5,
+          migrate(state) {
+            return {
+              ...state,
+              jobs: [],
+            };
           },
-        ],
-      ),
+        },
+      ]),
     ).toEqual({
       value: {
         version: 5,
@@ -215,22 +206,18 @@ describe("job migration", () => {
 describe("agent run migration", () => {
   it("adds the agentRuns collection when migrating from version 3 to 4", () => {
     expect(
-      migrateDurableSnapshot(
-        { version: 3, events: [], memoryEmbeddings: [] },
-        4,
-        [
-          {
-            fromVersion: 3,
-            toVersion: 4,
-            migrate(state) {
-              return {
-                ...state,
-                agentRuns: [],
-              };
-            },
+      migrateDurableSnapshot({ version: 3, events: [], memoryEmbeddings: [] }, 4, [
+        {
+          fromVersion: 3,
+          toVersion: 4,
+          migrate(state) {
+            return {
+              ...state,
+              agentRuns: [],
+            };
           },
-        ],
-      ),
+        },
+      ]),
     ).toEqual({
       value: {
         version: 4,

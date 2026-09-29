@@ -158,7 +158,8 @@ export function buildModelRegistrations(
       ...(profile.contextWindow === undefined ? {} : { contextWindow: profile.contextWindow }),
       ...(profile.supportsTools === undefined ? {} : { supportsTools: profile.supportsTools }),
       ...(profile.supportsVision === undefined ? {} : { supportsVision: profile.supportsVision }),
-      privacyClass: profile.privacyClass ?? getBuiltInProviderPreset(profile.providerId)?.privacyClass,
+      privacyClass:
+        profile.privacyClass ?? getBuiltInProviderPreset(profile.providerId)?.privacyClass,
       costClass: profile.costClass ?? getBuiltInProviderPreset(profile.providerId)?.costClass,
       enabled: true,
     };
@@ -262,10 +263,7 @@ function parseProfile(value: unknown, index: number): ModelProfileConfig {
 
 function parseRoleId(value: unknown, index: number): BuiltInAgentRoleId | undefined {
   if (value === undefined) return undefined;
-  if (
-    typeof value !== "string" ||
-    getBuiltInAgentRole(value as BuiltInAgentRoleId) === undefined
-  ) {
+  if (typeof value !== "string" || getBuiltInAgentRole(value as BuiltInAgentRoleId) === undefined) {
     throw new Error(
       `Model profile agentRoleId at index ${index} must be a supported built-in role.`,
     );
@@ -280,9 +278,7 @@ function parseStringList(
 ): readonly string[] | undefined {
   if (value === undefined) return undefined;
   if (!Array.isArray(value) || value.length > 16) {
-    throw new Error(
-      `Model profile ${field} at index ${index} must contain at most 16 values.`,
-    );
+    throw new Error(`Model profile ${field} at index ${index} must contain at most 16 values.`);
   }
 
   const values = value.map((item) => requiredString(item, field + " item", index));
@@ -296,18 +292,12 @@ function parseOptionalPositiveInteger(
 ): number | undefined {
   if (value === undefined) return undefined;
   if (!Number.isInteger(value) || (value as number) <= 0) {
-    throw new Error(
-      `Model profile ${field} at index ${index} must be a positive integer.`,
-    );
+    throw new Error(`Model profile ${field} at index ${index} must be a positive integer.`);
   }
   return value as number;
 }
 
-function parseOptionalBoolean(
-  value: unknown,
-  field: string,
-  index: number,
-): boolean | undefined {
+function parseOptionalBoolean(value: unknown, field: string, index: number): boolean | undefined {
   if (value === undefined) return undefined;
   if (typeof value !== "boolean") {
     throw new Error(`Model profile ${field} at index ${index} must be a boolean.`);
@@ -315,15 +305,10 @@ function parseOptionalBoolean(
   return value;
 }
 
-function parsePrivacyClass(
-  value: unknown,
-  index: number,
-): ModelPrivacyClass | undefined {
+function parsePrivacyClass(value: unknown, index: number): ModelPrivacyClass | undefined {
   if (value === undefined) return undefined;
   if (value !== "local" && value !== "cloud") {
-    throw new Error(
-      `Model profile privacyClass at index ${index} must be local or cloud.`,
-    );
+    throw new Error(`Model profile privacyClass at index ${index} must be local or cloud.`);
   }
   return value;
 }
@@ -331,9 +316,7 @@ function parsePrivacyClass(
 function parseCostClass(value: unknown, index: number): ModelCostClass | undefined {
   if (value === undefined) return undefined;
   if (value !== "free" && value !== "paid") {
-    throw new Error(
-      `Model profile costClass at index ${index} must be free or paid.`,
-    );
+    throw new Error(`Model profile costClass at index ${index} must be free or paid.`);
   }
   return value;
 }

@@ -1,9 +1,5 @@
 import type { DomainEvent, Job, JobId, JobKind, JobStatus } from "@polyon/contracts";
-import type {
-  DomainUnitOfWork,
-  EventStore,
-  JobStore,
-} from "@polyon/storage";
+import type { DomainUnitOfWork, EventStore, JobStore } from "@polyon/storage";
 
 const MAX_ID_LENGTH = 200;
 const MAX_USER_ID_LENGTH = 200;
@@ -140,9 +136,7 @@ export class JobService {
     validateTimestamp(input.occurredAt, "occurredAt");
     const error = input.error.trim();
     if (error.length === 0 || error.length > MAX_ERROR_LENGTH) {
-      throw new RangeError(
-        `Job error must contain 1-${MAX_ERROR_LENGTH} characters.`,
-      );
+      throw new RangeError(`Job error must contain 1-${MAX_ERROR_LENGTH} characters.`);
     }
 
     if (input.retryAt !== undefined) {
@@ -155,8 +149,7 @@ export class JobService {
         throw invalidTransition(current, "failed");
       }
 
-      const shouldRetry =
-        input.retryAt !== undefined && current.attempt < current.maxAttempts;
+      const shouldRetry = input.retryAt !== undefined && current.attempt < current.maxAttempts;
       const next: Job = shouldRetry
         ? {
             ...current,
@@ -296,9 +289,7 @@ function validateJsonPayload(payload: unknown): void {
   }
 
   if (serialized.length > MAX_PAYLOAD_CHARACTERS) {
-    throw new RangeError(
-      `Job payload exceeds ${MAX_PAYLOAD_CHARACTERS} serialized characters.`,
-    );
+    throw new RangeError(`Job payload exceeds ${MAX_PAYLOAD_CHARACTERS} serialized characters.`);
   }
 }
 

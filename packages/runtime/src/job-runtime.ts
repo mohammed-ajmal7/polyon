@@ -136,10 +136,7 @@ export function createJobRuntime(dependencies: JobRuntimeDependencies): JobRunti
 
   const retryAt = (job: Job, now: string): string => {
     const exponent = Math.max(0, job.attempt - 1);
-    const delay = Math.min(
-      retryBackoffInitialMs * 2 ** Math.min(exponent, 10),
-      retryBackoffMaxMs,
-    );
+    const delay = Math.min(retryBackoffInitialMs * 2 ** Math.min(exponent, 10), retryBackoffMaxMs);
     return new Date(Date.parse(now) + delay).toISOString();
   };
 
@@ -196,7 +193,9 @@ export function createJobRuntime(dependencies: JobRuntimeDependencies): JobRunti
         const failed = dependencies.jobs.fail({
           id,
           error: lastError,
-          ...(retryAllowed ? { retryAt: retryAt(currentAfterFailure, dependencies.clock.now()) } : {}),
+          ...(retryAllowed
+            ? { retryAt: retryAt(currentAfterFailure, dependencies.clock.now()) }
+            : {}),
           occurredAt: dependencies.clock.now(),
         });
 

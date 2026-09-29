@@ -15,12 +15,7 @@ export type MessageKind =
   | "OTHER";
 
 export type AgentMessageType =
-  | "finding"
-  | "challenge"
-  | "response"
-  | "evidence"
-  | "question"
-  | "decision";
+  "finding" | "challenge" | "response" | "evidence" | "question" | "decision";
 
 export interface Message {
   readonly id: MessageId;

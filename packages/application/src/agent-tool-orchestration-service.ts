@@ -581,8 +581,7 @@ export class AgentToolOrchestrationService {
       const next = await this.dependencies.agentGateway.invokeText({
         agentId: continuation.agentId,
         requiredCapabilityIds: continuation.requiredCapabilityIds,
-        requiredModelCapabilityIds:
-          continuation.requiredModelCapabilityIds ?? ["ai.tool-calling"],
+        requiredModelCapabilityIds: continuation.requiredModelCapabilityIds ?? ["ai.tool-calling"],
         request: this.withToolDefinitions(continuation.nextRequest),
       });
 

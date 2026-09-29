@@ -89,9 +89,9 @@ describe("POLYON server configuration smoke", () => {
         createdAt: "2026-09-28T22:00:00.000Z",
       });
 
-      expect(
-        composition.stores.conversations.get(command.conversation.id)?.messageIds,
-      ).toEqual([command.message.id]);
+      expect(composition.stores.conversations.get(command.conversation.id)?.messageIds).toEqual([
+        command.message.id,
+      ]);
       expect(JSON.stringify(agents)).not.toContain(secret);
       expect(JSON.stringify(models)).not.toContain(secret);
       expect(JSON.stringify(providers)).not.toContain(secret);

@@ -9,9 +9,7 @@ export interface ParseStructuredFindingInput {
   readonly createdAt: string;
 }
 
-export function parseStructuredFinding(
-  input: ParseStructuredFindingInput,
-): Finding | undefined {
+export function parseStructuredFinding(input: ParseStructuredFindingInput): Finding | undefined {
   const object = extractObject(input.content);
   if (object === undefined) return undefined;
 
@@ -91,7 +89,12 @@ function stringList(value: unknown): readonly string[] | undefined {
 }
 
 function dispositionField(value: unknown): FindingDisposition | undefined {
-  if (value === "SUPPORTED" || value === "CONTRADICTED" || value === "UNRESOLVED" || value === "INFERRED") {
+  if (
+    value === "SUPPORTED" ||
+    value === "CONTRADICTED" ||
+    value === "UNRESOLVED" ||
+    value === "INFERRED"
+  ) {
     return value;
   }
   return undefined;

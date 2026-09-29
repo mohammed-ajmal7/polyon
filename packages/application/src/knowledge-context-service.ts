@@ -81,8 +81,11 @@ export class KnowledgeContextService {
               .filter((item) => input.missionId === undefined || item.missionId === input.missionId)
               .filter((item) => input.taskId === undefined || item.taskId === input.taskId);
             const quality = new Map(
-              rankEvidenceQuality(candidates, new Map(this.sources.list().map((source) => [source.id, source])), new Date().toISOString())
-                .map((assessment) => [assessment.evidenceId, assessment]),
+              rankEvidenceQuality(
+                candidates,
+                new Map(this.sources.list().map((source) => [source.id, source])),
+                new Date().toISOString(),
+              ).map((assessment) => [assessment.evidenceId, assessment]),
             );
 
             return candidates

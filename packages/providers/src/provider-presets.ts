@@ -33,8 +33,7 @@ const BUILT_IN_PROVIDER_PRESETS: Readonly<Record<BuiltInProviderId, BuiltInProvi
     providerId: "gemini",
     providerName: "Google Gemini",
     kind: "HOSTED_MODEL",
-    defaultEndpoint:
-      "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+    defaultEndpoint: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
     defaultApiKeyEnv: "GEMINI_API_KEY",
     privacyClass: "cloud",
     costClass: "paid",

@@ -531,9 +531,7 @@ describe("ModelGateway", () => {
 
   it("emits telemetry with run identity, latency, and token usage", async () => {
     const telemetry = {
-      record: vi.fn(
-        async (_record: ModelInvocationTelemetryRecord): Promise<void> => undefined,
-      ),
+      record: vi.fn(async (_record: ModelInvocationTelemetryRecord): Promise<void> => undefined),
     };
     const adapters = new InMemoryProviderAdapterRegistry();
     adapters.register({
@@ -582,9 +580,7 @@ describe("ModelGateway", () => {
   it("records a separate failed attempt before a retry", async () => {
     let calls = 0;
     const telemetry = {
-      record: vi.fn(
-        async (_record: ModelInvocationTelemetryRecord): Promise<void> => undefined,
-      ),
+      record: vi.fn(async (_record: ModelInvocationTelemetryRecord): Promise<void> => undefined),
     };
     const adapters = new InMemoryProviderAdapterRegistry();
     adapters.register({
@@ -635,4 +631,3 @@ describe("ModelGateway", () => {
     expect(gateway).toBeInstanceOf(ModelGateway);
   });
 });
-

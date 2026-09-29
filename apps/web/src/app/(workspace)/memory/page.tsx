@@ -18,12 +18,9 @@ export default function MemoryPage() {
   const [error, setError] = useState<string | null>(null);
 
   async function searchMemory(searchQuery: string) {
-    const response = await fetch(
-      "/api/memory?limit=50&q=" + encodeURIComponent(searchQuery),
-      {
-        cache: "no-store",
-      },
-    );
+    const response = await fetch("/api/memory?limit=50&q=" + encodeURIComponent(searchQuery), {
+      cache: "no-store",
+    });
     const body = (await response.json().catch(() => ({}))) as {
       memories?: Memory[];
       error?: string;

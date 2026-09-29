@@ -130,7 +130,9 @@ export class CollectiveOrchestrationService {
     const maxChallengeRounds = input.maxChallengeRounds ?? DEFAULT_MAX_CHALLENGE_ROUNDS;
 
     if (input.factCheckerAgentId !== undefined && this.dependencies.factCheck === undefined) {
-      throw new Error("Collective fact checking is enabled but no Fact Check service is configured.");
+      throw new Error(
+        "Collective fact checking is enabled but no Fact Check service is configured.",
+      );
     }
 
     if (this.dependencies.agentRuns !== undefined) {
@@ -148,9 +150,7 @@ export class CollectiveOrchestrationService {
       } else if (existingRun.status === "queued") {
         this.dependencies.agentRuns.start(collectiveId, now());
       } else if (existingRun.status !== "running") {
-        throw new Error(
-          `Collective run already reached terminal state: ${collectiveId}.`,
-        );
+        throw new Error(`Collective run already reached terminal state: ${collectiveId}.`);
       }
     }
 
@@ -324,9 +324,7 @@ export class CollectiveOrchestrationService {
           agentId: input.factCheckerAgentId,
           actorId: input.factCheckerAgentId,
           error:
-            error instanceof Error
-              ? `Fact check failed: ${error.message}`
-              : "Fact check failed.",
+            error instanceof Error ? `Fact check failed: ${error.message}` : "Fact check failed.",
         });
       }
     }

@@ -10,12 +10,7 @@ export type JobKind =
   | "notification"
   | "scheduled";
 
-export type JobStatus =
-  | "queued"
-  | "running"
-  | "completed"
-  | "failed"
-  | "cancelled";
+export type JobStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
 
 export interface Job {
   readonly id: JobId;

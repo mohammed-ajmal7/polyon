@@ -14,7 +14,8 @@ import type { AgentRegistry } from "./agent-registry";
 import type { ModelRegistry } from "./model-registry";
 import type { ProviderRegistry } from "./provider-registry";
 
-export type ProviderHealth = "healthy" | "degraded" | "quota_limited" | "unavailable" | "misconfigured";
+export type ProviderHealth =
+  "healthy" | "degraded" | "quota_limited" | "unavailable" | "misconfigured";
 
 export interface ModelRoutingRequest {
   readonly agentId: AgentId;
@@ -37,10 +38,7 @@ export interface RoutedAgentModel {
 }
 
 export type ModelRoutingErrorKind =
-  | "AGENT_NOT_FOUND"
-  | "AGENT_NOT_ACTIVE"
-  | "AGENT_MISSING_CAPABILITY"
-  | "NO_COMPATIBLE_MODEL";
+  "AGENT_NOT_FOUND" | "AGENT_NOT_ACTIVE" | "AGENT_MISSING_CAPABILITY" | "NO_COMPATIBLE_MODEL";
 
 export class ModelRoutingError extends Error {
   readonly kind: ModelRoutingErrorKind;

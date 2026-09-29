@@ -9,11 +9,7 @@ export interface FindingEvidenceRef {
   readonly relevance?: number;
 }
 
-export type FindingDisposition =
-  | "SUPPORTED"
-  | "CONTRADICTED"
-  | "UNRESOLVED"
-  | "INFERRED";
+export type FindingDisposition = "SUPPORTED" | "CONTRADICTED" | "UNRESOLVED" | "INFERRED";
 
 export interface Finding {
   readonly id: string;

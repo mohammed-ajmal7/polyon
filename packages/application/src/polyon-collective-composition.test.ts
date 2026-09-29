@@ -172,7 +172,6 @@ describe("POLYON collective composition", () => {
     }
   });
 
-
   it("forms a bounded team automatically when collective targets are omitted", async () => {
     const root = mkdtempSync(join(tmpdir(), "polyon-collective-planner-"));
 
@@ -219,9 +218,9 @@ describe("POLYON collective composition", () => {
         "skeptic",
       ]);
 
-      const started = composition.stores.events.list().find(
-        (event) => event.kind === "COLLECTIVE_STARTED",
-      );
+      const started = composition.stores.events
+        .list()
+        .find((event) => event.kind === "COLLECTIVE_STARTED");
       expect(started?.data.participantAgentIds).toEqual([
         "analyst",
         "researcher",

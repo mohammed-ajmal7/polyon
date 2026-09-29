@@ -82,11 +82,7 @@ export interface AcademicProvider {
 }
 
 export type ResearchFabricProvider =
-  | SearchProvider
-  | BrowserProvider
-  | CrawlerProvider
-  | PublicDataProvider
-  | AcademicProvider;
+  SearchProvider | BrowserProvider | CrawlerProvider | PublicDataProvider | AcademicProvider;
 
 export class ResearchFabric {
   private readonly searchProviders = new Map<string, SearchProvider>();
@@ -181,8 +177,6 @@ export class ResearchFabricError extends Error {
   }
 }
 
-
-
 function isSearchProvider(provider: ResearchFabricProvider): provider is SearchProvider {
   return provider.kind === "search";
 }
@@ -198,4 +192,3 @@ function isCrawlerProvider(provider: ResearchFabricProvider): provider is Crawle
 function isPublicDataProvider(provider: ResearchFabricProvider): provider is PublicDataProvider {
   return provider.kind === "public-data";
 }
-

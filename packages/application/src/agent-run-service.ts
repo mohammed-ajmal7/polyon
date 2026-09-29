@@ -72,7 +72,9 @@ export class AgentRunService {
       updatedAt: input.createdAt,
     };
 
-    const operation = (stores: Pick<AgentRunServiceDependencies, "agentRuns" | "events">): AgentRun => {
+    const operation = (
+      stores: Pick<AgentRunServiceDependencies, "agentRuns" | "events">,
+    ): AgentRun => {
       stores.agentRuns.save(run);
       stores.events.append({
         id: `AGENT_RUN_CREATED:${run.id}`,
@@ -202,9 +204,7 @@ export class AgentRunService {
   }
 
   private withStores<T>(
-    work: (
-      stores: Pick<AgentRunServiceDependencies, "agentRuns" | "messages" | "events">,
-    ) => T,
+    work: (stores: Pick<AgentRunServiceDependencies, "agentRuns" | "messages" | "events">) => T,
   ): T {
     if (this.dependencies.unitOfWork === undefined) {
       return work(this.dependencies);
@@ -220,9 +220,7 @@ function validateCreateInput(input: CreateAgentRunInput): void {
 
   const task = input.task.trim();
   if (task.length === 0 || task.length > MAX_TASK_CHARACTERS) {
-    throw new RangeError(
-      `Agent run task must contain 1-${MAX_TASK_CHARACTERS} characters.`,
-    );
+    throw new RangeError(`Agent run task must contain 1-${MAX_TASK_CHARACTERS} characters.`);
   }
 
   if (

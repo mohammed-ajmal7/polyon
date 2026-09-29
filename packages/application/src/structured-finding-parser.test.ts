@@ -31,11 +31,13 @@ describe("parseStructuredFinding", () => {
       createdAt: "2026-09-29T00:00:00.000Z",
     });
 
-    expect(finding).toEqual(expect.objectContaining({
-      claim: "Revenue increased after the launch.",
-      confidence: 0.81,
-      disposition: "SUPPORTED",
-    }));
+    expect(finding).toEqual(
+      expect.objectContaining({
+        claim: "Revenue increased after the launch.",
+        confidence: 0.81,
+        disposition: "SUPPORTED",
+      }),
+    );
     expect(finding?.evidence).toEqual([{ evidenceId: "evidence-1", sourceId: "source-1" }]);
   });
 

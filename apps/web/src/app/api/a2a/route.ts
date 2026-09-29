@@ -21,19 +21,14 @@ function wantsEventStream(request: Request): boolean {
   return (request.headers.get("accept") ?? "")
     .split(",")
     .map((value) => value.trim().toLowerCase())
-    .some(
-      (value) => value === "text/event-stream" || value.startsWith("text/event-stream;"),
-    );
+    .some((value) => value === "text/event-stream" || value.startsWith("text/event-stream;"));
 }
 
 function isStreamingMethod(method: string): boolean {
   return STREAMING_METHODS.has(method);
 }
 
-function sseResponse(
-  iterable: AsyncIterable<A2AJsonRpcResponse>,
-  signal: AbortSignal,
-): Response {
+function sseResponse(iterable: AsyncIterable<A2AJsonRpcResponse>, signal: AbortSignal): Response {
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream<Uint8Array>({
@@ -137,7 +132,9 @@ export async function POST(request: Request): Promise<Response> {
     tasks: polyon.stores.tasks,
     policy: getPolyonPolicy(),
     actorId: "a2a-client",
-    ...(polyon.a2aPushNotifications === undefined ? {} : { pushNotifications: polyon.a2aPushNotifications }),
+    ...(polyon.a2aPushNotifications === undefined
+      ? {}
+      : { pushNotifications: polyon.a2aPushNotifications }),
   });
 
   const version = request.headers.get("A2A-Version") ?? undefined;
