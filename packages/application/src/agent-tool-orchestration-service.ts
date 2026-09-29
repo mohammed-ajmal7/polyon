@@ -139,6 +139,9 @@ export class AgentToolOrchestrationService {
     const initial = await this.dependencies.agentGateway.invokeText({
       agentId: input.agentId,
       requiredCapabilityIds: input.requiredCapabilityIds,
+      ...(input.requiredModelCapabilityIds === undefined
+        ? {}
+        : { requiredModelCapabilityIds: input.requiredModelCapabilityIds }),
       request,
     });
 
@@ -891,6 +894,9 @@ export class AgentToolOrchestrationService {
         integrationContinuation: {
           agentId: input.agentId,
           requiredCapabilityIds: input.requiredCapabilityIds,
+          ...(input.requiredModelCapabilityIds === undefined
+            ? {}
+            : { requiredModelCapabilityIds: input.requiredModelCapabilityIds }),
           request: continuation.request,
           response: continuation.response,
           toolCall,
@@ -966,6 +972,9 @@ export class AgentToolOrchestrationService {
               toolContinuation: {
                 agentId: input.agentId,
                 requiredCapabilityIds: input.requiredCapabilityIds,
+                ...(input.requiredModelCapabilityIds === undefined
+                  ? {}
+                  : { requiredModelCapabilityIds: input.requiredModelCapabilityIds }),
                 request: continuation.request,
                 response: continuation.response,
                 toolCall,
