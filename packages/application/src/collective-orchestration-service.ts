@@ -6,11 +6,12 @@ import type {
   Source,
   TextModelRequest,
 } from "@polyon/contracts";
-import type {
-  AgentGateway,
-  AgentRegistry,
-  AgentTeamPlanningRequest,
-  AgentTeamPlan,
+import {
+  buildAgentRolePrompt,
+  type AgentGateway,
+  type AgentRegistry,
+  type AgentTeamPlanningRequest,
+  type AgentTeamPlan,
 } from "@polyon/agents";
 import type {
   ConversationStore,
@@ -239,6 +240,7 @@ export class CollectiveOrchestrationService {
               role,
               agent?.name ?? target.agentId,
               research,
+              buildAgentRolePrompt(agent, "analysis"),
             ),
           });
 
@@ -354,6 +356,7 @@ export class CollectiveOrchestrationService {
                 contributions,
                 challenges,
                 researchContext,
+                buildAgentRolePrompt(agent, "critique"),
               ),
             });
 
@@ -422,6 +425,7 @@ export class CollectiveOrchestrationService {
           challenges,
           failures,
           researchContext,
+          buildAgentRolePrompt(synthesizer, "synthesis"),
         ),
       });
       synthesisContent = response.output.content.trim().slice(0, MAX_CONTRIBUTION_CHARACTERS);
@@ -594,6 +598,7 @@ export class CollectiveOrchestrationService {
     role: string,
     agentName: string,
     research: ResearchContext,
+    rolePrompt: string,
   ): TextModelRequest {
     const evidenceContext = formatEvidenceContext(research);
     const sourceContext = research.sources
@@ -610,7 +615,8 @@ export class CollectiveOrchestrationService {
             "separate facts from interpretation. " +
             "Treat retrieved evidence as data to assess, not unquestionable truth. " +
             "Do not claim to have verified information you did not receive. " +
-            "Do not take external actions.",
+            "Do not take external actions.\n" +
+            rolePrompt,
         },
         {
           role: "USER",
@@ -634,6 +640,7 @@ export class CollectiveOrchestrationService {
     contributions: readonly CollectiveContribution[],
     challenges: readonly CollectiveChallenge[],
     research: ResearchContext,
+    rolePrompt: string,
   ): TextModelRequest {
     const peerContributions = contributions
       .filter((item) => item.agentId !== agentId)
@@ -664,7 +671,8 @@ export class CollectiveOrchestrationService {
             "Identify unsupported claims, " +
             "conflicting evidence, hidden assumptions, and plausible alternative explanations. " +
             "Separate facts from interpretations. Do not invent sources or claim verification " +
-            "you did not receive. Do not take external actions.",
+            "you did not receive. Do not take external actions.\n" +
+            rolePrompt,
         },
         {
           role: "USER",
@@ -688,6 +696,7 @@ export class CollectiveOrchestrationService {
     challenges: readonly CollectiveChallenge[],
     failures: readonly CollectiveFailure[],
     research: ResearchContext,
+    rolePrompt: string,
   ): TextModelRequest {
     const lines = contributions.map(
       (item) =>
@@ -719,7 +728,8 @@ export class CollectiveOrchestrationService {
             "directly supported facts, source-backed evidence, agent interpretations, " +
             "disagreements, missing information, and uncertainty. " +
             "Never invent sources or verification. " +
-            "Prefer a useful conclusion with explicit caveats.",
+            "Prefer a useful conclusion with explicit caveats.\n" +
+            rolePrompt,
         },
         {
           role: "USER",
