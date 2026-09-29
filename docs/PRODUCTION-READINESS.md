@@ -13,7 +13,7 @@ Current capabilities:
 - authenticated web APIs and live AI HQ;
 - baseline MCP 2026-07-28 and A2A 1.0 HTTP interoperability;
 - automatic semantic indexing with explicit scope allowlisting and durable restart-safe recovery behavior;
-- an exact normalized local semantic vector index behind a replaceable index boundary;
+- an exact normalized local semantic vector index behind a replaceable boundary, with model/dimension candidate bucketing for lower traversal cost;
 - Docker/Compose deployment with CI verification.
 
 ## Safety defaults
