@@ -18,6 +18,7 @@ import type { ProviderRegistry } from "./provider-registry";
 
 export interface AgentTeamPlanningRequest {
   readonly requiredCapabilityIds: readonly CapabilityId[];
+  readonly requiredModelCapabilityIds?: readonly CapabilityId[];
   readonly preferredRoles?: readonly string[];
   readonly maximumAgents?: number;
   readonly minimumAgents?: number;
@@ -110,6 +111,9 @@ export function planAgentTeam(
       const routingRequest: ModelRoutingRequest = {
         agentId: agent.id,
         requiredCapabilityIds: request.requiredCapabilityIds,
+        ...(request.requiredModelCapabilityIds === undefined
+          ? {}
+          : { requiredModelCapabilityIds: request.requiredModelCapabilityIds }),
         ...(request.privacyClass === undefined
           ? {}
           : { privacyClass: request.privacyClass }),
