@@ -56,6 +56,7 @@ import {
   CreativeJobService,
   type CreativeAdapter,
   InMemoryMcpSubscriptionBus,
+  McpSubscriptionEventPublisher,
   type ResearchRetriever,
   type ResearchFabricProvider,
   ResearchFabric,
@@ -268,6 +269,7 @@ export interface PolyonComposition {
   readonly jobService: JobService;
   readonly jobRuntime: JobRuntime;
   readonly mcpSubscriptionBus: InMemoryMcpSubscriptionBus;
+  readonly mcpSubscriptionPublisher: McpSubscriptionEventPublisher;
 }
 
 class SystemClock implements ExecutionWorkerClock {
@@ -284,6 +286,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     unitOfWork: stores,
   });
   const mcpSubscriptionBus = new InMemoryMcpSubscriptionBus();
+  const mcpSubscriptionPublisher = new McpSubscriptionEventPublisher(mcpSubscriptionBus);
   const agents = new InMemoryAgentRegistry();
   const models = new InMemoryModelRegistry();
   const providers = new InMemoryProviderRegistry();
@@ -998,5 +1001,6 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     jobService,
     jobRuntime,
     mcpSubscriptionBus,
+    mcpSubscriptionPublisher,
   };
 }
