@@ -72,9 +72,9 @@ describe("evidence quality scoring", () => {
       id: "evidence-low",
       sourceId: "user-source",
     };
-    const lowerSource = {
+    const lowerSource: Source = {
       id: "user-source",
-      kind: "USER_PROVIDED" as const,
+      kind: "USER_PROVIDED",
       title: "User note",
       locator: "memory://note",
       retrievedAt: now,
