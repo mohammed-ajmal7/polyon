@@ -76,3 +76,13 @@ export {
 } from "./debate/index";
 export { canTransitionDebate } from "./debate/index";
 export { DebateValidationError, validateDebateDefinition } from "./debate/index";
+
+
+export {
+  baselineSourceAuthority,
+  buildEvidenceQuality,
+  scoreEvidenceQuality,
+  type EvidenceQuality,
+  type EvidenceQualityContext,
+  type EvidenceQualitySignals,
+} from "./evidence-quality";
