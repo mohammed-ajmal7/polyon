@@ -61,20 +61,34 @@ export class MissionWorkflowService {
       now: input.planningAt,
       causedByEventId: created.event.id,
     });
-    const plan = await this.planning.plan({
-      missionId: created.mission.id,
-      planningAgentId: input.planningAgentId,
-      requiredCapabilityIds: input.requiredCapabilityIds,
-      proposalId: input.proposalId,
-      decisionId: input.decisionId,
-      approvalRequestId: input.approvalRequestId,
-      actorId: input.actorId,
-      policy: input.policy,
-      riskLevel: input.riskLevel,
-      createdAt: input.createdAt,
-      requestedAt: input.createdAt,
-      evaluatedAt: input.planningAt,
-    });
+    let plan: Awaited<ReturnType<MissionPlanOrchestrationService["plan"]>>;
+    try {
+      plan = await this.planning.plan({
+        missionId: created.mission.id,
+        planningAgentId: input.planningAgentId,
+        requiredCapabilityIds: input.requiredCapabilityIds,
+        proposalId: input.proposalId,
+        decisionId: input.decisionId,
+        approvalRequestId: input.approvalRequestId,
+        actorId: input.actorId,
+        policy: input.policy,
+        riskLevel: input.riskLevel,
+        createdAt: input.createdAt,
+        requestedAt: input.createdAt,
+        evaluatedAt: input.planningAt,
+      });
+    } catch (error) {
+      // Planning failed before a plan existed. Leaving the mission in PLANNING would strand it,
+      // so hand it back to the human as WAITING, from which it can be planned again.
+      this.lifecycle.transition({
+        missionId: created.mission.id,
+        to: "WAITING",
+        actorId: input.actorId,
+        eventId: "MISSION_STATUS_CHANGED:" + input.missionId + ":WAITING:planning-failed",
+        now: input.planningAt,
+      });
+      throw error;
+    }
     if (plan.submission.status === "APPROVAL_REQUIRED")
       return { status: "PLAN_APPROVAL_REQUIRED", mission: plan.mission, plan };
     if (plan.submission.status === "DENIED")

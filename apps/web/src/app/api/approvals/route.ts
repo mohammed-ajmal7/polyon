@@ -107,7 +107,17 @@ export async function POST(request: Request): Promise<Response> {
         });
       }
 
-      return Response.json(result);
+      // A rejected, expired or cancelled plan leaves no work to run; return the mission to
+      // WAITING so it is not stranded in PLANNING and can be planned again.
+      const waiting = polyon.missionLifecycle.transition({
+        missionId: result.mission.id,
+        to: "WAITING",
+        actorId: resolvedBy,
+        eventId: "MISSION_STATUS_CHANGED:" + result.mission.id + ":WAITING:" + resolvedAt,
+        now: resolvedAt,
+        causedByEventId: result.events[result.events.length - 1]?.id,
+      });
+      return Response.json({ ...result, mission: waiting.mission });
     }
 
     if (approval.action === "EXECUTION_RUN") {
