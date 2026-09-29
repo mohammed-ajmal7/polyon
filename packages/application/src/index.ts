@@ -329,6 +329,7 @@ export {
   A2APushNotificationService,
   InMemoryA2APushNotificationStore,
   createA2AWebhookSender,
+  createDurableA2APushNotificationStore,
   type A2ATaskPushNotificationConfig,
   type A2APushNotificationAuthentication,
   type A2APushNotificationSender,
