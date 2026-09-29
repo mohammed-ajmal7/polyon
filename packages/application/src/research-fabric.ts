@@ -1,7 +1,9 @@
+import type { SourceKind } from "@polyon/contracts";
+
 export interface SearchResult {
   readonly title: string;
   readonly locator: string;
-  readonly kind?: "WEB" | "DOCUMENT" | "DATABASE" | "API" | "OTHER";
+  readonly kind?: SourceKind;
 }
 
 export interface SearchProvider {
