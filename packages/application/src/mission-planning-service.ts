@@ -1,6 +1,6 @@
 import type { AgentId, DomainEvent, Mission, Task, TaskKind } from "@polyon/contracts";
 import { validateTaskGraph } from "@polyon/core";
-import type { AgentGateway } from "@polyon/agents";
+import { buildAgentRolePrompt, type AgentGateway } from "@polyon/agents";
 import type {
   DomainStoreTransactionContext,
   DomainUnitOfWork,
@@ -58,7 +58,8 @@ export class MissionPlanningService {
               "You are POLYON's planning agent. Return ONLY valid JSON with this shape: " +
               '{"rationale":"string","tasks":[{"id":"string","kind":"RESEARCH|ANALYSIS|CODING|CREATIVE|VALIDATION|OTHER","title":"string","description":"string","dependsOn":["task-id"]}]}. ' +
               "Create a finite task graph for the mission. Never invent capabilities, tools, credentials, or external actions. " +
-              "Keep dependencies acyclic and use only task IDs declared in the same response.",
+              "Keep dependencies acyclic and use only task IDs declared in the same response.\n" +
+              buildAgentRolePrompt(undefined, "planning"),
           },
           {
             role: "USER",
