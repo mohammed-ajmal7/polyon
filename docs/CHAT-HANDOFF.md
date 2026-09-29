@@ -41,7 +41,7 @@
 - Email SEND_EMAIL through provider-neutral SMTP with TLS/STARTTLS, AUTH LOGIN, MIME and protocol bounds;
 - all consequential integration/tool execution remains behind policy/approval/audit;
 - MCP HTTP handling supports initialization notifications without a JSON-RPC response and bounded `tools/list` pagination with opaque cursors;
-- A2A HTTP handling supports agent card, SendMessage, GetTask, ListTasks, and CancelTask with actor-scoped task visibility;
+- A2A HTTP handling supports the v1.0 agent card, SendMessage, streaming message delivery, bounded task subscriptions, GetTask, ListTasks, CancelTask, and opt-in push notification configuration/delivery with actor-scoped task visibility;
 - AI HQ workspace routes cover Missions, Executions, Approvals, Agents, Memory, Research, Evidence, Artifacts, Activity, and Settings.
 
 ### Memory, research, evidence
