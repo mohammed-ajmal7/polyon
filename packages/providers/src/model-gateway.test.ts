@@ -619,3 +619,5 @@ describe("ModelGateway", () => {
 
   it("exposes immutable registry state through gateway dependencies", () => {
     const gateway = createGateway();
+  });
+});
