@@ -19,6 +19,7 @@ export type ProviderHealth = "healthy" | "degraded" | "quota_limited" | "unavail
 export interface ModelRoutingRequest {
   readonly agentId: AgentId;
   readonly requiredCapabilityIds: readonly CapabilityId[];
+  readonly requiredModelCapabilityIds?: readonly CapabilityId[];
   readonly privacyClass?: ModelPrivacyClass;
   readonly allowPaidModels?: boolean;
   readonly minimumContextWindow?: number;
@@ -119,7 +120,11 @@ function passesCapabilities(
   requiredCapabilityIds: readonly CapabilityId[],
   request: ModelRoutingRequest,
 ): boolean {
-  if (!hasCapabilities(model.capabilityIds, requiredCapabilityIds)) {
+  if (request.requiredModelCapabilityIds !== undefined) {
+    if (!hasCapabilities(model.capabilityIds, request.requiredModelCapabilityIds)) {
+      return false;
+    }
+  } else if (!hasCapabilities(model.capabilityIds, requiredCapabilityIds)) {
     return false;
   }
 
