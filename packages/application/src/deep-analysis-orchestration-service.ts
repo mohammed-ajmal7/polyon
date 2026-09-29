@@ -87,7 +87,7 @@ export class DeepAnalysisOrchestrationService {
       kind: "DEEP_ANALYSIS_STARTED",
       actorId: input.actorId,
       conversationId: input.command.conversation.id,
-      agentRunId: collective.runId,
+      agentRunId,
       occurredAt: now(),
       data: {
         deepAnalysisId,
@@ -118,6 +118,7 @@ export class DeepAnalysisOrchestrationService {
         deepAnalysisId,
         now(),
         "Collective analysis did not produce a synthesis.",
+        agentRunId,
       );
       return {
         status: "FAILED",
@@ -165,6 +166,7 @@ export class DeepAnalysisOrchestrationService {
           deepAnalysisId,
           now(),
           error instanceof Error ? error.message : "Deep-analysis debate failed.",
+          agentRunId,
         );
         return undefined;
       });
@@ -183,6 +185,7 @@ export class DeepAnalysisOrchestrationService {
       synthesizerAgentId,
       debate,
       now,
+      agentRunId,
     );
 
     this.persistEvent({
@@ -216,6 +219,7 @@ export class DeepAnalysisOrchestrationService {
     adjudicatorAgentId: AgentId,
     debate: DebateRunResult,
     now: () => string,
+    agentRunId: string,
   ): Message {
     const decisionMessageId = "deep-analysis:" + deepAnalysisId + ":decision";
     const operation = (stores: {
@@ -269,7 +273,7 @@ export class DeepAnalysisOrchestrationService {
         role: "AGENT",
         kind: "TEXT",
         content: debate.decision,
-        runId: collective.runId,
+        runId: agentRunId,
         fromAgentId: adjudicatorAgentId,
         agentMessageType: "decision",
         payload: {
@@ -321,7 +325,7 @@ export class DeepAnalysisOrchestrationService {
       kind: "ERROR",
       actorId: input.actorId,
       conversationId: input.command.conversation.id,
-      agentRunId: input.command.conversation.id + ":" + input.command.message.id,
+      agentRunId,
       occurredAt,
       data: {
         deepAnalysisId,
