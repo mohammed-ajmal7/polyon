@@ -108,7 +108,8 @@ Before enabling consequential execution:
 - verify integration credentials through their opaque secret references;
 - verify approval resolution and execution recovery;
 - verify trace APIs do not disclose secrets;
-- run the CI quality gate against the exact deployed commit.
+- run `bash scripts/verify-release.sh` against the exact deployed commit;
+- complete the operational release checklist against the actual deployment.
 
 ### Semantic indexing privacy
 
