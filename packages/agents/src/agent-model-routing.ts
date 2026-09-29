@@ -44,9 +44,8 @@ export function resolveAgentModel(
   const request: ModelRoutingRequest = {
     agentId: input.agentId,
     requiredCapabilityIds: input.requiredCapabilityIds,
-    ...(input.requiredModelCapabilityIds === undefined
-      ? {}
-      : { requiredModelCapabilityIds: input.requiredModelCapabilityIds }),
+    requiredModelCapabilityIds:
+      input.requiredModelCapabilityIds ?? input.requiredCapabilityIds,
   };
 
   try {
