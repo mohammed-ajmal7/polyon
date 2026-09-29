@@ -340,6 +340,33 @@ describe("FileDomainStores", () => {
     }
   });
 
+  it("persists A2A push notification configurations across restart", () => {
+    const directory = mkdtempSync(join(tmpdir(), "polyon-a2a-push-"));
+
+    try {
+      const first = new FileDomainStores(directory);
+      first.a2aPushNotificationConfigs.save({
+        id: "a2a-push:durable-1",
+        ownerId: "actor-1",
+        taskId: "task-1",
+        url: "https://client.example.test/a2a/push",
+        token: "token-1",
+      });
+
+      const reopened = new FileDomainStores(directory);
+
+      expect(reopened.a2aPushNotificationConfigs.get("a2a-push:durable-1")).toEqual({
+        id: "a2a-push:durable-1",
+        ownerId: "actor-1",
+        taskId: "task-1",
+        url: "https://client.example.test/a2a/push",
+        token: "token-1",
+      });
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("keeps domain stores on the existing replaceable interfaces", () => {
     const directory = mkdtempSync(join(tmpdir(), "polyon-domain-"));
 
