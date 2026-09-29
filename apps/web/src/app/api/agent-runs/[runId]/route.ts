@@ -1,3 +1,5 @@
+import { TraceQueryService } from "@polyon/application";
+
 import { isAuthenticated } from "@/server/auth";
 import { getPolyonActorId, getPolyonComposition } from "@/server/polyon-server";
 
@@ -18,10 +20,22 @@ export async function GET(
     return Response.json({ error: "Invalid agent run id." }, { status: 400 });
   }
 
-  const run = getPolyonComposition().agentRuns.get(id);
+  const polyon = getPolyonComposition();
+  const run = polyon.agentRuns.get(id);
   if (run === undefined || run.userId !== getPolyonActorId()) {
     return Response.json({ error: "Agent run not found." }, { status: 404 });
   }
 
-  return Response.json({ run });
+  const messages = run.messageIds
+    .map((messageId) => polyon.stores.messages.get(messageId))
+    .filter((message): message is NonNullable<typeof message> => message !== undefined);
+  const evidence = run.evidenceIds
+    .map((evidenceId) => polyon.stores.evidence.get(evidenceId))
+    .filter((item): item is NonNullable<typeof item> => item !== undefined);
+  const events = new TraceQueryService(polyon.stores.events).list({
+    agentRunId: run.id,
+    limit: 500,
+  });
+
+  return Response.json({ run, messages, evidence, events });
 }
