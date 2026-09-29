@@ -91,4 +91,113 @@ describe("DebateOrchestrationService", () => {
     expect(second.contributions).toHaveLength(8);
     expect(invokeText).toHaveBeenCalledTimes(callsAfterFirst);
   });
+
+  it("replays persisted contributions in round and debate phase order on resume", async () => {
+    const stores = new InMemoryDomainStores();
+    let failRebuttal = true;
+    const prompts: string[] = [];
+    const invokeText = vi.fn(async ({ agentId, request }: InvokeInput) => {
+      const prompt = request.messages.find((message) => message.role === "USER")?.content ?? "";
+      prompts.push(prompt);
+      if (failRebuttal && prompt.includes("Phase: REBUTTAL")) {
+        failRebuttal = false;
+        throw new Error("simulated interruption");
+      }
+      return reply(agentId, `${agentId} says`);
+    });
+    const service = new DebateOrchestrationService(
+      { invokeText } as never,
+      stores.debates,
+      stores.events,
+      stores,
+    );
+    service.create({
+      id: "debate-order",
+      objective: "Test ordering.",
+      participantAgentIds: ["agent-a", "agent-b"],
+      maxParticipants: 2,
+      maxRounds: 1,
+      createdAt: "2026-09-28T00:00:00.000Z",
+    });
+    const run = () =>
+      service.run({
+        debateId: "debate-order",
+        requiredCapabilityIds: [],
+        adjudicatorAgentId: "agent-a",
+        now: () => "2026-09-28T00:00:01.000Z",
+      });
+
+    await expect(run()).rejects.toThrow("simulated interruption");
+    const result = await run();
+
+    expect(result.contributions.map((item) => item.phase)).toEqual([
+      "PROPOSAL",
+      "PROPOSAL",
+      "CRITICISM",
+      "CRITICISM",
+      "EVIDENCE",
+      "EVIDENCE",
+      "REBUTTAL",
+      "REBUTTAL",
+    ]);
+    const resumedPrompt = prompts.at(-3) ?? "";
+    expect(resumedPrompt).toContain("Phase: REBUTTAL");
+    expect(resumedPrompt.indexOf("/PROPOSAL/")).toBeLessThan(resumedPrompt.indexOf("/CRITICISM/"));
+    expect(resumedPrompt.indexOf("/CRITICISM/")).toBeLessThan(resumedPrompt.indexOf("/EVIDENCE/"));
+  });
+
+  it("keeps oversized and most recent contributions within the prompt budget", async () => {
+    const stores = new InMemoryDomainStores();
+    const prompts: { agentId: string; prompt: string }[] = [];
+    const invokeText = vi.fn(async ({ agentId, request }: InvokeInput) => {
+      const prompt = request.messages.find((message) => message.role === "USER")?.content ?? "";
+      prompts.push({ agentId, prompt });
+      return reply(agentId, "x".repeat(prompts.length === 1 ? 50_000 : 20_000));
+    });
+    const service = new DebateOrchestrationService(
+      { invokeText } as never,
+      stores.debates,
+      stores.events,
+      stores,
+    );
+    service.create({
+      id: "debate-budget",
+      objective: "Test budgets.",
+      participantAgentIds: ["agent-a", "agent-b"],
+      maxParticipants: 2,
+      maxRounds: 1,
+      createdAt: "2026-09-28T00:00:00.000Z",
+    });
+
+    await service.run({
+      debateId: "debate-budget",
+      requiredCapabilityIds: [],
+      adjudicatorAgentId: "agent-a",
+      now: () => "2026-09-28T00:00:01.000Z",
+    });
+
+    const secondProposal = prompts[1]!.prompt;
+    expect(secondProposal).toContain("[1/PROPOSAL/agent-a]");
+    expect(secondProposal).toContain("[... truncated");
+
+    const adjudication = prompts.at(-1)!.prompt;
+    expect(adjudication).toContain("[1/REBUTTAL/agent-a]");
+    expect(adjudication).toContain("[1/REBUTTAL/agent-b]");
+    expect(adjudication).toMatch(/earlier entries omitted/u);
+  });
 });
+
+interface InvokeInput {
+  readonly agentId: string;
+  readonly request: { readonly messages: readonly { role: string; content: string }[] };
+}
+
+function reply(agentId: string, content: string) {
+  return {
+    agentId,
+    modelId: "model-1",
+    providerId: "provider-1",
+    source: "preferred" as const,
+    output: { content },
+  };
+}

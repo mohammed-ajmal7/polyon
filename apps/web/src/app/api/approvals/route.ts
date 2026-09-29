@@ -5,6 +5,8 @@ import {
   getPolyonPolicy,
   isSameOrigin,
 } from "@/server/polyon-server";
+import { buildApprovalPreview, explainApprovalReason } from "@/server/approval-preview";
+import { readBoundedText } from "@/server/bounded-body";
 
 export const runtime = "nodejs";
 const MAX_REQUEST_BYTES = 16_384;
@@ -19,13 +21,14 @@ export async function GET(): Promise<Response> {
       id: item.id,
       action: item.action,
       riskLevel: item.riskLevel,
-      reason: item.reason,
+      reason: explainApprovalReason(item.reason),
       requestedAt: item.requestedAt,
       missionId: item.missionId,
       taskId: item.taskId,
       executionId: item.executionId,
       toolId: item.toolId,
       integrationId: item.integrationId,
+      preview: buildApprovalPreview(item),
     }));
   return Response.json({ approvals });
 }
@@ -37,8 +40,8 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "Cross-origin POST requests are not allowed." }, { status: 403 });
   }
   try {
-    const raw = await request.text();
-    if (new TextEncoder().encode(raw).byteLength > MAX_REQUEST_BYTES) {
+    const raw = await readBoundedText(request, MAX_REQUEST_BYTES);
+    if (raw === undefined) {
       return Response.json(
         { error: "Approval request exceeds the 16384-byte limit." },
         { status: 413 },
@@ -104,7 +107,17 @@ export async function POST(request: Request): Promise<Response> {
         });
       }
 
-      return Response.json(result);
+      // A rejected, expired or cancelled plan leaves no work to run; return the mission to
+      // WAITING so it is not stranded in PLANNING and can be planned again.
+      const waiting = polyon.missionLifecycle.transition({
+        missionId: result.mission.id,
+        to: "WAITING",
+        actorId: resolvedBy,
+        eventId: "MISSION_STATUS_CHANGED:" + result.mission.id + ":WAITING:" + resolvedAt,
+        now: resolvedAt,
+        causedByEventId: result.events[result.events.length - 1]?.id,
+      });
+      return Response.json({ ...result, mission: waiting.mission });
     }
 
     if (approval.action === "EXECUTION_RUN") {

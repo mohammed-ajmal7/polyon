@@ -15,6 +15,11 @@ export interface OpenAICompatibleTextModelAdapterOptions {
   readonly endpoint: string;
   readonly apiKey?: string;
   readonly fetch?: OpenAICompatibleFetch;
+  /**
+   * Optional `reasoning_effort` for reasoning models (for example "none", "low", "medium",
+   * "high"). Omitted from requests when undefined.
+   */
+  readonly reasoningEffort?: string;
 }
 
 export interface OpenAICompatibleFetchInit {
@@ -39,6 +44,8 @@ interface OpenAIChatResponse {
   readonly choices?: readonly {
     readonly message?: {
       readonly content?: unknown;
+      readonly reasoning?: unknown;
+      readonly reasoning_content?: unknown;
       readonly tool_calls?: readonly {
         readonly id?: unknown;
         readonly function?: {
@@ -61,6 +68,7 @@ export class OpenAICompatibleTextModelAdapter implements TextModelProviderAdapte
 
   private readonly endpoint: string;
   private readonly apiKey?: string;
+  private readonly reasoningEffort?: string;
   private readonly fetchImpl: OpenAICompatibleFetch;
 
   constructor(options: OpenAICompatibleTextModelAdapterOptions) {
@@ -71,6 +79,7 @@ export class OpenAICompatibleTextModelAdapter implements TextModelProviderAdapte
     this.providerId = options.providerId;
     this.endpoint = options.endpoint;
     this.apiKey = options.apiKey;
+    this.reasoningEffort = options.reasoningEffort;
     this.fetchImpl =
       options.fetch ??
       ((input, init) =>
@@ -89,8 +98,24 @@ export class OpenAICompatibleTextModelAdapter implements TextModelProviderAdapte
     readonly input: TextModelRequest;
     readonly signal?: AbortSignal;
   }): Promise<ProviderInvocationResult<TextModelResponse>> {
-    const response = await this.request(modelId, input, signal);
-    const payload = await response.json();
+    let response: OpenAICompatibleResponse;
+    try {
+      response = await this.request(modelId, input, signal);
+    } catch (error) {
+      if (signal?.aborted === true || (error instanceof Error && error.name === "AbortError")) {
+        throw error;
+      }
+      // Network-level failures (connection refused, DNS, header timeouts) surface from fetch as
+      // an opaque "fetch failed"; keep the underlying cause and classify them as retryable.
+      throw new ProviderInvocationError(
+        "UNAVAILABLE",
+        this.providerId,
+        modelId,
+        `Provider request failed: ${describeFetchFailure(error)}.`,
+        true,
+      );
+    }
+    const payload: unknown = await response.json().catch(() => undefined);
 
     if (!response.ok) {
       throw this.mapHttpError(response.status, modelId, payload);
@@ -114,12 +139,16 @@ export class OpenAICompatibleTextModelAdapter implements TextModelProviderAdapte
       headers.authorization = `Bearer ${this.apiKey}`;
     }
 
+    // Replayed assistant tool calls must use the same provider-safe function names as the
+    // tools list; strict providers reject names that are not declared.
+    const toolNamesById = new Map((input.tools ?? []).map((tool) => [tool.toolId, tool.name]));
+
     return this.fetchImpl(this.endpoint, {
       method: "POST",
       headers,
       body: JSON.stringify({
         model: modelId,
-        messages: input.messages.map(toOpenAIMessage),
+        messages: input.messages.map((message) => toOpenAIMessage(message, toolNamesById)),
         ...(input.tools === undefined
           ? {}
           : {
@@ -134,6 +163,7 @@ export class OpenAICompatibleTextModelAdapter implements TextModelProviderAdapte
             }),
         ...(input.temperature === undefined ? {} : { temperature: input.temperature }),
         ...(input.maxOutputTokens === undefined ? {} : { max_tokens: input.maxOutputTokens }),
+        ...(this.reasoningEffort === undefined ? {} : { reasoning_effort: this.reasoningEffort }),
       }),
       signal,
     });
@@ -159,6 +189,25 @@ export class OpenAICompatibleTextModelAdapter implements TextModelProviderAdapte
     const content = choice?.message?.content;
     const toolNames = new Map((request.tools ?? []).map((tool) => [tool.name, tool.toolId]));
     const toolCalls = parseToolCalls(choice?.message?.tool_calls, toolNames);
+
+    const reasoning = choice?.message?.reasoning ?? choice?.message?.reasoning_content;
+    if (
+      (content === undefined || content === null || content === "") &&
+      toolCalls === undefined &&
+      typeof reasoning === "string" &&
+      reasoning.trim() !== ""
+    ) {
+      throw new ProviderInvocationError(
+        "INVALID_REQUEST",
+        this.providerId,
+        modelId,
+        choice?.finish_reason === "length"
+          ? "The model spent its whole output budget on reasoning and returned no answer. " +
+              "Increase the model context/output limit or lower the reasoning effort."
+          : "The model returned reasoning but no answer.",
+        false,
+      );
+    }
 
     if (typeof content !== "string" && toolCalls === undefined) {
       throw new ProviderInvocationError(
@@ -316,7 +365,10 @@ function parseToolCalls(
   return calls.length === 0 ? undefined : calls;
 }
 
-function toOpenAIMessage(message: TextModelRequest["messages"][number]): Record<string, unknown> {
+function toOpenAIMessage(
+  message: TextModelRequest["messages"][number],
+  toolNamesById: ReadonlyMap<string, string>,
+): Record<string, unknown> {
   if (message.role === "ASSISTANT" && message.toolCalls !== undefined) {
     return {
       role: "assistant",
@@ -325,7 +377,7 @@ function toOpenAIMessage(message: TextModelRequest["messages"][number]): Record<
         id: call.id,
         type: "function",
         function: {
-          name: call.toolId,
+          name: toolNamesById.get(call.toolId) ?? call.toolId,
           arguments: JSON.stringify(call.input),
         },
       })),
@@ -345,4 +397,16 @@ function toOpenAIMessage(message: TextModelRequest["messages"][number]): Record<
     content: message.content,
     ...(message.name === undefined ? {} : { name: message.name }),
   };
+}
+
+function describeFetchFailure(error: unknown): string {
+  if (!(error instanceof Error)) return "unknown network error";
+  const cause = (error as Error & { cause?: unknown }).cause;
+  if (cause instanceof Error) {
+    const code = (cause as Error & { code?: unknown }).code;
+    return typeof code === "string"
+      ? `${error.message} (${code})`
+      : `${error.message} (${cause.message})`;
+  }
+  return error.message;
 }

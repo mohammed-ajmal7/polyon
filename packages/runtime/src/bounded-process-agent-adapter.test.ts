@@ -1,9 +1,9 @@
 /// <reference types="node" />
 
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { BoundedProcessAgentAdapter } from "./bounded-process-agent-adapter";
 
@@ -75,5 +75,55 @@ describe("BoundedProcessAgentAdapter", () => {
         input: "",
       }),
     ).rejects.toThrow("exceeds the 32-byte limit");
+  });
+
+  it("rejects a working directory that escapes the root through a symlink", async () => {
+    const root = mkdtempSync(join(tmpdir(), "polyon-agent-"));
+    const outside = mkdtempSync(join(tmpdir(), "polyon-agent-outside-"));
+    roots.push(root, outside);
+    symlinkSync(outside, join(root, "escape"), "dir");
+    const adapter = new BoundedProcessAgentAdapter({
+      rootDir: root,
+      allowedExecutables: [process.execPath],
+    });
+
+    await expect(
+      adapter.invoke({
+        executable: process.execPath,
+        args: ["-e", "process.stdout.write(process.cwd())"],
+        input: "",
+        cwd: "escape",
+      }),
+    ).rejects.toThrow("outside the configured root");
+  });
+
+  it("clears the process timeout when output bounds end the run", async () => {
+    const root = mkdtempSync(join(tmpdir(), "polyon-agent-"));
+    roots.push(root);
+    const adapter = new BoundedProcessAgentAdapter({
+      rootDir: root,
+      allowedExecutables: [process.execPath],
+      defaultMaxOutputBytes: 32,
+    });
+    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+    const clearTimeoutSpy = vi.spyOn(globalThis, "clearTimeout");
+
+    try {
+      await expect(
+        adapter.invoke({
+          executable: process.execPath,
+          args: ["-e", "process.stdout.write('x'.repeat(100))"],
+          input: "",
+          timeoutMs: 45_678,
+        }),
+      ).rejects.toThrow("exceeds the 32-byte limit");
+
+      const index = setTimeoutSpy.mock.calls.findIndex(([, delay]) => delay === 45_678);
+      expect(index).toBeGreaterThanOrEqual(0);
+      expect(clearTimeoutSpy).toHaveBeenCalledWith(setTimeoutSpy.mock.results[index]?.value);
+    } finally {
+      setTimeoutSpy.mockRestore();
+      clearTimeoutSpy.mockRestore();
+    }
   });
 });

@@ -36,8 +36,15 @@ export default function AgentsPage() {
                   <div className="text-sm font-medium text-white">{agent.name}</div>
                   <div className="mt-1 text-xs text-slate-500">{agent.role}</div>
                 </div>
-                <span className="rounded-full bg-emerald-300/10 px-2.5 py-1 text-[10px] text-emerald-200">
-                  {agent.status}
+                <span
+                  className={
+                    "rounded-full px-2.5 py-1 text-xs " +
+                    (agent.status === "ACTIVE"
+                      ? "bg-emerald-300/10 text-emerald-200"
+                      : "bg-slate-300/10 text-slate-300")
+                  }
+                >
+                  {agent.status === "ACTIVE" ? "Active" : agent.status.toLowerCase()}
                 </span>
               </div>
               <dl className="mt-5 space-y-3 text-xs">

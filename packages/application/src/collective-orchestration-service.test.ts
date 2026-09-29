@@ -396,4 +396,64 @@ describe("CollectiveOrchestrationService", () => {
       }),
     ).rejects.toThrow("Collective execution requires 2-8 agents.");
   });
+
+  it("keeps every large peer contribution and challenge within the prompt budgets", async () => {
+    const stores = new InMemoryDomainStores();
+    stores.conversations.save(command().conversation);
+    stores.messages.save(command().message);
+
+    const agentIds = ["a1", "a2", "a3", "a4", "a5", "a6"];
+    const agents = new InMemoryAgentRegistry();
+    for (const id of agentIds) agents.register(agent(id, "Specialist " + id));
+
+    const challengePrompts: string[] = [];
+    let synthesisPrompt = "";
+    const invokeText = vi.fn(async (input: { agentId: string; request: TextModelRequest }) => {
+      const prompt = input.request.messages.find((message) => message.role === "USER")?.content;
+      const system = input.request.messages.find((message) => message.role === "SYSTEM")?.content;
+      if (prompt?.includes("Return the strongest challenges")) challengePrompts.push(prompt);
+      if (system?.startsWith("You are POLYON's synthesis lead")) synthesisPrompt = prompt ?? "";
+
+      return {
+        modelId: input.agentId + "-model",
+        providerId: "test-provider",
+        output: { content: input.agentId + " " + "y".repeat(12_000) },
+      };
+    });
+
+    const service = new CollectiveOrchestrationService({
+      agents,
+      agentGateway: { invokeText } as never,
+      conversations: stores.conversations,
+      messages: stores.messages,
+      events: stores.events,
+      unitOfWork: stores,
+    });
+
+    const result = await service.execute({
+      command: command(),
+      targets: agentIds.map((id) => ({ agentId: id, actorId: id })),
+      actorId: "user-1",
+      requiredCapabilityIds: [],
+      synthesizerAgentId: "a6",
+      maxChallengeRounds: 1,
+      now: () => now,
+    });
+
+    expect(result.status).toBe("SUCCEEDED");
+    expect(challengePrompts).toHaveLength(6);
+    for (const prompt of challengePrompts) {
+      expect(prompt).not.toContain("There are no peer contributions yet");
+      expect(prompt).toContain("Peer contributions:");
+    }
+    const contributorIds = agentIds.filter((id) => id !== "a6");
+    const synthesizerReview = challengePrompts.find((prompt) => prompt.includes("Reviewer: a6"));
+    for (const id of contributorIds) {
+      expect(synthesizerReview).toContain(`[agent=${id} role=`);
+      expect(synthesisPrompt).toContain(`[agent=${id} role=`);
+    }
+    for (const id of agentIds) {
+      expect(synthesisPrompt).toContain(`[challenge agent=${id} round=1`);
+    }
+  });
 });

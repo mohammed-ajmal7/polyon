@@ -196,6 +196,13 @@ function appendApprovalResolvedEvent(
   });
 }
 
+/**
+ * Artifact ids are content-addressed by the adapter (location, content, kind,
+ * MIME type) and the id is what models and the catalog use to read them, so
+ * an identical write from another mission, task, or execution is the same
+ * artifact. Only the descriptive metadata must match; the stored record keeps
+ * the lineage of the execution that first produced it.
+ */
 function areArtifactMetadataEqual(actual: Artifact, expected: Artifact): boolean {
   return (
     JSON.stringify({
@@ -205,9 +212,6 @@ function areArtifactMetadataEqual(actual: Artifact, expected: Artifact): boolean
       mimeType: actual.mimeType,
       location: actual.location,
       status: actual.status,
-      missionId: actual.missionId,
-      taskId: actual.taskId,
-      executionId: actual.executionId,
     }) ===
     JSON.stringify({
       id: expected.id,
@@ -216,9 +220,6 @@ function areArtifactMetadataEqual(actual: Artifact, expected: Artifact): boolean
       mimeType: expected.mimeType,
       location: expected.location,
       status: expected.status,
-      missionId: expected.missionId,
-      taskId: expected.taskId,
-      executionId: expected.executionId,
     })
   );
 }
@@ -304,25 +305,35 @@ export interface ToolInvocationServiceDependencies {
   readonly unitOfWork?: DomainUnitOfWork;
 }
 
+/**
+ * Appends an approved call's result to its checkpoint. While a call awaits
+ * approval, `nextRequest` already holds the assistant turn plus the results
+ * of calls completed earlier in that turn, so those results are preserved.
+ */
 function appendToolResult(
-  request: import("@polyon/contracts").TextModelRequest,
-  response: import("@polyon/contracts").TextModelResponse,
-  toolCall: import("@polyon/contracts").ModelToolCall,
+  continuation: NonNullable<ApprovalRequest["toolContinuation"]>,
   output: unknown,
 ): import("@polyon/contracts").TextModelRequest {
-  return {
-    ...request,
+  const base = continuation.nextRequest ?? {
+    ...continuation.request,
     messages: [
-      ...request.messages,
+      ...continuation.request.messages,
       {
-        role: "ASSISTANT",
-        content: response.content,
-        toolCalls: response.toolCalls,
+        role: "ASSISTANT" as const,
+        content: continuation.response.content,
+        toolCalls: continuation.response.toolCalls,
       },
+    ],
+  };
+
+  return {
+    ...base,
+    messages: [
+      ...base.messages,
       {
         role: "TOOL",
-        name: toolCall.toolId,
-        toolCallId: toolCall.id,
+        name: continuation.toolCall.toolId,
+        toolCallId: continuation.toolCall.id,
         content: stringifyToolOutput(output),
       },
     ],
@@ -676,12 +687,7 @@ export class ToolInvocationService {
               ...continuation,
               state: "AWAITING_MODEL",
               toolOutput: result.output,
-              nextRequest: appendToolResult(
-                continuation.request,
-                continuation.response,
-                continuation.toolCall,
-                result.output,
-              ),
+              nextRequest: appendToolResult(continuation, result.output),
             },
           });
         } else if (continuationCheckpoint !== undefined) {

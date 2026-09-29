@@ -6,6 +6,7 @@ import type {
   OpenAICompatibleTextModelAdapterOptions,
 } from "./openai-compatible-text-model-adapter";
 import type { TextModelProviderAdapter } from "./provider-adapter";
+import { ConcurrencyLimitedProviderAdapter } from "./concurrency-limited-provider-adapter";
 
 export type BuiltInProviderId = "ollama" | "gemini" | "openai" | "groq" | "openrouter";
 
@@ -72,6 +73,9 @@ export interface TextModelProviderFactoryOptions {
   readonly endpoint?: string;
   readonly apiKey?: string;
   readonly fetch?: OpenAICompatibleFetch;
+  readonly reasoningEffort?: string;
+  /** Maximum simultaneous requests to this provider; unbounded when undefined. */
+  readonly maxConcurrency?: number;
 }
 
 export function getBuiltInProviderPreset(
@@ -119,9 +123,13 @@ export function createTextModelProviderAdapter(
     endpoint,
     ...(options.apiKey === undefined ? {} : { apiKey: options.apiKey }),
     ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
+    ...(options.reasoningEffort === undefined ? {} : { reasoningEffort: options.reasoningEffort }),
   };
 
-  return new OpenAICompatibleTextModelAdapter(adapterOptions);
+  const adapter = new OpenAICompatibleTextModelAdapter(adapterOptions);
+  return options.maxConcurrency === undefined
+    ? adapter
+    : new ConcurrencyLimitedProviderAdapter(adapter, options.maxConcurrency);
 }
 
 function isBuiltInProviderId(providerId: ProviderId): providerId is BuiltInProviderId {

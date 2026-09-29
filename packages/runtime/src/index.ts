@@ -8,6 +8,7 @@ export {
 export {
   ExecutionCoordinatorError,
   InMemoryExecutionCoordinator,
+  type ExecutionCompletionTime,
   type ExecutionCoordinator,
   type ExecutionCoordinatorDependencies,
   type ExecutionCoordinatorErrorKind,

@@ -357,4 +357,64 @@ describe("ResearchOrchestrationService", () => {
       }),
     ).rejects.toThrow("2-8 agents");
   });
+
+  it("keeps every large finding and the evidence in the synthesis context", async () => {
+    const stores = new InMemoryDomainStores();
+    const agents = new InMemoryAgentRegistry();
+    const researcherIds = ["r1", "r2", "r3", "r4", "r5", "r6"];
+    for (const id of researcherIds) agents.register(agent(id, "Research specialist " + id));
+    agents.register(agent("synthesizer", "Research synthesis lead"));
+
+    const research = new ResearchService(
+      {
+        search: vi.fn(async () => [
+          {
+            title: "Shared source",
+            locator: "https://example.com/shared",
+            kind: "WEB" as const,
+            content: "Bounded evidence excerpt.",
+            claim: "The source supports a candidate explanation.",
+            retrievedAt: now,
+          },
+        ]),
+      },
+      stores.sources,
+      stores.evidence,
+      stores.events,
+      stores,
+    );
+    const invokeText = vi.fn(
+      async ({ agentId }: { agentId: string; request: TextModelRequest }) => ({
+        agentId,
+        modelId: agentId + "-model",
+        providerId: "provider-" + agentId,
+        source: "preferred" as const,
+        output: { content: agentId === "synthesizer" ? "Findings" : "f".repeat(12_000) },
+      }),
+    );
+
+    const service = new ResearchOrchestrationService({
+      agents,
+      agentGateway: { invokeText } as never,
+      research,
+      conversations: stores.conversations,
+      messages: stores.messages,
+      events: stores.events,
+      unitOfWork: stores,
+    });
+    stores.conversations.save(command().conversation);
+
+    await service.execute({
+      command: command(),
+      targets: [...researcherIds, "synthesizer"].map((id) => ({ agentId: id, actorId: id })),
+      actorId: "user-1",
+      requiredCapabilityIds: [],
+      sourceLimit: 1,
+      now: () => now,
+    });
+
+    const synthesisPrompt = invokeText.mock.calls.at(-1)?.[0].request.messages[1]?.content ?? "";
+    expect(synthesisPrompt).toContain("Bounded evidence excerpt.");
+    for (const id of researcherIds) expect(synthesisPrompt).toContain(`[agent=${id} role=`);
+  });
 });

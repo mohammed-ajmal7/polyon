@@ -1,7 +1,7 @@
 import type { Job, JobId, JobKind } from "@polyon/contracts";
 
 import { JobQueue } from "./job-queue";
-import { JobService } from "./job-service";
+import { JobService, MAX_JOB_ERROR_LENGTH } from "./job-service";
 
 export interface JobHandlerContext {
   readonly job: Job;
@@ -185,7 +185,7 @@ export function createJobRuntime(dependencies: JobRuntimeDependencies): JobRunti
       await dependencies.onJobCompleted?.(completed);
       return completed;
     } catch (error) {
-      lastError = error instanceof Error ? error.message : String(error);
+      lastError = normalizeJobError(error);
 
       const currentAfterFailure = dependencies.jobs.get(id);
       if (currentAfterFailure !== undefined && currentAfterFailure.status === "running") {
@@ -221,7 +221,9 @@ export function createJobRuntime(dependencies: JobRuntimeDependencies): JobRunti
         activeJobCount < maxConcurrency &&
         queue.size() > 0
       ) {
-        void runOne();
+        void runOne().catch((error: unknown) => {
+          dependencies.onError?.(error);
+        });
       }
 
       await waitForLoop(pollIntervalMs);
@@ -320,6 +322,12 @@ export function createJobRuntime(dependencies: JobRuntimeDependencies): JobRunti
       return cancelled;
     },
   };
+}
+
+function normalizeJobError(error: unknown): string {
+  const message = (error instanceof Error ? error.message : String(error)).trim();
+  if (message.length === 0) return "Job handler failed.";
+  return message.slice(0, MAX_JOB_ERROR_LENGTH);
 }
 
 function validatePositiveNumber(value: number, field: string): void {

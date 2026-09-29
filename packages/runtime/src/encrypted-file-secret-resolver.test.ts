@@ -72,6 +72,25 @@ describe("EncryptedFileSecretResolver", () => {
     await expect(resolver.resolve(mismatch)).rejects.toThrow("does not match");
   });
 
+  it("rejects reference ids that the store could not load after a restart", () => {
+    const directory = mkdtempSync(join(tmpdir(), "polyon-secret-test-"));
+    directories.push(directory);
+    const filePath = join(directory, "secrets.json");
+    const masterKey = randomBytes(32);
+    const resolver = new EncryptedFileSecretResolver({ filePath, masterKey });
+
+    resolver.set(reference, "secret");
+    expect(() => resolver.set({ ...reference, id: "email/primary" }, "secret")).toThrow(
+      "Secret reference id must be",
+    );
+    expect(() => resolver.set({ ...reference, id: "x".repeat(201) }, "secret")).toThrow(
+      "Secret reference id must be",
+    );
+
+    const reopened = new EncryptedFileSecretResolver({ filePath, masterKey });
+    expect(reopened.has(reference)).toBe(true);
+  });
+
   it("rejects invalid master keys", () => {
     expect(
       () =>

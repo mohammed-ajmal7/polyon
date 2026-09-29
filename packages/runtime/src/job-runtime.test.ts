@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { InMemoryDomainStores } from "@polyon/storage";
 
@@ -140,6 +140,73 @@ describe("createJobRuntime", () => {
 
     expect(jobs.get("job-1")?.status).toBe("failed");
     expect(jobs.get("job-1")?.error).toContain("No handler");
+    runtime.stop();
+  });
+
+  it("records a fallback error when a handler throws an empty message", async () => {
+    const errors: unknown[] = [];
+    const { jobs, runtime } = createRuntime(undefined, {
+      handlers: {
+        research: async () => {
+          throw new Error("");
+        },
+      },
+      onError: (error) => errors.push(error),
+    });
+    createQueuedJob(jobs);
+    runtime.start();
+
+    for (let index = 0; index < 5 && errors.length === 0; index += 1) {
+      await Promise.resolve();
+    }
+
+    expect(jobs.get("job-1")?.status).toBe("queued");
+    expect(jobs.get("job-1")?.error).toBe("Job handler failed.");
+    expect(errors).toHaveLength(1);
+    runtime.stop();
+  });
+
+  it("truncates oversized handler errors to the job store limit", async () => {
+    const errors: unknown[] = [];
+    const { jobs, runtime } = createRuntime(undefined, {
+      handlers: {
+        research: async () => {
+          throw new Error("x".repeat(9_000));
+        },
+      },
+      onError: (error) => errors.push(error),
+    });
+    createQueuedJob(jobs, "job-1", baseTime, 1);
+    runtime.start();
+
+    for (let index = 0; index < 5 && errors.length === 0; index += 1) {
+      await Promise.resolve();
+    }
+
+    expect(jobs.get("job-1")?.status).toBe("failed");
+    expect(jobs.get("job-1")?.error).toHaveLength(8_000);
+    expect(errors).toHaveLength(1);
+    runtime.stop();
+  });
+
+  it("reports background run failures through onError instead of rejecting", async () => {
+    const errors: unknown[] = [];
+    const { jobs, runtime } = createRuntime(undefined, {
+      handlers: { research: async () => ({ ok: true }) },
+      onError: (error) => errors.push(error),
+    });
+    createQueuedJob(jobs);
+    vi.spyOn(jobs, "start").mockImplementationOnce(() => {
+      throw new Error("job store unavailable");
+    });
+
+    runtime.start();
+
+    for (let index = 0; index < 5 && errors.length === 0; index += 1) {
+      await Promise.resolve();
+    }
+
+    expect(errors).toEqual([new Error("job store unavailable")]);
     runtime.stop();
   });
 

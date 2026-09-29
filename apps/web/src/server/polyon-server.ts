@@ -143,6 +143,10 @@ function buildConfiguredModelRegistrations() {
     providerName: process.env.POLYON_PROVIDER_NAME?.trim() || "Configured model provider",
     endpoint,
     apiKeyEnv: "POLYON_MODEL_API_KEY",
+    ...(process.env.POLYON_MODEL_SUPPORTS_TOOLS === undefined ||
+    process.env.POLYON_MODEL_SUPPORTS_TOOLS.trim() === ""
+      ? {}
+      : { supportsTools: readBoolean(process.env.POLYON_MODEL_SUPPORTS_TOOLS.trim(), false) }),
   };
 
   if ((process.env.POLYON_COLLECTIVE_PRESET?.trim() || "default").toLowerCase() !== "default") {
@@ -219,6 +223,7 @@ function buildConfiguredModelRegistrations() {
     roles.map((role) => ({
       ...profile,
       agentId: baseAgentId + "-" + role.id,
+      agentRoleId: role.roleId,
       agentName: role.name,
       agentRole: role.role,
       agentDescription: role.description,
@@ -471,14 +476,44 @@ export function isSameOrigin(request: Request): boolean {
   }
 }
 
+/**
+ * Protocol endpoints accept both bearer-token clients and the browser session cookie.
+ * A cookie-authenticated request must be same-origin JSON, otherwise another local page
+ * could ride the session cookie (SameSite does not separate localhost ports).
+ */
+export function isUntrustedBrowserProtocolRequest(request: Request): boolean {
+  if (request.headers.get("authorization")?.startsWith("Bearer ") === true) return false;
+  const contentType = request.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase();
+  return !isSameOrigin(request) || contentType !== "application/json";
+}
+
 export function getPolyonBaseUrl(request?: Request): string {
   const configured = process.env.POLYON_PUBLIC_BASE_URL?.trim();
   if (configured !== undefined && configured !== "") return configured.replace(/\/$/u, "");
   if (request !== undefined) {
+    // Behind Docker or a proxy, request.url carries the bind address (for example 0.0.0.0),
+    // which clients cannot reach; the Host / X-Forwarded-* headers carry the public origin.
     const url = new URL(request.url);
+    const host =
+      firstHeaderValue(request.headers.get("x-forwarded-host")) ??
+      firstHeaderValue(request.headers.get("host")) ??
+      url.host;
+    const protocol =
+      firstHeaderValue(request.headers.get("x-forwarded-proto")) ?? url.protocol.replace(/:$/u, "");
+    if (
+      /^[a-z0-9.-]+(?::\d+)?$|^\[[0-9a-f:]+\](?::\d+)?$/iu.test(host) &&
+      /^https?$/u.test(protocol)
+    ) {
+      return `${protocol}://${host}`;
+    }
     return url.origin;
   }
   return "http://localhost:3000";
+}
+
+function firstHeaderValue(value: string | null): string | undefined {
+  const first = value?.split(",")[0]?.trim();
+  return first === undefined || first === "" ? undefined : first;
 }
 
 function buildUsageGovernor(): UsageGovernor {

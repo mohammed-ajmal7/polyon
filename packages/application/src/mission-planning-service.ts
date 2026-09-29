@@ -8,6 +8,8 @@ import type {
   TaskStore,
 } from "@polyon/storage";
 
+import { extractJsonObject } from "./structured-finding-parser";
+
 const MAX_TASKS = 20;
 const MAX_TITLE = 300;
 const MAX_DESCRIPTION = 10_000;
@@ -227,16 +229,10 @@ function parseGeneratedPlan(content: string): {
   readonly rationale: string;
   readonly tasks: readonly GeneratedTaskSpec[];
 } {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(content);
-  } catch {
-    throw new MissionPlanningValidationError([
-      { kind: "DUPLICATE_TASK_ID", taskId: "INVALID_JSON" },
-    ]);
-  }
-  if (!isRecord(parsed)) {
-    throw new Error("Planning model must return a JSON object.");
+  // Tolerates ```json fences and surrounding prose like the other model-output parsers.
+  const parsed = extractJsonObject(content);
+  if (parsed === undefined) {
+    throw new Error("Planning model must return a valid JSON object.");
   }
 
   const rationale = readBoundedString(parsed.rationale, MAX_RATIONALE, "rationale");

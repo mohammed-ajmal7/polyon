@@ -4,7 +4,11 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { getPolyonComposition } from "./polyon-server";
+import {
+  getPolyonBaseUrl,
+  getPolyonComposition,
+  isUntrustedBrowserProtocolRequest,
+} from "./polyon-server";
 
 const originalEnvironment = { ...process.env };
 
@@ -30,6 +34,27 @@ afterEach(() => {
 });
 
 describe("POLYON server configuration smoke", () => {
+  it("marks the single configured model as tool-capable when requested", () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "polyon-server-single-model-"));
+
+    try {
+      process.env.POLYON_DATA_DIR = dataDir;
+      process.env.POLYON_RUNTIME_AUTOSTART = "false";
+      process.env.POLYON_SEMANTIC_INDEXING_AUTOSTART = "false";
+      delete process.env.POLYON_MODEL_PROFILES_JSON;
+      process.env.POLYON_MODEL_ENDPOINT = "http://127.0.0.1:11434/v1/chat/completions";
+      process.env.POLYON_MODEL_ID = "local-model";
+      process.env.POLYON_MODEL_SUPPORTS_TOOLS = "true";
+
+      const model = getPolyonComposition().models.get("local-model");
+
+      expect(model?.supportsTools).toBe(true);
+      expect(model?.capabilityIds).toContain("ai.tool-calling");
+    } finally {
+      rmSync(dataDir, { recursive: true, force: true });
+    }
+  });
+
   it("boots the real composition from a representative model-fleet configuration", () => {
     const dataDir = mkdtempSync(join(tmpdir(), "polyon-server-config-smoke-"));
     const secret = "smoke-secret-that-must-not-enter-domain-data";
@@ -98,5 +123,50 @@ describe("POLYON server configuration smoke", () => {
     } finally {
       rmSync(dataDir, { recursive: true, force: true });
     }
+  });
+
+  it("only lets bearer clients or same-origin JSON browsers call protocol endpoints", () => {
+    const request = (headers: Record<string, string>) =>
+      new Request("http://localhost:3000/api/mcp", {
+        method: "POST",
+        headers: { host: "localhost:3000", ...headers },
+      });
+
+    expect(isUntrustedBrowserProtocolRequest(request({ authorization: "Bearer token" }))).toBe(
+      false,
+    );
+    expect(
+      isUntrustedBrowserProtocolRequest(
+        request({ origin: "http://localhost:3000", "content-type": "application/json" }),
+      ),
+    ).toBe(false);
+    expect(
+      isUntrustedBrowserProtocolRequest(
+        request({ origin: "http://localhost:5173", "content-type": "application/json" }),
+      ),
+    ).toBe(true);
+    expect(
+      isUntrustedBrowserProtocolRequest(
+        request({ origin: "http://localhost:3000", "content-type": "text/plain" }),
+      ),
+    ).toBe(true);
+  });
+
+  it("advertises the public origin instead of the container bind address", () => {
+    delete process.env.POLYON_PUBLIC_BASE_URL;
+    const request = (headers: Record<string, string>) =>
+      new Request("http://0.0.0.0:3000/.well-known/agent-card.json", { headers });
+
+    expect(getPolyonBaseUrl(request({ host: "localhost:3000" }))).toBe("http://localhost:3000");
+    expect(
+      getPolyonBaseUrl(
+        request({
+          host: "0.0.0.0:3000",
+          "x-forwarded-host": "polyon.example",
+          "x-forwarded-proto": "https",
+        }),
+      ),
+    ).toBe("https://polyon.example");
+    expect(getPolyonBaseUrl(request({ host: "bad host/../x" }))).toBe("http://0.0.0.0:3000");
   });
 });

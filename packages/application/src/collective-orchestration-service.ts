@@ -20,6 +20,7 @@ import type {
   MessageStore,
 } from "@polyon/storage";
 import type { CommandIngressResult } from "./command-ingress";
+import { fitBlocksToBudget } from "./context-budget";
 import type { ResearchService } from "./research-service";
 import type { AgentRunService } from "./agent-run-service";
 import type { FactCheckResult, FactCheckService } from "./fact-check-service";
@@ -686,20 +687,16 @@ export class CollectiveOrchestrationService {
   ): TextModelRequest {
     const peerContributions = contributions
       .filter((item) => item.agentId !== agentId)
-      .map((item) => `[agent=${item.agentId} role=${item.role}]\n${item.content}`)
-      .join("\n\n");
+      .map((item) => `[agent=${item.agentId} role=${item.role}]\n${item.content}`);
 
     const priorChallenges = challenges
       .filter((item) => item.round < round && item.agentId !== agentId)
-      .map((item) => `[challenge agent=${item.agentId} round=${item.round}]\n${item.content}`)
-      .join("\n\n");
+      .map((item) => `[challenge agent=${item.agentId} round=${item.round}]\n${item.content}`);
 
-    let context = "";
-    for (const block of [peerContributions, priorChallenges]) {
-      if (block === "") continue;
-      if (context.length + block.length + 2 > MAX_CHALLENGE_CONTEXT_CHARACTERS) break;
-      context += (context === "" ? "" : "\n\n") + block;
-    }
+    const context = fitBlocksToBudget(
+      [...peerContributions, ...priorChallenges],
+      MAX_CHALLENGE_CONTEXT_CHARACTERS,
+    );
 
     const evidenceContext = formatEvidenceContext(research);
 
@@ -762,16 +759,15 @@ ${result.rationale}`,
       )
       .join("\n\n");
 
-    let context = "";
-    for (const line of [
-      ...lines,
-      ...challengeLines,
-      ...(factCheckContext === "" ? [] : [`Fact-check results:\n${factCheckContext}`]),
-      ...failureLines,
-    ]) {
-      if (context.length + line.length + 2 > MAX_SYNTHESIS_CONTEXT_CHARACTERS) break;
-      context += (context === "" ? "" : "\n\n") + line;
-    }
+    const context = fitBlocksToBudget(
+      [
+        ...lines,
+        ...challengeLines,
+        ...(factCheckContext === "" ? [] : [`Fact-check results:\n${factCheckContext}`]),
+        ...failureLines,
+      ],
+      MAX_SYNTHESIS_CONTEXT_CHARACTERS,
+    );
 
     return {
       messages: [

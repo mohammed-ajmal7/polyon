@@ -30,7 +30,29 @@ Set:
 
 Optionally set `POLYON_MODEL_API_KEY`.
 
+Also set, as needed:
+
+- `POLYON_MODEL_SUPPORTS_TOOLS=true` when the model supports tool calling. Quick answers
+  (Direct and Broadcast) run through governed tool orchestration and need a tool-calling model;
+  without it they fail with "No compatible enabled model".
+- `POLYON_MODEL_MAX_CONCURRENCY` to cap simultaneous requests to each provider. Local runtimes
+  serve few requests at once; set it to Ollama's `OLLAMA_NUM_PARALLEL` (often `1`). Otherwise a
+  team request floods Ollama and queued calls fail with `fetch failed (UND_ERR_HEADERS_TIMEOUT)`.
+- `POLYON_MODEL_REASONING_EFFORT` (`none`, `low`, `medium`, `high`) for reasoning models. Small
+  local reasoning models can spend their whole context on reasoning and return no answer; `none`
+  makes them answer directly.
+
 Provider-specific authentication remains outside the client and outside core domain code.
+
+### Ollama
+
+Ollama's default context window is 4096 tokens. POLYON team prompts (tool definitions, peer
+contributions, evidence) often exceed that, and Ollama truncates silently. Start Ollama with a
+larger window, for example `OLLAMA_CONTEXT_LENGTH=16384 ollama serve`, if your hardware allows.
+Inside Docker, reach a host Ollama at `http://host.docker.internal:11434/v1/chat/completions`.
+
+A local model makes one call per agent step, so Team and Deep requests take minutes. Auto mode
+(the default on the home screen) answers simple requests with one agent.
 
 ## Email
 
@@ -73,9 +95,19 @@ Only configured operations are enabled. Provider requests remain bounded and pro
 
 ## Private web/API access
 
-Set `POLYON_API_TOKEN` to require authentication.
+Set `POLYON_API_TOKEN` to require authentication. Signed-out browsers are sent to `/login`.
 
 The browser receives only an HTTP-only session cookie. The raw server token is never returned by the web API.
+
+In a production build the session cookie is `Secure`. Browsers keep it on `https://` and on
+`http://localhost`, but not on plain HTTP from another machine (for example
+`http://192.168.1.10:3000`); use HTTPS for remote access. The login page reports this case.
+
+Protocol clients (MCP, A2A) should authenticate with `Authorization: Bearer <token>`. Requests
+that rely on the browser cookie must be same-origin JSON.
+
+Set `POLYON_PUBLIC_BASE_URL` when POLYON runs behind a proxy so the A2A agent card and MCP
+discovery advertise the public URL.
 
 ## Self-hosted Docker
 

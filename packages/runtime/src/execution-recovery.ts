@@ -1,6 +1,11 @@
 import type { ApprovalRequest, ExecutionId } from "@polyon/contracts";
 
-import { pauseExecution, recoverRunningExecution, transitionTaskStatus } from "@polyon/core";
+import {
+  completeExecution,
+  pauseExecution,
+  recoverRunningExecution,
+  transitionTaskStatus,
+} from "@polyon/core";
 import type { ApprovalRequestStore, ExecutionStore, TaskStore } from "@polyon/storage";
 
 import type { ExecutionQueue } from "./execution-queue";
@@ -66,6 +71,19 @@ function hasPendingIntegrationContinuation(
   return findIntegrationContinuation(approvals, executionId, "PENDING") !== undefined;
 }
 
+function hasApprovalContinuation(
+  approvals: ApprovalRequestStore,
+  executionId: ExecutionId,
+): boolean {
+  return approvals
+    .list()
+    .some(
+      (approval) =>
+        approval.executionId === executionId &&
+        (approval.toolContinuation !== undefined || approval.integrationContinuation !== undefined),
+    );
+}
+
 export function recoverQueuedExecutions(
   executions: ExecutionStore,
   queue: ExecutionQueue,
@@ -90,7 +108,8 @@ export type ExecutionRecoveryKind =
   | "PENDING_TOOL_APPROVAL_RESTART"
   | "INTERRUPTED_INTEGRATION_CONTINUATION"
   | "PENDING_INTEGRATION_APPROVAL_RESTART"
-  | "NON_IDEMPOTENT_INTEGRATION_RECONCILIATION";
+  | "NON_IDEMPOTENT_INTEGRATION_RECONCILIATION"
+  | "INTERRUPTED_EXECUTION_FAILED";
 
 export interface ExecutionRecovery {
   readonly executionId: ExecutionId;
@@ -116,6 +135,31 @@ export function recoverExecutions(
       recovered.push({
         executionId: execution.id,
         kind: "QUEUED_EXECUTION",
+      });
+      continue;
+    }
+
+    // A plain run interrupted by a restart cannot be resumed, so fail it instead of
+    // leaving the execution and its task RUNNING forever.
+    if (
+      execution.status === "RUNNING" &&
+      (approvals === undefined || !hasApprovalContinuation(approvals, execution.id))
+    ) {
+      const failedExecution = completeExecution(execution, {
+        status: "FAILED",
+        completedAt: recoveredAt,
+        error: "Execution was interrupted by a restart before it finished.",
+      });
+      executions.save(failedExecution);
+
+      const task = tasks?.get(execution.taskId);
+      if (tasks !== undefined && task !== undefined && task.status === "RUNNING") {
+        tasks.save(transitionTaskStatus(task, "FAILED", recoveredAt));
+      }
+
+      recovered.push({
+        executionId: failedExecution.id,
+        kind: "INTERRUPTED_EXECUTION_FAILED",
       });
       continue;
     }

@@ -1,6 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
+
+import { agentLabel } from "@/lib/run-result";
 
 interface Approval {
   readonly id: string;
@@ -9,116 +12,204 @@ interface Approval {
   readonly reason: string;
   readonly requestedAt: string;
   readonly missionId?: string;
-  readonly taskId?: string;
-  readonly executionId?: string;
-  readonly toolId?: string;
-  readonly integrationId?: string;
+  readonly preview?: {
+    readonly title: string;
+    readonly detail?: string;
+    readonly input?: string;
+    readonly requestedFor?: string;
+    readonly agentId?: string;
+  };
 }
+
+type LoadState = "loading" | "ready" | "signed-out" | "error";
+
+const RISK_STYLES: Record<string, string> = {
+  LOW: "bg-emerald-300/10 text-emerald-200 ring-emerald-300/25",
+  MEDIUM: "bg-amber-300/10 text-amber-200 ring-amber-300/25",
+  HIGH: "bg-rose-300/10 text-rose-200 ring-rose-300/30",
+};
 
 export default function ApprovalsPage() {
   const [approvals, setApprovals] = useState<readonly Approval[]>([]);
+  const [state, setState] = useState<LoadState>("loading");
   const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   async function refresh() {
     const response = await fetch("/api/approvals", { cache: "no-store" });
+    if (response.status === 401) {
+      setState("signed-out");
+      return;
+    }
     const body = (await response.json().catch(() => ({}))) as {
       approvals?: Approval[];
       error?: string;
     };
     if (!response.ok) throw new Error(body.error ?? "Unable to load approvals.");
     setApprovals(body.approvals ?? []);
+    setState("ready");
   }
 
   useEffect(() => {
-    void refresh().catch((cause) =>
-      setError(cause instanceof Error ? cause.message : "Unable to load approvals."),
-    );
+    const load = () =>
+      void refresh().catch((cause: unknown) => {
+        setState((current) => (current === "loading" ? "error" : current));
+        setError(cause instanceof Error ? cause.message : "Unable to load approvals.");
+      });
+    load();
+    const interval = window.setInterval(load, 5_000);
+    return () => window.clearInterval(interval);
   }, []);
 
-  async function resolve(approvalId: string, status: "APPROVED" | "REJECTED") {
+  async function resolve(approval: Approval, status: "APPROVED" | "REJECTED") {
+    if (busyId !== null) return;
+    if (
+      status === "APPROVED" &&
+      approval.riskLevel === "HIGH" &&
+      !window.confirm(
+        `Approve this high-risk action?\n\n${approval.preview?.title ?? approval.action}`,
+      )
+    ) {
+      return;
+    }
+    setBusyId(approval.id);
     setError(null);
-    const response = await fetch("/api/approvals", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ approvalId, status }),
-    });
-    const body = (await response.json().catch(() => ({}))) as { error?: string };
-    if (!response.ok) throw new Error(body.error ?? "Approval resolution failed.");
-    await refresh();
+    try {
+      const response = await fetch("/api/approvals", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ approvalId: approval.id, status }),
+      });
+      const body = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) throw new Error(body.error ?? "POLYON could not record your decision.");
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "POLYON could not record your decision.");
+    } finally {
+      setBusyId(null);
+    }
   }
 
   return (
-    <section className="mx-auto max-w-5xl space-y-6">
+    <section className="mx-auto max-w-3xl space-y-6">
       <header>
-        <div className="text-xs font-medium tracking-[0.18em] text-amber-300/75">APPROVALS</div>
-        <h1 className="mt-2 text-2xl font-semibold text-white">Human decision inbox</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-          Consequential work waits here until you explicitly approve or reject it.
+        <h1 className="text-2xl font-semibold text-white">Approvals</h1>
+        <p className="mt-2 text-sm leading-6 text-slate-400">
+          POLYON asks here before it does anything you have not already allowed. Nothing below
+          happens until you approve it.
         </p>
       </header>
 
-      {error ? (
-        <div className="rounded-2xl border border-rose-300/15 bg-rose-300/5 p-4 text-sm text-rose-200">
+      {error !== null ? (
+        <p role="alert" className="rounded-2xl bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
           {error}
-        </div>
+        </p>
       ) : null}
 
-      {approvals.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.018] p-8 text-sm text-slate-500">
-          Nothing is waiting for a human decision.
+      {state === "loading" ? (
+        <p className="text-sm text-slate-400" aria-live="polite">
+          Loading approvals…
+        </p>
+      ) : state === "signed-out" ? (
+        <p className="rounded-2xl bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
+          Your session has ended.{" "}
+          <Link href="/login" className="text-violet-200 underline">
+            Sign in again
+          </Link>
+          .
+        </p>
+      ) : approvals.length === 0 && state === "ready" ? (
+        <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.02] p-8 text-sm text-slate-400">
+          Nothing is waiting for you.
         </div>
       ) : (
-        <div className="space-y-4">
+        <ul className="space-y-4">
           {approvals.map((approval) => (
-            <article
-              key={approval.id}
-              className="rounded-3xl border border-white/8 bg-[#0c1017] p-5"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <div className="text-sm font-medium text-white">{approval.action}</div>
-                  <div className="mt-1 text-xs text-slate-600">{approval.id}</div>
+            <li key={approval.id} className="rounded-3xl border border-white/10 bg-[#0c1017] p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="text-base font-medium text-white">
+                    {approval.preview?.title ?? approval.action}
+                  </h2>
+                  <p className="mt-1 text-xs text-slate-400">
+                    {approval.preview?.agentId === undefined
+                      ? null
+                      : `Requested by ${agentLabel(approval.preview.agentId)} · `}
+                    {relativeTime(approval.requestedAt)}
+                  </p>
                 </div>
-                <span className="rounded-full bg-amber-300/10 px-2.5 py-1 text-[10px] text-amber-200">
-                  {approval.riskLevel}
+                <span
+                  className={
+                    "rounded-full px-2.5 py-1 text-xs ring-1 " +
+                    (RISK_STYLES[approval.riskLevel] ?? RISK_STYLES.MEDIUM)
+                  }
+                >
+                  {approval.riskLevel.toLowerCase()} risk
                 </span>
               </div>
-              <p className="mt-4 text-sm leading-6 text-slate-400">{approval.reason}</p>
-              <div className="mt-4 grid gap-2 text-xs text-slate-600 sm:grid-cols-2">
-                <span>Requested: {approval.requestedAt}</span>
-                {approval.executionId ? <span>Execution: {approval.executionId}</span> : null}
-                {approval.taskId ? <span>Task: {approval.taskId}</span> : null}
-                {approval.toolId ? <span>Tool: {approval.toolId}</span> : null}
-                {approval.integrationId ? <span>Integration: {approval.integrationId}</span> : null}
-              </div>
-              <div className="mt-5 flex gap-2">
+
+              {approval.preview?.requestedFor === undefined ? null : (
+                <p className="mt-4 text-sm text-slate-300">
+                  <span className="text-slate-400">While working on: </span>“
+                  {approval.preview.requestedFor}”
+                </p>
+              )}
+
+              {approval.preview?.input === undefined ? null : (
+                <details className="mt-3 rounded-2xl bg-black/30 px-4 py-3" open>
+                  <summary className="cursor-pointer text-xs text-slate-400">
+                    Exactly what it will use
+                  </summary>
+                  <pre className="mt-2 max-h-64 overflow-auto font-mono text-xs leading-5 break-words whitespace-pre-wrap text-slate-200">
+                    {approval.preview.input}
+                  </pre>
+                </details>
+              )}
+
+              <p className="mt-3 text-xs leading-5 text-slate-400">{approval.reason}</p>
+
+              <div className="mt-4 flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() =>
-                    void resolve(approval.id, "APPROVED").catch((cause) =>
-                      setError(cause instanceof Error ? cause.message : "Approval failed."),
-                    )
-                  }
-                  className="rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-semibold text-slate-900"
+                  disabled={busyId !== null}
+                  onClick={() => void resolve(approval, "APPROVED")}
+                  className="rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-white focus-visible:ring-2 focus-visible:ring-violet-300/60 disabled:opacity-50"
                 >
-                  Approve
+                  {busyId === approval.id ? "Saving…" : "Approve"}
                 </button>
                 <button
                   type="button"
-                  onClick={() =>
-                    void resolve(approval.id, "REJECTED").catch((cause) =>
-                      setError(cause instanceof Error ? cause.message : "Rejection failed."),
-                    )
-                  }
-                  className="rounded-xl border border-white/8 bg-white/[0.03] px-4 py-2.5 text-xs font-medium text-slate-300"
+                  disabled={busyId !== null}
+                  onClick={() => void resolve(approval, "REJECTED")}
+                  className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-slate-200 hover:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-violet-300/60 disabled:opacity-50"
                 >
                   Reject
                 </button>
+                {approval.missionId === undefined ? null : (
+                  <Link
+                    href={"/missions/" + approval.missionId}
+                    className="self-center text-xs text-violet-200 hover:underline"
+                  >
+                    Open mission
+                  </Link>
+                )}
               </div>
-            </article>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </section>
   );
+}
+
+function relativeTime(value: string): string {
+  const time = Date.parse(value);
+  if (!Number.isFinite(time)) return value;
+  const seconds = Math.round((Date.now() - time) / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} h ago`;
+  return new Date(time).toLocaleString();
 }

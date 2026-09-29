@@ -6,7 +6,9 @@ import {
   getPolyonActorId,
   getPolyonComposition,
   getPolyonPolicy,
+  isSameOrigin,
 } from "@/server/polyon-server";
+import { readBoundedText } from "@/server/bounded-body";
 
 export const runtime = "nodejs";
 
@@ -16,9 +18,7 @@ export async function POST(request: Request): Promise<Response> {
   if (!(await isAuthenticated())) {
     return Response.json({ error: "Authentication required." }, { status: 401 });
   }
-  const origin = request.headers.get("origin");
-  const host = request.headers.get("host");
-  if (origin !== null && (host === null || new URL(origin).host !== host)) {
+  if (!isSameOrigin(request)) {
     return Response.json({ error: "Cross-origin POST requests are not allowed." }, { status: 403 });
   }
 
@@ -30,8 +30,8 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
 
-    const raw = await request.text();
-    if (new TextEncoder().encode(raw).byteLength > MAX_REQUEST_BYTES) {
+    const raw = await readBoundedText(request, MAX_REQUEST_BYTES);
+    if (raw === undefined) {
       return Response.json(
         { error: "Mission plan request exceeds the 32768-byte limit." },
         { status: 413 },

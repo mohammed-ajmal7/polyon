@@ -13,6 +13,7 @@ import type {
 } from "./collective-orchestration-service";
 import type { DebateOrchestrationService, DebateRunResult } from "./debate-orchestration-service";
 import type { CommandIngressResult } from "./command-ingress";
+import { fitBlocksToBudget } from "./context-budget";
 
 export type DeepAnalysisExecutionStatus = "SUCCEEDED" | "PARTIAL" | "FAILED";
 
@@ -311,16 +312,17 @@ function buildDebateContext(collective: CollectiveExecutionResult): string {
   const contributionLines = collective.contributions.map(
     (item) => "[agent=" + item.agentId + " role=" + item.role + "]\n" + item.content,
   );
-  const blocks = [
-    "Collective synthesis:\n" + (collective.synthesis?.content ?? ""),
-    "Independent findings:\n" + contributionLines.join("\n\n"),
-  ];
+  // Each finding is its own block so an oversized one is trimmed to a fair
+  // share instead of dropping every finding; the heading rides on the first.
+  const findingBlocks =
+    contributionLines.length === 0
+      ? ["Independent findings:\n"]
+      : contributionLines.map((line, index) =>
+          index === 0 ? "Independent findings:\n" + line : line,
+        );
 
-  let context = "";
-  for (const block of blocks) {
-    if (context.length + block.length + 2 > MAX_CONTEXT_CHARACTERS) break;
-    context += (context === "" ? "" : "\n\n") + block;
-  }
-
-  return context;
+  return fitBlocksToBudget(
+    ["Collective synthesis:\n" + (collective.synthesis?.content ?? ""), ...findingBlocks],
+    MAX_CONTEXT_CHARACTERS,
+  );
 }
