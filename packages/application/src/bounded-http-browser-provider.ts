@@ -31,6 +31,12 @@ export class BoundedHttpBrowserProvider implements BrowserProvider {
     if (normalizedLocator === "") {
       throw new RangeError("Browser locator must not be empty.");
     }
+    if (
+      options.maxCharacters !== undefined &&
+      (!Number.isInteger(options.maxCharacters) || options.maxCharacters <= 0)
+    ) {
+      throw new RangeError("Browser maxCharacters must be a positive integer.");
+    }
 
     const response = await this.http.request(
       {
