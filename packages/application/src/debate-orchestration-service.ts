@@ -13,7 +13,7 @@ import type {
   EventStore,
 } from "@polyon/storage";
 
-import type { AgentGateway } from "@polyon/agents";
+import { buildAgentRolePrompt, type AgentGateway, type AgentRegistry } from "@polyon/agents";
 
 const MAX_PROMPT_CONTEXT = 48_000;
 const MAX_CONTRIBUTION_LENGTH = 100_000;
@@ -54,6 +54,7 @@ export class DebateOrchestrationService {
     private readonly debates: DebateStore,
     private readonly events: EventStore,
     private readonly unitOfWork?: DomainUnitOfWork,
+    private readonly agents?: AgentRegistry,
   ) {}
 
   create(input: CreateDebateInput): Debate {
@@ -170,7 +171,11 @@ export class DebateOrchestrationService {
           role: "SYSTEM",
           content:
             "You are a bounded debate participant in POLYON. Follow the phase role, " +
-            "stay evidence-focused, and do not take external actions.",
+            "stay evidence-focused, and do not take external actions.\n" +
+            buildAgentRolePrompt(
+              this.dependencies.agents?.get(agentId),
+              "analysis",
+            ),
         },
         {
           role: "USER",
@@ -212,7 +217,11 @@ export class DebateOrchestrationService {
             "You are the adjudicator for a finite POLYON debate. " +
             "Evaluate arguments and evidence, " +
             "identify uncertainty and conflicts, and produce a concise decision rationale. " +
-            "Do not claim external verification you did not receive.",
+            "Do not claim external verification you did not receive.\n" +
+            buildAgentRolePrompt(
+              this.dependencies.agents?.get(adjudicatorAgentId),
+              "judge",
+            ),
         },
         {
           role: "USER",
