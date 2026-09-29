@@ -13,11 +13,7 @@ import {
   type ModelInvocationOptions,
 } from "@polyon/providers";
 
-import {
-  routeAgentModel,
-  type ModelRoutingRequest,
-  type ProviderHealth,
-} from "./model-routing";
+import { routeAgentModel, type ModelRoutingRequest, type ProviderHealth } from "./model-routing";
 import { ProviderHealthTracker } from "./provider-health";
 import type { AgentRegistry } from "./agent-registry";
 import type { ModelRegistry } from "./model-registry";
@@ -142,9 +138,7 @@ export class AgentGateway {
       const request: ModelRoutingRequest = {
         agentId,
         requiredCapabilityIds,
-        ...(requiredModelCapabilityIds === undefined
-          ? {}
-          : { requiredModelCapabilityIds }),
+        ...(requiredModelCapabilityIds === undefined ? {} : { requiredModelCapabilityIds }),
         ...(routingOptions?.privacyClass === undefined
           ? {}
           : { privacyClass: routingOptions.privacyClass }),
@@ -173,13 +167,10 @@ export class AgentGateway {
       }
 
       try {
-        const result = await invokeModel(
-          route.model.id,
-          {
-            ...(runId === undefined ? {} : { runId }),
-            agentId,
-          },
-        );
+        const result = await invokeModel(route.model.id, {
+          ...(runId === undefined ? {} : { runId }),
+          agentId,
+        });
         this.providerHealth.recordSuccess(route.provider.id);
 
         return {

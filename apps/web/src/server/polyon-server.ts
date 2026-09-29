@@ -53,9 +53,7 @@ function buildOptions() {
   const semanticMemoryIndexAllowedScopes = parseMemoryScopes(
     process.env.POLYON_SEMANTIC_INDEX_ALLOWED_SCOPES,
   );
-  const a2aPushNotificationAllowedOrigins = parseCsv(
-    process.env.POLYON_A2A_PUSH_ALLOWED_ORIGINS,
-  );
+  const a2aPushNotificationAllowedOrigins = parseCsv(process.env.POLYON_A2A_PUSH_ALLOWED_ORIGINS);
   return {
     storageRoot: process.env.POLYON_DATA_DIR?.trim() || join(process.cwd(), ".polyon-data"),
     ...(model === undefined
@@ -483,7 +481,6 @@ export function getPolyonBaseUrl(request?: Request): string {
   return "http://localhost:3000";
 }
 
-
 function buildUsageGovernor(): UsageGovernor {
   const rawCostMode = process.env.POLYON_COST_MODE?.trim().toLowerCase();
   const costMode = rawCostMode === "zero" ? "zero" : "configured";
@@ -525,7 +522,13 @@ function parseUsageBudgets(value: string | undefined) {
       providerId,
       ...(optionalUsageLimit(record.dailyRequestLimit, "dailyRequestLimit", index) === undefined
         ? {}
-        : { dailyRequestLimit: optionalUsageLimit(record.dailyRequestLimit, "dailyRequestLimit", index) }),
+        : {
+            dailyRequestLimit: optionalUsageLimit(
+              record.dailyRequestLimit,
+              "dailyRequestLimit",
+              index,
+            ),
+          }),
       ...(optionalUsageLimit(record.monthlyRequestLimit, "monthlyRequestLimit", index) === undefined
         ? {}
         : {
@@ -569,8 +572,14 @@ function optionalUsageLimit(value: unknown, field: string, index: number): numbe
   return value as number;
 }
 
-
 function parseCsv(value: string | undefined): string[] {
   if (value === undefined || value.trim() === "") return [];
-  return [...new Set(value.split(",").map((item) => item.trim()).filter(Boolean))];
+  return [
+    ...new Set(
+      value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ];
 }

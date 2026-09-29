@@ -139,7 +139,10 @@ export class InMemoryMcpSubscriptionBus {
   }
 }
 
-function matches(filter: McpSubscriptionFilter, notification: McpSubscriptionNotification): boolean {
+function matches(
+  filter: McpSubscriptionFilter,
+  notification: McpSubscriptionNotification,
+): boolean {
   const notifications = filter.notifications;
   if (notifications === undefined) return false;
 

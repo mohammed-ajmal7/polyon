@@ -8,9 +8,7 @@ describe("createFinding", () => {
       id: " finding-1 ",
       agentId: " researcher ",
       claim: " The stock fell after the announcement. ",
-      evidence: [
-        { evidenceId: "evidence-1", sourceId: "source-1", relevance: 0.8 },
-      ],
+      evidence: [{ evidenceId: "evidence-1", sourceId: "source-1", relevance: 0.8 }],
       confidence: 0.74,
       assumptions: [" valid assumption ", "  "],
       counterarguments: [" alternative explanation "],

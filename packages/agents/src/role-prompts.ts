@@ -43,11 +43,9 @@ export function buildAgentRolePrompt(
   const roleKey = roleOverride ?? agent?.roleId ?? normalizeRole(agent?.role);
   const rolePrompt = ROLE_PROMPTS[roleKey] ?? GENERIC_PROMPT;
 
-  return (
-    `POLYON role: ${agent?.role ?? "Generalist"}.
+  return `POLYON role: ${agent?.role ?? "Generalist"}.
 Execution stage: ${stage}.
-${rolePrompt}`
-  );
+${rolePrompt}`;
 }
 
 function normalizeRole(role: string | undefined): string {

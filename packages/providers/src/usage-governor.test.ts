@@ -31,9 +31,9 @@ describe("UsageGovernor", () => {
 
     governor.authorize({ providerId: "local", modelId: "model" }).complete();
 
-    expect(() =>
-      governor.authorize({ providerId: "local", modelId: "model" }),
-    ).toThrowError(expect.objectContaining({ kind: "DAILY_REQUEST_LIMIT" }));
+    expect(() => governor.authorize({ providerId: "local", modelId: "model" })).toThrowError(
+      expect.objectContaining({ kind: "DAILY_REQUEST_LIMIT" }),
+    );
 
     now = "2026-10-01T00:00:00.000Z";
     governor.authorize({ providerId: "local", modelId: "model" }).complete();
@@ -51,19 +51,23 @@ describe("UsageGovernor", () => {
       budgets: [{ providerId: "local", maxTokensPerRun: 100, maxAgentsPerRun: 2 }],
     });
 
-    governor.authorize({
-      providerId: "local",
-      modelId: "model",
-      estimatedTokens: 60,
-      context: { runId: "run-1", agentId: "a", agentCount: 1 },
-    }).complete(50);
+    governor
+      .authorize({
+        providerId: "local",
+        modelId: "model",
+        estimatedTokens: 60,
+        context: { runId: "run-1", agentId: "a", agentCount: 1 },
+      })
+      .complete(50);
 
-    governor.authorize({
-      providerId: "local",
-      modelId: "model",
-      estimatedTokens: 40,
-      context: { runId: "run-1", agentId: "b", agentCount: 2 },
-    }).complete(30);
+    governor
+      .authorize({
+        providerId: "local",
+        modelId: "model",
+        estimatedTokens: 40,
+        context: { runId: "run-1", agentId: "b", agentCount: 2 },
+      })
+      .complete(30);
 
     expect(governor.runSnapshot("run-1", "local")).toMatchObject({
       tokens: 80,

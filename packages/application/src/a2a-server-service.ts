@@ -91,10 +91,8 @@ export class A2AServerService {
     private readonly dependencies: A2AServerDependencies,
     options: A2AServerOptions = {},
   ) {
-    this.streamPollIntervalMs =
-      options.streamPollIntervalMs ?? DEFAULT_STREAM_POLL_INTERVAL_MS;
-    this.streamMaxDurationMs =
-      options.streamMaxDurationMs ?? DEFAULT_STREAM_MAX_DURATION_MS;
+    this.streamPollIntervalMs = options.streamPollIntervalMs ?? DEFAULT_STREAM_POLL_INTERVAL_MS;
+    this.streamMaxDurationMs = options.streamMaxDurationMs ?? DEFAULT_STREAM_MAX_DURATION_MS;
     this.wait = options.wait ?? defaultWait;
     this.now = options.now ?? Date.now;
 
@@ -145,11 +143,7 @@ export class A2AServerService {
       case "SubscribeToTask":
       case "tasks/subscribe":
       case "tasks/resubscribe":
-        return error(
-          request.id,
-          -32004,
-          "A2A streaming operations require an SSE response.",
-        );
+        return error(request.id, -32004, "A2A streaming operations require an SSE response.");
       default:
         return error(request.id, -32601, "A2A method is not supported.");
     }
@@ -415,11 +409,7 @@ export class A2AServerService {
     }
 
     if (isTerminalTask(task)) {
-      yield error(
-        request.id,
-        -32004,
-        "Task subscription is not supported for terminal tasks.",
-      );
+      yield error(request.id, -32004, "Task subscription is not supported for terminal tasks.");
       return;
     }
 
@@ -514,7 +504,8 @@ export class A2AServerService {
 
   private listPushNotificationConfigs(request: A2AJsonRpcRequest): A2AJsonRpcResponse {
     const service = this.dependencies.pushNotifications;
-    if (service === undefined) return error(request.id, -32004, "A2A push notifications are not supported.");
+    if (service === undefined)
+      return error(request.id, -32004, "A2A push notifications are not supported.");
 
     const params = request.params ?? {};
     const taskId = readRequiredString(params.taskId);
@@ -558,7 +549,8 @@ export class A2AServerService {
 
   private deletePushNotificationConfig(request: A2AJsonRpcRequest): A2AJsonRpcResponse {
     const service = this.dependencies.pushNotifications;
-    if (service === undefined) return error(request.id, -32004, "A2A push notifications are not supported.");
+    if (service === undefined)
+      return error(request.id, -32004, "A2A push notifications are not supported.");
 
     const params = request.params ?? {};
     const taskId = readRequiredString(params.taskId);
@@ -667,10 +659,7 @@ function mapTaskStatusUpdate(task: Task): Record<string, unknown> {
   };
 }
 
-function normalizeAgentMessage(
-  value: unknown,
-  fallbackMessageId: string,
-): Record<string, unknown> {
+function normalizeAgentMessage(value: unknown, fallbackMessageId: string): Record<string, unknown> {
   if (!isRecord(value)) {
     return {
       messageId: fallbackMessageId,
@@ -866,12 +855,13 @@ function error(id: string | number | null, code: number, message: string): A2AJs
   return { jsonrpc: "2.0", id, error: { code, message } };
 }
 
-
 function readRequiredString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function parsePushAuthentication(value: unknown):
+function parsePushAuthentication(
+  value: unknown,
+):
   | { readonly authentication: { readonly scheme: string; readonly credentials: string } }
   | Record<string, never> {
   if (value === undefined) return {};
@@ -902,7 +892,6 @@ function redactPushConfig(config: {
       : { authentication: { scheme: config.authentication.scheme } }),
   };
 }
-
 
 function encodePushPageToken(configId: string): string {
   return "a2a-push-config:" + encodeURIComponent(configId);

@@ -65,12 +65,7 @@ export const BUILT_IN_AGENT_ROLES: readonly BuiltInAgentRoleDefinition[] = [
     id: "synthesizer",
     name: "Synthesizer",
     description: "Combines independent findings into a traceable final response.",
-    defaultCapabilityIds: [
-      "ai.chat",
-      "ai.reasoning",
-      "ai.structured-output",
-      "ai.long-context",
-    ],
+    defaultCapabilityIds: ["ai.chat", "ai.reasoning", "ai.structured-output", "ai.long-context"],
   },
   {
     id: "action-agent",

@@ -14,23 +14,13 @@ export interface A2APushNotificationStore {
     ownerId: string,
     input: Omit<A2ATaskPushNotificationConfig, "id">,
   ): A2ATaskPushNotificationConfig;
-  get(
-    ownerId: string,
-    taskId: string,
-    configId: string,
-  ): A2ATaskPushNotificationConfig | undefined;
-  list(
-    ownerId: string,
-    taskId: string,
-  ): readonly A2ATaskPushNotificationConfig[];
+  get(ownerId: string, taskId: string, configId: string): A2ATaskPushNotificationConfig | undefined;
+  list(ownerId: string, taskId: string): readonly A2ATaskPushNotificationConfig[];
   delete(ownerId: string, taskId: string, configId: string): boolean;
 }
 
 export interface A2APushNotificationSender {
-  send(
-    config: A2ATaskPushNotificationConfig,
-    payload: Record<string, unknown>,
-  ): Promise<void>;
+  send(config: A2ATaskPushNotificationConfig, payload: Record<string, unknown>): Promise<void>;
 }
 
 export interface A2APushNotificationServiceOptions {
@@ -144,9 +134,15 @@ export class A2APushNotificationService {
         );
         const initialDelay = Math.max(0, this.options.retryBackoffInitialMs ?? 250);
         const maxDelay = Math.max(initialDelay, this.options.retryBackoffMaxMs ?? 2_000);
-        const wait = this.options.wait ?? ((delayMs: number) => new Promise<void>((resolve) => setTimeout(resolve, delayMs)));
+        const wait =
+          this.options.wait ??
+          ((delayMs: number) => new Promise<void>((resolve) => setTimeout(resolve, delayMs)));
 
-        const report = async (outcome: Parameters<NonNullable<A2APushNotificationServiceOptions["onDeliveryOutcome"]>>[0]): Promise<void> => {
+        const report = async (
+          outcome: Parameters<
+            NonNullable<A2APushNotificationServiceOptions["onDeliveryOutcome"]>
+          >[0],
+        ): Promise<void> => {
           try {
             await this.options.onDeliveryOutcome?.(outcome);
           } catch {
@@ -159,9 +155,7 @@ export class A2APushNotificationService {
             await this.options.sender.send(config, payload);
           } catch (error) {
             const retryable =
-              error instanceof A2APushNotificationDeliveryError
-                ? error.retryable
-                : true;
+              error instanceof A2APushNotificationDeliveryError ? error.retryable : true;
             if (!retryable || attempt === maxAttempts) {
               await report({
                 status: "FAILED",
@@ -173,10 +167,7 @@ export class A2APushNotificationService {
               return;
             }
 
-            const delay = Math.min(
-              maxDelay,
-              initialDelay * 2 ** (attempt - 1),
-            );
+            const delay = Math.min(maxDelay, initialDelay * 2 ** (attempt - 1));
             await wait(delay);
             continue;
           }
@@ -206,35 +197,26 @@ export function createDurableA2APushNotificationStore(
     },
     get(ownerId, taskId, configId) {
       const config = store.get(configId);
-      return config !== undefined &&
-          config.ownerId === ownerId &&
-          config.taskId === taskId
+      return config !== undefined && config.ownerId === ownerId && config.taskId === taskId
         ? stripOwner(config)
         : undefined;
     },
     list(ownerId, taskId) {
       return store
         .list()
-        .filter(
-          (config) =>
-            config.ownerId === ownerId && config.taskId === taskId,
-        )
+        .filter((config) => config.ownerId === ownerId && config.taskId === taskId)
         .map(stripOwner);
     },
     delete(ownerId, taskId, configId) {
       const config = store.get(configId);
-      return config !== undefined &&
-          config.ownerId === ownerId &&
-          config.taskId === taskId
+      return config !== undefined && config.ownerId === ownerId && config.taskId === taskId
         ? store.delete(configId)
         : false;
     },
   };
 }
 
-function stripOwner(
-  config: A2APushNotificationConfig,
-): A2ATaskPushNotificationConfig {
+function stripOwner(config: A2APushNotificationConfig): A2ATaskPushNotificationConfig {
   const { ownerId: _ownerId, ...publicConfig } = config;
   return publicConfig;
 }

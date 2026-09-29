@@ -44,17 +44,12 @@ export function assessEvidenceQuality(input: AssessEvidenceInput): EvidenceQuali
   const contradictionCount = corpus
     .filter((candidate) => candidate.id !== input.evidence.id)
     .filter((candidate) => normalizeClaim(candidate.claim) === normalizedClaim)
-    .filter((candidate) => candidate.kind !== input.evidence.kind)
-    .length;
+    .filter((candidate) => candidate.kind !== input.evidence.kind).length;
   const contradictionPenalty = Math.min(20, contradictionCount * 10);
 
   const score = clamp(
     Math.round(
-      sourceQuality * 0.4 +
-        directness * 0.2 +
-        recency * 0.2 +
-        corroboration -
-        contradictionPenalty,
+      sourceQuality * 0.4 + directness * 0.2 + recency * 0.2 + corroboration - contradictionPenalty,
     ),
   );
 
@@ -86,9 +81,7 @@ export function rankEvidenceQuality(
   );
 
   return ranked.sort(
-    (left, right) =>
-      right.score - left.score ||
-      right.evidenceId.localeCompare(left.evidenceId),
+    (left, right) => right.score - left.score || right.evidenceId.localeCompare(left.evidenceId),
   );
 }
 

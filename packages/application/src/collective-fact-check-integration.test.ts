@@ -31,13 +31,7 @@ function command() {
       id: "conversation.fact-check-integration",
       kind: "COLLABORATIVE" as const,
       status: "ACTIVE" as const,
-      participantIds: [
-        "user-1",
-        "researcher",
-        "analyst",
-        "synthesizer",
-        "fact-checker",
-      ],
+      participantIds: ["user-1", "researcher", "analyst", "synthesizer", "fact-checker"],
       messageIds: ["message.fact-check-integration"],
       createdAt: now,
       updatedAt: now,
@@ -98,10 +92,7 @@ describe("Collective fact-check integration", () => {
 
     const factCheckInvocations: TextModelRequest[] = [];
     const synthesisInvocations: TextModelRequest[] = [];
-    const invokeText = vi.fn(async (input: {
-      agentId: string;
-      request: TextModelRequest;
-    }) => {
+    const invokeText = vi.fn(async (input: { agentId: string; request: TextModelRequest }) => {
       const modelId = input.agentId + "-model";
       const userMessage =
         input.request.messages.find((message) => message.role === "USER")?.content ?? "";

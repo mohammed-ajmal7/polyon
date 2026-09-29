@@ -4,7 +4,6 @@ import { BoundedHttpClient, type BoundedHttpClientError } from "@polyon/integrat
 import { BoundedHttpBrowserProvider } from "./bounded-http-browser-provider";
 import type { ResearchRetriever, ResearchSourceCandidate } from "./research-service";
 
-
 export interface ResearchSearchResult {
   readonly title: string;
   readonly locator: string;
@@ -59,8 +58,7 @@ export class BoundedWebResearchRetriever implements ResearchRetriever {
         locator: result.locator,
         kind: result.kind ?? "WEB",
         content: page.content,
-        context:
-          page.contentType === undefined ? undefined : `content-type: ${page.contentType}`,
+        context: page.contentType === undefined ? undefined : `content-type: ${page.contentType}`,
         retrievedAt: page.retrievedAt,
       });
     }

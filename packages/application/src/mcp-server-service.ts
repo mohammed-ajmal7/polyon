@@ -44,10 +44,7 @@ export interface McpRequestHeaders {
 
 export interface McpServerOptions {
   readonly subscriptionMaxDurationMs?: number;
-  readonly subscriptionWait?: (
-    milliseconds: number,
-    signal?: AbortSignal,
-  ) => Promise<void>;
+  readonly subscriptionWait?: (milliseconds: number, signal?: AbortSignal) => Promise<void>;
 }
 
 export interface McpServerDependencies {
@@ -80,25 +77,18 @@ const SUBSCRIPTION_ID_META_KEY = "io.modelcontextprotocol/subscriptionId";
 export class McpServerService {
   private readonly subscriptions: InMemoryMcpSubscriptionBus;
   private readonly subscriptionMaxDurationMs: number;
-  private readonly subscriptionWait: (
-    milliseconds: number,
-    signal?: AbortSignal,
-  ) => Promise<void>;
+  private readonly subscriptionWait: (milliseconds: number, signal?: AbortSignal) => Promise<void>;
 
   constructor(
     private readonly dependencies: McpServerDependencies,
     options: McpServerOptions = {},
   ) {
-    this.subscriptions =
-      dependencies.subscriptions ?? new InMemoryMcpSubscriptionBus();
+    this.subscriptions = dependencies.subscriptions ?? new InMemoryMcpSubscriptionBus();
     this.subscriptionMaxDurationMs =
       options.subscriptionMaxDurationMs ?? DEFAULT_SUBSCRIPTION_MAX_DURATION_MS;
     this.subscriptionWait = options.subscriptionWait ?? defaultWait;
 
-    if (
-      !Number.isInteger(this.subscriptionMaxDurationMs) ||
-      this.subscriptionMaxDurationMs <= 0
-    ) {
+    if (!Number.isInteger(this.subscriptionMaxDurationMs) || this.subscriptionMaxDurationMs <= 0) {
       throw new RangeError("MCP subscription maximum duration must be a positive integer.");
     }
   }
@@ -146,12 +136,7 @@ export class McpServerService {
             prompts: { listChanged: false },
             resources: { listChanged: false, subscribe: false },
           },
-          methods: [
-            "server/discover",
-            "tools/list",
-            "tools/call",
-            "subscriptions/listen",
-          ],
+          methods: ["server/discover", "tools/list", "tools/call", "subscriptions/listen"],
         },
       };
     }
@@ -161,11 +146,7 @@ export class McpServerService {
     }
 
     if (request.method === "subscriptions/listen") {
-      return rpcError(
-        request.id ?? null,
-        -32004,
-        "subscriptions/listen requires an SSE response.",
-      );
+      return rpcError(request.id ?? null, -32004, "subscriptions/listen requires an SSE response.");
     }
 
     if (request.method !== "tools/call") {
@@ -281,9 +262,7 @@ export class McpServerService {
     const iterator = subscription.events[Symbol.asyncIterator]();
     const deadline = Date.now() + this.subscriptionMaxDurationMs;
     let abortListener: (() => void) | undefined;
-    let abortPromise:
-      | Promise<{ readonly kind: "aborted" }>
-      | undefined;
+    let abortPromise: Promise<{ readonly kind: "aborted" }> | undefined;
 
     if (signal !== undefined) {
       abortPromise = new Promise((resolve) => {
@@ -382,10 +361,7 @@ export class McpServerService {
   }
 }
 
-async function defaultWait(
-  milliseconds: number,
-  signal?: AbortSignal,
-): Promise<void> {
+async function defaultWait(milliseconds: number, signal?: AbortSignal): Promise<void> {
   await new Promise<void>((resolve) => {
     let timer: ReturnType<typeof setTimeout> | undefined = globalThis.setTimeout(() => {
       timer = undefined;
@@ -424,9 +400,7 @@ function parseSubscriptionFilter(value: unknown): {
     if (
       !Array.isArray(resourceSubscriptions) ||
       resourceSubscriptions.length > MAX_SUBSCRIPTION_FILTER_URIS ||
-      resourceSubscriptions.some(
-        (uri) => typeof uri !== "string" || uri.trim() === "",
-      )
+      resourceSubscriptions.some((uri) => typeof uri !== "string" || uri.trim() === "")
     ) {
       return {
         filter: {},
@@ -439,22 +413,13 @@ function parseSubscriptionFilter(value: unknown): {
   const promptsListChanged = notificationsValue.promptsListChanged;
   const resourcesListChanged = notificationsValue.resourcesListChanged;
 
-  if (
-    toolsListChanged !== undefined &&
-    typeof toolsListChanged !== "boolean"
-  ) {
+  if (toolsListChanged !== undefined && typeof toolsListChanged !== "boolean") {
     return { filter: {}, error: "toolsListChanged must be boolean." };
   }
-  if (
-    promptsListChanged !== undefined &&
-    typeof promptsListChanged !== "boolean"
-  ) {
+  if (promptsListChanged !== undefined && typeof promptsListChanged !== "boolean") {
     return { filter: {}, error: "promptsListChanged must be boolean." };
   }
-  if (
-    resourcesListChanged !== undefined &&
-    typeof resourcesListChanged !== "boolean"
-  ) {
+  if (resourcesListChanged !== undefined && typeof resourcesListChanged !== "boolean") {
     return { filter: {}, error: "resourcesListChanged must be boolean." };
   }
 

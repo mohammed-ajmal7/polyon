@@ -34,19 +34,21 @@ describe("McpServerService subscriptions/listen", () => {
   it("acknowledges the honored filter before streaming matching change notifications", async () => {
     const bus = new InMemoryMcpSubscriptionBus();
     const server = createServer(bus);
-    const iterator = server.stream(
-      {
-        jsonrpc: "2.0",
-        id: "listen-1",
-        method: "subscriptions/listen",
-        params: {
-          notifications: {
-            toolsListChanged: true,
+    const iterator = server
+      .stream(
+        {
+          jsonrpc: "2.0",
+          id: "listen-1",
+          method: "subscriptions/listen",
+          params: {
+            notifications: {
+              toolsListChanged: true,
+            },
           },
         },
-      },
-      headers,
-    )[Symbol.asyncIterator]();
+        headers,
+      )
+      [Symbol.asyncIterator]();
 
     const acknowledgement = await iterator.next();
     expect(acknowledgement).toEqual({
@@ -78,37 +80,42 @@ describe("McpServerService subscriptions/listen", () => {
 
   it("gracefully closes a bounded subscription when its lifetime expires", async () => {
     const bus = new InMemoryMcpSubscriptionBus();
-    const server = new McpServerService({
-      tools: { list: () => [], get: () => undefined },
-      integrations: { list: () => [], get: () => undefined },
-      toolInvocation: { invoke: vi.fn() } as never,
-      integrationInvocation: { invoke: vi.fn() } as never,
-      policy: {
-        id: "policy",
-        name: "test",
-        description: "test",
-        approvalMode: "ASK_EVERYTHING",
-        rules: [],
-        defaultEffect: "REQUIRE_APPROVAL",
-        enabled: true,
-        createdAt: "2026-09-29T08:00:00.000Z",
-        updatedAt: "2026-09-29T08:00:00.000Z",
-      },
-      actorId: "mcp-client",
-      subscriptions: bus,
-    }, {
-      subscriptionMaxDurationMs: 1,
-      subscriptionWait: async () => undefined,
-    });
-    const iterator = server.stream(
+    const server = new McpServerService(
       {
-        jsonrpc: "2.0",
-        id: "listen-2",
-        method: "subscriptions/listen",
-        params: { notifications: { toolsListChanged: true } },
+        tools: { list: () => [], get: () => undefined },
+        integrations: { list: () => [], get: () => undefined },
+        toolInvocation: { invoke: vi.fn() } as never,
+        integrationInvocation: { invoke: vi.fn() } as never,
+        policy: {
+          id: "policy",
+          name: "test",
+          description: "test",
+          approvalMode: "ASK_EVERYTHING",
+          rules: [],
+          defaultEffect: "REQUIRE_APPROVAL",
+          enabled: true,
+          createdAt: "2026-09-29T08:00:00.000Z",
+          updatedAt: "2026-09-29T08:00:00.000Z",
+        },
+        actorId: "mcp-client",
+        subscriptions: bus,
       },
-      headers,
-    )[Symbol.asyncIterator]();
+      {
+        subscriptionMaxDurationMs: 1,
+        subscriptionWait: async () => undefined,
+      },
+    );
+    const iterator = server
+      .stream(
+        {
+          jsonrpc: "2.0",
+          id: "listen-2",
+          method: "subscriptions/listen",
+          params: { notifications: { toolsListChanged: true } },
+        },
+        headers,
+      )
+      [Symbol.asyncIterator]();
 
     await iterator.next();
     const closed = await iterator.next();
@@ -126,16 +133,18 @@ describe("McpServerService subscriptions/listen", () => {
     const bus = new InMemoryMcpSubscriptionBus();
     const server = createServer(bus);
     const controller = new AbortController();
-    const iterator = server.stream(
-      {
-        jsonrpc: "2.0",
-        id: "listen-3",
-        method: "subscriptions/listen",
-        params: { notifications: { toolsListChanged: true } },
-      },
-      headers,
-      controller.signal,
-    )[Symbol.asyncIterator]();
+    const iterator = server
+      .stream(
+        {
+          jsonrpc: "2.0",
+          id: "listen-3",
+          method: "subscriptions/listen",
+          params: { notifications: { toolsListChanged: true } },
+        },
+        headers,
+        controller.signal,
+      )
+      [Symbol.asyncIterator]();
 
     await iterator.next();
     const pending = iterator.next();
@@ -149,22 +158,24 @@ describe("McpServerService subscriptions/listen", () => {
   it("acknowledges only the supported subset of a mixed filter", async () => {
     const bus = new InMemoryMcpSubscriptionBus();
     const server = createServer(bus);
-    const iterator = server.stream(
-      {
-        jsonrpc: "2.0",
-        id: "listen-4",
-        method: "subscriptions/listen",
-        params: {
-          notifications: {
-            toolsListChanged: true,
-            promptsListChanged: true,
-            resourcesListChanged: true,
-            resourceSubscriptions: ["file:///tmp/x"],
+    const iterator = server
+      .stream(
+        {
+          jsonrpc: "2.0",
+          id: "listen-4",
+          method: "subscriptions/listen",
+          params: {
+            notifications: {
+              toolsListChanged: true,
+              promptsListChanged: true,
+              resourcesListChanged: true,
+              resourceSubscriptions: ["file:///tmp/x"],
+            },
           },
         },
-      },
-      headers,
-    )[Symbol.asyncIterator]();
+        headers,
+      )
+      [Symbol.asyncIterator]();
 
     const acknowledgement = await iterator.next();
     expect(acknowledgement.value).toEqual({

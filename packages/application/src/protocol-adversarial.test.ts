@@ -127,19 +127,21 @@ describe("protocol adversarial boundaries", () => {
       actorId: "mcp-client",
     });
 
-    const [frame] = await collect(service.stream(
-      {
-        jsonrpc: "2.0",
-        id: "subscription-1",
-        method: "subscriptions/listen",
-        params: {
-          notifications: {
-            toolsListChanged: "yes",
+    const [frame] = await collect(
+      service.stream(
+        {
+          jsonrpc: "2.0",
+          id: "subscription-1",
+          method: "subscriptions/listen",
+          params: {
+            notifications: {
+              toolsListChanged: "yes",
+            },
           },
         },
-      },
-      { protocolVersion: "2026-07-28", method: "subscriptions/listen" },
-    ));
+        { protocolVersion: "2026-07-28", method: "subscriptions/listen" },
+      ),
+    );
 
     expect(frame).toMatchObject({
       jsonrpc: "2.0",
@@ -182,17 +184,18 @@ describe("protocol adversarial boundaries", () => {
             updatedAt: "2026-09-28T00:00:00.000Z",
           } satisfies Task,
         ],
-        get: () => ({
-          id: "task-visible",
-          missionId: "mission-1",
-          kind: "ANALYSIS",
-          title: "Visible task",
-          description: "A task used to verify visibility boundaries.",
-          status: "RUNNING",
-          dependsOn: [],
-          createdAt: "2026-09-28T00:00:00.000Z",
-          updatedAt: "2026-09-28T00:00:00.000Z",
-        } satisfies Task),
+        get: () =>
+          ({
+            id: "task-visible",
+            missionId: "mission-1",
+            kind: "ANALYSIS",
+            title: "Visible task",
+            description: "A task used to verify visibility boundaries.",
+            status: "RUNNING",
+            dependsOn: [],
+            createdAt: "2026-09-28T00:00:00.000Z",
+            updatedAt: "2026-09-28T00:00:00.000Z",
+          }) satisfies Task,
       },
       policy: {} as never,
       actorId: "actor-local",
@@ -213,7 +216,6 @@ describe("protocol adversarial boundaries", () => {
     });
     expect(hidden.error?.code).toBe(-32001);
   });
-
 });
 
 function collect<T>(iterable: AsyncIterable<T>): Promise<T[]> {

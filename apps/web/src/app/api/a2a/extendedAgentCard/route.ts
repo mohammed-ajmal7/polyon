@@ -6,10 +6,7 @@ export const runtime = "nodejs";
 
 export async function GET(request: Request): Promise<Response> {
   if (!(await authenticateRequest(request))) {
-    return Response.json(
-      { error: "Authentication required." },
-      { status: 401 },
-    );
+    return Response.json({ error: "Authentication required." }, { status: 401 });
   }
 
   const polyon = getPolyonComposition();
@@ -29,14 +26,11 @@ export async function GET(request: Request): Promise<Response> {
       : { pushNotifications: polyon.a2aPushNotifications }),
   });
 
-  return new Response(
-    JSON.stringify(service.extendedAgentCard(getPolyonBaseUrl(request))),
-    {
-      status: 200,
-      headers: {
-        "Content-Type": "application/a2a+json",
-        "Cache-Control": "private, no-store",
-      },
+  return new Response(JSON.stringify(service.extendedAgentCard(getPolyonBaseUrl(request))), {
+    status: 200,
+    headers: {
+      "Content-Type": "application/a2a+json",
+      "Cache-Control": "private, no-store",
     },
-  );
+  });
 }

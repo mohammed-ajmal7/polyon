@@ -9,11 +9,7 @@ import type {
   TextModelRequest,
 } from "@polyon/contracts";
 
-import {
-  buildAgentRolePrompt,
-  type AgentGateway,
-  type AgentRegistry,
-} from "@polyon/agents";
+import { buildAgentRolePrompt, type AgentGateway, type AgentRegistry } from "@polyon/agents";
 import type {
   ConversationStore,
   DomainStoreTransactionContext,
@@ -183,10 +179,7 @@ export class ResearchOrchestrationService {
           findings,
           failures,
           researchContext,
-          buildAgentRolePrompt(
-            this.dependencies.agents.get(synthesizerAgentId),
-            "synthesis",
-          ),
+          buildAgentRolePrompt(this.dependencies.agents.get(synthesizerAgentId), "synthesis"),
         ),
         ...(input.signal === undefined ? {} : { modelOptions: { signal: input.signal } }),
       });

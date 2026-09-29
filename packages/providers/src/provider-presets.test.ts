@@ -58,9 +58,7 @@ describe("built-in provider presets", () => {
   });
 
   it("resolves the new built-in endpoints without explicit endpoint configuration", () => {
-    expect(resolveProviderEndpoint("groq")).toBe(
-      "https://api.groq.com/openai/v1/chat/completions",
-    );
+    expect(resolveProviderEndpoint("groq")).toBe("https://api.groq.com/openai/v1/chat/completions");
     expect(resolveProviderEndpoint("openrouter")).toBe(
       "https://openrouter.ai/api/v1/chat/completions",
     );

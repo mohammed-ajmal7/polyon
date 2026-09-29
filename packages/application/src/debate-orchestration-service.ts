@@ -173,10 +173,7 @@ export class DebateOrchestrationService {
           content:
             "You are a bounded debate participant in POLYON. Follow the phase role, " +
             "stay evidence-focused, and do not take external actions.\n" +
-            buildAgentRolePrompt(
-              this.agents?.get(agentId),
-              "analysis",
-            ),
+            buildAgentRolePrompt(this.agents?.get(agentId), "analysis"),
         },
         {
           role: "USER",
@@ -220,10 +217,7 @@ export class DebateOrchestrationService {
             "Evaluate arguments and evidence, " +
             "identify uncertainty and conflicts, and produce a concise decision rationale. " +
             "Do not claim external verification you did not receive.\n" +
-            buildAgentRolePrompt(
-              this.agents?.get(adjudicatorAgentId),
-              "judge",
-            ),
+            buildAgentRolePrompt(this.agents?.get(adjudicatorAgentId), "judge"),
         },
         {
           role: "USER",

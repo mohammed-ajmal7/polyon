@@ -89,9 +89,6 @@ describe("evidence quality scoring", () => {
       now,
     );
 
-    expect(ranked.map((item) => item.evidenceId)).toEqual([
-      "evidence-1",
-      "evidence-low",
-    ]);
+    expect(ranked.map((item) => item.evidenceId)).toEqual(["evidence-1", "evidence-low"]);
   });
 });

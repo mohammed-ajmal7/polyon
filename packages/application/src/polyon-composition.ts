@@ -216,9 +216,7 @@ export interface PolyonCompositionOptions {
   readonly jobRetryBackoffMaxMs?: number;
   readonly jobWait?: JobRuntimeWait;
   readonly onJobError?: (error: unknown) => void;
-  readonly onJobCompleted?: (
-    job: import("@polyon/contracts").Job,
-  ) => void | Promise<void>;
+  readonly onJobCompleted?: (job: import("@polyon/contracts").Job) => void | Promise<void>;
 }
 
 export interface PolyonComposition {
@@ -317,8 +315,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
               stores.executions
                 .list()
                 .some(
-                  (execution) =>
-                    execution.taskId === taskId && execution.actorId === "a2a-client",
+                  (execution) => execution.taskId === taskId && execution.actorId === "a2a-client",
                 )
             );
           },
@@ -873,9 +870,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
       : { retryBackoffMaxMs: options.jobRetryBackoffMaxMs }),
     ...(options.jobWait === undefined ? {} : { wait: options.jobWait }),
     ...(options.onJobError === undefined ? {} : { onError: options.onJobError }),
-    ...(options.onJobCompleted === undefined
-      ? {}
-      : { onJobCompleted: options.onJobCompleted }),
+    ...(options.onJobCompleted === undefined ? {} : { onJobCompleted: options.onJobCompleted }),
   });
 
   const executionDispatch = new ExecutionDispatchService({

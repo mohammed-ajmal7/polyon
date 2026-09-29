@@ -37,8 +37,7 @@ export function bindExecutionRouting(
   const resolveInput: ResolveAgentModelInput = {
     agentId: input.agentId,
     requiredCapabilityIds: input.requiredCapabilityIds,
-    requiredModelCapabilityIds:
-      input.requiredModelCapabilityIds ?? input.requiredCapabilityIds,
+    requiredModelCapabilityIds: input.requiredModelCapabilityIds ?? input.requiredCapabilityIds,
   };
 
   const resolution = resolveAgentModel(resolveInput, registries);

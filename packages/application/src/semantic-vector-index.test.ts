@@ -49,9 +49,7 @@ describe("ExactNormalizedSemanticVectorIndex", () => {
       embedding("model-b-2d", "model-b", [1, 0]),
     ]);
 
-    expect(index.search("model-a", [1, 0]).map((hit) => hit.embedding.id)).toEqual([
-      "model-a-2d",
-    ]);
+    expect(index.search("model-a", [1, 0]).map((hit) => hit.embedding.id)).toEqual(["model-a-2d"]);
   });
 
   it("keeps bucket membership correct across replacement and removal", () => {

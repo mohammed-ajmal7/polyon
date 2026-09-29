@@ -70,7 +70,6 @@ export class ResearchSynthesisService {
       agentId: input.agentId,
       requiredCapabilityIds: input.requiredCapabilityIds,
       request: {
-
         messages: [
           {
             role: "SYSTEM",

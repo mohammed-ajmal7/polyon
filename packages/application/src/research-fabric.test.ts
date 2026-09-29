@@ -64,8 +64,20 @@ describe("ResearchFabric", () => {
 
   it("rejects duplicate providers in the same capability namespace", () => {
     const fabric = new ResearchFabric();
-    const first: SearchProvider = { kind: "search", id: "search", async search() { return []; } };
-    const second: SearchProvider = { kind: "search", id: "search", async search() { return []; } };
+    const first: SearchProvider = {
+      kind: "search",
+      id: "search",
+      async search() {
+        return [];
+      },
+    };
+    const second: SearchProvider = {
+      kind: "search",
+      id: "search",
+      async search() {
+        return [];
+      },
+    };
 
     fabric.register(first);
 
