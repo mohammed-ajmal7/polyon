@@ -158,7 +158,7 @@ export class AgentRunService {
     patch: { readonly finalAnswer?: string; readonly error?: string } = {},
   ): AgentRun {
     const operation = (
-      stores: Pick<AgentRunServiceDependencies, "agentRuns" | "events">,
+      stores: Pick<AgentRunServiceDependencies, "agentRuns" | "messages" | "events">,
     ): AgentRun => {
       const current = stores.agentRuns.get(id);
       if (current === undefined) {
