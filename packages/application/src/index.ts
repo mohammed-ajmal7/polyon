@@ -340,3 +340,14 @@ export {
   type CreateAgentRunInput,
   type FailAgentRunInput,
 } from "./agent-run-service";
+
+
+export {
+  FactCheckService,
+  type FactCheckClaim,
+  type FactCheckClaimResult,
+  type FactCheckResult,
+  type FactCheckServiceDependencies,
+  type FactCheckStatus,
+  type RunFactCheckInput,
+} from "./fact-check-service";
