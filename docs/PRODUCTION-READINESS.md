@@ -12,7 +12,7 @@ Current capabilities:
 - bounded coding-agent process execution;
 - authenticated web APIs and live AI HQ;
 - baseline MCP 2026-07-28 and A2A 1.0 HTTP interoperability;
-- automatic semantic indexing with explicit scope allowlisting and durable restart-safe recovery through the persistent job runtime;
+- automatic semantic indexing with explicit scope allowlisting and durable restart-safe recovery behavior;
 - an exact normalized local semantic vector index behind a replaceable index boundary;
 - Docker/Compose deployment with CI verification.
 
@@ -26,7 +26,7 @@ Current capabilities:
 
 ## Remaining production-depth work
 
-1. Advanced MCP/A2A features such as streaming, push, subscriptions, and broader specification coverage. MCP initialization notifications and bounded `tools/list` pagination are implemented, and A2A `ListTasks` plus `CancelTask` now have bounded pagination, filtering, actor-scoped task visibility, and runtime-backed cancellation. Streaming work exists on feature branches; push, subscriptions, and remaining spec coverage stay pending until their CI-backed integration lands.
+1. Advanced MCP/A2A features such as streaming, push, subscriptions, and broader specification coverage. MCP initialization notifications and bounded `tools/list` pagination are implemented, and A2A `ListTasks` plus `CancelTask` now have bounded pagination, filtering, actor-scoped task visibility, and runtime-backed cancellation; streaming, push, subscriptions, and remaining spec coverage stay pending.
 2. Multi-user/enterprise identity and tenancy, outside the personal deployment scope.
 3. Sustained load testing, profiling, and broader adversarial E2E coverage beyond the current deterministic production-scale suite.
 4. Deployment automation for a specific infrastructure target beyond self-hosted Docker/Compose.
