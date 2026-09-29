@@ -237,11 +237,7 @@ function parseGeneratedPlan(content: string): {
 
     const kind = parseTaskKind(rawTask.kind);
     const title = readBoundedString(rawTask.title, MAX_TITLE, "task title");
-    const description = readBoundedString(
-      rawTask.description,
-      MAX_DESCRIPTION,
-      "task description",
-    );
+    const description = readBoundedString(rawTask.description, MAX_DESCRIPTION, "task description");
     const dependsOnValue = rawTask.dependsOn;
     if (!Array.isArray(dependsOnValue) || dependsOnValue.length > MAX_DEPENDENCIES) {
       throw new Error(`Task ${id} must contain at most ${MAX_DEPENDENCIES} dependencies.`);
