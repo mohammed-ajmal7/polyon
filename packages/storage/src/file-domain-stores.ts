@@ -98,6 +98,24 @@ export class FileDomainStores implements DurableDomainStores {
     return (this.activeContext ?? this.context).events;
   }
 
+  /**
+   * Refresh this store instance from the durable snapshot.
+   *
+   * Next.js development can load route modules in separate module contexts,
+   * which may create multiple FileDomainStores instances for the same file.
+   * Refreshing keeps long-lived service references aligned with the latest
+   * durable revision before a request begins mutating state.
+   */
+  refresh(): void {
+    if (this.transactionActive) {
+      throw new DomainTransactionError();
+    }
+
+    const snapshot = this.database.snapshotWithRevision();
+    Object.assign(this.state, snapshot.state);
+    this.revision = snapshot.revision;
+  }
+
   transaction<T>(work: (context: DomainStoreTransactionContext) => T): T {
     if (this.transactionActive) {
       throw new DomainTransactionError();
