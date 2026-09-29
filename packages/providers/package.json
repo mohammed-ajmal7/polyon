@@ -8,8 +8,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@polyon/contracts": "workspace:*",
-    "@polyon/agents": "workspace:*"
+    "@polyon/contracts": "workspace:*"
   },
   "devDependencies": {
     "typescript": "5.9.3",

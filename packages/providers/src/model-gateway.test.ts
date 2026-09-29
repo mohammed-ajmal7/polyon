@@ -10,9 +10,9 @@ import {
   type ModelCatalog,
   type ProviderCatalog,
 } from ".";
-import { InMemoryModelRegistry, InMemoryProviderRegistry } from "@polyon/agents";
 import { vi } from "vitest";
 import type { ModelProviderAdapter } from "./provider-adapter";
+import type { ModelInvocationTelemetryRecord } from "./model-invocation-telemetry";
 
 const model: Model = {
   id: "model-1",
@@ -402,23 +402,31 @@ describe("ModelGateway", () => {
       },
     });
 
-    const models = new InMemoryModelRegistry();
-    const providers = new InMemoryProviderRegistry();
-    models.register({
-      id: "model-1",
-      providerId: "provider-1",
-      name: "Free Hosted Model",
-      kind: "TEXT",
-      capabilityIds: [],
-      costClass: "free",
-      enabled: true,
-    });
-    providers.register({
-      id: "provider-1",
-      name: "Hosted Provider",
-      kind: "HOSTED_MODEL",
-      enabled: true,
-    });
+    const models: ModelCatalog = {
+      get: (id) =>
+        id === "model-1"
+          ? {
+              id: "model-1",
+              providerId: "provider-1",
+              name: "Free Hosted Model",
+              kind: "TEXT",
+              capabilityIds: [],
+              costClass: "free",
+              enabled: true,
+            }
+          : undefined,
+    };
+    const providers: ProviderCatalog = {
+      get: (id) =>
+        id === "provider-1"
+          ? {
+              id: "provider-1",
+              name: "Hosted Provider",
+              kind: "HOSTED_MODEL",
+              enabled: true,
+            }
+          : undefined,
+    };
 
     const gateway = new ModelGateway({
       models,
@@ -523,7 +531,9 @@ describe("ModelGateway", () => {
 
   it("emits telemetry with run identity, latency, and token usage", async () => {
     const telemetry = {
-      record: vi.fn(async () => undefined),
+      record: vi.fn(
+        async (_record: ModelInvocationTelemetryRecord): Promise<void> => undefined,
+      ),
     };
     const adapters = new InMemoryProviderAdapterRegistry();
     adapters.register({
