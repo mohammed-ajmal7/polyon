@@ -85,7 +85,6 @@ export class AgentGateway {
       input.requiredCapabilityIds,
       input.requiredModelCapabilityIds,
       input.runId,
-      input.runId,
       input.routing,
       (modelId, usageContext) =>
         this.dependencies.modelGateway.invokeText(modelId, input.request, {
@@ -177,12 +176,10 @@ export class AgentGateway {
       try {
         const result = await invokeModel(
           route.model.id,
-          runId === undefined && agentId === undefined
-            ? undefined
-            : {
-                ...(runId === undefined ? {} : { runId }),
-                ...(agentId === undefined ? {} : { agentId }),
-              },
+          {
+            ...(runId === undefined ? {} : { runId }),
+            agentId,
+          },
         );
         this.providerHealth.recordSuccess(route.provider.id);
 
