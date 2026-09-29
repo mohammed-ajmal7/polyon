@@ -60,30 +60,22 @@ describe("InMemoryMcpSubscriptionBus", () => {
       notifications: { toolsListChanged: true },
     });
 
-    const firstNext = first.events[Symbol.asyncIterator]().next();
-    const secondNext = second.events[Symbol.asyncIterator]().next();
-    const otherNext = other.events[Symbol.asyncIterator]().next();
+    const firstIterator = first.events[Symbol.asyncIterator]();
+    const secondIterator = second.events[Symbol.asyncIterator]();
+    const otherIterator = other.events[Symbol.asyncIterator]();
+
+    bus.publish(toolsChanged);
+
+    expect(await firstIterator.next()).toEqual({ done: false, value: toolsChanged });
+    expect(await secondIterator.next()).toEqual({ done: false, value: toolsChanged });
+    expect(await otherIterator.next()).toEqual({ done: false, value: toolsChanged });
 
     bus.closeByRequestId("same-request-id");
 
-    expect(await first.events[Symbol.asyncIterator]().next()).toEqual({
-      done: true,
-      value: undefined,
-    });
-    expect(await second.events[Symbol.asyncIterator]().next()).toEqual({
-      done: true,
-      value: undefined,
-    });
+    expect(await firstIterator.next()).toEqual({ done: true, value: undefined });
+    expect(await secondIterator.next()).toEqual({ done: true, value: undefined });
 
     bus.publish(toolsChanged);
-    expect(await otherNext).toEqual({ done: false, value: toolsChanged });
-    expect(await Promise.race([
-      firstNext.then(() => "resolved"),
-      Promise.resolve("pending"),
-    ])).toBe("pending");
-    expect(await Promise.race([
-      secondNext.then(() => "resolved"),
-      Promise.resolve("pending"),
-    ])).toBe("pending");
+    expect(await otherIterator.next()).toEqual({ done: false, value: toolsChanged });
   });
 });
