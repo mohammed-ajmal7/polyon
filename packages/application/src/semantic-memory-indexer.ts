@@ -257,21 +257,33 @@ export function createSemanticMemoryIndexer(
       throw new Error(`Job is not a semantic memory index job: ${context.job.id}.`);
     }
 
-    const result = await executeCycle(context.signal);
     const cycle = readCycle(context.job);
     if (cycle === undefined) {
       throw new Error(`Semantic memory index job cycle is invalid: ${context.job.id}.`);
     }
 
-    if (options.jobBridge !== undefined) {
-      const completedAt = new Date().toISOString();
-      const nextRunAt = new Date(
-        Date.parse(completedAt) + intervalMs,
-      ).toISOString();
-      scheduleNextDurableJob(cycle + 1, nextRunAt, completedAt);
+    try {
+      const result = await executeCycle(context.signal);
+      if (options.jobBridge !== undefined) {
+        const completedAt = new Date().toISOString();
+        const nextRunAt = new Date(
+          Date.parse(completedAt) + intervalMs,
+        ).toISOString();
+        scheduleNextDurableJob(cycle + 1, nextRunAt, completedAt);
+      }
+      return result;
+    } catch (error) {
+      if (
+        options.jobBridge !== undefined &&
+        context.job.attempt >= context.job.maxAttempts
+      ) {
+        const retryAt = new Date(
+          Date.parse(context.now) + intervalMs,
+        ).toISOString();
+        scheduleNextDurableJob(cycle + 1, retryAt, context.now);
+      }
+      throw error;
     }
-
-    return result;
   };
 
   const isMatchingDurableJob = (job: Job): boolean =>
