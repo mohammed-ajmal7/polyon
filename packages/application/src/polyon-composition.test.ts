@@ -328,6 +328,46 @@ describe("createPolyonComposition", () => {
     }
   });
 
+  it("routes automatic semantic indexing through the durable job runtime", async () => {
+    const root = mkdtempSync(join(tmpdir(), "polyon-composition-semantic-job-"));
+
+    try {
+      const composition = createPolyonComposition({
+        storageRoot: root,
+        embeddingProvider: embeddingRegistration(),
+        semanticMemoryIndexingEnabled: true,
+        semanticMemoryIndexAllowedScopes: ["PROJECT"],
+        semanticMemoryIndexJobUserId: "actor.test",
+        semanticMemoryIndexIntervalMs: 1_000,
+        jobPollIntervalMs: 1,
+        jobWait: async () => Promise.resolve(),
+      });
+
+      composition.semanticMemoryIndexer!.start();
+      const scheduled = composition.stores.jobs.list().find((job) => job.kind === "scheduled");
+      expect(scheduled).toMatchObject({
+        userId: "actor.test",
+        status: "queued",
+        payload: {
+          scheduler: "semantic-memory-index",
+          modelId: "embedding-model.test",
+          allowedScopes: ["PROJECT"],
+        },
+      });
+
+      composition.jobRuntime.start();
+      await vi.waitFor(() => {
+        expect(composition.stores.jobs.get(scheduled!.id)?.status).toBe("completed");
+      });
+
+      expect(composition.semanticMemoryIndexer!.health.indexedCount).toBe(0);
+      composition.jobRuntime.stop();
+      composition.semanticMemoryIndexer!.stop();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("registers integrations behind the governed invocation service", async () => {
     const root = mkdtempSync(join(tmpdir(), "polyon-composition-integration-"));
     const invoke = vi.fn(async () => ({ output: { delivered: true } }));
