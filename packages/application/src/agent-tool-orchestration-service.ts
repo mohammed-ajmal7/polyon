@@ -354,6 +354,10 @@ export class AgentToolOrchestrationService {
       next.output,
     );
 
+    if (result.status === "NO_CONTINUATION") {
+      throw new Error("Direct conversation continuation unexpectedly returned no continuation.");
+    }
+
     this.saveContinuation(approval.id, {
       ...continuation,
       state: "COMPLETED",
