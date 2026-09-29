@@ -117,12 +117,33 @@ export class CollectiveOrchestrationService {
   constructor(private readonly dependencies: CollectiveOrchestrationDependencies) {}
 
   async execute(input: ExecuteCollectiveInput): Promise<CollectiveExecutionResult> {
+    const collectiveId = `collective:${input.command.conversation.id}:${input.command.message.id}`;
+
+    try {
+      return await this.executeInternal(input, collectiveId);
+    } catch (error) {
+      const run = this.dependencies.agentRuns?.get(collectiveId);
+      if (run?.status === "running") {
+        this.dependencies.agentRuns?.syncMessageIds(collectiveId);
+        this.dependencies.agentRuns?.fail({
+          id: collectiveId,
+          error: error instanceof Error ? error.message : "Collective execution failed unexpectedly.",
+          completedAt: new Date().toISOString(),
+        });
+      }
+      throw error;
+    }
+  }
+
+  private async executeInternal(
+    input: ExecuteCollectiveInput,
+    collectiveId: string,
+  ): Promise<CollectiveExecutionResult> {
     const now = input.now ?? (() => new Date().toISOString());
     const maxParticipants = input.maxParticipants ?? DEFAULT_MAX_PARTICIPANTS;
     const targets = this.resolveTargets(input, maxParticipants);
     this.validateInput(input, targets, maxParticipants);
     const synthesizerAgentId = input.synthesizerAgentId ?? targets[targets.length - 1]!.agentId;
-    const collectiveId = `collective:${input.command.conversation.id}:${input.command.message.id}`;
     const researchEnabled = input.researchEnabled ?? this.dependencies.research !== undefined;
     const researchSourceLimit = input.researchSourceLimit ?? DEFAULT_RESEARCH_SOURCE_LIMIT;
     const maxChallengeRounds = input.maxChallengeRounds ?? DEFAULT_MAX_CHALLENGE_ROUNDS;
