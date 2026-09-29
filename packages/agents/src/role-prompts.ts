@@ -1,4 +1,4 @@
-import type { Agent } from "@polyon/contracts";
+import type { Agent, BuiltInAgentRoleId } from "@polyon/contracts";
 
 export type AgentPromptStage =
   | "conversation"
@@ -38,8 +38,9 @@ const GENERIC_PROMPT =
 export function buildAgentRolePrompt(
   agent: Agent | undefined,
   stage: AgentPromptStage,
+  roleOverride?: BuiltInAgentRoleId,
 ): string {
-  const roleKey = agent?.roleId ?? normalizeRole(agent?.role);
+  const roleKey = roleOverride ?? agent?.roleId ?? normalizeRole(agent?.role);
   const rolePrompt = ROLE_PROMPTS[roleKey] ?? GENERIC_PROMPT;
 
   return (
