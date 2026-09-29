@@ -166,6 +166,42 @@ describe("model fleet configuration", () => {
     ]);
   });
 
+  it("applies built-in role capabilities and explicit model metadata", () => {
+    const profiles = parseModelProfiles(
+      JSON.stringify([
+        {
+          agentId: "planner",
+          agentRoleId: "planner",
+          modelId: "planner-model",
+          providerId: "ollama",
+          contextWindow: 65536,
+          supportsTools: true,
+          supportsVision: true,
+          privacyClass: "local",
+          costClass: "free",
+          endpoint: "http://127.0.0.1:11434/v1/chat/completions",
+        },
+      ]),
+    );
+
+    const result = buildModelRegistrations(profiles, {});
+    const agent = result.agents[0];
+    const model = result.models[0];
+
+    expect(agent?.roleId).toBe("planner");
+    expect(agent?.capabilityIds).toEqual([
+      "ai.chat",
+      "ai.reasoning",
+      "ai.structured-output",
+    ]);
+    expect(model?.capabilityIds).toEqual(["ai.chat", "ai.tool-calling", "ai.vision"]);
+    expect(model?.contextWindow).toBe(65536);
+    expect(model?.supportsTools).toBe(true);
+    expect(model?.supportsVision).toBe(true);
+    expect(model?.privacyClass).toBe("local");
+    expect(model?.costClass).toBe("free");
+  });
+
   it("requires an endpoint for unknown providers", () => {
     const profiles = parseModelProfiles(
       JSON.stringify([
