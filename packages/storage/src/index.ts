@@ -9,6 +9,8 @@ export {
 export {
   InMemoryDomainStores,
   type AgentRunStore,
+  type JobStore,
+  type ScheduleStore,
   type ApprovalRequestStore,
   type DebateStore,
   type EvidenceStore,
