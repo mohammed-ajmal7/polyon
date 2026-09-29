@@ -330,6 +330,11 @@ export class CollectiveOrchestrationService {
     }
 
     const challenges: CollectiveChallenge[] = [];
+    const reviewAgents = targets.filter((target) => {
+      const roleId = this.dependencies.agents.get(target.agentId)?.roleId;
+      return roleId === "critic" || roleId === "fact-checker" || roleId === "judge";
+    });
+    const challengeTargets = reviewAgents.length > 0 ? reviewAgents : contributors;
 
     if (contributions.length === 0) {
       this.persistContributions(collectiveId, input, contributions, failures, now());
@@ -364,7 +369,7 @@ export class CollectiveOrchestrationService {
 
     for (let round = 1; round <= maxChallengeRounds; round += 1) {
       const results = await Promise.all(
-        targets.map(async (target) => {
+        challengeTargets.map(async (target) => {
           const agent = this.dependencies.agents.get(target.agentId);
           const role = agent?.role ?? "Generalist";
           const targetAgentIds = contributors
@@ -724,7 +729,11 @@ export class CollectiveOrchestrationService {
               agent === undefined
                 ? { role: "Generalist" }
                 : { role: agent.role, ...(agent.roleId === undefined ? {} : { roleId: agent.roleId }) },
-              "CRITIQUE",
+              agent?.roleId === "judge"
+                ? "ADJUDICATION"
+                : agent?.roleId === "fact-checker"
+                  ? "FACT_CHECK"
+                  : "CRITIQUE",
             ) +
             " Challenge peer reasoning rather than seeking agreement. Identify unsupported claims, " +
             "conflicting evidence, hidden assumptions, and plausible alternative explanations. " +
