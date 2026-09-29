@@ -582,7 +582,9 @@ describe("ModelGateway", () => {
   it("records a separate failed attempt before a retry", async () => {
     let calls = 0;
     const telemetry = {
-      record: vi.fn(async () => undefined),
+      record: vi.fn(
+        async (_record: ModelInvocationTelemetryRecord): Promise<void> => undefined,
+      ),
     };
     const adapters = new InMemoryProviderAdapterRegistry();
     adapters.register({
