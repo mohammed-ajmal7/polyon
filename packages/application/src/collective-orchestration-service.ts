@@ -42,6 +42,7 @@ export interface ExecuteCollectiveInput {
   readonly targets?: readonly CollectiveTarget[];
   readonly actorId: string;
   readonly requiredCapabilityIds: readonly string[];
+  readonly requiredModelCapabilityIds?: readonly string[];
   readonly synthesizerAgentId?: AgentId;
   readonly maxParticipants?: number;
   readonly maxChallengeRounds?: number;
@@ -234,6 +235,9 @@ export class CollectiveOrchestrationService {
           const response = await this.dependencies.agentGateway.invokeText({
             agentId: target.agentId,
             requiredCapabilityIds: input.requiredCapabilityIds,
+            ...(input.requiredModelCapabilityIds === undefined
+              ? {}
+              : { requiredModelCapabilityIds: input.requiredModelCapabilityIds }),
             request: this.buildContributorRequest(
               input.command.message.content,
               role,
@@ -536,6 +540,9 @@ export class CollectiveOrchestrationService {
 
     const plan = this.dependencies.teamPlanner({
       requiredCapabilityIds: input.requiredCapabilityIds,
+      ...(input.requiredModelCapabilityIds === undefined
+        ? {}
+        : { requiredModelCapabilityIds: input.requiredModelCapabilityIds }),
       minimumAgents: MIN_PARTICIPANTS,
       maximumAgents: maxParticipants,
       preferProviderDiversity: true,
