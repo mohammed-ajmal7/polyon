@@ -129,9 +129,7 @@ export class ResearchOrchestrationService {
     targets: readonly ResearchTarget[],
     researchId: string,
   ): Promise<ResearchExecutionResult> {
-    const targets = [...input.targets];
     const synthesizerAgentId = input.synthesizerAgentId ?? targets[targets.length - 1]!.agentId;
-    const researchId = `research:${input.command.conversation.id}:${input.command.message.id}:${randomUUID()}`;
     const sourceLimit = input.sourceLimit ?? DEFAULT_SOURCE_LIMIT;
 
     const synthesizer = this.dependencies.agents.get(synthesizerAgentId);
