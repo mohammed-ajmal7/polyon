@@ -416,6 +416,104 @@ describe("AgentToolOrchestrationService", () => {
     }
   });
 
+  it("resumes an approved Direct conversation tool call without an execution binding", async () => {
+    const root = mkdtempSync(join(tmpdir(), "polyon-direct-tool-approval-"));
+    let modelCalls = 0;
+    let toolCalls = 0;
+
+    try {
+      const stores = new FileDomainStores(root);
+      const { orchestrator } = createOrchestrator(
+        stores,
+        vi.fn(async ({ request }) => {
+          modelCalls += 1;
+
+          if (modelCalls === 1) {
+            return {
+              agentId,
+              modelId: model.id,
+              providerId: provider.id,
+              source: "PREFERRED" as const,
+              output: {
+                content: "",
+                finishReason: "TOOL_CALL" as const,
+                toolCalls: [
+                  {
+                    id: "direct-call-1",
+                    toolId: tool.id,
+                    input: { value: "hello" },
+                  },
+                ],
+              },
+            };
+          }
+
+          expect(request.messages).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                role: "TOOL",
+                toolCallId: "direct-call-1",
+                content: "tool result",
+              }),
+            ]),
+          );
+
+          return {
+            agentId,
+            modelId: model.id,
+            providerId: provider.id,
+            source: "PREFERRED" as const,
+            output: {
+              content: "Direct continuation succeeded.",
+              finishReason: "STOP" as const,
+            },
+          };
+        }),
+        vi.fn(async () => {
+          toolCalls += 1;
+          return { output: "tool result" };
+        }),
+      );
+
+      const awaiting = await orchestrator.invoke({
+        agentId,
+        requiredCapabilityIds: ["text.generate"],
+        request: {
+          messages: [{ role: "USER", content: "Use the tool." }],
+        },
+        policy,
+        actorId: "actor.test",
+        conversationId: "conversation.direct",
+      });
+
+      expect(awaiting.status).toBe("APPROVAL_REQUIRED");
+      if (awaiting.status !== "APPROVAL_REQUIRED") return;
+
+      const approval = stores.approvals.get(awaiting.approval.id);
+      expect(approval?.executionId).toBeUndefined();
+      expect(approval?.toolContinuation?.conversationId).toBe("conversation.direct");
+
+      const result = await orchestrator.resolveConversationToolApproval(
+        {
+          approvalId: awaiting.approval.id,
+          status: "APPROVED",
+          resolvedAt: "2026-09-29T10:00:00.000Z",
+          resolvedBy: "actor.test",
+        },
+        policy,
+      );
+
+      expect(result.status).toBe("SUCCEEDED");
+      if (result.status === "SUCCEEDED") {
+        expect(result.response.content).toBe("Direct continuation succeeded.");
+      }
+      expect(toolCalls).toBe(1);
+      expect(modelCalls).toBe(2);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("recovers an approved continuation without re-running a completed tool after restart", async () => {
     const root = mkdtempSync(join(tmpdir(), "polyon-tool-continuation-"));
     let toolCalls = 0;
