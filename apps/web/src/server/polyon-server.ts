@@ -36,6 +36,9 @@ export function getPolyonComposition(): PolyonComposition {
   if (process.env.POLYON_SEMANTIC_INDEXING_AUTOSTART !== "false") {
     composition.semanticMemoryIndexer?.start();
   }
+  if (process.env.POLYON_JOB_RUNTIME_AUTOSTART !== "false") {
+    composition.jobRuntime.start();
+  }
   globalState.__polyonComposition = composition;
   return composition;
 }
@@ -63,6 +66,10 @@ function buildOptions() {
     usageGovernor,
     semanticMemoryIndexAllowedScopes,
     semanticMemoryIndexingEnabled: semanticMemoryIndexAllowedScopes.length > 0,
+    jobRuntimeIntervalMs: readInteger(process.env.POLYON_JOB_RUNTIME_INTERVAL_MS, 5_000),
+    jobRuntimeJobsPerTick: readInteger(process.env.POLYON_JOB_RUNTIME_JOBS_PER_TICK, 8),
+    jobRuntimeWorkerId:
+      process.env.POLYON_JOB_RUNTIME_WORKER_ID?.trim() || "polyon-web-worker",
     ...(email === undefined
       ? {}
       : {
