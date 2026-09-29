@@ -173,9 +173,15 @@ describe("protocol servers", () => {
       actorId: "a2a-client",
     });
 
-    expect(service.agentCard("http://localhost:3000/api/a2a")).toMatchObject({
-      protocolVersion: "1.0.0",
-      capabilities: { streaming: false },
+    expect(service.agentCard("http://localhost:3000")).toMatchObject({
+      supportedInterfaces: [
+        {
+          url: "http://localhost:3000/api/a2a",
+          protocolBinding: "JSONRPC",
+          protocolVersion: "1.0",
+        },
+      ],
+      capabilities: { streaming: true },
       defaultInputModes: ["text/plain"],
     });
 
@@ -193,8 +199,10 @@ describe("protocol servers", () => {
 
     expect(conversation.execute).toHaveBeenCalledTimes(1);
     expect(response?.result).toEqual({
-      role: "agent",
-      parts: [{ kind: "text", text: "world" }],
+      message: {
+        role: "ROLE_AGENT",
+        parts: [{ text: "world" }],
+      },
     });
   });
 });
