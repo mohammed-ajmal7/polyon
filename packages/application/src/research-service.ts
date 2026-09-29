@@ -1,4 +1,5 @@
 import type { Evidence, EvidenceKind, Source, SourceKind } from "@polyon/contracts";
+import { buildEvidenceQuality } from "@polyon/core";
 import type {
   DomainStoreTransactionContext,
   DomainUnitOfWork,
@@ -29,6 +30,7 @@ export interface ConductResearchInput {
   readonly query: string;
   readonly sourceLimit?: number;
   readonly actorId?: string;
+  readonly agentId?: string;
   readonly missionId?: string;
   readonly taskId?: string;
   readonly sourceIdFactory: (index: number, candidate: ResearchSourceCandidate) => string;
@@ -70,6 +72,7 @@ export class ResearchService {
       for (let index = 0; index < candidates.length; index += 1) {
         const candidate = candidates[index]!;
         validateCandidate(candidate);
+
         const source: Source = {
           id: input.sourceIdFactory(index, candidate),
           kind: candidate.kind,
@@ -80,6 +83,7 @@ export class ResearchService {
         const evidence: Evidence = {
           id: input.evidenceIdFactory(index, candidate),
           sourceId: source.id,
+          ...(input.agentId === undefined ? {} : { agentId: input.agentId }),
           kind: candidate.evidenceKind ?? "SUPPORTING",
           claim: candidate.claim?.trim() || query,
           supportingContent: candidate.content,
@@ -95,6 +99,24 @@ export class ResearchService {
         if (stores.evidence.get(evidence.id) !== undefined) {
           throw new Error(`Evidence already exists: ${evidence.id}.`);
         }
+
+        createdSources.push(source);
+        createdEvidence.push(evidence);
+      }
+
+      const sourcesById = new Map(createdSources.map((source) => [source.id, source]));
+      const evidenceWithQuality = createdEvidence.map((item) => ({
+        ...item,
+        quality: buildEvidenceQuality(item, {
+          evidence: createdEvidence,
+          sources: sourcesById,
+          now: input.now,
+        }),
+      }));
+
+      for (let index = 0; index < createdSources.length; index += 1) {
+        const source = createdSources[index]!;
+        const evidence = evidenceWithQuality[index]!;
 
         stores.sources.save(source);
         stores.evidence.save(evidence);
@@ -119,13 +141,16 @@ export class ResearchService {
           missionId: input.missionId,
           taskId: input.taskId,
           occurredAt: evidence.capturedAt,
-          data: { evidenceId: evidence.id, sourceId: evidence.sourceId, kind: evidence.kind },
+          data: {
+            evidenceId: evidence.id,
+            sourceId: evidence.sourceId,
+            kind: evidence.kind,
+            qualityScore: evidence.quality?.score,
+          },
         });
-        createdSources.push(source);
-        createdEvidence.push(evidence);
       }
 
-      return { sources: createdSources, evidence: createdEvidence };
+      return { sources: createdSources, evidence: evidenceWithQuality };
     };
 
     return this.unitOfWork === undefined
