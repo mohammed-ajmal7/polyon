@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 import {
   DomainTransactionError,
+  StorageConcurrencyError,
   type DomainStoreTransactionContext,
   type DomainUnitOfWork,
 } from "./transaction";
@@ -16,6 +17,8 @@ export interface DurableDomainStores extends DomainStores, DomainUnitOfWork {
   readonly events: EventStore;
   readonly rootDir: string;
 }
+
+const MAX_TRANSACTION_ATTEMPTS = 4;
 
 export class FileDomainStores implements DurableDomainStores {
   private transactionActive = false;
@@ -124,17 +127,35 @@ export class FileDomainStores implements DurableDomainStores {
     this.transactionActive = true;
 
     try {
-      const snapshot = this.database.snapshotWithRevision();
-      const stagedState = snapshot.state;
-      const stagedContext = createStateContext(stagedState);
-      this.activeContext = stagedContext;
-      const result = work(stagedContext);
+      let lastConcurrencyError: StorageConcurrencyError | undefined;
 
-      const nextRevision = this.database.replaceIfRevision(stagedState, snapshot.revision);
-      Object.assign(this.state, stagedState);
-      this.revision = nextRevision;
+      for (let attempt = 1; attempt <= MAX_TRANSACTION_ATTEMPTS; attempt += 1) {
+        const snapshot = this.database.snapshotWithRevision();
+        const stagedState = snapshot.state;
+        const stagedContext = createStateContext(stagedState);
+        this.activeContext = stagedContext;
 
-      return result;
+        try {
+          const result = work(stagedContext);
+          const nextRevision = this.database.replaceIfRevision(stagedState, snapshot.revision);
+          Object.assign(this.state, stagedState);
+          this.revision = nextRevision;
+          return result;
+        } catch (error) {
+          if (!(error instanceof StorageConcurrencyError) || attempt === MAX_TRANSACTION_ATTEMPTS) {
+            throw error;
+          }
+
+          lastConcurrencyError = error;
+        } finally {
+          this.activeContext = undefined;
+        }
+      }
+
+      throw (
+        lastConcurrencyError ??
+        new Error("Durable transaction failed after exhausting concurrency retries.")
+      );
     } finally {
       this.activeContext = undefined;
       this.transactionActive = false;
