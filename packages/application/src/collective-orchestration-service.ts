@@ -354,7 +354,7 @@ export class CollectiveOrchestrationService {
               requiredCapabilityIds: input.requiredCapabilityIds,
               request: this.buildChallengeRequest(
                 input.command.message.content,
-                role,
+                agent,
                 target.agentId,
                 round,
                 contributions,
@@ -424,6 +424,8 @@ export class CollectiveOrchestrationService {
         requiredCapabilityIds: input.requiredCapabilityIds,
         request: this.buildSynthesisRequest(
           input.command.message.content,
+          synthesizer,
+
           contributions,
           challenges,
           failures,
@@ -640,7 +642,7 @@ export class CollectiveOrchestrationService {
 
   private buildChallengeRequest(
     command: string,
-    role: string,
+    agent: Pick<Agent, "role" | "roleId"> | undefined,
     agentId: AgentId,
     round: number,
     contributions: readonly CollectiveContribution[],
@@ -672,8 +674,13 @@ export class CollectiveOrchestrationService {
           role: "SYSTEM",
           content:
             "You are a critical reviewer inside POLYON's AI collective. " +
-            "Challenge peer reasoning rather than seeking agreement. " +
-            "Identify unsupported claims, " +
+            buildAgentStageInstructions(
+              agent === undefined
+                ? { role: "Generalist" }
+                : { role: agent.role, ...(agent.roleId === undefined ? {} : { roleId: agent.roleId }) },
+              "CRITIQUE",
+            ) +
+            " Challenge peer reasoning rather than seeking agreement. Identify unsupported claims, " +
             "conflicting evidence, hidden assumptions, and plausible alternative explanations. " +
             "Separate facts from interpretations. Do not invent sources or claim verification " +
             "you did not receive. Do not take external actions.",
@@ -696,6 +703,7 @@ export class CollectiveOrchestrationService {
 
   private buildSynthesisRequest(
     command: string,
+    agent: Pick<Agent, "role" | "roleId"> | undefined,
     contributions: readonly CollectiveContribution[],
     challenges: readonly CollectiveChallenge[],
     failures: readonly CollectiveFailure[],
@@ -726,11 +734,16 @@ export class CollectiveOrchestrationService {
         {
           role: "SYSTEM",
           content:
-            "You are POLYON's synthesis lead. Produce one transparent answer from " +
-            "the collective. Do not treat agent agreement as proof. Distinguish " +
-            "directly supported facts, source-backed evidence, agent interpretations, " +
-            "disagreements, missing information, and uncertainty. " +
-            "Never invent sources or verification. " +
+            "You are POLYON's synthesis lead. " +
+            buildAgentStageInstructions(
+              agent === undefined
+                ? { role: "Synthesis lead" }
+                : { role: agent.role, ...(agent.roleId === undefined ? {} : { roleId: agent.roleId }) },
+              "SYNTHESIS",
+            ) +
+            " Produce one transparent answer from the collective. Do not treat agent agreement as proof. " +
+            "Distinguish directly supported facts, source-backed evidence, agent interpretations, " +
+            "disagreements, missing information, and uncertainty. Never invent sources or verification. " +
             "Prefer a useful conclusion with explicit caveats.",
         },
         {
