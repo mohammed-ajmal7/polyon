@@ -38,6 +38,7 @@ export interface ApprovalRequest {
   readonly integrationContinuation?: {
     readonly agentId: string;
     readonly requiredCapabilityIds: readonly string[];
+    readonly requiredModelCapabilityIds?: readonly string[];
     readonly request: TextModelRequest;
     readonly response: TextModelResponse;
     readonly toolCall: ModelToolCall;
