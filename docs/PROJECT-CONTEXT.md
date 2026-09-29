@@ -323,7 +323,7 @@ Implemented:
 
 Remaining depth:
 
-- provider-independent embedding routing, bounded persisted semantic memory search, and durable automatic indexing/reindex scheduling are implemented; vector-scale optimization remains.
+- provider-independent embedding routing and bounded persisted semantic memory search are implemented; automatic indexing/reindex recovery and vector-scale optimization remain.
 - advanced MCP/A2A protocol capabilities;
 - optional enterprise/multi-user auth;
 - production-scale performance and broader E2E testing;
