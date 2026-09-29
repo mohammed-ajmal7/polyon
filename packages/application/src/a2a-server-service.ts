@@ -267,12 +267,16 @@ export class A2AServerService {
 
   private createPushNotificationConfig(request: A2AJsonRpcRequest): A2AJsonRpcResponse {
     const service = this.dependencies.pushNotifications;
-    if (service === undefined) {\n      return error(request.id, -32004, "A2A push notifications are not supported.");\n    }
+    if (service === undefined) {
+      return error(request.id, -32004, "A2A push notifications are not supported.");
+    }
 
     const params = request.params ?? {};
     const taskId = readRequiredString(params.taskId);
     const url = readRequiredString(params.url);
-    if (taskId === "" || url === "") {\n      return error(request.id, -32602, "taskId and url are required.");\n    }
+    if (taskId === "" || url === "") {
+      return error(request.id, -32602, "taskId and url are required.");
+    }
 
     try {
       const config = service.createConfig({
@@ -283,7 +287,13 @@ export class A2AServerService {
       });
       return { jsonrpc: "2.0", id: request.id, result: redactPushConfig(config) };
     } catch (cause) {
-      return error(\n        request.id,\n        cause instanceof Error ? -32602 : -32000,\n        cause instanceof Error\n          ? cause.message\n          : "Unable to create push notification configuration.",\n      );
+      return error(
+        request.id,
+        cause instanceof Error ? -32602 : -32000,
+        cause instanceof Error
+          ? cause.message
+          : "Unable to create push notification configuration.",
+      );
     }
   }
 
@@ -294,10 +304,14 @@ export class A2AServerService {
     const params = request.params ?? {};
     const taskId = readRequiredString(params.taskId);
     const configId = readRequiredString(params.id);
-    if (taskId === "" || configId === "") {\n      return error(request.id, -32602, "taskId and id are required.");\n    }
+    if (taskId === "" || configId === "") {
+      return error(request.id, -32602, "taskId and id are required.");
+    }
 
     const config = service.getConfig(taskId, configId);
-    if (config === undefined) {\n      return error(request.id, -32001, "Push notification configuration not found.");\n    }
+    if (config === undefined) {
+      return error(request.id, -32001, "Push notification configuration not found.");
+    }
     return { jsonrpc: "2.0", id: request.id, result: redactPushConfig(config) };
   }
 
@@ -318,7 +332,9 @@ export class A2AServerService {
     const pageToken = decodePushPageToken(params.pageToken);
     if (pageToken.error !== undefined) return error(request.id, -32602, pageToken.error);
 
-    const configs = service\n      .listConfigs(taskId)\n      .sort((left, right) => left.id.localeCompare(right.id));
+    const configs = service
+      .listConfigs(taskId)
+      .sort((left, right) => left.id.localeCompare(right.id));
     const startIndex =
       pageToken.configId === undefined
         ? 0
@@ -554,7 +570,8 @@ function extractText(message: Record<string, unknown>): string {
   if (!Array.isArray(parts)) return "";
   return parts
     .map((part) => (isRecord(part) && typeof part.text === "string" ? part.text : ""))
-    .join("\n")
+    .join("
+")
     .trim();
 }
 
@@ -575,7 +592,11 @@ function parsePushAuthentication(value: unknown):
   | { readonly authentication: { readonly scheme: string; readonly credentials: string } }
   | Record<string, never> {
   if (value === undefined) return {};
-  if (\n    !isRecord(value) ||\n    typeof value.scheme !== "string" ||\n    typeof value.credentials !== "string"\n  ) {
+  if (
+    !isRecord(value) ||
+    typeof value.scheme !== "string" ||
+    typeof value.credentials !== "string"
+  ) {
     throw new Error("authentication must contain scheme and credentials.");
   }
   return { authentication: { scheme: value.scheme, credentials: value.credentials } };
