@@ -22,6 +22,7 @@ import type {
 import type { CommandIngressResult } from "./command-ingress";
 import type { ResearchService } from "./research-service";
 import type { AgentRunService } from "./agent-run-service";
+import type { FactCheckResult, FactCheckService } from "./fact-check-service";
 
 const DEFAULT_MAX_PARTICIPANTS = 8;
 const MIN_PARTICIPANTS = 2;
@@ -48,6 +49,7 @@ export interface ExecuteCollectiveInput {
   readonly maxChallengeRounds?: number;
   readonly researchEnabled?: boolean;
   readonly researchSourceLimit?: number;
+  readonly factCheckerAgentId?: AgentId;
   readonly now?: () => string;
 }
 
@@ -91,6 +93,7 @@ export interface CollectiveExecutionResult {
   readonly failures: readonly CollectiveFailure[];
   readonly sourceIds: readonly string[];
   readonly evidenceIds: readonly string[];
+  readonly factChecks?: readonly FactCheckResult[];
   readonly synthesis?: Message;
 }
 
@@ -101,6 +104,7 @@ export interface CollectiveOrchestrationDependencies {
   readonly messages: MessageStore;
   readonly events: EventStore;
   readonly research?: ResearchService;
+  readonly factCheck?: FactCheckService;
   readonly teamPlanner?: (request: AgentTeamPlanningRequest) => AgentTeamPlan;
   readonly agentRuns?: AgentRunService;
   readonly unitOfWork?: DomainUnitOfWork;
@@ -124,6 +128,10 @@ export class CollectiveOrchestrationService {
     const researchEnabled = input.researchEnabled ?? this.dependencies.research !== undefined;
     const researchSourceLimit = input.researchSourceLimit ?? DEFAULT_RESEARCH_SOURCE_LIMIT;
     const maxChallengeRounds = input.maxChallengeRounds ?? DEFAULT_MAX_CHALLENGE_ROUNDS;
+
+    if (input.factCheckerAgentId !== undefined && this.dependencies.factCheck === undefined) {
+      throw new Error("Collective fact checking is enabled but no Fact Check service is configured.");
+    }
 
     if (this.dependencies.agentRuns !== undefined) {
       const existingRun = this.dependencies.agentRuns.get(collectiveId);
@@ -165,6 +173,7 @@ export class CollectiveOrchestrationService {
       researchSourceLimit,
       maxChallengeRounds,
       targets,
+      input.factCheckerAgentId,
     );
 
     const researchByAgent = new Map<AgentId, ResearchContext>();
@@ -295,6 +304,33 @@ export class CollectiveOrchestrationService {
 
     const researchContext = mergeResearchContext([...researchByAgent.values()]);
 
+    const factChecks: FactCheckResult[] = [];
+    if (input.factCheckerAgentId !== undefined && this.dependencies.factCheck !== undefined) {
+      try {
+        const results = await this.dependencies.factCheck.execute({
+          runId: collectiveId,
+          factCheckerAgentId: input.factCheckerAgentId,
+          claims: contributions.map((contribution) => ({
+            id: `collective-claim:${collectiveId}:${contribution.agentId}`,
+            claim: contribution.content,
+            evidenceIds: contribution.evidenceIds,
+          })),
+          requiredCapabilityIds: input.requiredCapabilityIds,
+          now,
+        });
+        factChecks.push(...results);
+      } catch (error) {
+        failures.push({
+          agentId: input.factCheckerAgentId,
+          actorId: input.factCheckerAgentId,
+          error:
+            error instanceof Error
+              ? `Fact check failed: ${error.message}`
+              : "Fact check failed.",
+        });
+      }
+    }
+
     if (
       !Number.isInteger(maxChallengeRounds) ||
       maxChallengeRounds < 0 ||
@@ -333,6 +369,7 @@ export class CollectiveOrchestrationService {
         failures,
         sourceIds: [],
         evidenceIds: [],
+        ...(factChecks.length === 0 ? {} : { factChecks }),
       };
     }
 
@@ -428,6 +465,7 @@ export class CollectiveOrchestrationService {
           challenges,
           failures,
           researchContext,
+          factChecks,
           buildAgentRolePrompt(synthesizer, "synthesis"),
         ),
       });
@@ -461,6 +499,7 @@ export class CollectiveOrchestrationService {
         failures,
         sourceIds: researchContext.sources.map((source) => source.id),
         evidenceIds: researchContext.evidence.map((evidence) => evidence.id),
+        ...(factChecks.length === 0 ? {} : { factChecks }),
       };
     }
 
@@ -491,6 +530,7 @@ export class CollectiveOrchestrationService {
         failures,
         sourceIds: researchContext.sources.map((source) => source.id),
         evidenceIds: researchContext.evidence.map((evidence) => evidence.id),
+        ...(factChecks.length === 0 ? {} : { factChecks }),
       };
     }
 
@@ -525,6 +565,7 @@ export class CollectiveOrchestrationService {
       failures,
       sourceIds: researchContext.sources.map((source) => source.id),
       evidenceIds: researchContext.evidence.map((evidence) => evidence.id),
+      ...(factChecks.length === 0 ? {} : { factChecks }),
       synthesis,
     };
   }
@@ -601,6 +642,7 @@ export class CollectiveOrchestrationService {
     role: string,
     agentName: string,
     research: ResearchContext,
+    factChecks: readonly FactCheckResult[],
     rolePrompt: string,
   ): TextModelRequest {
     const evidenceContext = formatEvidenceContext(research);
@@ -699,6 +741,7 @@ export class CollectiveOrchestrationService {
     challenges: readonly CollectiveChallenge[],
     failures: readonly CollectiveFailure[],
     research: ResearchContext,
+    factChecks: readonly FactCheckResult[],
     rolePrompt: string,
   ): TextModelRequest {
     const lines = contributions.map(
@@ -714,9 +757,21 @@ export class CollectiveOrchestrationService {
     );
     const failureLines = failures.map((item) => `[agent=${item.agentId}] failed: ${item.error}`);
     const evidenceContext = formatEvidenceContext(research);
+    const factCheckContext = factChecks
+      .map(
+        (result) =>
+          `[claim=${result.claimId} verdict=${result.verdict} confidence=${result.confidence ?? "n/a"} evidence=${result.evidenceIds.join(",")}]
+${result.rationale}`,
+      )
+      .join("\n\n");
 
     let context = "";
-    for (const line of [...lines, ...challengeLines, ...failureLines]) {
+    for (const line of [
+      ...lines,
+      ...challengeLines,
+      ...(factCheckContext === "" ? [] : [`Fact-check results:\n${factCheckContext}`]),
+      ...failureLines,
+    ]) {
       if (context.length + line.length + 2 > MAX_SYNTHESIS_CONTEXT_CHARACTERS) break;
       context += (context === "" ? "" : "\n\n") + line;
     }
@@ -755,6 +810,7 @@ export class CollectiveOrchestrationService {
     researchSourceLimit: number,
     maxChallengeRounds: number,
     targets: readonly CollectiveTarget[],
+    factCheckerAgentId?: AgentId,
   ): void {
     this.withStores((stores) => {
       stores.events.append({
@@ -771,6 +827,7 @@ export class CollectiveOrchestrationService {
           researchEnabled,
           researchSourceLimit,
           maxChallengeRounds,
+          ...(factCheckerAgentId === undefined ? {} : { factCheckerAgentId }),
         },
       });
     });

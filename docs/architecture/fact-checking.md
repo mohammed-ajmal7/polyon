@@ -39,4 +39,4 @@ Each invocation emits `FACT_CHECK_STARTED`, one `FACT_CHECK_RESULT` per claim, a
 
 ## Integration boundary
 
-`FactCheckService` is exposed through the main POLYON composition and remains provider-independent through `AgentGateway`. Automatic invocation from research/deep-analysis orchestration is intentionally a separate integration slice so the fact-check stage can be enabled and governed explicitly.
+`FactCheckService` is exposed through the main POLYON composition and remains provider-independent through `AgentGateway`. Collective and Deep Analysis orchestration can opt into the stage with an explicit `factCheckerAgentId`; existing flows remain unchanged when it is omitted.
