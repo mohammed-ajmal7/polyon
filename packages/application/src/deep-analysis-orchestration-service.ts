@@ -85,6 +85,7 @@ export class DeepAnalysisOrchestrationService {
       kind: "DEEP_ANALYSIS_STARTED",
       actorId: input.actorId,
       conversationId: input.command.conversation.id,
+      agentRunId: collective.runId,
       occurredAt: now(),
       data: {
         deepAnalysisId,
@@ -148,7 +149,11 @@ export class DeepAnalysisOrchestrationService {
       .run({
         debateId,
         requiredCapabilityIds: input.requiredCapabilityIds,
+        ...(input.requiredModelCapabilityIds === undefined
+          ? {}
+          : { requiredModelCapabilityIds: input.requiredModelCapabilityIds }),
         adjudicatorAgentId: synthesizerAgentId,
+        agentRunId: collective.runId,
         now,
         context,
       })
@@ -183,6 +188,7 @@ export class DeepAnalysisOrchestrationService {
       kind: "DEEP_ANALYSIS_COMPLETED",
       actorId: synthesizerAgentId,
       conversationId: input.command.conversation.id,
+      agentRunId: collective.runId,
       occurredAt: now(),
       data: {
         deepAnalysisId,
@@ -239,6 +245,14 @@ export class DeepAnalysisOrchestrationService {
             role: "AGENT",
             kind: "TEXT",
             content: contribution.content,
+            runId: collective.runId,
+            fromAgentId: contribution.agentId,
+            agentMessageType: contribution.phase === "ADJUDICATION" ? "decision" : "challenge",
+            payload: {
+              debateId: debate.debate.id,
+              round: contribution.round,
+              phase: contribution.phase,
+            },
             createdAt: now(),
           };
           stores.messages.save(message);
@@ -253,6 +267,13 @@ export class DeepAnalysisOrchestrationService {
         role: "AGENT",
         kind: "TEXT",
         content: debate.decision,
+        runId: collective.runId,
+        fromAgentId: adjudicatorAgentId,
+        agentMessageType: "decision",
+        payload: {
+          debateId: debate.debate.id,
+          status: debate.debate.status,
+        },
         createdAt: now(),
       };
 
@@ -298,6 +319,7 @@ export class DeepAnalysisOrchestrationService {
       kind: "ERROR",
       actorId: input.actorId,
       conversationId: input.command.conversation.id,
+      agentRunId: input.command.conversation.id + ":" + input.command.message.id,
       occurredAt,
       data: {
         deepAnalysisId,
