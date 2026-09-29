@@ -119,7 +119,7 @@ The repository also contains focused integration/recovery/security tests across 
 
 The core POLYON operating loop is implemented. Work that can remain after the initial self-hosted release is primarily depth, scale, and deployment-specific:
 
-- advanced MCP/A2A capabilities such as protocol streaming and broader specification coverage;
+- advanced MCP/A2A capabilities such as broader specification coverage;
 - multi-user/enterprise identity and tenancy (the product remains intentionally personal);
 - sustained load/profiling and a wider adversarial end-to-end matrix;
 - target-specific deployment automation beyond self-hosted Docker/Compose.
