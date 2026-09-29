@@ -331,6 +331,7 @@ export {
   createA2AWebhookSender,
   createDurableA2APushNotificationStore,
   type A2ATaskPushNotificationConfig,
+  A2APushNotificationDeliveryError,
   type A2APushNotificationAuthentication,
   type A2APushNotificationSender,
   type A2APushNotificationStore,

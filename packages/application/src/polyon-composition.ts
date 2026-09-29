@@ -313,6 +313,23 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
                 )
             );
           },
+          onDeliveryOutcome: (outcome) => {
+            stores.events.append({
+              id: `A2A_PUSH_DELIVERY:${crypto.randomUUID()}`,
+              kind:
+                outcome.status === "SUCCEEDED"
+                  ? "A2A_PUSH_DELIVERY_SUCCEEDED"
+                  : "A2A_PUSH_DELIVERY_FAILED",
+              actorId: "a2a-client",
+              taskId: outcome.taskId,
+              occurredAt: new Date().toISOString(),
+              data: {
+                configId: outcome.configId,
+                attempts: outcome.attempts,
+                ...(outcome.error === undefined ? {} : { error: outcome.error }),
+              },
+            });
+          },
         })
       : undefined;
 
