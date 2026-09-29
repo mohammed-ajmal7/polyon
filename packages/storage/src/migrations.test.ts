@@ -179,6 +179,39 @@ describe("migrateDurableSnapshot", () => {
 });
 
 
+describe("job migration", () => {
+  it("adds the jobs collection when migrating from version 4 to 5", () => {
+    expect(
+      migrateDurableSnapshot(
+        { version: 4, events: [], agentRuns: [] },
+        5,
+        [
+          {
+            fromVersion: 4,
+            toVersion: 5,
+            migrate(state) {
+              return {
+                ...state,
+                jobs: [],
+              };
+            },
+          },
+        ],
+      ),
+    ).toEqual({
+      value: {
+        version: 5,
+        events: [],
+        agentRuns: [],
+        jobs: [],
+      },
+      migrated: true,
+      fromVersion: 4,
+      toVersion: 5,
+    });
+  });
+});
+
 describe("agent run migration", () => {
   it("adds the agentRuns collection when migrating from version 3 to 4", () => {
     expect(
