@@ -422,6 +422,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     stores.debates,
     stores.events,
     stores,
+    agents,
   );
   const research =
     options.researchRetriever === undefined
