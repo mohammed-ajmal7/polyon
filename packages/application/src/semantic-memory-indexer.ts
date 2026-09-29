@@ -13,6 +13,13 @@ export interface SemanticMemoryIndexerHealth {
   readonly running: boolean;
   readonly cycleActive: boolean;
   readonly indexedCount: number;
+  readonly removedCount: number;
+  readonly lastCycleResult?: {
+    readonly indexed: number;
+    readonly removed: number;
+    readonly stale: number;
+    readonly skipped: number;
+  };
   readonly lastCycleAt?: string;
   readonly lastSuccessAt?: string;
   readonly lastErrorAt?: string;
@@ -66,6 +73,8 @@ export function createSemanticMemoryIndexer(
   let timer: ReturnType<typeof setTimeout> | undefined;
   let controller: AbortController | undefined;
   let indexedCount = 0;
+  let removedCount = 0;
+  let lastCycleResult: SemanticMemoryIndexerHealth["lastCycleResult"];
   let lastCycleAt: string | undefined;
   let lastSuccessAt: string | undefined;
   let lastErrorAt: string | undefined;
@@ -81,7 +90,12 @@ export function createSemanticMemoryIndexer(
 
   const executeCycle = async (
     signal?: AbortSignal,
-  ): Promise<{ readonly indexed: number; readonly stale: number; readonly skipped: number }> => {
+  ): Promise<{
+    readonly indexed: number;
+    readonly removed: number;
+    readonly stale: number;
+    readonly skipped: number;
+  }> => {
     cycleActive = true;
     lastCycleAt = new Date().toISOString();
 
@@ -94,6 +108,8 @@ export function createSemanticMemoryIndexer(
         signal,
       });
       indexedCount += result.indexed;
+      removedCount += result.removed;
+      lastCycleResult = result;
       consecutiveErrorCount = 0;
       lastError = undefined;
       lastSuccessAt = new Date().toISOString();
@@ -158,6 +174,8 @@ export function createSemanticMemoryIndexer(
         running,
         cycleActive,
         indexedCount,
+        removedCount,
+        ...(lastCycleResult === undefined ? {} : { lastCycleResult }),
         ...(lastCycleAt === undefined ? {} : { lastCycleAt }),
         ...(lastSuccessAt === undefined ? {} : { lastSuccessAt }),
         ...(lastErrorAt === undefined ? {} : { lastErrorAt }),
