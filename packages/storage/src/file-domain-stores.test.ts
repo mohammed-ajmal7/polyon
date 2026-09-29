@@ -340,6 +340,35 @@ describe("FileDomainStores", () => {
     }
   });
 
+  it("publishes newly committed domain events after transactions", () => {
+    const directory = mkdtempSync(join(tmpdir(), "polyon-events-"));
+
+    try {
+      const stores = new FileDomainStores(directory);
+      const events = [
+        {
+          id: "event-1",
+          kind: "TASK_STATUS_CHANGED" as const,
+          taskId: "task-1",
+          occurredAt: "2026-09-29T10:00:00.000Z",
+          data: { from: "PENDING", to: "RUNNING" },
+        },
+      ];
+      const received: string[] = [];
+      stores.subscribeCommittedEvents((event) => {
+        received.push(event.id);
+      });
+
+      stores.transaction((context) => {
+        for (const event of events) context.events.append(event);
+      });
+
+      expect(received).toEqual(["event-1"]);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("persists A2A push notification configurations across restart", () => {
     const directory = mkdtempSync(join(tmpdir(), "polyon-a2a-push-"));
 
