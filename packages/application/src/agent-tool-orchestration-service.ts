@@ -33,6 +33,7 @@ import {
 export interface AgentToolOrchestrationInput {
   readonly agentId: string;
   readonly requiredCapabilityIds: readonly CapabilityId[];
+  readonly requiredModelCapabilityIds?: readonly CapabilityId[];
   readonly request: TextModelRequest;
   readonly policy: Policy;
   readonly actorId: ActorId;
@@ -222,6 +223,9 @@ export class AgentToolOrchestrationService {
       const next = await this.dependencies.agentGateway.invokeText({
         agentId: input.agentId,
         requiredCapabilityIds: input.requiredCapabilityIds,
+        ...(input.requiredModelCapabilityIds === undefined
+          ? {}
+          : { requiredModelCapabilityIds: input.requiredModelCapabilityIds }),
         request: currentRequest,
       });
 
@@ -574,6 +578,9 @@ export class AgentToolOrchestrationService {
       const next = await this.dependencies.agentGateway.invokeText({
         agentId: continuation.agentId,
         requiredCapabilityIds: continuation.requiredCapabilityIds,
+        ...(continuation.requiredModelCapabilityIds === undefined
+          ? {}
+          : { requiredModelCapabilityIds: continuation.requiredModelCapabilityIds }),
         request: this.withToolDefinitions(continuation.nextRequest),
       });
 
@@ -942,6 +949,9 @@ export class AgentToolOrchestrationService {
       toolContinuation: {
         agentId: input.agentId,
         requiredCapabilityIds: input.requiredCapabilityIds,
+        ...(input.requiredModelCapabilityIds === undefined
+          ? {}
+          : { requiredModelCapabilityIds: input.requiredModelCapabilityIds }),
         request: continuation.request,
         response: continuation.response,
         toolCall,
