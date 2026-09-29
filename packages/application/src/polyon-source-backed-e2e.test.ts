@@ -182,7 +182,7 @@ describe("POLYON minimum source-backed deep-analysis flow", () => {
       expect(result.decision?.content).toContain("[source:");
 
       expect(searchQueries).toHaveLength(3);
-      expect(new Set(searchQueries.map((query) => query.split(" -- ")[0]))).toEqual(
+      expect(new Set(searchQueries.map((query) => query.split("\\n\\nResearch focus: ")[0]))).toEqual(
         new Set([
           "Investigate the strongest explanations for this incident and verify the evidence.",
         ]),
