@@ -79,6 +79,8 @@ export class DeepAnalysisOrchestrationService {
 
     const deepAnalysisId =
       "deep-analysis:" + input.command.conversation.id + ":" + input.command.message.id;
+    const agentRunId = "collective:" + input.command.conversation.id + ":" + input.command.message.id;
+
 
     this.persistEvent({
       id: "DEEP_ANALYSIS_STARTED:" + deepAnalysisId,
