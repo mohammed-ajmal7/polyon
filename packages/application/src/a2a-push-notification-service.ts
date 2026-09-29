@@ -42,6 +42,13 @@ export interface A2APushNotificationServiceOptions {
   readonly retryBackoffInitialMs?: number;
   readonly retryBackoffMaxMs?: number;
   readonly wait?: (delayMs: number) => Promise<void>;
+  readonly onDeliveryOutcome?: (outcome: {
+    readonly status: "SUCCEEDED" | "FAILED";
+    readonly taskId: string;
+    readonly configId: string;
+    readonly attempts: number;
+    readonly error?: string;
+  }) => void | Promise<void>;
 }
 
 export class A2APushNotificationDeliveryError extends Error {
@@ -142,13 +149,28 @@ export class A2APushNotificationService {
         for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
           try {
             await this.options.sender.send(config, payload);
+            await this.options.onDeliveryOutcome?.({
+              status: "SUCCEEDED",
+              taskId: task.id,
+              configId: config.id,
+              attempts: attempt,
+            });
             return;
           } catch (error) {
             const retryable =
               error instanceof A2APushNotificationDeliveryError
                 ? error.retryable
                 : true;
-            if (!retryable || attempt === maxAttempts) return;
+            if (!retryable || attempt === maxAttempts) {
+              await this.options.onDeliveryOutcome?.({
+                status: "FAILED",
+                taskId: task.id,
+                configId: config.id,
+                attempts: attempt,
+                error: error instanceof Error ? error.message : "A2A push delivery failed.",
+              });
+              return;
+            }
 
             const delay = Math.min(
               maxDelay,
@@ -230,8 +252,10 @@ export function createA2AWebhookSender(options: {
         const scheme = config.authentication.scheme.trim();
         if (
           scheme === "" ||
-          /[\r\n]/.test(scheme) ||
-          /[\r\n]/.test(config.authentication.credentials)
+          /[\r
+]/.test(scheme) ||
+          /[\r
+]/.test(config.authentication.credentials)
         ) {
           throw new Error("Invalid A2A push authentication.");
         }
