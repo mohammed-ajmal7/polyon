@@ -39,6 +39,7 @@ export interface ExecuteResearchInput {
   readonly targets: readonly ResearchTarget[];
   readonly actorId: string;
   readonly requiredCapabilityIds: readonly string[];
+  readonly requiredModelCapabilityIds?: readonly string[];
   readonly synthesizerAgentId?: AgentId;
   readonly maxParticipants?: number;
   readonly sourceLimit?: number;
@@ -197,6 +198,7 @@ export class ResearchOrchestrationService {
         error: "Research produced no usable findings or evidence.",
       };
       this.persistFailure(researchId, input, failure, now());
+      this.failAgentRun(researchId, failure.error, now);
 
       return {
         researchId,
@@ -215,6 +217,9 @@ export class ResearchOrchestrationService {
       const response = await this.dependencies.agentGateway.invokeText({
         agentId: synthesizerAgentId,
         requiredCapabilityIds: input.requiredCapabilityIds,
+        ...(input.requiredModelCapabilityIds === undefined
+          ? {}
+          : { requiredModelCapabilityIds: input.requiredModelCapabilityIds }),
         request: this.buildSynthesisRequest(
           input.command.message.content,
           findings,
@@ -244,6 +249,7 @@ export class ResearchOrchestrationService {
         error: error instanceof Error ? error.message : "Research synthesis failed.",
       };
       this.persistFailure(researchId, input, failure, now());
+      this.failAgentRun(researchId, failure.error, now);
 
       return {
         researchId,
@@ -267,6 +273,15 @@ export class ResearchOrchestrationService {
       synthesis.id,
       now(),
     );
+
+    if (this.dependencies.agentRuns !== undefined) {
+      this.dependencies.agentRuns.syncMessageIds(researchId);
+      this.dependencies.agentRuns.complete({
+        id: researchId,
+        finalAnswer: synthesis.content,
+        completedAt: now(),
+      });
+    }
 
     return {
       researchId,
@@ -355,6 +370,9 @@ export class ResearchOrchestrationService {
       const response = await this.dependencies.agentGateway.invokeText({
         agentId: target.agentId,
         requiredCapabilityIds: input.requiredCapabilityIds,
+        ...(input.requiredModelCapabilityIds === undefined
+          ? {}
+          : { requiredModelCapabilityIds: input.requiredModelCapabilityIds }),
         request: this.buildFindingRequest(
           input.command.message.content,
           role,
@@ -538,6 +556,16 @@ export class ResearchOrchestrationService {
           role: "AGENT",
           kind: "TEXT",
           content: finding.content,
+          runId: researchId,
+          fromAgentId: finding.agentId,
+          agentMessageType: "finding",
+          payload: {
+            role: finding.role,
+            modelId: finding.modelId,
+            providerId: finding.providerId,
+            sourceIds: [...finding.sourceIds],
+            evidenceIds: [...finding.evidenceIds],
+          },
           createdAt: occurredAt,
         });
       }
@@ -615,6 +643,13 @@ export class ResearchOrchestrationService {
       role: "AGENT",
       kind: "TEXT",
       content,
+      runId: researchId,
+      fromAgentId: synthesizerAgentId,
+      agentMessageType: "decision",
+      payload: {
+        modelId,
+        providerId,
+      },
       createdAt: occurredAt,
     };
 
@@ -689,6 +724,19 @@ export class ResearchOrchestrationService {
     }
 
     return this.dependencies.unitOfWork.transaction(operation);
+  }
+
+  private failAgentRun(researchId: string, error: string, now: () => string): void {
+    if (this.dependencies.agentRuns === undefined) return;
+    this.dependencies.agentRuns.syncMessageIds(researchId);
+    const run = this.dependencies.agentRuns.get(researchId);
+    if (run?.status === "running") {
+      this.dependencies.agentRuns.fail({
+        id: researchId,
+        error,
+        completedAt: now(),
+      });
+    }
   }
 
   private appendEvent(stores: ResearchStores, event: DomainEvent): void {
