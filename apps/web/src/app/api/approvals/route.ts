@@ -107,6 +107,27 @@ export async function POST(request: Request): Promise<Response> {
       return Response.json(result);
     }
 
+    if (approval.executionId === undefined && approval.toolContinuation?.conversationId !== undefined) {
+      if (status !== "APPROVED") {
+        const resolved = polyon.agentToolOrchestration.resolveToolApproval({
+          approvalId,
+          status,
+          resolvedAt,
+          ...(resolvedBy === undefined ? {} : { resolvedBy }),
+        });
+        return Response.json(resolved);
+      }
+
+      const result = await polyon.conversationOrchestration.resolveToolApproval({
+        approvalId,
+        status,
+        resolvedAt,
+        ...(resolvedBy === undefined ? {} : { resolvedBy }),
+        policy: getPolyonPolicy(),
+      });
+      return Response.json(result);
+    }
+
     if (approval.action === "EXECUTION_RUN") {
       if (approval.executionId === undefined)
         throw new Error("Execution approval has no execution binding.");
