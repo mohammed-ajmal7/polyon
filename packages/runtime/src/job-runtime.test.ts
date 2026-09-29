@@ -99,9 +99,6 @@ describe("createJobRuntime", () => {
   });
 
   it("retries failed handlers after bounded exponential backoff", async () => {
-    const { jobs, runtime, clock } = createRuntime();
-    createQueuedJob(jobs);
-
     let calls = 0;
     const handler = async () => {
       calls += 1;
@@ -131,8 +128,6 @@ describe("createJobRuntime", () => {
     expect(completed?.status).toBe("completed");
     controlled.runtime.stop();
 
-    runtime.stop();
-    expect(jobs.list()).toHaveLength(1);
   });
 
   it("fails closed when no handler exists", async () => {
@@ -151,25 +146,40 @@ describe("createJobRuntime", () => {
   });
 
   it("cancels an active job without retrying it", async () => {
-    const { jobs, runtime } = createRuntime(undefined, {
-      handlers: {
-        research: async () => new Promise((resolve) => setTimeout(() => resolve({ ok: true }), 5_000)),
-      },
-    });
+    const { jobs, runtime } = createRuntime();
     createQueuedJob(jobs);
 
-    runtime.start();
-    for (let index = 0; index < 5 && runtime.activeJobCount === 0; index += 1) {
+    let release: (() => void) | undefined;
+    const blocked = new Promise((resolve) => {
+      release = () => resolve({ ok: true });
+    });
+
+    const activeRuntime = createRuntime(undefined, {
+      handlers: {
+        research: async () => blocked,
+      },
+    });
+    createQueuedJob(activeRuntime.jobs);
+    activeRuntime.runtime.start();
+
+    for (
+      let index = 0;
+      index < 5 && activeRuntime.runtime.activeJobCount === 0;
+      index += 1
+    ) {
       await Promise.resolve();
     }
 
-    expect(runtime.activeJobCount).toBe(1);
+    expect(activeRuntime.runtime.activeJobCount).toBe(1);
 
-    const cancelled = runtime.cancel("job-1");
+    const cancelled = activeRuntime.runtime.cancel("job-1");
     expect(cancelled?.status).toBe("cancelled");
+    release?.();
 
     await Promise.resolve();
-    expect(jobs.get("job-1")?.status).toBe("cancelled");
+    expect(activeRuntime.jobs.get("job-1")?.status).toBe("cancelled");
+    activeRuntime.runtime.stop();
+
     runtime.stop();
   });
 });
