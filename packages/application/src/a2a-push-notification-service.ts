@@ -141,12 +141,24 @@ export function createA2AWebhookSender(options: {
         headers.set("Authorization", scheme + " " + config.authentication.credentials);
       }
 
-      const response = await fetchImpl(url, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) throw new Error("A2A push webhook returned HTTP " + String(response.status) + ".");
+      const body = JSON.stringify(payload);
+      if (new TextEncoder().encode(body).byteLength > 256_000) {
+        throw new Error("A2A push payload exceeds its byte limit.");
+      }
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15_000);
+      try {
+        const response = await fetchImpl(url, {
+          method: "POST",
+          headers: new Headers({ ...Object.fromEntries(headers), "content-type": "application/a2a+json" }),
+          body,
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error("A2A push webhook returned HTTP " + String(response.status) + ".");
+      } finally {
+        clearTimeout(timeout);
+      }
     },
   };
 }
