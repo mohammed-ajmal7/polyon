@@ -85,6 +85,13 @@ import {
   type ExecutionRuntimeCompletionHandler,
   type ExecutionRuntimeWait,
   type ExecutionWorkerClock,
+  DurableJobService,
+  DurableJobRuntime,
+  DurableJobWorker,
+  DurableScheduleRunner,
+  JobHandlerRegistry,
+  ScheduleService,
+  type JobRuntime,
 } from "@polyon/runtime";
 import {
   createInMemoryBuiltinToolRegistries,
@@ -192,6 +199,9 @@ export interface PolyonCompositionOptions {
   readonly onError?: (error: unknown) => void;
   readonly onExecutionCompleted?: ExecutionRuntimeCompletionHandler;
   readonly onReadyTasks?: ReadyTaskHandler;
+  readonly jobRuntimeIntervalMs?: number;
+  readonly jobRuntimeJobsPerTick?: number;
+  readonly jobRuntimeWorkerId?: string;
 }
 
 export interface PolyonComposition {
@@ -243,6 +253,11 @@ export interface PolyonComposition {
   readonly researchSynthesis: ResearchSynthesisService;
   readonly creative?: CreativeJobService;
   readonly debates: DebateOrchestrationService;
+  readonly jobs: DurableJobService;
+  readonly jobHandlers: JobHandlerRegistry;
+  readonly jobWorker: DurableJobWorker;
+  readonly schedules: ScheduleService;
+  readonly jobRuntime: JobRuntime;
   readonly runtime: ExecutionRuntime;
 }
 
@@ -558,6 +573,33 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     events: stores.events,
     conversations: stores.conversations,
     unitOfWork: stores,
+  });
+
+  const jobs = new DurableJobService(stores.jobs, stores.events, stores);
+  const jobHandlers = new JobHandlerRegistry();
+  if (semanticMemoryIndexer !== undefined) {
+    jobHandlers.register("memory.semantic-index", async ({ signal }) => {
+      await semanticMemoryIndexer.runOnce();
+      if (signal.aborted) throw new Error("Semantic memory indexing job was cancelled.");
+    });
+  }
+  const jobWorker = new DurableJobWorker(jobs, jobHandlers);
+  const schedules = new ScheduleService(stores.schedules, stores.events, stores);
+  const scheduleRunner = new DurableScheduleRunner(
+    stores.schedules,
+    jobs,
+    stores.events,
+    stores,
+  );
+  const jobRuntime = new DurableJobRuntime(scheduleRunner, jobWorker, {
+    ...(options.jobRuntimeIntervalMs === undefined
+      ? {}
+      : { intervalMs: options.jobRuntimeIntervalMs }),
+    ...(options.jobRuntimeJobsPerTick === undefined
+      ? {}
+      : { jobsPerTick: options.jobRuntimeJobsPerTick }),
+    ...(options.jobRuntimeWorkerId === undefined ? {} : { workerId: options.jobRuntimeWorkerId }),
+    onError: options.onError,
   });
 
   const integrationInvocation = new IntegrationInvocationService({
@@ -902,6 +944,11 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     researchSynthesis,
     ...(creative === undefined ? {} : { creative }),
     debates,
+    jobs,
+    jobHandlers,
+    jobWorker,
+    schedules,
+    jobRuntime,
     runtime,
   };
 }
