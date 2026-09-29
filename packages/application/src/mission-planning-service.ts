@@ -61,10 +61,8 @@ export class MissionPlanningService {
               "Create a finite task graph for the mission. Every dependsOn value MUST exactly match an id declared in the same tasks array. " +
               "Use only the local task ids from that response, never mission-prefixed ids. " +
               "Keep dependencies acyclic. Use an empty dependsOn array when a dependency is not necessary. Never invent capabilities, tools, credentials, or external actions. " +
-              "Each task id must be unique and each dependency must appear at most once.
-" +
-              "Before returning, mentally verify: all dependency ids exist, no task depends on itself, and the graph has no cycle.
-" +
+              "Each task id must be unique and each dependency must appear at most once.\n" +
+              "Before returning, mentally verify: all dependency ids exist, no task depends on itself, and the graph has no cycle.\n" +
               buildAgentRolePrompt(undefined, "planning", "planner"),
           },
           {
