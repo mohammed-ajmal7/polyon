@@ -182,9 +182,7 @@ function buildGeneratedTasks(
     title: task.title,
     description: task.description,
     status: "PENDING" as const,
-    dependsOn: task.dependsOn.map((dependencyId) =>
-      missionTaskId(input.mission.id, dependencyId),
-    ),
+    dependsOn: task.dependsOn.map((dependencyId) => missionTaskId(input.mission.id, dependencyId)),
     createdAt: input.now,
     updatedAt: input.now,
   }));
