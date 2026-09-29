@@ -193,6 +193,7 @@ export class BoundedProcessAgentAdapter {
       const finishError = (error: BoundedProcessAgentError): void => {
         if (settled) return;
         settled = true;
+        clearTimeout(timeout);
         rejectResult(error);
       };
 
@@ -318,7 +319,17 @@ export class BoundedProcessAgentAdapter {
       );
     }
 
-    return realpathSync(candidate);
+    // Check the resolved path too, so a symlink inside the root cannot escape it.
+    const realCandidate = realpathSync(candidate);
+    if (!isInsideRoot(this.rootDir, realCandidate)) {
+      throw new BoundedProcessAgentError(
+        "OUTSIDE_ROOT",
+        "",
+        "Agent working directory is outside the configured root.",
+      );
+    }
+
+    return realCandidate;
   }
 }
 

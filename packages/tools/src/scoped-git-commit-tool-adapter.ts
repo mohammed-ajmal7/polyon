@@ -15,7 +15,7 @@ export interface ScopedGitCommitToolOutput {
   readonly commandOutput: ScopedTerminalToolOutput;
 }
 
-export type ScopedGitCommitToolErrorKind = "INVALID_INPUT" | "COMMAND_FAILED";
+export type ScopedGitCommitToolErrorKind = "INVALID_INPUT" | "OUTSIDE_ROOT" | "COMMAND_FAILED";
 
 export class ScopedGitCommitToolError extends Error {
   readonly kind: ScopedGitCommitToolErrorKind;
@@ -79,6 +79,32 @@ export class ScopedGitCommitToolAdapter implements ToolAdapter<
       throw new ScopedGitCommitToolError(
         "INVALID_INPUT",
         "Git commit requires a non-empty message of at most 500 characters.",
+      );
+    }
+
+    // Commit takes the whole index, so refuse when anything outside the scoped root is
+    // staged. ":/" is the repository top and ":!." excludes the scoped root.
+    let stagedOutsideRoot: string;
+    try {
+      const staged = await this.terminal.invoke({
+        input: {
+          command: this.gitExecutablePath,
+          args: ["diff", "--cached", "--name-only", "-z", "--", ":/", ":!."],
+          timeoutMs: input.timeoutMs,
+        },
+      });
+      stagedOutsideRoot = staged.output.stdout;
+    } catch (error) {
+      throw new ScopedGitCommitToolError(
+        "COMMAND_FAILED",
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+
+    if (stagedOutsideRoot !== "") {
+      throw new ScopedGitCommitToolError(
+        "OUTSIDE_ROOT",
+        "Git commit refused because changes outside the configured root are staged.",
       );
     }
 

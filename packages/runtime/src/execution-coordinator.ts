@@ -12,15 +12,18 @@ export interface ExecutionRunOutcome {
   readonly result: ExecutionRunResult;
 }
 
+// A fixed completion timestamp, or a function sampled once the runner finishes.
+export type ExecutionCompletionTime = string | (() => string);
+
 export interface ExecutionCoordinator {
   runNext(
     now: string,
-    completionAt: string,
+    completionAt: ExecutionCompletionTime,
     context?: ExecutionRunContext,
   ): Promise<Execution | undefined>;
   runNextWithResult(
     now: string,
-    completionAt: string,
+    completionAt: ExecutionCompletionTime,
     context?: ExecutionRunContext,
   ): Promise<ExecutionRunOutcome | undefined>;
 }
@@ -81,6 +84,10 @@ function appendTaskStatusChangedEvent(
   events.append(event);
 }
 
+function resolveCompletionTime(completionAt: ExecutionCompletionTime): string {
+  return typeof completionAt === "function" ? completionAt() : completionAt;
+}
+
 export type ExecutionCoordinatorErrorKind =
   | "EXECUTION_NOT_PERSISTED"
   | "PERSISTED_EXECUTION_NOT_QUEUED"
@@ -102,7 +109,7 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
 
   async runNext(
     now: string,
-    completionAt: string,
+    completionAt: ExecutionCompletionTime,
     context?: ExecutionRunContext,
   ): Promise<Execution | undefined> {
     const outcome = await this.runNextWithResult(now, completionAt, context);
@@ -111,7 +118,7 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
 
   async runNextWithResult(
     now: string,
-    completionAt: string,
+    completionAt: ExecutionCompletionTime,
     context?: ExecutionRunContext,
   ): Promise<ExecutionRunOutcome | undefined> {
     const queued = this.dependencies.queue.dequeue();
@@ -199,6 +206,7 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
 
     try {
       const result = await this.dependencies.runner.run(running, context);
+      const completedAt = resolveCompletionTime(completionAt);
       const persistedAfterRun = this.dependencies.executions.get(running.id);
 
       if (persistedAfterRun?.status === "CANCELLED") {
@@ -229,10 +237,10 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
         const paused = {
           ...running,
           status: "PAUSED" as const,
-          updatedAt: completionAt,
+          updatedAt: completedAt,
           error: effectiveResult.error,
         };
-        const pausedTask = transitionTaskStatus(runningTask, "PAUSED", completionAt);
+        const pausedTask = transitionTaskStatus(runningTask, "PAUSED", completedAt);
         this.dependencies.executions.save(paused);
         this.dependencies.tasks.save(pausedTask);
         appendExecutionStatusChangedEvent(
@@ -240,7 +248,7 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
           paused,
           running.status,
           paused.status,
-          completionAt,
+          completedAt,
           effectiveResult.error,
         );
         appendTaskStatusChangedEvent(
@@ -248,7 +256,7 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
           pausedTask,
           runningTask.status,
           pausedTask.status,
-          completionAt,
+          completedAt,
         );
         return { execution: paused, result: effectiveResult };
       }
@@ -258,12 +266,12 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
         effectiveResult.status === "FAILED"
           ? {
               status: "FAILED",
-              completedAt: completionAt,
+              completedAt,
               error: effectiveResult.error,
             }
           : {
               status: effectiveResult.status,
-              completedAt: completionAt,
+              completedAt,
             },
       );
 
@@ -274,7 +282,7 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
           : completed.status === "FAILED"
             ? "FAILED"
             : "CANCELLED",
-        completionAt,
+        completedAt,
       );
 
       this.dependencies.executions.save(completed);
@@ -284,7 +292,7 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
         completed,
         running.status,
         completed.status,
-        completionAt,
+        completedAt,
         effectiveResult.status === "FAILED" ? effectiveResult.error : undefined,
       );
       appendTaskStatusChangedEvent(
@@ -292,7 +300,7 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
         completedTask,
         runningTask.status,
         completedTask.status,
-        completionAt,
+        completedAt,
       );
 
       return {
@@ -300,6 +308,7 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
         result: effectiveResult,
       };
     } catch (error) {
+      const completedAt = resolveCompletionTime(completionAt);
       const persistedAfterError = this.dependencies.executions.get(running.id);
 
       if (persistedAfterError?.status === "CANCELLED") {
@@ -316,9 +325,9 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
       if (abortReason === "CANCELLED") {
         const cancelled = completeExecution(running, {
           status: "CANCELLED",
-          completedAt: completionAt,
+          completedAt,
         });
-        const cancelledTask = transitionTaskStatus(runningTask, "CANCELLED", completionAt);
+        const cancelledTask = transitionTaskStatus(runningTask, "CANCELLED", completedAt);
         this.dependencies.executions.save(cancelled);
         this.dependencies.tasks.save(cancelledTask);
         appendExecutionStatusChangedEvent(
@@ -326,7 +335,7 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
           cancelled,
           running.status,
           cancelled.status,
-          completionAt,
+          completedAt,
           undefined,
         );
         appendTaskStatusChangedEvent(
@@ -334,7 +343,7 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
           cancelledTask,
           runningTask.status,
           cancelledTask.status,
-          completionAt,
+          completedAt,
         );
         return {
           execution: cancelled,
@@ -354,11 +363,11 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
 
       const failed = completeExecution(running, {
         status: "FAILED",
-        completedAt: completionAt,
+        completedAt,
         error: message,
       });
 
-      const failedTask = transitionTaskStatus(runningTask, "FAILED", completionAt);
+      const failedTask = transitionTaskStatus(runningTask, "FAILED", completedAt);
 
       this.dependencies.executions.save(failed);
       this.dependencies.tasks.save(failedTask);
@@ -367,7 +376,7 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
         failed,
         running.status,
         failed.status,
-        completionAt,
+        completedAt,
         message,
       );
       appendTaskStatusChangedEvent(
@@ -375,7 +384,7 @@ export class InMemoryExecutionCoordinator implements ExecutionCoordinator {
         failedTask,
         runningTask.status,
         failedTask.status,
-        completionAt,
+        completedAt,
       );
 
       return {
