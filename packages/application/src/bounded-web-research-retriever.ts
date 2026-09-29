@@ -39,6 +39,9 @@ export class BoundedWebResearchRetriever implements ResearchRetriever {
     options: { readonly limit: number; readonly signal?: AbortSignal },
   ): Promise<readonly ResearchSourceCandidate[]> {
     const results = await this.searchProvider.search(query, options);
+    const browser = new BoundedHttpBrowserProvider(this.http, {
+      maxResponseBytes: this.maxContentBytes,
+    });
     const candidates: ResearchSourceCandidate[] = [];
 
     for (const result of results.slice(0, options.limit)) {
@@ -46,9 +49,6 @@ export class BoundedWebResearchRetriever implements ResearchRetriever {
         throw new Error("Research retrieval was cancelled.");
       }
 
-      const browser = new BoundedHttpBrowserProvider(this.http, {
-        maxResponseBytes: this.maxContentBytes,
-      });
       const page = await browser.fetch(result.locator, {
         signal: options.signal,
         maxCharacters: this.maxContentBytes,
