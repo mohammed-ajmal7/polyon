@@ -68,6 +68,32 @@ describe("FileDomainDatabase migrations", () => {
     }
   });
 
+  it("migrates version 5 snapshots with an empty A2A push configuration collection", () => {
+    const directory = mkdtempSync(join(tmpdir(), "polyon-database-"));
+    const filePath = join(directory, "domain-state.json");
+
+    try {
+      const snapshot = legacySnapshot(5);
+      snapshot.debates = [];
+      snapshot.evidence = [];
+      snapshot.memory = [];
+      snapshot.memoryEmbeddings = [];
+      snapshot.sources = [];
+      snapshot.jobs = [];
+      snapshot.agentRuns = [];
+      writeFileSync(filePath, JSON.stringify(snapshot), "utf8");
+
+      const database = new FileDomainDatabase(filePath);
+
+      expect(database.snapshot().state).toMatchObject({
+        version: CURRENT_DURABLE_DOMAIN_VERSION,
+        a2aPushNotificationConfigs: [],
+      });
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("creates the parent directory before the first durable write", () => {
     const root = mkdtempSync(join(tmpdir(), "polyon-database-"));
     const filePath = join(root, "nested", "domain-state.json");
