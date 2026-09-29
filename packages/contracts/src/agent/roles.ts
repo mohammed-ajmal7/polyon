@@ -23,31 +23,31 @@ export const BUILT_IN_AGENT_ROLES: readonly BuiltInAgentRoleDefinition[] = [
     id: "planner",
     name: "Planner",
     description: "Breaks user goals into bounded, executable plans.",
-    defaultCapabilityIds: ["ai.chat", "ai.reasoning", "ai.structured-output"],
+    defaultCapabilityIds: ["ai.chat", "ai.reasoning", "ai.structured-output", "delegation"],
   },
   {
     id: "researcher",
     name: "Researcher",
     description: "Finds relevant facts, sources, context, and information gaps.",
-    defaultCapabilityIds: ["ai.chat", "ai.reasoning", "ai.tool-calling"],
+    defaultCapabilityIds: ["ai.chat", "ai.reasoning", "ai.tool-calling", "research"],
   },
   {
     id: "analyst",
     name: "Analyst",
     description: "Compares evidence, explanations, patterns, and implications.",
-    defaultCapabilityIds: ["ai.chat", "ai.reasoning"],
+    defaultCapabilityIds: ["ai.chat", "ai.reasoning", "analysis"],
   },
   {
     id: "specialist",
     name: "Specialist",
     description: "Applies focused domain expertise to a bounded problem.",
-    defaultCapabilityIds: ["ai.chat", "ai.reasoning"],
+    defaultCapabilityIds: ["ai.chat", "ai.reasoning", "analysis"],
   },
   {
     id: "critic",
     name: "Critic",
     description: "Challenges assumptions, reasoning, edge cases, and unsupported claims.",
-    defaultCapabilityIds: ["ai.chat", "ai.reasoning", "ai.structured-output"],
+    defaultCapabilityIds: ["ai.chat", "ai.reasoning", "ai.structured-output", "analysis"],
   },
   {
     id: "fact-checker",
@@ -59,7 +59,7 @@ export const BUILT_IN_AGENT_ROLES: readonly BuiltInAgentRoleDefinition[] = [
     id: "judge",
     name: "Judge",
     description: "Adjudicates bounded disagreements and records uncertainty.",
-    defaultCapabilityIds: ["ai.chat", "ai.reasoning", "ai.structured-output"],
+    defaultCapabilityIds: ["ai.chat", "ai.reasoning", "ai.structured-output", "analysis"],
   },
   {
     id: "synthesizer",
@@ -70,13 +70,14 @@ export const BUILT_IN_AGENT_ROLES: readonly BuiltInAgentRoleDefinition[] = [
       "ai.reasoning",
       "ai.structured-output",
       "ai.long-context",
+      "analysis",
     ],
   },
   {
     id: "action-agent",
     name: "Action Agent",
     description: "Executes approved actions through governed tools and integrations.",
-    defaultCapabilityIds: ["ai.chat", "ai.reasoning", "ai.tool-calling", "ai.structured-output"],
+    defaultCapabilityIds: ["ai.chat", "ai.reasoning", "ai.tool-calling", "ai.structured-output", "communication"],
   },
 ];
 
