@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { A2APushNotificationConfig } from "@polyon/contracts";
+import type { A2APushNotificationConfig, Task } from "@polyon/contracts";
 import { InMemoryEntityStore } from "@polyon/storage";
 
 import {
@@ -15,7 +15,7 @@ const task = {
   missionId: "mission-1",
   status: "SUCCEEDED",
   updatedAt: "2026-09-29T10:00:00.000Z",
-} as never;
+} satisfies Task;
 
 describe("A2A push notifications", () => {
   it("creates, lists, gets, and deletes task-scoped configs", () => {
@@ -261,7 +261,7 @@ describe("A2A push notifications", () => {
       missionId: "mission-1",
       status: "SUCCEEDED",
       updatedAt: "2026-09-29T10:00:00.000Z",
-    } as never;
+    } satisfies Task;
 
     service.createConfig({ taskId: task.id, url: "https://example.com/a2a" });
     await service.notifyTask(task);
@@ -292,7 +292,7 @@ describe("A2A push notifications", () => {
       missionId: "mission-telemetry",
       status: "SUCCEEDED",
       updatedAt: "2026-09-29T10:00:00.000Z",
-    } as never;
+    } satisfies Task;
 
     service.createConfig({ taskId: task.id, url: "https://example.com/a2a" });
     await service.notifyTask(task);
@@ -325,7 +325,7 @@ describe("A2A push notifications", () => {
       missionId: "mission-2",
       status: "FAILED",
       updatedAt: "2026-09-29T10:00:00.000Z",
-    } as never;
+    } satisfies Task;
 
     service.createConfig({ taskId: task.id, url: "https://example.com/a2a" });
     await service.notifyTask(task);
