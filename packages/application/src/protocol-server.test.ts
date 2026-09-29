@@ -53,6 +53,102 @@ describe("protocol servers", () => {
     });
   });
 
+
+
+  it("exposes and manages A2A 1.0 push notification configurations", async () => {
+    const push = {
+      createConfig: vi.fn(() => ({
+        id: "a2a-push:1",
+        taskId: "task-new",
+        url: "https://client.example.test/a2a/push",
+        authentication: { scheme: "Bearer", credentials: "secret" },
+      })),
+      getConfig: vi.fn(() => ({
+        id: "a2a-push:1",
+        taskId: "task-new",
+        url: "https://client.example.test/a2a/push",
+        authentication: { scheme: "Bearer", credentials: "secret" },
+      })),
+      listConfigs: vi.fn(() => [
+        {
+          id: "a2a-push:1",
+          taskId: "task-new",
+          url: "https://client.example.test/a2a/push",
+          authentication: { scheme: "Bearer", credentials: "secret" },
+        },
+      ]),
+      deleteConfig: vi.fn(() => true),
+    };
+
+    const server = new A2AServerService({
+      agents: { list: () => [] },
+      commandIngress: { submit: vi.fn() } as never,
+      conversationOrchestration: { execute: vi.fn() } as never,
+      executions: { list: () => executions },
+      runtime: { cancel: vi.fn() } as never,
+      tasks: {
+        list: () => tasks,
+        get: (id) => tasks.find((task) => task.id === id),
+      },
+      policy: policy(),
+      actorId: "a2a-client",
+      pushNotifications: push as never,
+    });
+
+    expect(server.agentCard("http://localhost:3000/api/a2a")).toMatchObject({
+      capabilities: { pushNotifications: true },
+    });
+
+    const created = await server.handle({
+      jsonrpc: "2.0",
+      id: "push-create",
+      method: "CreateTaskPushNotificationConfig",
+      params: {
+        taskId: "task-new",
+        url: "https://client.example.test/a2a/push",
+        authentication: { scheme: "Bearer", credentials: "secret" },
+      },
+    });
+
+    expect(push.createConfig).toHaveBeenCalledWith({
+      taskId: "task-new",
+      url: "https://client.example.test/a2a/push",
+      authentication: { scheme: "Bearer", credentials: "secret" },
+    });
+    expect(created?.result).toEqual({
+      id: "a2a-push:1",
+      taskId: "task-new",
+      url: "https://client.example.test/a2a/push",
+      authentication: { scheme: "Bearer" },
+    });
+
+    const listed = await server.handle({
+      jsonrpc: "2.0",
+      id: "push-list",
+      method: "ListTaskPushNotificationConfigs",
+      params: { taskId: "task-new" },
+    });
+    expect(listed?.result).toEqual({
+      configs: [
+        {
+          id: "a2a-push:1",
+          taskId: "task-new",
+          url: "https://client.example.test/a2a/push",
+          authentication: { scheme: "Bearer" },
+        },
+      ],
+      nextPageToken: "",
+    });
+
+    const deleted = await server.handle({
+      jsonrpc: "2.0",
+      id: "push-delete",
+      method: "DeleteTaskPushNotificationConfig",
+      params: { taskId: "task-new", id: "a2a-push:1" },
+    });
+    expect(deleted?.result).toEqual({});
+  });
+
   it("rejects MCP header mismatches and executes governed tools", async () => {
     const invoke = vi.fn(async () => ({
       status: "SUCCEEDED" as const,
