@@ -1,3 +1,5 @@
+import type { McpSubscriptionNotification, McpSubscriptionFilter } from "./mcp-subscription-types";
+
 export interface McpSubscriptionPublisher {
   toolsChanged(): void;
   promptsChanged(): void;
@@ -31,8 +33,6 @@ export class McpSubscriptionEventPublisher implements McpSubscriptionPublisher {
     });
   }
 }
-
-import type { McpSubscriptionNotification, McpSubscriptionFilter } from "./mcp-subscription-types";
 
 export interface McpSubscriptionHandle {
   readonly subscriptionId: string;
