@@ -43,6 +43,10 @@ export class FileDomainStores implements DurableDomainStores {
     return this.context.agentRuns;
   }
 
+  get jobs() {
+    return this.context.jobs;
+  }
+
   get approvals() {
     return this.context.approvals;
   }
