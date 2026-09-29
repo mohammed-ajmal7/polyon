@@ -270,6 +270,56 @@ describe("createPolyonComposition", () => {
     }
   });
 
+  it("uses the exact semantic vector index for configured embedding search", async () => {
+    const root = mkdtempSync(join(tmpdir(), "polyon-composition-vector-index-"));
+
+    try {
+      const composition = createPolyonComposition({
+        storageRoot: root,
+        embeddingProvider: embeddingRegistration(),
+      });
+
+      const memoryA: import("@polyon/contracts").MemoryEntry = {
+        id: "memory.vector.a",
+        kind: "FACT",
+        scope: "PROJECT",
+        text: "alpha",
+        tags: [],
+        createdAt: now,
+        updatedAt: now,
+      };
+      const memoryB: import("@polyon/contracts").MemoryEntry = {
+        id: "memory.vector.b",
+        kind: "FACT",
+        scope: "PROJECT",
+        text: "beta",
+        tags: [],
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      composition.stores.memory.save(memoryA);
+      composition.stores.memory.save(memoryB);
+
+      await composition.semanticMemory!.index(memoryA, "embedding-model.test", now);
+      await composition.semanticMemory!.index(memoryB, "embedding-model.test", now);
+
+      const result = await composition.semanticMemory!.search({
+        query: "alpha",
+        modelId: "embedding-model.test",
+        limit: 2,
+      });
+
+      expect(result.map((item) => item.memory.id)).toEqual([
+        "memory.vector.a",
+        "memory.vector.b",
+      ]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+
   it("wires an optional embedding provider to durable semantic memory", async () => {
     const root = mkdtempSync(join(tmpdir(), "polyon-composition-embedding-"));
 
