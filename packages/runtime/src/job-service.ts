@@ -3,7 +3,7 @@ import type { DomainUnitOfWork, EventStore, JobStore } from "@polyon/storage";
 
 const MAX_ID_LENGTH = 200;
 const MAX_USER_ID_LENGTH = 200;
-const MAX_ERROR_LENGTH = 8_000;
+export const MAX_JOB_ERROR_LENGTH = 8_000;
 const MAX_PAYLOAD_CHARACTERS = 64_000;
 const MAX_ATTEMPTS = 10;
 
@@ -135,8 +135,8 @@ export class JobService {
   fail(input: FailJobInput): Job {
     validateTimestamp(input.occurredAt, "occurredAt");
     const error = input.error.trim();
-    if (error.length === 0 || error.length > MAX_ERROR_LENGTH) {
-      throw new RangeError(`Job error must contain 1-${MAX_ERROR_LENGTH} characters.`);
+    if (error.length === 0 || error.length > MAX_JOB_ERROR_LENGTH) {
+      throw new RangeError(`Job error must contain 1-${MAX_JOB_ERROR_LENGTH} characters.`);
     }
 
     if (input.retryAt !== undefined) {
