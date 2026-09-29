@@ -12,6 +12,8 @@ import { createStateContext } from "./state-store";
 import type { DomainStores } from "./domain-stores";
 import type { EventStore } from "./event-store";
 
+export type CommittedEventListener = (event: import("@polyon/contracts").DomainEvent) => void | Promise<void>;
+
 export interface DurableDomainStores extends DomainStores, DomainUnitOfWork {
   readonly events: EventStore;
   readonly rootDir: string;
@@ -24,6 +26,7 @@ export class FileDomainStores implements DurableDomainStores {
   private readonly state: ReturnType<FileDomainDatabase["snapshot"]>;
   private revision: string;
   private readonly context: DomainStoreTransactionContext;
+  private readonly committedEventListeners = new Set<CommittedEventListener>();
 
   constructor(readonly rootDir: string) {
     this.database = new FileDomainDatabase(join(rootDir, "domain-state.json"));
@@ -140,3 +143,16 @@ export class FileDomainStores implements DurableDomainStores {
     this.revision = nextRevision;
   }
 }
+
+
+  private publishCommittedEvents(
+    events: readonly import("@polyon/contracts").DomainEvent[],
+    previousEventIds: ReadonlySet<string>,
+  ): void {
+    for (const event of events) {
+      if (previousEventIds.has(event.id)) continue;
+      for (const listener of this.committedEventListeners) {
+        void listener(event);
+      }
+    }
+  }
