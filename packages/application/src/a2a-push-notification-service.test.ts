@@ -245,4 +245,92 @@ describe("A2A push notifications", () => {
       ),
     ).rejects.toThrow("allowlisted");
   });
+  it("reports delivery success and attempt count", async () => {
+    const outcomes: Array<{ status: string; attempts: number }> = [];
+    const service = new A2APushNotificationService({
+      store: new InMemoryA2APushNotificationStore(),
+      ownerId: "a2a-client",
+      validateTask: () => true,
+      sender: { send: async () => undefined },
+      onDeliveryOutcome: (outcome) => {
+        outcomes.push({ status: outcome.status, attempts: outcome.attempts });
+      },
+    });
+    const task = {
+      id: "task-1",
+      missionId: "mission-1",
+      status: "SUCCEEDED",
+      updatedAt: "2026-09-29T10:00:00.000Z",
+    } as never;
+
+    service.createConfig({ taskId: task.id, url: "https://example.com/a2a" });
+    await service.notifyTask(task);
+
+    expect(outcomes).toEqual([{ status: "SUCCEEDED", attempts: 1 }]);
+  });
+
+  it("does not retry when delivery telemetry itself fails", async () => {
+    let attempts = 0;
+    const service = new A2APushNotificationService({
+      store: new InMemoryA2APushNotificationStore(),
+      ownerId: "a2a-client",
+      validateTask: () => true,
+      maxDeliveryAttempts: 3,
+      wait: async () => undefined,
+      sender: {
+        send: async () => {
+          attempts += 1;
+        },
+      },
+      onDeliveryOutcome: async () => {
+        throw new Error("telemetry unavailable");
+      },
+    });
+
+    const task = {
+      id: "task-telemetry",
+      missionId: "mission-telemetry",
+      status: "SUCCEEDED",
+      updatedAt: "2026-09-29T10:00:00.000Z",
+    } as never;
+
+    service.createConfig({ taskId: task.id, url: "https://example.com/a2a" });
+    await service.notifyTask(task);
+
+    expect(attempts).toBe(1);
+  });
+
+  it("reports terminal delivery failure after bounded retries", async () => {
+    const outcomes: Array<{ status: string; attempts: number }> = [];
+    const service = new A2APushNotificationService({
+      store: new InMemoryA2APushNotificationStore(),
+      ownerId: "a2a-client",
+      validateTask: () => true,
+      maxDeliveryAttempts: 2,
+      wait: async () => undefined,
+      sender: {
+        send: async () => {
+          throw new A2APushNotificationDeliveryError("temporary", true, 503);
+        },
+      },
+      onDeliveryOutcome: (outcome) => {
+        outcomes.push({
+          status: outcome.status,
+          attempts: outcome.attempts,
+        });
+      },
+    });
+    const task = {
+      id: "task-2",
+      missionId: "mission-2",
+      status: "FAILED",
+      updatedAt: "2026-09-29T10:00:00.000Z",
+    } as never;
+
+    service.createConfig({ taskId: task.id, url: "https://example.com/a2a" });
+    await service.notifyTask(task);
+
+    expect(outcomes).toEqual([{ status: "FAILED", attempts: 2 }]);
+  });
+
 });

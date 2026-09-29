@@ -42,6 +42,13 @@ export interface A2APushNotificationServiceOptions {
   readonly retryBackoffInitialMs?: number;
   readonly retryBackoffMaxMs?: number;
   readonly wait?: (delayMs: number) => Promise<void>;
+  readonly onDeliveryOutcome?: (outcome: {
+    readonly status: "SUCCEEDED" | "FAILED";
+    readonly taskId: string;
+    readonly configId: string;
+    readonly attempts: number;
+    readonly error?: string;
+  }) => void | Promise<void>;
 }
 
 export class A2APushNotificationDeliveryError extends Error {
@@ -139,23 +146,48 @@ export class A2APushNotificationService {
         const maxDelay = Math.max(initialDelay, this.options.retryBackoffMaxMs ?? 2_000);
         const wait = this.options.wait ?? ((delayMs: number) => new Promise<void>((resolve) => setTimeout(resolve, delayMs)));
 
+        const report = async (outcome: Parameters<NonNullable<A2APushNotificationServiceOptions["onDeliveryOutcome"]>>[0]): Promise<void> => {
+          try {
+            await this.options.onDeliveryOutcome?.(outcome);
+          } catch {
+            // Delivery telemetry is observational and must never change delivery semantics.
+          }
+        };
+
         for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
           try {
             await this.options.sender.send(config, payload);
-            return;
           } catch (error) {
             const retryable =
               error instanceof A2APushNotificationDeliveryError
                 ? error.retryable
                 : true;
-            if (!retryable || attempt === maxAttempts) return;
+            if (!retryable || attempt === maxAttempts) {
+              await report({
+                status: "FAILED",
+                taskId: task.id,
+                configId: config.id,
+                attempts: attempt,
+                error: error instanceof Error ? error.message : "A2A push delivery failed.",
+              });
+              return;
+            }
 
             const delay = Math.min(
               maxDelay,
               initialDelay * 2 ** (attempt - 1),
             );
             await wait(delay);
+            continue;
           }
+
+          await report({
+            status: "SUCCEEDED",
+            taskId: task.id,
+            configId: config.id,
+            attempts: attempt,
+          });
+          return;
         }
       }),
     );
