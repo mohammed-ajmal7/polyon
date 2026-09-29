@@ -125,7 +125,7 @@ export class McpServerService {
             typeof request.params.requestId === "number")
             ? String(request.params.requestId)
             : undefined;
-        if (requestId !== undefined) this.dependencies.subscriptions.close(requestId);
+        if (requestId !== undefined) this.dependencies.subscriptions.closeByRequestId(requestId);
       }
       return undefined;
     }
