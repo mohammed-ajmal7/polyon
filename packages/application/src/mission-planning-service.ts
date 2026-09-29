@@ -13,6 +13,7 @@ const MAX_TITLE = 300;
 const MAX_DESCRIPTION = 10_000;
 const MAX_DEPENDENCIES = 10;
 const MAX_RATIONALE = 10_000;
+const MAX_VALIDATION_REPAIR_ATTEMPTS = 1;
 
 export interface GeneratedTaskSpec {
   readonly id: string;
@@ -47,7 +48,7 @@ export class MissionPlanningService {
   async generate(input: GenerateMissionPlanInput): Promise<GeneratedMissionPlan> {
     validateMission(input.mission);
 
-    const response = await this.agentGateway.invokeText({
+    const initialResponse = await this.agentGateway.invokeText({
       agentId: input.planningAgentId,
       requiredCapabilityIds: input.requiredCapabilityIds,
       request: {
@@ -55,10 +56,15 @@ export class MissionPlanningService {
           {
             role: "SYSTEM",
             content:
-              "You are POLYON's planning agent. Return ONLY valid JSON with this shape: " +
+              "You are POLYON's planning agent. Return ONLY valid JSON with this exact shape: " +
               '{"rationale":"string","tasks":[{"id":"string","kind":"RESEARCH|ANALYSIS|CODING|CREATIVE|VALIDATION|OTHER","title":"string","description":"string","dependsOn":["task-id"]}]}. ' +
-              "Create a finite task graph for the mission. Never invent capabilities, tools, credentials, or external actions. " +
-              "Keep dependencies acyclic and use only task IDs declared in the same response.\n" +
+              "Create a finite task graph for the mission. Every dependsOn value MUST exactly match an id declared in the same tasks array. " +
+              "Use only the local task ids from that response, never mission-prefixed ids. " +
+              "Keep dependencies acyclic. Use an empty dependsOn array when a dependency is not necessary. Never invent capabilities, tools, credentials, or external actions. " +
+              "Each task id must be unique and each dependency must appear at most once.
+" +
+              "Before returning, mentally verify: all dependency ids exist, no task depends on itself, and the graph has no cycle.
+" +
               buildAgentRolePrompt(undefined, "planning", "planner"),
           },
           {
@@ -74,22 +80,45 @@ export class MissionPlanningService {
       },
     });
 
-    const proposal = parseGeneratedPlan(response.output.content);
-    const generatedTasks = proposal.tasks.map((task) => ({
-      id: missionTaskId(input.mission.id, task.id),
-      missionId: input.mission.id,
-      kind: task.kind,
-      title: task.title,
-      description: task.description,
-      status: "PENDING" as const,
-      dependsOn: task.dependsOn.map((dependencyId) =>
-        missionTaskId(input.mission.id, dependencyId),
-      ),
-      createdAt: input.now,
-      updatedAt: input.now,
-    }));
+    let proposal = parseGeneratedPlan(initialResponse.output.content);
+    let generatedTasks = buildGeneratedTasks(input, proposal.tasks);
+    let validation = validateTaskGraph(generatedTasks);
 
-    const validation = validateTaskGraph(generatedTasks);
+    for (let attempt = 0; !validation.valid && attempt < MAX_VALIDATION_REPAIR_ATTEMPTS; attempt += 1) {
+      const repairResponse = await this.agentGateway.invokeText({
+        agentId: input.planningAgentId,
+        requiredCapabilityIds: input.requiredCapabilityIds,
+        request: {
+          messages: [
+            {
+              role: "SYSTEM",
+              content:
+                "You are repairing a POLYON mission plan. Return ONLY valid JSON with this exact shape: " +
+                '{"rationale":"string","tasks":[{"id":"string","kind":"RESEARCH|ANALYSIS|CODING|CREATIVE|VALIDATION|OTHER","title":"string","description":"string","dependsOn":["task-id"]}]}. ' +
+                "Correct every reported deterministic task-graph validation error. Every dependsOn value MUST exactly match an id in the same response. " +
+                "Never use mission-prefixed ids, task titles, or invented ids as dependencies. Keep the graph acyclic; use [] when no dependency is necessary. " +
+                "Keep task count within the requested bound, preserve the mission intent, and do not invent capabilities, tools, credentials, or external actions.",
+            },
+            {
+              role: "USER",
+              content: JSON.stringify({
+                missionId: input.mission.id,
+                objective: input.mission.objective,
+                constraints: input.mission.constraints,
+                maxTasks: MAX_TASKS,
+                previousPlan: proposal,
+                validationErrors: validation.errors,
+              }),
+            },
+          ],
+        },
+      });
+
+      proposal = parseGeneratedPlan(repairResponse.output.content);
+      generatedTasks = buildGeneratedTasks(input, proposal.tasks);
+      validation = validateTaskGraph(generatedTasks);
+    }
+
     if (!validation.valid) {
       throw new MissionPlanningValidationError(validation.errors);
     }
@@ -138,6 +167,25 @@ export class MissionPlanningValidationError extends Error {
     this.name = "MissionPlanningValidationError";
     this.errors = errors;
   }
+}
+
+function buildGeneratedTasks(
+  input: GenerateMissionPlanInput,
+  tasks: readonly GeneratedTaskSpec[],
+): Task[] {
+  return tasks.map((task) => ({
+    id: missionTaskId(input.mission.id, task.id),
+    missionId: input.mission.id,
+    kind: task.kind,
+    title: task.title,
+    description: task.description,
+    status: "PENDING" as const,
+    dependsOn: task.dependsOn.map((dependencyId) =>
+      missionTaskId(input.mission.id, dependencyId),
+    ),
+    createdAt: input.now,
+    updatedAt: input.now,
+  }));
 }
 
 function validateMission(mission: Mission): void {
