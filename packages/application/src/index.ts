@@ -319,6 +319,18 @@ export {
 } from "./mcp-server-service";
 
 export {
+  McpSubscriptionService,
+  type McpSubscriptionAcknowledgedEvent,
+  type McpSubscriptionCloseResponse,
+  type McpSubscriptionFilter,
+  type McpSubscriptionListenRequest,
+  type McpSubscriptionNotificationEvent,
+  type McpSubscriptionServerDependencies,
+  type McpSubscriptionServerOptions,
+  type McpSubscriptionStreamEvent,
+} from "./mcp-subscription-service";
+
+export {
   A2AServerService,
   type A2AJsonRpcRequest,
   type A2AJsonRpcResponse,
