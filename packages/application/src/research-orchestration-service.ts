@@ -262,6 +262,7 @@ export class ResearchOrchestrationService {
         query: buildResearchQuery(input.command.message.content, role),
         sourceLimit,
         actorId: target.actorId,
+        agentId: target.agentId,
         taskId: researchId,
         sourceIdFactory: (index, candidate) =>
           "research-source-" +
