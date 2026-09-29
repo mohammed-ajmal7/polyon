@@ -28,6 +28,67 @@ const request: TextModelRequest = {
 };
 
 describe("OpenAICompatibleTextModelAdapter", () => {
+  it("replays assistant tool calls with the declared provider-safe tool name", async () => {
+    let body: { messages: { tool_calls?: { function: { name: string } }[] }[] } | undefined;
+    const adapter = new OpenAICompatibleTextModelAdapter({
+      providerId: "local",
+      endpoint: "http://127.0.0.1:11434/v1/chat/completions",
+      fetch: async (_input, init) => {
+        body = JSON.parse(init.body) as typeof body;
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return { choices: [{ message: { content: "done" }, finish_reason: "stop" }] };
+          },
+        };
+      },
+    });
+
+    await adapter.invoke({
+      modelId: "model",
+      input: {
+        messages: [
+          { role: "USER", content: "Read notes." },
+          {
+            role: "ASSISTANT",
+            content: "",
+            toolCalls: [{ id: "call-1", toolId: "filesystem.read.scoped", input: {} }],
+          },
+          { role: "TOOL", content: "notes", toolCallId: "call-1" },
+        ],
+        tools: [
+          {
+            toolId: "filesystem.read.scoped",
+            name: "filesystem_read_scoped",
+            description: "Reads a file.",
+          },
+        ],
+      },
+    });
+
+    expect(body?.messages[1]?.tool_calls?.[0]?.function.name).toBe("filesystem_read_scoped");
+  });
+
+  it("classifies a non-JSON 503 body as a retryable unavailable error", async () => {
+    const adapter = new OpenAICompatibleTextModelAdapter({
+      providerId: "local",
+      endpoint: "http://127.0.0.1:11434/v1/chat/completions",
+      fetch: async () => ({
+        ok: false,
+        status: 503,
+        async json() {
+          throw new SyntaxError("Unexpected token '<'");
+        },
+      }),
+    });
+
+    await expect(adapter.invoke({ modelId: "model", input: request })).rejects.toMatchObject({
+      kind: "UNAVAILABLE",
+      retryable: true,
+    });
+  });
+
   it("sends reasoning_effort only when configured", async () => {
     const bodies: Record<string, unknown>[] = [];
     const fetchImpl: OpenAICompatibleFetch = async (_input, init) => {

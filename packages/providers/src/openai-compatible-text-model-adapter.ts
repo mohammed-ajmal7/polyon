@@ -115,7 +115,7 @@ export class OpenAICompatibleTextModelAdapter implements TextModelProviderAdapte
         true,
       );
     }
-    const payload = await response.json();
+    const payload: unknown = await response.json().catch(() => undefined);
 
     if (!response.ok) {
       throw this.mapHttpError(response.status, modelId, payload);
@@ -139,12 +139,16 @@ export class OpenAICompatibleTextModelAdapter implements TextModelProviderAdapte
       headers.authorization = `Bearer ${this.apiKey}`;
     }
 
+    // Replayed assistant tool calls must use the same provider-safe function names as the
+    // tools list; strict providers reject names that are not declared.
+    const toolNamesById = new Map((input.tools ?? []).map((tool) => [tool.toolId, tool.name]));
+
     return this.fetchImpl(this.endpoint, {
       method: "POST",
       headers,
       body: JSON.stringify({
         model: modelId,
-        messages: input.messages.map(toOpenAIMessage),
+        messages: input.messages.map((message) => toOpenAIMessage(message, toolNamesById)),
         ...(input.tools === undefined
           ? {}
           : {
@@ -361,7 +365,10 @@ function parseToolCalls(
   return calls.length === 0 ? undefined : calls;
 }
 
-function toOpenAIMessage(message: TextModelRequest["messages"][number]): Record<string, unknown> {
+function toOpenAIMessage(
+  message: TextModelRequest["messages"][number],
+  toolNamesById: ReadonlyMap<string, string>,
+): Record<string, unknown> {
   if (message.role === "ASSISTANT" && message.toolCalls !== undefined) {
     return {
       role: "assistant",
@@ -370,7 +377,7 @@ function toOpenAIMessage(message: TextModelRequest["messages"][number]): Record<
         id: call.id,
         type: "function",
         function: {
-          name: call.toolId,
+          name: toolNamesById.get(call.toolId) ?? call.toolId,
           arguments: JSON.stringify(call.input),
         },
       })),
