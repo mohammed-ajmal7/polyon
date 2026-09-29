@@ -11,7 +11,7 @@ Current capabilities:
 - durable memory/source/evidence, bounded research, synthesis, and privacy-aware context assembly;
 - bounded coding-agent process execution;
 - authenticated web APIs and live AI HQ;
-- MCP 2026-07-28 HTTP interoperability with subscriptions/listen plus A2A 1.0 HTTP interoperability with streaming task subscriptions and opt-in push notifications;
+- MCP 2026-07-28 HTTP interoperability with subscriptions/listen plus A2A 1.0 HTTP interoperability with streaming task subscriptions, opt-in push notifications, and authenticated extended Agent Card retrieval;
 - automatic semantic indexing with explicit scope allowlisting and durable restart-safe recovery behavior;
 - an exact normalized local semantic vector index behind a replaceable boundary, with model/dimension candidate bucketing for lower traversal cost;
 - Docker/Compose deployment with CI verification.
@@ -26,7 +26,7 @@ Current capabilities:
 
 ## Remaining production-depth work
 
-1. Advanced MCP/A2A features and broader specification coverage. MCP initialization notifications, bounded `tools/list` pagination, and `subscriptions/listen` are implemented; A2A 1.0 streaming message delivery, bounded task subscriptions, push configuration, durable storage, task-event dispatch, bounded retries, and delivery outcome auditing are implemented. Remaining work is broader protocol specification coverage.
+1. Advanced MCP/A2A features and broader specification coverage. MCP initialization notifications, bounded `tools/list` pagination, and `subscriptions/listen` are implemented; A2A 1.0 streaming message delivery, bounded task subscriptions, push configuration, durable storage, task-event dispatch, bounded retries, delivery outcome auditing, and authenticated `GetExtendedAgentCard` are implemented. Remaining work is broader protocol specification coverage.
 2. Multi-user/enterprise identity and tenancy, outside the personal deployment scope.
 3. Sustained load testing, profiling, and broader adversarial E2E coverage beyond the current deterministic production-scale suite.
 4. Deployment automation for a specific infrastructure target beyond self-hosted Docker/Compose.

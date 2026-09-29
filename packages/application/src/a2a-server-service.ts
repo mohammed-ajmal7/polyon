@@ -134,6 +134,12 @@ export class A2AServerService {
         return this.listPushNotificationConfigs(request);
       case "DeleteTaskPushNotificationConfig":
         return this.deletePushNotificationConfig(request);
+      case "GetExtendedAgentCard":
+        return {
+          jsonrpc: "2.0",
+          id: request.id,
+          result: this.extendedAgentCard(""),
+        };
       case "SendStreamingMessage":
       case "message/stream":
       case "SubscribeToTask":
@@ -214,7 +220,7 @@ export class A2AServerService {
       capabilities: {
         streaming: true,
         pushNotifications: this.dependencies.pushNotifications !== undefined,
-        extendedAgentCard: false,
+        extendedAgentCard: true,
       },
       defaultInputModes: ["text/plain"],
       defaultOutputModes: ["text/plain"],
@@ -232,6 +238,10 @@ export class A2AServerService {
         },
       },
     };
+  }
+
+  extendedAgentCard(baseUrl: string): Record<string, unknown> {
+    return this.agentCard(baseUrl);
   }
 
   private getTask(request: A2AJsonRpcRequest): A2AJsonRpcResponse {
