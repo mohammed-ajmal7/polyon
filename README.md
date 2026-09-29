@@ -65,7 +65,7 @@ The current integration line contains the core operating loop for:
 - governed filesystem, terminal, Git, artifact, and integration tools;
 - Google Drive, Telegram, and SMTP Email adapters;
 - durable memory, Source/Evidence records, bounded web research, evidence-grounded synthesis, and optional semantic memory search with durable embeddings;
-- bounded automatic semantic indexing with explicit privacy scope opt-in and an exact local vector index with a replaceable acceleration boundary;
+- bounded automatic semantic indexing with explicit privacy scope opt-in and an exact local vector index with model/dimension candidate bucketing behind a replaceable acceleration boundary;
 - explicit bounded coding-agent tool/process execution;
 - authenticated private web APIs, approval inbox, live trace/state APIs;
 - local file-backed persistence, migrations, optimistic concurrency, backup/restore, and self-hosted Docker deployment.
@@ -117,7 +117,7 @@ The repository also contains focused integration/recovery/security tests across 
 
 The core POLYON operating loop is implemented. Work that can remain after the initial self-hosted release is primarily depth, scale, and deployment-specific:
 
-- advanced MCP/A2A capabilities such as streaming, push notifications, subscriptions, and broader specification coverage;
+- advanced MCP/A2A capabilities such as push notifications and broader specification coverage;
 - multi-user/enterprise identity and tenancy (the product remains intentionally personal);
 - sustained load/profiling and a wider adversarial end-to-end matrix;
 - target-specific deployment automation beyond self-hosted Docker/Compose.
