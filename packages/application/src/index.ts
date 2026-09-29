@@ -323,6 +323,9 @@ export {
   type A2AJsonRpcRequest,
   type A2AJsonRpcResponse,
   type A2AServerDependencies,
+  type A2AServerOptions,
+  type A2ARequestHeaders,
+  type A2AStreamWait,
 } from "./a2a-server-service";
 
 export { registerCreativeTools } from "./creative-tools";
