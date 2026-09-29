@@ -161,7 +161,7 @@ export async function POST(request: Request): Promise<Response> {
 
 export async function GET(request: Request): Promise<Response> {
   if (!(await authenticateRequest(request)))
-    return new Response("Authentication required.", { status: 401);
+    return new Response("Authentication required.", { status: 401 });
 
   return Response.json({
     protocolVersion: "2026-07-28",
