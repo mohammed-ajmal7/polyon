@@ -146,7 +146,7 @@ export function createSemanticMemoryIndexer(
   };
 
   const jobIdForCycle = (cycle: number): string =>
-    `${jobIdPrefix}:${cycle}`;
+    `${jobIdPrefix}:${encodeURIComponent(jobUserId)}:${cycle}`;
 
   const scheduleNextDurableJob = (cycle: number, runAt: string, createdAt: string): Job => {
     if (options.jobBridge === undefined) {
