@@ -1,30 +1,28 @@
 import { BoundedHttpClient } from "@polyon/integrations";
 import type { SourceKind } from "@polyon/contracts";
 
-export interface ResearchSearchProvider {
-  search(
-    query: string,
-    options: { readonly limit: number; readonly signal?: AbortSignal },
-  ): Promise<readonly ResearchSearchResult[]>;
-}
+import type { SearchProvider, SearchResult } from "./research-fabric";
 
-export interface ResearchSearchResult {
-  readonly title: string;
-  readonly locator: string;
-  readonly kind?: SourceKind;
-}
+export type ResearchSearchProvider = SearchProvider;
+export type ResearchSearchResult = SearchResult;
 
 export interface ConfiguredHttpResearchProviderOptions {
   readonly endpoint: string;
   readonly http: BoundedHttpClient;
+  readonly id?: string;
 }
 
 interface SearchPayload {
   readonly results: readonly ResearchSearchResult[];
 }
 
-export class ConfiguredHttpResearchProvider implements ResearchSearchProvider {
-  constructor(private readonly options: ConfiguredHttpResearchProviderOptions) {}
+export class ConfiguredHttpResearchProvider implements SearchProvider {
+  readonly kind = "search" as const;
+  readonly id: string;
+
+  constructor(private readonly options: ConfiguredHttpResearchProviderOptions) {
+    this.id = options.id?.trim() || "configured-http-search";
+  }
 
   async search(
     query: string,

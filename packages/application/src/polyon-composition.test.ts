@@ -586,4 +586,46 @@ describe("createPolyonComposition", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("registers provider-neutral research fabric capabilities through composition", () => {
+    const root = mkdtempSync(join(tmpdir(), "polyon-composition-research-fabric-"));
+
+    try {
+      const searchProvider: import("./research-fabric").SearchProvider = {
+        kind: "search",
+        id: "search.test",
+        async search() {
+          return [];
+        },
+      };
+      const browserProvider: import("./research-fabric").BrowserProvider = {
+        kind: "browser",
+        id: "browser.test",
+        async fetch(locator) {
+          return {
+            locator,
+            content: "",
+            retrievedAt: now,
+          };
+        },
+      };
+
+      const composition = createPolyonComposition({
+        storageRoot: root,
+        researchFabricProviders: [searchProvider, browserProvider],
+      });
+
+      expect(composition.researchFabric.listSearchProviders().map((item) => item.id)).toEqual([
+        "search.test",
+      ]);
+      expect(composition.researchFabric.listBrowserProviders().map((item) => item.id)).toEqual([
+        "browser.test",
+      ]);
+      expect(composition.researchFabric.listCrawlerProviders()).toEqual([]);
+      expect(composition.researchFabric.listPublicDataProviders()).toEqual([]);
+      expect(composition.researchFabric.listAcademicProviders()).toEqual([]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });

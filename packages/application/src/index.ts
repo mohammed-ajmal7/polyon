@@ -183,6 +183,27 @@ export {
   type ResearchSearchResult,
   type BoundedWebResearchRetrieverOptions,
 } from "./bounded-web-research-retriever";
+
+export {
+  BoundedHttpBrowserProvider,
+  type BoundedHttpBrowserProviderOptions,
+} from "./bounded-http-browser-provider";
+
+export {
+  ResearchFabric,
+  ResearchFabricError,
+  type AcademicProvider,
+  type BrowseResult,
+  type BrowserProvider,
+  type CrawlerProvider,
+  type CrawlResult,
+  type PublicDataProvider,
+  type PublicDataResult,
+  type ResearchFabricErrorKind,
+  type ResearchFabricProvider,
+  type SearchProvider,
+  type SearchResult,
+} from "./research-fabric";
 export {
   DebateOrchestrationService,
   type CreateDebateInput,

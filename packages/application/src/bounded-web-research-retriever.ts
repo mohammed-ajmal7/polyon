@@ -1,7 +1,9 @@
 import type { SourceKind } from "@polyon/contracts";
 import { BoundedHttpClient, type BoundedHttpClientError } from "@polyon/integrations";
 
+import { BoundedHttpBrowserProvider } from "./bounded-http-browser-provider";
 import type { ResearchRetriever, ResearchSourceCandidate } from "./research-service";
+
 
 export interface ResearchSearchResult {
   readonly title: string;
@@ -37,6 +39,9 @@ export class BoundedWebResearchRetriever implements ResearchRetriever {
     options: { readonly limit: number; readonly signal?: AbortSignal },
   ): Promise<readonly ResearchSourceCandidate[]> {
     const results = await this.searchProvider.search(query, options);
+    const browser = new BoundedHttpBrowserProvider(this.http, {
+      maxResponseBytes: this.maxContentBytes,
+    });
     const candidates: ResearchSourceCandidate[] = [];
 
     for (const result of results.slice(0, options.limit)) {
@@ -44,29 +49,19 @@ export class BoundedWebResearchRetriever implements ResearchRetriever {
         throw new Error("Research retrieval was cancelled.");
       }
 
-      const response = await this.http.request(
-        {
-          url: result.locator,
-          method: "GET",
-          signal: options.signal,
-        },
-        { maxResponseBytes: this.maxContentBytes },
-      );
-
-      if (response.status < 200 || response.status >= 300) {
-        throw new Error(`Research source returned HTTP ${response.status}.`);
-      }
-
-      const contentType = response.headers["content-type"] ?? "";
-      const content = new TextDecoder().decode(response.body);
+      const page = await browser.fetch(result.locator, {
+        signal: options.signal,
+        maxCharacters: this.maxContentBytes,
+      });
 
       candidates.push({
         title: result.title,
         locator: result.locator,
         kind: result.kind ?? "WEB",
-        content,
-        context: contentType === "" ? undefined : `content-type: ${contentType}`,
-        retrievedAt: new Date().toISOString(),
+        content: page.content,
+        context:
+          page.contentType === undefined ? undefined : `content-type: ${page.contentType}`,
+        retrievedAt: page.retrievedAt,
       });
     }
 
