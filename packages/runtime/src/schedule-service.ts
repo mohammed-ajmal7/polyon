@@ -62,7 +62,7 @@ export class ScheduleService {
         throw new ScheduleStateError(schedule.id, "Schedule already exists.");
       }
       stores.schedules.save(schedule);
-      stores.events.append(scheduleEvent("OTHER", schedule, now, "created"));
+      stores.events.append(scheduleEvent("SCHEDULE_CREATED", schedule, now, "created"));
       return schedule;
     });
   }
@@ -88,7 +88,7 @@ export class ScheduleService {
       };
 
       stores.schedules.save(next);
-      stores.events.append(scheduleEvent("OTHER", next, input.now, "updated"));
+      stores.events.append(scheduleEvent("SCHEDULE_UPDATED", next, input.now, "updated"));
       return next;
     });
   }
