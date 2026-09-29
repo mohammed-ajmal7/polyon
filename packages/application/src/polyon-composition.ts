@@ -307,7 +307,10 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
               task !== undefined &&
               stores.executions
                 .list()
-                .some((execution) => execution.taskId === taskId && execution.actorId === "a2a-client")
+                .some(
+                  (execution) =>
+                    execution.taskId === taskId && execution.actorId === "a2a-client",
+                )
             );
           },
         })
