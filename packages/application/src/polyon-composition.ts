@@ -605,13 +605,20 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
       }
     }
 
-    if (a2aPushNotifications !== undefined) {
-      const task = stores.tasks.get(outcome.execution.taskId);
-      if (task !== undefined) await a2aPushNotifications.notifyTask(task);
-    }
-
     await externalHandler?.(outcome);
   };
+
+  if (a2aPushNotifications !== undefined) {
+    stores.subscribeCommittedEvents((event) => {
+      if (event.kind !== "TASK_STATUS_CHANGED" || event.taskId === undefined) {
+        return;
+      }
+      const task = stores.tasks.get(event.taskId);
+      if (task !== undefined) {
+        void a2aPushNotifications.notifyTask(task);
+      }
+    });
+  }
 
   const artifactCatalog = new ArtifactCatalogService({
     artifacts: stores.artifacts,
