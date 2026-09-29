@@ -134,32 +134,29 @@ describe("routeAgentModel", () => {
   });
 
   it("treats agent and model capability requirements separately", () => {
+    const agents = new InMemoryAgentRegistry();
+    const models = new InMemoryModelRegistry();
+    const providers = new InMemoryProviderRegistry();
+
+    agents.register({
+      ...agent,
+      preferredModelId: "vision-model",
+      fallbackModelIds: [],
+    });
+    models.register({
+      ...localModel,
+      id: "vision-model",
+      capabilityIds: ["ai.chat", "ai.vision"],
+    });
+    providers.register(local);
+
     const result = routeAgentModel(
       {
         agentId: agent.id,
         requiredCapabilityIds: ["research"],
         requiredModelCapabilityIds: ["ai.vision"],
       },
-      {
-        ...createRegistries(),
-        models: (() => {
-          const models = new InMemoryModelRegistry();
-          models.register({
-            ...localModel,
-            capabilityIds: ["ai.chat", "ai.vision"],
-            id: "vision-model",
-          });
-          const agentRegistry = new InMemoryAgentRegistry();
-          agentRegistry.register({
-            ...agent,
-            preferredModelId: "vision-model",
-            fallbackModelIds: [],
-          });
-          const providers = new InMemoryProviderRegistry();
-          providers.register(local);
-          return models;
-        })(),
-      },
+      { agents, models, providers },
     );
 
     expect(result.model.id).toBe("vision-model");
