@@ -57,6 +57,9 @@ export async function GET(): Promise<Response> {
       artifacts: polyon.stores.artifacts.list().length,
       events: polyon.stores.events.list().length,
       agentRuns: polyon.agentRuns.listByUser(getPolyonActorId()).length,
+      queuedJobs: polyon.jobs.list("queued").length,
+      runningJobs: polyon.jobs.list("running").length,
+      jobRuntime: polyon.jobRuntime.health,
     },
     activity: events.map((event) => ({
       id: event.id,
