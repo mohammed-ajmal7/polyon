@@ -119,7 +119,7 @@ export class McpSubscriptionService {
       },
     };
 
-    const initial = snapshot(this.dependencies);
+    let previous = snapshot(this.dependencies);
     const deadline = this.now() + this.maxDurationMs;
 
     while (this.now() < deadline) {
@@ -129,7 +129,9 @@ export class McpSubscriptionService {
       if (signal?.aborted) return;
 
       const current = snapshot(this.dependencies);
-      if (acknowledged.toolsListChanged === true && current.tools !== initial.tools) {
+      const toolsChanged = current.tools !== previous.tools;
+
+      if (acknowledged.toolsListChanged === true && toolsChanged) {
         yield {
           jsonrpc: "2.0",
           method: "notifications/tools/list_changed",
@@ -141,9 +143,7 @@ export class McpSubscriptionService {
         };
       }
 
-      if (current.tools !== initial.tools) {
-        return;
-      }
+      previous = current;
     }
 
     if (!signal?.aborted) {
