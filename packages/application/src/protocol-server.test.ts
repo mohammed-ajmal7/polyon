@@ -84,11 +84,49 @@ describe("protocol servers", () => {
       agents: { list: () => [] },
       commandIngress: { submit: vi.fn() } as never,
       conversationOrchestration: { execute: vi.fn() } as never,
-      executions: { list: () => executions },
+      executions: {
+        list: () => [
+          {
+            id: "execution-new",
+            missionId: "mission-1",
+            taskId: "task-new",
+            actorId: "a2a-client",
+            attempt: 1,
+            status: "RUNNING" as const,
+            createdAt: "2026-09-28T00:00:00.000Z",
+            updatedAt: "2026-09-28T00:00:03.000Z",
+          },
+        ],
+      },
       runtime: { cancel: vi.fn() } as never,
       tasks: {
-        list: () => tasks,
-        get: (id) => tasks.find((task) => task.id === id),
+        list: () => [
+          {
+            id: "task-new",
+            missionId: "mission-1",
+            kind: "RESEARCH" as const,
+            title: "New",
+            description: "New",
+            status: "RUNNING" as const,
+            dependsOn: [],
+            createdAt: "2026-09-28T00:00:00.000Z",
+            updatedAt: "2026-09-28T00:00:03.000Z",
+          },
+        ],
+        get: (id) =>
+          id === "task-new"
+            ? {
+                id: "task-new",
+                missionId: "mission-1",
+                kind: "RESEARCH" as const,
+                title: "New",
+                description: "New",
+                status: "RUNNING" as const,
+                dependsOn: [],
+                createdAt: "2026-09-28T00:00:00.000Z",
+                updatedAt: "2026-09-28T00:00:03.000Z",
+              }
+            : undefined,
       },
       policy: policy(),
       actorId: "a2a-client",
