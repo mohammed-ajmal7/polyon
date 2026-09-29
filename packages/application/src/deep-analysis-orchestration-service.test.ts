@@ -70,6 +70,7 @@ function collectiveResult(): CollectiveExecutionResult {
 
   return {
     collectiveId: "collective:deep-analysis",
+    runId: "collective:deep-analysis",
     conversationId: command().conversation.id,
     status: "SUCCEEDED",
     synthesizerAgentId: "synthesizer",
