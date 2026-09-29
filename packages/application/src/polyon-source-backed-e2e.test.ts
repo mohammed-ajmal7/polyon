@@ -61,14 +61,14 @@ function makeProvider(
         request.input.messages.find((message) => message.role === "USER")?.content ?? "";
       const sourceId = userMessage.match(/\[source:([^\]\s]+)/u)?.[1] ?? "source-missing";
 
-      let content = \`\${request.modelId} produced an evidence-aware finding. [source:\${sourceId}]\`;
+      let content = `${request.modelId} produced an evidence-aware finding. [source:${sourceId}]`;
 
       if (userMessage.includes("Return the strongest challenges")) {
-        content = \`\${request.modelId} identified an unsupported assumption and a competing explanation. [source:\${sourceId}]\`;
+        content = `${request.modelId} identified an unsupported assumption and a competing explanation. [source:${sourceId}]`;
       } else if (userMessage.includes("Format the response with these sections")) {
         content =
           "Findings\nThe team has independent evidence.\nEvidence\n" +
-          \`[source:\${sourceId}]\nAgreements\nSupported signals overlap.\n\` +
+          `[source:${sourceId}]\nAgreements\nSupported signals overlap.\n` +
           "Disagreements\nInterpretations remain distinct.\nCounterclaims\nAlternative explanations remain possible.\n" +
           "Uncertainty\nThe retrieved evidence is bounded.\nConclusion\nUse the source-backed signals with explicit caveats.";
       }
