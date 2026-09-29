@@ -76,6 +76,7 @@ import {
   ModelGateway,
   UsageGovernor,
   type EmbeddingProviderAdapter,
+  type ModelInvocationTelemetryRecord,
   type ModelProviderAdapter,
 } from "@polyon/providers";
 import { FileDomainStores } from "@polyon/storage";
@@ -378,6 +379,40 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     providers,
     adapters: providerAdapters,
     ...(options.usageGovernor === undefined ? {} : { usageGovernor: options.usageGovernor }),
+    telemetry: {
+      record: (record: ModelInvocationTelemetryRecord) => {
+        stores.events.append({
+          id:
+            "MODEL_INVOCATION_RECORDED:" +
+            record.providerId +
+            ":" +
+            record.modelId +
+            ":" +
+            (record.runId ?? "no-run") +
+            ":" +
+            (record.agentId ?? "no-agent") +
+            ":" +
+            record.attempt +
+            ":" +
+            record.recordedAt,
+          kind: "MODEL_INVOCATION_RECORDED",
+          agentRunId: record.runId,
+          occurredAt: record.recordedAt,
+          data: {
+            providerId: record.providerId,
+            modelId: record.modelId,
+            agentId: record.agentId,
+            attempt: record.attempt,
+            status: record.status,
+            estimatedTokens: record.estimatedTokens,
+            actualTokens: record.actualTokens,
+            latencyMs: record.latencyMs,
+            costClass: record.costClass,
+            errorKind: record.errorKind,
+          },
+        });
+      },
+    },
   });
   const embeddingGateway =
     options.embeddingProvider === undefined

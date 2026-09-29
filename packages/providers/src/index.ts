@@ -80,3 +80,8 @@ export {
   type UsageGovernorErrorKind,
   type UsageReservation,
 } from "./usage-governor";
+
+export type {
+  ModelInvocationTelemetryRecord,
+  ModelInvocationTelemetrySink,
+} from "./model-invocation-telemetry";

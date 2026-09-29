@@ -176,6 +176,7 @@ export class ResearchOrchestrationService {
     try {
       const response = await this.dependencies.agentGateway.invokeText({
         agentId: synthesizerAgentId,
+        runId: researchId,
         requiredCapabilityIds: input.requiredCapabilityIds,
         request: this.buildSynthesisRequest(
           input.command.message.content,
@@ -319,6 +320,7 @@ export class ResearchOrchestrationService {
     try {
       const response = await this.dependencies.agentGateway.invokeText({
         agentId: target.agentId,
+        runId: researchId,
         requiredCapabilityIds: input.requiredCapabilityIds,
         request: this.buildFindingRequest(
           input.command.message.content,

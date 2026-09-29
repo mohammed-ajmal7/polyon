@@ -234,6 +234,7 @@ export class CollectiveOrchestrationService {
         try {
           const response = await this.dependencies.agentGateway.invokeText({
             agentId: target.agentId,
+            runId: collectiveId,
             requiredCapabilityIds: input.requiredCapabilityIds,
             request: this.buildContributorRequest(
               input.command.message.content,
@@ -347,6 +348,7 @@ export class CollectiveOrchestrationService {
           try {
             const response = await this.dependencies.agentGateway.invokeText({
               agentId: target.agentId,
+              runId: collectiveId,
               requiredCapabilityIds: input.requiredCapabilityIds,
               request: this.buildChallengeRequest(
                 input.command.message.content,
@@ -418,6 +420,7 @@ export class CollectiveOrchestrationService {
     try {
       const response = await this.dependencies.agentGateway.invokeText({
         agentId: synthesizerAgentId,
+        runId: collectiveId,
         requiredCapabilityIds: input.requiredCapabilityIds,
         request: this.buildSynthesisRequest(
           input.command.message.content,
