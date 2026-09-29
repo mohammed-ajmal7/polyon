@@ -143,6 +143,7 @@ export class DeepAnalysisOrchestrationService {
     const debate = await this.dependencies.debates
       .run({
         debateId,
+        runId: collective.runId,
         requiredCapabilityIds: input.requiredCapabilityIds,
         adjudicatorAgentId: synthesizerAgentId,
         now,
