@@ -20,6 +20,7 @@ import type {
 
 import type { CommandIngressResult } from "./command-ingress";
 import type { ResearchService } from "./research-service";
+import type { AgentRunService } from "./agent-run-service";
 
 const DEFAULT_MAX_PARTICIPANTS = 8;
 const MIN_PARTICIPANTS = 2;
@@ -91,6 +92,7 @@ export interface ResearchOrchestrationDependencies {
   readonly conversations: ConversationStore;
   readonly messages: MessageStore;
   readonly events: EventStore;
+  readonly agentRuns?: AgentRunService;
   readonly unitOfWork?: DomainUnitOfWork;
 }
 
@@ -102,6 +104,31 @@ export class ResearchOrchestrationService {
 
     const now = input.now ?? (() => new Date().toISOString());
     const targets = [...input.targets];
+    const researchId = `research:${input.command.conversation.id}:${input.command.message.id}:${randomUUID()}`;
+
+    try {
+      return await this.executeInternal(input, now, targets, researchId);
+    } catch (error) {
+      const run = this.dependencies.agentRuns?.get(researchId);
+      if (run?.status === "running") {
+        this.dependencies.agentRuns?.syncMessageIds(researchId);
+        this.dependencies.agentRuns?.fail({
+          id: researchId,
+          error: error instanceof Error ? error.message : "Research execution failed unexpectedly.",
+          completedAt: new Date().toISOString(),
+        });
+      }
+      throw error;
+    }
+  }
+
+  private async executeInternal(
+    input: ExecuteResearchInput,
+    now: () => string,
+    targets: readonly ResearchTarget[],
+    researchId: string,
+  ): Promise<ResearchExecutionResult> {
+    const targets = [...input.targets];
     const synthesizerAgentId = input.synthesizerAgentId ?? targets[targets.length - 1]!.agentId;
     const researchId = `research:${input.command.conversation.id}:${input.command.message.id}:${randomUUID()}`;
     const sourceLimit = input.sourceLimit ?? DEFAULT_SOURCE_LIMIT;
@@ -109,6 +136,25 @@ export class ResearchOrchestrationService {
     const synthesizer = this.dependencies.agents.get(synthesizerAgentId);
     if (synthesizer === undefined || synthesizer.status !== "ACTIVE") {
       throw new Error(`Research synthesizer is not active: ${synthesizerAgentId}.`);
+    }
+
+    if (this.dependencies.agentRuns !== undefined) {
+      const existingRun = this.dependencies.agentRuns.get(researchId);
+      if (existingRun === undefined) {
+        this.dependencies.agentRuns.create({
+          id: researchId,
+          userId: input.actorId,
+          task: input.command.message.content,
+          mode: "research",
+          agentIds: targets.map((target) => target.agentId),
+          createdAt: now(),
+        });
+        this.dependencies.agentRuns.start(researchId, now());
+      } else if (existingRun.status === "queued") {
+        this.dependencies.agentRuns.start(researchId, now());
+      } else if (existingRun.status !== "running") {
+        throw new Error(`Research run already reached terminal state: ${researchId}.`);
+      }
     }
 
     this.persistStart(researchId, input, synthesizerAgentId, sourceLimit, now());
