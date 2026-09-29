@@ -78,7 +78,7 @@ describe("McpServerService subscriptions/listen", () => {
 
   it("gracefully closes a bounded subscription when its lifetime expires", async () => {
     const bus = new InMemoryMcpSubscriptionBus();
-    const server = new McpServerService(bus ? {
+    const server = new McpServerService({
       tools: { list: () => [], get: () => undefined },
       integrations: { list: () => [], get: () => undefined },
       toolInvocation: { invoke: vi.fn() } as never,
@@ -96,7 +96,7 @@ describe("McpServerService subscriptions/listen", () => {
       },
       actorId: "mcp-client",
       subscriptions: bus,
-    } : (undefined as never), {
+    }, {
       subscriptionMaxDurationMs: 1,
       subscriptionWait: async () => undefined,
     });
