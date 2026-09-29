@@ -58,6 +58,7 @@ export function WorkspaceNav({ children }: { children: ReactNode }) {
                 <Link
                   key={item.href}
                   href={item.href}
+                  prefetch={false}
                   className={
                     "flex items-center justify-between rounded-xl px-3 py-2.5 text-sm transition " +
                     (active
@@ -105,6 +106,7 @@ export function WorkspaceNav({ children }: { children: ReactNode }) {
                   <Link
                     key={item.href}
                     href={item.href}
+                    prefetch={false}
                     className={
                       "shrink-0 rounded-lg px-2.5 py-1.5 text-[11px] " +
                       (active ? "bg-white/8 text-white" : "text-slate-500")
