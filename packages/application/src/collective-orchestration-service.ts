@@ -734,7 +734,7 @@ export class CollectiveOrchestrationService {
         {
           role: "USER",
           content:
-            `User request: ${command}\n\nYour role: ${role}\nReviewer: ${agentId}\n` +
+            `User request: ${command}\n\nYour role: ${agent?.role ?? "Generalist"}\nReviewer: ${agentId}\n` +
             `Round: ${round}\n\n` +
             (context === ""
               ? "There are no peer contributions yet. Critically inspect the available evidence " +
