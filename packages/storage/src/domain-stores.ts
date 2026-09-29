@@ -1,5 +1,6 @@
 import type {
   AgentRun,
+  Job,
   ApprovalRequest,
   Artifact,
   Conversation,
@@ -25,6 +26,7 @@ import {
 } from "./transaction";
 
 export type AgentRunStore = EntityStore<AgentRun>;
+export type JobStore = EntityStore<Job>;
 export type ApprovalRequestStore = EntityStore<ApprovalRequest>;
 export type DebateStore = EntityStore<Debate>;
 export type EvidenceStore = EntityStore<Evidence>;
@@ -42,6 +44,7 @@ export type TaskStore = EntityStore<Task>;
 
 export interface DomainStores {
   readonly agentRuns: AgentRunStore;
+  readonly jobs: JobStore;
   readonly approvals: ApprovalRequestStore;
   readonly debates: DebateStore;
   readonly evidence: EvidenceStore;
@@ -75,6 +78,7 @@ export class InMemoryDomainStores implements DomainStores, DomainUnitOfWork {
   private transactionActive = false;
 
   readonly agentRuns: AgentRunStore = new InMemoryEntityStore<AgentRun>();
+  readonly jobs: JobStore = new InMemoryEntityStore<Job>();
   readonly approvals: ApprovalRequestStore = new InMemoryEntityStore<ApprovalRequest>();
   readonly debates: DebateStore = new InMemoryEntityStore<Debate>();
   readonly evidence: EvidenceStore = new InMemoryEntityStore<Evidence>();
@@ -101,6 +105,7 @@ export class InMemoryDomainStores implements DomainStores, DomainUnitOfWork {
 
     const snapshots = {
       agentRuns: this.agentRuns.list(),
+      jobs: this.jobs.list(),
       approvals: this.approvals.list(),
       debates: this.debates.list(),
       evidence: this.evidence.list(),
@@ -122,6 +127,7 @@ export class InMemoryDomainStores implements DomainStores, DomainUnitOfWork {
       return work(this);
     } catch (error) {
       restoreStore(this.agentRuns, snapshots.agentRuns);
+      restoreStore(this.jobs, snapshots.jobs);
       restoreStore(this.approvals, snapshots.approvals);
       restoreStore(this.debates, snapshots.debates);
       restoreStore(this.evidence, snapshots.evidence);
