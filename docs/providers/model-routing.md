@@ -19,6 +19,8 @@ Preferred/fallback ordering is preserved when candidates are otherwise equivalen
 
 The router returns the selected agent, model, provider, source (`PREFERRED` or `FALLBACK`), provider health, and deterministic score so the decision can be inspected and recorded by the application layer.
 
+`requiredCapabilityIds` validate the agent's declared skills. `requiredModelCapabilityIds` separately constrain model features such as vision, audio, structured output, embeddings, or other provider-independent AI capabilities. This keeps domain expertise and model modality from being conflated.
+
 ## Privacy and cost
 
 Privacy and cost constraints are hard filters. The router does not rely on model instructions to avoid a cloud or paid provider.
