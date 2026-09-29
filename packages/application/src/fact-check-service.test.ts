@@ -1,1 +1,185 @@
-import { describe, expect, it, vi } from "vitest";\n\nimport type { Agent, Evidence, Source, TextModelRequest } from "@polyon/contracts";\nimport { InMemoryAgentRegistry } from "@polyon/agents";\nimport { InMemoryDomainStores } from "@polyon/storage";\n\nimport { FactCheckService } from "./fact-check-service";\n\nconst now = "2026-09-29T09:00:00.000Z";\n\nfunction agent(): Agent {\n  return {\n    id: "fact-checker",\n    name: "Fact Checker",\n    role: "Fact Checker",\n    description: "Checks claims against evidence.",\n    roleId: "fact-checker",\n    status: "ACTIVE",\n    capabilityIds: [],\n    preferredModelId: "fact-checker-model",\n    fallbackModelIds: [],\n    createdAt: now,\n    updatedAt: now,\n  };\n}\n\nfunction source(id: string): Source {\n  return {\n    id,\n    kind: "WEB",\n    title: "Test source " + id,\n    locator: "https://example.test/" + id,\n    retrievedAt: now,\n  };\n}\n\nfunction evidence(id: string, sourceId: string, kind: Evidence["kind"] = "SUPPORTING"): Evidence {\n  return {\n    id,\n    sourceId,\n    kind,\n    claim: "The test claim is supported by this evidence.",\n    supportingContent: "Deterministic test evidence.",\n    capturedAt: now,\n  };\n}\n\nfunction serviceSetup() {\n  const stores = new InMemoryDomainStores();\n  const agents = new InMemoryAgentRegistry();\n  agents.register(agent());\n  stores.sources.save(source("source-1"));\n  stores.sources.save(source("source-2"));\n  stores.evidence.save(evidence("evidence-1", "source-1"));\n  stores.evidence.save(evidence("evidence-2", "source-2"));\n  return { stores, agents };\n}\n\ndescribe("FactCheckService", () => {\n  it("checks claims only against referenced evidence and persists a trace", async () => {\n    const { stores, agents } = serviceSetup();\n    const invokeText = vi.fn(async (input: { agentId: string; request: TextModelRequest }) => {\n      expect(input.agentId).toBe("fact-checker");\n      expect(input.request.messages[1]?.content).toContain("[claim:claim-1]");\n      expect(input.request.messages[1]?.content).toContain("[evidence:evidence-1 source:source-1");\n      expect(input.request.messages[1]?.content).toContain("quality:");\n      return {\n        modelId: "fact-checker-model",\n        providerId: "test-provider",\n        source: "preferred" as const,\n        output: {\n          content: JSON.stringify([\n            {\n              claimId: "claim-1",\n              verdict: "SUPPORTED",\n              confidence: 0.91,\n              rationale: "The supplied evidence directly supports the claim.",\n              evidenceIds: ["evidence-1"],\n            },\n            {\n              claimId: "claim-2",\n              verdict: "CONTRADICTED",\n              confidence: 0.72,\n              rationale: "The supplied evidence conflicts with the claim.",\n              evidenceIds: ["evidence-2"],\n            },\n          ]),\n        },\n      };\n    });\n\n    const service = new FactCheckService({\n      agents,\n      agentGateway: { invokeText } as never,\n      evidence: stores.evidence,\n      sources: stores.sources,\n      events: stores.events,\n      unitOfWork: stores,\n    });\n\n    const results = await service.execute({\n      runId: "run.fact-check",\n      factCheckerAgentId: "fact-checker",\n      claims: [\n        { id: "claim-1", claim: "Claim one.", evidenceIds: ["evidence-1"] },\n        { id: "claim-2", claim: "Claim two.", evidenceIds: ["evidence-2"] },\n      ],\n      requiredCapabilityIds: [],\n      now: () => now,\n    });\n\n    expect(results).toHaveLength(2);\n    expect(results[0]).toMatchObject({\n      claimId: "claim-1",\n      verdict: "SUPPORTED",\n      confidence: 0.91,\n      evidenceIds: ["evidence-1"],\n    });\n    expect(results[1]).toMatchObject({\n      claimId: "claim-2",\n      verdict: "CONTRADICTED",\n      confidence: 0.72,\n      evidenceIds: ["evidence-2"],\n    });\n    expect(results.every((result) => result.evidenceQuality.length === 1)).toBe(true);\n\n    const events = stores.events.list();\n    expect(events.filter((event) => event.kind === "FACT_CHECK_STARTED")).toHaveLength(1);\n    expect(events.filter((event) => event.kind === "FACT_CHECK_RESULT")).toHaveLength(2);\n    expect(events.filter((event) => event.kind === "FACT_CHECK_COMPLETED")).toHaveLength(1);\n  });\n\n  it("rejects unknown evidence instead of silently checking an empty workspace", async () => {\n    const { stores, agents } = serviceSetup();\n    const service = new FactCheckService({\n      agents,\n      agentGateway: { invokeText: vi.fn() } as never,\n      evidence: stores.evidence,\n      sources: stores.sources,\n      events: stores.events,\n      unitOfWork: stores,\n    });\n\n    await expect(\n      service.execute({\n        factCheckerAgentId: "fact-checker",\n        claims: [{ id: "claim-unknown", claim: "Unknown.", evidenceIds: ["missing"] }],\n        requiredCapabilityIds: [],\n        now: () => now,\n      }),\n    ).rejects.toThrow("Fact check references unknown evidence: missing.");\n  });\n\n  it("falls back to unresolved when the model does not return valid JSON", async () => {\n    const { stores, agents } = serviceSetup();\n    const service = new FactCheckService({\n      agents,\n      agentGateway: {\n        invokeText: vi.fn(async () => ({\n          modelId: "fact-checker-model",\n          providerId: "test-provider",\n          source: "preferred" as const,\n          output: { content: "not valid json" },\n        })),\n      } as never,\n      evidence: stores.evidence,\n      sources: stores.sources,\n      events: stores.events,\n      unitOfWork: stores,\n    });\n\n    const results = await service.execute({\n      factCheckerAgentId: "fact-checker",\n      claims: [{ id: "claim-1", claim: "Claim one.", evidenceIds: ["evidence-1"] }],\n      requiredCapabilityIds: [],\n      now: () => now,\n    });\n\n    expect(results[0]).toMatchObject({\n      claimId: "claim-1",\n      verdict: "UNRESOLVED",\n      evidenceIds: ["evidence-1"],\n    });\n  });\n});\n
+import { describe, expect, it, vi } from "vitest";
+
+import type { Agent, Evidence, Source, TextModelRequest } from "@polyon/contracts";
+import { InMemoryAgentRegistry } from "@polyon/agents";
+import { InMemoryDomainStores } from "@polyon/storage";
+
+import { FactCheckService } from "./fact-check-service";
+
+const now = "2026-09-29T09:00:00.000Z";
+
+function agent(): Agent {
+  return {
+    id: "fact-checker",
+    name: "Fact Checker",
+    role: "Fact Checker",
+    description: "Checks claims against evidence.",
+    roleId: "fact-checker",
+    status: "ACTIVE",
+    capabilityIds: [],
+    preferredModelId: "fact-checker-model",
+    fallbackModelIds: [],
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function source(id: string): Source {
+  return {
+    id,
+    kind: "WEB",
+    title: "Test source " + id,
+    locator: "https://example.test/" + id,
+    retrievedAt: now,
+  };
+}
+
+function evidence(id: string, sourceId: string, kind: Evidence["kind"] = "SUPPORTING"): Evidence {
+  return {
+    id,
+    sourceId,
+    kind,
+    claim: "The test claim is supported by this evidence.",
+    supportingContent: "Deterministic test evidence.",
+    capturedAt: now,
+  };
+}
+
+function serviceSetup() {
+  const stores = new InMemoryDomainStores();
+  const agents = new InMemoryAgentRegistry();
+  agents.register(agent());
+  stores.sources.save(source("source-1"));
+  stores.sources.save(source("source-2"));
+  stores.evidence.save(evidence("evidence-1", "source-1"));
+  stores.evidence.save(evidence("evidence-2", "source-2"));
+  return { stores, agents };
+}
+
+describe("FactCheckService", () => {
+  it("checks claims only against referenced evidence and persists a trace", async () => {
+    const { stores, agents } = serviceSetup();
+    const invokeText = vi.fn(async (input: { agentId: string; request: TextModelRequest }) => {
+      expect(input.agentId).toBe("fact-checker");
+      expect(input.request.messages[1]?.content).toContain("[claim:claim-1]");
+      expect(input.request.messages[1]?.content).toContain("[evidence:evidence-1 source:source-1");
+      expect(input.request.messages[1]?.content).toContain("quality:");
+      return {
+        modelId: "fact-checker-model",
+        providerId: "test-provider",
+        source: "preferred" as const,
+        output: {
+          content: JSON.stringify([
+            {
+              claimId: "claim-1",
+              verdict: "SUPPORTED",
+              confidence: 0.91,
+              rationale: "The supplied evidence directly supports the claim.",
+              evidenceIds: ["evidence-1"],
+            },
+            {
+              claimId: "claim-2",
+              verdict: "CONTRADICTED",
+              confidence: 0.72,
+              rationale: "The supplied evidence conflicts with the claim.",
+              evidenceIds: ["evidence-2"],
+            },
+          ]),
+        },
+      };
+    });
+
+    const service = new FactCheckService({
+      agents,
+      agentGateway: { invokeText } as never,
+      evidence: stores.evidence,
+      sources: stores.sources,
+      events: stores.events,
+      unitOfWork: stores,
+    });
+
+    const results = await service.execute({
+      runId: "run.fact-check",
+      factCheckerAgentId: "fact-checker",
+      claims: [
+        { id: "claim-1", claim: "Claim one.", evidenceIds: ["evidence-1"] },
+        { id: "claim-2", claim: "Claim two.", evidenceIds: ["evidence-2"] },
+      ],
+      requiredCapabilityIds: [],
+      now: () => now,
+    });
+
+    expect(results).toHaveLength(2);
+    expect(results[0]).toMatchObject({
+      claimId: "claim-1",
+      verdict: "SUPPORTED",
+      confidence: 0.91,
+      evidenceIds: ["evidence-1"],
+    });
+    expect(results[1]).toMatchObject({
+      claimId: "claim-2",
+      verdict: "CONTRADICTED",
+      confidence: 0.72,
+      evidenceIds: ["evidence-2"],
+    });
+    expect(results.every((result) => result.evidenceQuality.length === 1)).toBe(true);
+
+    const events = stores.events.list();
+    expect(events.filter((event) => event.kind === "FACT_CHECK_STARTED")).toHaveLength(1);
+    expect(events.filter((event) => event.kind === "FACT_CHECK_RESULT")).toHaveLength(2);
+    expect(events.filter((event) => event.kind === "FACT_CHECK_COMPLETED")).toHaveLength(1);
+  });
+
+  it("rejects unknown evidence instead of silently checking an empty workspace", async () => {
+    const { stores, agents } = serviceSetup();
+    const service = new FactCheckService({
+      agents,
+      agentGateway: { invokeText: vi.fn() } as never,
+      evidence: stores.evidence,
+      sources: stores.sources,
+      events: stores.events,
+      unitOfWork: stores,
+    });
+
+    await expect(
+      service.execute({
+        factCheckerAgentId: "fact-checker",
+        claims: [{ id: "claim-unknown", claim: "Unknown.", evidenceIds: ["missing"] }],
+        requiredCapabilityIds: [],
+        now: () => now,
+      }),
+    ).rejects.toThrow("Fact check references unknown evidence: missing.");
+  });
+
+  it("falls back to unresolved when the model does not return valid JSON", async () => {
+    const { stores, agents } = serviceSetup();
+    const service = new FactCheckService({
+      agents,
+      agentGateway: {
+        invokeText: vi.fn(async () => ({
+          modelId: "fact-checker-model",
+          providerId: "test-provider",
+          source: "preferred" as const,
+          output: { content: "not valid json" },
+        })),
+      } as never,
+      evidence: stores.evidence,
+      sources: stores.sources,
+      events: stores.events,
+      unitOfWork: stores,
+    });
+
+    const results = await service.execute({
+      factCheckerAgentId: "fact-checker",
+      claims: [{ id: "claim-1", claim: "Claim one.", evidenceIds: ["evidence-1"] }],
+      requiredCapabilityIds: [],
+      now: () => now,
+    });
+
+    expect(results[0]).toMatchObject({
+      claimId: "claim-1",
+      verdict: "UNRESOLVED",
+      evidenceIds: ["evidence-1"],
+    });
+  });
+});
