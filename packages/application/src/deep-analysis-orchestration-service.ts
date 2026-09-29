@@ -104,6 +104,7 @@ export class DeepAnalysisOrchestrationService {
       ...(input.requiredModelCapabilityIds === undefined
         ? {}
         : { requiredModelCapabilityIds: input.requiredModelCapabilityIds }),
+      mode: "deep",
       synthesizerAgentId,
       maxParticipants: input.maxParticipants,
       maxChallengeRounds: input.maxChallengeRounds ?? 0,
