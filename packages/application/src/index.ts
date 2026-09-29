@@ -315,6 +315,10 @@ export {
   McpServerService,
   type McpJsonRpcRequest,
   type McpJsonRpcResponse,
+  type McpJsonRpcNotification,
+  type McpStreamFrame,
+  type McpRequestHeaders,
+  type McpServerOptions,
   type McpServerDependencies,
 } from "./mcp-server-service";
 
