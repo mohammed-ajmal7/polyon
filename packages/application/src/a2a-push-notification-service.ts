@@ -79,14 +79,17 @@ export class A2APushNotificationService {
   }
 
   getConfig(taskId: string, configId: string) {
+    if (!this.options.validateTask(taskId)) return undefined;
     return this.options.store.get(this.options.ownerId, taskId, configId);
   }
 
   listConfigs(taskId: string) {
+    if (!this.options.validateTask(taskId)) return [];
     return this.options.store.list(this.options.ownerId, taskId);
   }
 
   deleteConfig(taskId: string, configId: string) {
+    if (!this.options.validateTask(taskId)) return false;
     return this.options.store.delete(this.options.ownerId, taskId, configId);
   }
 
