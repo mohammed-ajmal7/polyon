@@ -155,6 +155,7 @@ describe("A2A push notifications", () => {
     );
 
     expect(requests[0]?.headers.get("X-A2A-Notification-Token")).toBe("token-1");
+    expect(requests[0]?.headers.get("content-type")).toBe("application/a2a+json");
     await expect(
       sender.send(
         {
