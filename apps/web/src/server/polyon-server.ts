@@ -223,6 +223,7 @@ function buildConfiguredModelRegistrations() {
     roles.map((role) => ({
       ...profile,
       agentId: baseAgentId + "-" + role.id,
+      agentRoleId: role.roleId,
       agentName: role.name,
       agentRole: role.role,
       agentDescription: role.description,
@@ -473,6 +474,17 @@ export function isSameOrigin(request: Request): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Protocol endpoints accept both bearer-token clients and the browser session cookie.
+ * A cookie-authenticated request must be same-origin JSON, otherwise another local page
+ * could ride the session cookie (SameSite does not separate localhost ports).
+ */
+export function isUntrustedBrowserProtocolRequest(request: Request): boolean {
+  if (request.headers.get("authorization")?.startsWith("Bearer ") === true) return false;
+  const contentType = request.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase();
+  return !isSameOrigin(request) || contentType !== "application/json";
 }
 
 export function getPolyonBaseUrl(request?: Request): string {

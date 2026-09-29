@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { getPolyonComposition } from "./polyon-server";
+import { getPolyonComposition, isUntrustedBrowserProtocolRequest } from "./polyon-server";
 
 const originalEnvironment = { ...process.env };
 
@@ -119,5 +119,32 @@ describe("POLYON server configuration smoke", () => {
     } finally {
       rmSync(dataDir, { recursive: true, force: true });
     }
+  });
+
+  it("only lets bearer clients or same-origin JSON browsers call protocol endpoints", () => {
+    const request = (headers: Record<string, string>) =>
+      new Request("http://localhost:3000/api/mcp", {
+        method: "POST",
+        headers: { host: "localhost:3000", ...headers },
+      });
+
+    expect(isUntrustedBrowserProtocolRequest(request({ authorization: "Bearer token" }))).toBe(
+      false,
+    );
+    expect(
+      isUntrustedBrowserProtocolRequest(
+        request({ origin: "http://localhost:3000", "content-type": "application/json" }),
+      ),
+    ).toBe(false);
+    expect(
+      isUntrustedBrowserProtocolRequest(
+        request({ origin: "http://localhost:5173", "content-type": "application/json" }),
+      ),
+    ).toBe(true);
+    expect(
+      isUntrustedBrowserProtocolRequest(
+        request({ origin: "http://localhost:3000", "content-type": "text/plain" }),
+      ),
+    ).toBe(true);
   });
 });

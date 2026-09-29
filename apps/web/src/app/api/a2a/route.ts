@@ -1,10 +1,15 @@
 import { authenticateRequest } from "@/server/auth";
-import { getPolyonComposition, getPolyonPolicy } from "@/server/polyon-server";
+import {
+  getPolyonComposition,
+  getPolyonPolicy,
+  isUntrustedBrowserProtocolRequest,
+} from "@/server/polyon-server";
 import {
   A2AServerService,
   type A2AJsonRpcRequest,
   type A2AJsonRpcResponse,
 } from "@polyon/application";
+import { readBoundedText } from "@/server/bounded-body";
 
 export const runtime = "nodejs";
 const MAX_BYTES = 256_000;
@@ -78,8 +83,19 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const raw = await request.text();
-  if (new TextEncoder().encode(raw).byteLength > MAX_BYTES) {
+  if (isUntrustedBrowserProtocolRequest(request)) {
+    return Response.json(
+      {
+        jsonrpc: "2.0",
+        id: null,
+        error: { code: -32001, message: "Cross-origin or non-JSON browser requests are rejected." },
+      },
+      { status: 403 },
+    );
+  }
+
+  const raw = await readBoundedText(request, MAX_BYTES);
+  if (raw === undefined) {
     return Response.json(
       {
         jsonrpc: "2.0",

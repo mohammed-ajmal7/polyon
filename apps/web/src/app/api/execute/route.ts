@@ -2,6 +2,7 @@ import { isAuthenticated } from "@/server/auth";
 import { randomUUID } from "node:crypto";
 
 import type { CommandMode } from "@polyon/application";
+import type { BuiltInAgentRoleId } from "@polyon/contracts";
 
 import {
   getPolyonActorId,
@@ -9,6 +10,7 @@ import {
   getPolyonPolicy,
   isSameOrigin,
 } from "@/server/polyon-server";
+import { readBoundedText } from "@/server/bounded-body";
 
 export const runtime = "nodejs";
 
@@ -28,8 +30,8 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
 
-    const raw = await request.text();
-    if (new TextEncoder().encode(raw).byteLength > MAX_REQUEST_BYTES) {
+    const raw = await readBoundedText(request, MAX_REQUEST_BYTES);
+    if (raw === undefined) {
       return Response.json(
         { error: "Execution request exceeds the 65536-byte limit." },
         { status: 413 },
@@ -58,7 +60,7 @@ export async function POST(request: Request): Promise<Response> {
     const policy = getPolyonPolicy();
     const requiredCapabilityIds = parseStringArray(input.requiredCapabilityIds, 20);
     const first = targets[0];
-    if (first === undefined) throw new Error("At least one agent is required.");
+    if (first === undefined) throw new ExecuteRequestError("At least one agent is required.");
 
     if (mode === "Direct" || mode === "Broadcast") {
       const result = await polyon.conversationOrchestration.execute({
@@ -108,14 +110,17 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     if (mode === "DeepAnalysis") {
+      const factCheckerAgentId =
+        parseOptionalString(input.factCheckerAgentId) ?? agentIdForRole(polyon, "fact-checker");
       const result = await polyon.deepAnalysisOrchestration.execute({
         command: commandResult,
         targets,
         requiredCapabilityIds,
         actorId,
         synthesizerAgentId: parseOptionalString(input.synthesizerAgentId),
+        ...(factCheckerAgentId === undefined ? {} : { factCheckerAgentId }),
         maxParticipants: parsePositiveInteger(input.maxParticipants, 8, 8),
-        maxChallengeRounds: parseOptionalInteger(input.maxChallengeRounds, 0, 2),
+        maxChallengeRounds: parseOptionalInteger(input.maxChallengeRounds, 1, 2),
         maxDebateRounds: parsePositiveInteger(input.maxDebateRounds, 2, 4),
       });
       return Response.json({ mode, result }, { status: 201 });
@@ -164,11 +169,55 @@ export async function POST(request: Request): Promise<Response> {
 
     return Response.json({ mode, result }, { status: 201 });
   } catch (error) {
+    if (error instanceof ExecuteRequestError || error instanceof SyntaxError) {
+      return Response.json({ error: error.message }, { status: 400 });
+    }
+    const message = error instanceof Error ? error.message : "Execution request failed.";
     return Response.json(
-      { error: error instanceof Error ? error.message : "Execution request failed." },
-      { status: 400 },
+      { error: message },
+      { status: message.startsWith("Research is not configured") ? 503 : 500 },
     );
   }
+}
+
+/** A malformed or out-of-bounds request; everything else is a server-side failure. */
+class ExecuteRequestError extends Error {}
+
+const DEFAULT_TEAM_ROLES: Partial<Record<CommandMode, readonly BuiltInAgentRoleId[]>> = {
+  Direct: ["action-agent", "synthesizer"],
+  Broadcast: ["researcher", "analyst", "specialist"],
+  Collaborative: ["researcher", "analyst", "specialist", "critic", "synthesizer"],
+  Research: ["researcher", "analyst", "synthesizer"],
+  DeepAnalysis: ["researcher", "analyst", "critic", "judge"],
+  Debate: ["analyst", "critic", "judge"],
+  Mission: ["planner"],
+};
+
+function agentIdForRole(
+  polyon: ReturnType<typeof getPolyonComposition>,
+  roleId: BuiltInAgentRoleId,
+): string | undefined {
+  return polyon.agents.list().find((agent) => agent.status === "ACTIVE" && agent.roleId === roleId)
+    ?.id;
+}
+
+/** Picks the default team by agent role; falls back to registration order without roles. */
+function defaultAgentIds(
+  mode: CommandMode,
+  polyon: ReturnType<typeof getPolyonComposition>,
+): readonly string[] {
+  const roles = DEFAULT_TEAM_ROLES[mode] ?? [];
+  const byRole = roles
+    .map((roleId) => agentIdForRole(polyon, roleId))
+    .filter((id): id is string => id !== undefined);
+  const single = mode === "Direct" || mode === "Mission";
+  if (single ? byRole.length >= 1 : byRole.length >= 2) return single ? byRole.slice(0, 1) : byRole;
+
+  const active = polyon.agents
+    .list()
+    .filter((agent) => agent.status === "ACTIVE")
+    .map((agent) => agent.id);
+  return single ? active.slice(0, 1) : active.slice(0, 8);
 }
 
 function parseMode(value: unknown): CommandMode {
@@ -182,14 +231,14 @@ function parseMode(value: unknown): CommandMode {
     value === "Mission"
   )
     return value;
-  throw new Error("Invalid command mode.");
+  throw new ExecuteRequestError("Invalid command mode.");
 }
 
 function parseString(value: unknown, maxLength: number, field: string): string {
   if (typeof value !== "string" || value.trim() === "")
-    throw new Error(field + " must be a non-empty string.");
+    throw new ExecuteRequestError(field + " must be a non-empty string.");
   if (Array.from(value).length > maxLength)
-    throw new Error(field + " exceeds its " + maxLength + "-character limit.");
+    throw new ExecuteRequestError(field + " exceeds its " + maxLength + "-character limit.");
   return value.trim();
 }
 
@@ -201,7 +250,7 @@ function parsePositiveInteger(value: unknown, fallback: number, max: number): nu
   if (value === undefined) return fallback;
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0 || parsed > max)
-    throw new Error("Integer parameter is outside its allowed bounds.");
+    throw new ExecuteRequestError("Integer parameter is outside its allowed bounds.");
   return parsed;
 }
 
@@ -209,14 +258,14 @@ function parseOptionalInteger(value: unknown, fallback: number, max: number): nu
   if (value === undefined) return fallback;
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < 0 || parsed > max)
-    throw new Error("Integer parameter is outside its allowed bounds.");
+    throw new ExecuteRequestError("Integer parameter is outside its allowed bounds.");
   return parsed;
 }
 
 function parseStringArray(value: unknown, max: number): readonly string[] {
   if (value === undefined) return [];
   if (!Array.isArray(value) || value.length > max)
-    throw new Error("String array exceeds its allowed bound.");
+    throw new ExecuteRequestError("String array exceeds its allowed bound.");
   return value.map((item) => parseString(item, 200, "array item"));
 }
 
@@ -228,29 +277,20 @@ function resolveTargets(
   let ids: readonly string[];
 
   if (value === undefined) {
-    ids =
-      mode === "Collaborative" ||
-      mode === "Research" ||
-      mode === "DeepAnalysis" ||
-      mode === "Debate"
-        ? polyon.agents
-            .list()
-            .slice(0, 8)
-            .map((agent) => agent.id)
-        : [polyon.agents.list()[0]?.id].filter((id): id is string => id !== undefined);
+    ids = defaultAgentIds(mode, polyon);
   } else if (Array.isArray(value)) {
     ids = value.map((id) => parseString(id, 200, "agentId"));
   } else {
-    throw new Error("agentIds must be an array.");
+    throw new ExecuteRequestError("agentIds must be an array.");
   }
 
   if (ids.length === 0 || ids.length > 8)
-    throw new Error("agentIds must contain between 1 and 8 agents.");
+    throw new ExecuteRequestError("agentIds must contain between 1 and 8 agents.");
   const unique = [...new Set(ids)];
   return unique.map((agentId) => {
     const agent = polyon.agents.get(agentId);
     if (agent === undefined || agent.status !== "ACTIVE")
-      throw new Error("Requested agent is not active: " + agentId + ".");
+      throw new ExecuteRequestError("Requested agent is not active: " + agentId + ".");
     return { agentId, actorId: agentId };
   });
 }
@@ -258,5 +298,5 @@ function resolveTargets(
 function parseRiskLevel(value: unknown): "LOW" | "MEDIUM" | "HIGH" {
   if (value === undefined || value === "LOW") return "LOW";
   if (value === "MEDIUM" || value === "HIGH") return value;
-  throw new Error("riskLevel must be LOW, MEDIUM, or HIGH.");
+  throw new ExecuteRequestError("riskLevel must be LOW, MEDIUM, or HIGH.");
 }

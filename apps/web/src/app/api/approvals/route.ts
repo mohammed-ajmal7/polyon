@@ -5,6 +5,7 @@ import {
   getPolyonPolicy,
   isSameOrigin,
 } from "@/server/polyon-server";
+import { readBoundedText } from "@/server/bounded-body";
 
 export const runtime = "nodejs";
 const MAX_REQUEST_BYTES = 16_384;
@@ -37,8 +38,8 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "Cross-origin POST requests are not allowed." }, { status: 403 });
   }
   try {
-    const raw = await request.text();
-    if (new TextEncoder().encode(raw).byteLength > MAX_REQUEST_BYTES) {
+    const raw = await readBoundedText(request, MAX_REQUEST_BYTES);
+    if (raw === undefined) {
       return Response.json(
         { error: "Approval request exceeds the 16384-byte limit." },
         { status: 413 },

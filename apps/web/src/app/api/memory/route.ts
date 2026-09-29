@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { isAuthenticated } from "@/server/auth";
 import { getPolyonActorId, getPolyonComposition, getPolyonPolicy } from "@/server/polyon-server";
+import { readBoundedText } from "@/server/bounded-body";
 
 export const runtime = "nodejs";
 
@@ -94,8 +95,8 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const raw = await request.text();
-    if (new TextEncoder().encode(raw).byteLength > 65_536) {
+    const raw = await readBoundedText(request, 65_536);
+    if (raw === undefined) {
       return Response.json(
         { error: "Memory request exceeds the 65536-byte limit." },
         { status: 413 },
