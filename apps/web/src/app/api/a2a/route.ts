@@ -1,6 +1,10 @@
 import { authenticateRequest } from "@/server/auth";
 import { getPolyonComposition, getPolyonPolicy } from "@/server/polyon-server";
-import { A2AServerService, type A2AJsonRpcRequest } from "@polyon/application";
+import {
+  A2AServerService,
+  type A2AJsonRpcRequest,
+  type A2AJsonRpcResponse,
+} from "@polyon/application";
 
 export const runtime = "nodejs";
 const MAX_BYTES = 256_000;
@@ -17,7 +21,9 @@ function wantsEventStream(request: Request): boolean {
   return (request.headers.get("accept") ?? "")
     .split(",")
     .map((value) => value.trim().toLowerCase())
-    .some((value) => value === "text/event-stream" || value.startsWith("text/event-stream;"));
+    .some(
+      (value) => value === "text/event-stream" || value.startsWith("text/event-stream;"),
+    );
 }
 
 function isStreamingMethod(method: string): boolean {
@@ -35,7 +41,7 @@ function sseResponse(
       try {
         for await (const item of iterable) {
           if (signal.aborted) break;
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(item)}\\n\\n`));
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(item)}\n\n`));
         }
       } catch (error) {
         if (!signal.aborted) {
@@ -48,7 +54,7 @@ function sseResponse(
                   code: -32603,
                   message: error instanceof Error ? error.message : "A2A stream failed.",
                 },
-              })}\\n\\n`,
+              })}\n\n`,
             ),
           );
         }
@@ -115,20 +121,18 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const polyon = getPolyonComposition();
-  const service = new A2AServerService(
-    {
-      agents: {
-        list: () => polyon.agents.list(),
-      },
-      commandIngress: polyon.commandIngress,
-      conversationOrchestration: polyon.conversationOrchestration,
-      executions: polyon.stores.executions,
-      runtime: polyon.runtime,
-      tasks: polyon.stores.tasks,
-      policy: getPolyonPolicy(),
-      actorId: "a2a-client",
+  const service = new A2AServerService({
+    agents: {
+      list: () => polyon.agents.list(),
     },
-  );
+    commandIngress: polyon.commandIngress,
+    conversationOrchestration: polyon.conversationOrchestration,
+    executions: polyon.stores.executions,
+    runtime: polyon.runtime,
+    tasks: polyon.stores.tasks,
+    policy: getPolyonPolicy(),
+    actorId: "a2a-client",
+  });
 
   const version = request.headers.get("A2A-Version") ?? undefined;
 
