@@ -282,4 +282,64 @@ describe("model fleet configuration", () => {
       ),
     ).toThrow("inconsistently");
   });
+
+  it("maps built-in roles to agent capabilities and keeps model capabilities separate", () => {
+    const profiles = parseModelProfiles(
+      JSON.stringify([
+        {
+          agentId: "planner",
+          agentRoleId: "planner",
+          modelId: "planner-model",
+          providerId: "ollama",
+          modelCapabilityIds: ["ai.chat", "ai.reasoning", "ai.structured-output"],
+          contextWindow: 32768,
+          supportsTools: true,
+          privacyClass: "local",
+          costClass: "free",
+        },
+      ]),
+    );
+
+    const result = buildModelRegistrations(profiles, {});
+
+    expect(result.agents[0]).toEqual(
+      expect.objectContaining({
+        roleId: "planner",
+        capabilityIds: expect.arrayContaining([
+          "ai.chat",
+          "ai.reasoning",
+          "ai.structured-output",
+        ]),
+      }),
+    );
+    expect(result.models[0]).toEqual(
+      expect.objectContaining({
+        capabilityIds: expect.arrayContaining([
+          "ai.chat",
+          "ai.reasoning",
+          "ai.structured-output",
+          "ai.tool-calling",
+        ]),
+        contextWindow: 32768,
+        supportsTools: true,
+        privacyClass: "local",
+        costClass: "free",
+      }),
+    );
+  });
+
+  it("rejects an unknown built-in role", () => {
+    expect(() =>
+      parseModelProfiles(
+        JSON.stringify([
+          {
+            agentId: "unknown",
+            agentRoleId: "not-a-role",
+            modelId: "model",
+            providerId: "ollama",
+          },
+        ]),
+      ),
+    ).toThrow("supported built-in role");
+  });
 });
