@@ -1,6 +1,7 @@
 import type {
   Agent,
   AgentId,
+  AgentRunMode,
   DomainEvent,
   Evidence,
   Message,
@@ -45,6 +46,7 @@ export interface ExecuteCollectiveInput {
   readonly actorId: string;
   readonly requiredCapabilityIds: readonly string[];
   readonly requiredModelCapabilityIds?: readonly string[];
+  readonly mode?: AgentRunMode;
   readonly synthesizerAgentId?: AgentId;
   readonly maxParticipants?: number;
   readonly maxChallengeRounds?: number;
@@ -155,7 +157,7 @@ export class CollectiveOrchestrationService {
           id: collectiveId,
           userId: input.actorId,
           task: input.command.message.content,
-          mode: researchEnabled ? "research" : "deep",
+          mode: input.mode ?? (researchEnabled ? "research" : "deep"),
           agentIds: targets.map((target) => target.agentId),
           createdAt: now(),
         });
