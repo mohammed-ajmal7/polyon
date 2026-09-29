@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { InMemoryDomainStores } from "@polyon/storage";
 
-import { MissionPlanningService from "./mission-planning-service";
+import { MissionPlanningService } from "./mission-planning-service";
 
 describe("MissionPlanningService", () => {
   it("turns structured model JSON into a persisted, validated task graph", async () => {
