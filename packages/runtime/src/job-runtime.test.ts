@@ -33,64 +33,143 @@ function createRuntime(
     jobs,
     clock,
     pollIntervalMs: 60_000,
+    wait: async () => new Promise<void>(() => undefined),
     ...options,
   });
 
   return { stores, jobs, clock, runtime };
 }
 
-function createQueuedJob(jobs: JobService, id = "job-1"): void {
+function createQueuedJob(
+  jobs: JobService,
+  id = "job-1",
+  runAt = baseTime,
+  maxAttempts = 2,
+): void {
   jobs.create({
     id,
     userId: "user-1",
     kind: "research",
     payload: { query: "POLYON" },
-    runAt: baseTime,
-    maxAttempts: 2,
+    runAt,
+    maxAttempts,
     createdAt: baseTime,
   });
 }
 
 describe("createJobRuntime", () => {
   it("runs a due job through its registered handler", async () => {
+    const { jobs, runtime } = createRuntime(undefined, {
+      handlers: {
+        research: async ({ job }) => ({ jobId: job.id, attempt: job.attempt }),
+      },
+    });
+    createQueuedJob(jobs);
+
+    runtime.start();
+
+    for (let index = 0; index < 5 && jobs.get("job-1")?.status !== "completed"; index += 1) {
+      await Promise.resolve();
+    }
+
+    expect(jobs.get("job-1")?.status).toBe("completed");
+    expect(jobs.get("job-1")?.result).toEqual({ jobId: "job-1", attempt: 1 });
+
+    runtime.stop();
+  });
+
+  it("does not run a future job before runAt", async () => {
+    const { jobs, runtime, clock } = createRuntime(undefined, {
+      handlers: {
+        research: async () => ({ ok: true }),
+      },
+    });
+    createQueuedJob(jobs, "future-job", "2026-09-29T09:00:00.000Z");
+
+    runtime.start();
+    await Promise.resolve();
+
+    expect(jobs.get("future-job")?.status).toBe("queued");
+
+    clock.set("2026-09-29T09:00:00.000Z");
+    const completed = await runtime.runNext();
+
+    expect(completed?.status).toBe("completed");
+    runtime.stop();
+  });
+
+  it("retries failed handlers after bounded exponential backoff", async () => {
+    const { jobs, runtime, clock } = createRuntime();
+    createQueuedJob(jobs);
+
+    let calls = 0;
+    const handler = async () => {
+      calls += 1;
+      if (calls === 1) throw new Error("temporary");
+      return { ok: true };
+    };
+
+    const controlled = createRuntime(undefined, {
+      handlers: { research: handler },
+      retryBackoffInitialMs: 1_000,
+      retryBackoffMaxMs: 1_000,
+    });
+    createQueuedJob(controlled.jobs);
+    controlled.runtime.start();
+
+    for (let index = 0; index < 5 && calls < 1; index += 1) {
+      await Promise.resolve();
+    }
+
+    expect(calls).toBe(1);
+    expect(controlled.jobs.get("job-1")?.status).toBe("queued");
+
+    controlled.clock.set("2026-09-29T08:00:02.000Z");
+    const completed = await controlled.runtime.runNext();
+
+    expect(calls).toBe(2);
+    expect(completed?.status).toBe("completed");
+    controlled.runtime.stop();
+
+    runtime.stop();
+    expect(jobs.list()).toHaveLength(1);
+  });
+
+  it("fails closed when no handler exists", async () => {
     const { jobs, runtime } = createRuntime();
     createQueuedJob(jobs);
 
-    const seen: string[] = [];
     runtime.start();
-    const result = await runtime.runNext().catch(() => undefined);
 
-    // The background loop and explicit runNext can race, so drain the durable state.
-    const completed = jobs.get("job-1");
+    for (let index = 0; index < 5 && jobs.get("job-1")?.status === "queued"; index += 1) {
+      await Promise.resolve();
+    }
 
-    expect(result?.status ?? completed?.status).toBe("completed");
-    expect(seen).toEqual([]);
-
-    expect(completed?.status).toBe("failed");
+    expect(jobs.get("job-1")?.status).toBe("failed");
+    expect(jobs.get("job-1")?.error).toContain("No handler");
+    runtime.stop();
   });
 
-  it("executes registered handlers and stores their bounded result", async () => {
-    const { jobs } = createRuntime();
-    const { runtime, clock } = createRuntime(
-      new InMemoryDomainStores(),
-      {
-        handlers: {
-          research: async ({ job }) => ({ jobId: job.id, attempt: job.attempt }),
-        },
+  it("cancels an active job without retrying it", async () => {
+    const { jobs, runtime } = createRuntime(undefined, {
+      handlers: {
+        research: async () => new Promise((resolve) => setTimeout(() => resolve({ ok: true }), 5_000)),
       },
-    );
+    });
     createQueuedJob(jobs);
+
     runtime.start();
-    const result = await runtime.runNext();
+    for (let index = 0; index < 5 && runtime.activeJobCount === 0; index += 1) {
+      await Promise.resolve();
+    }
 
-    expect(result?.status).toBe("completed");
-    expect(result?.result).toEqual({ jobId: "job-1", attempt: 1 });
-    expect(clock.now()).toBe(baseTime);
-  });
+    expect(runtime.activeJobCount).toBe(1);
 
-  it("does not run a future job until its runAt time", async () => {
-    const { jobs, runtime, clock } = createRuntime({
-      jobs: new InMemoryDomainStores(),
-    } as unknown as InMemoryDomainStores);
+    const cancelled = runtime.cancel("job-1");
+    expect(cancelled?.status).toBe("cancelled");
+
+    await Promise.resolve();
+    expect(jobs.get("job-1")?.status).toBe("cancelled");
+    runtime.stop();
   });
 });
