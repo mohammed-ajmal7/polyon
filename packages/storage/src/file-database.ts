@@ -33,6 +33,7 @@ import type {
   MemoryEmbedding,
   MemoryEntry,
   Source,
+  A2APushNotificationConfig,
 } from "@polyon/contracts";
 
 import {
