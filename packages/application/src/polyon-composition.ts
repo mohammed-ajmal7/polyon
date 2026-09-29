@@ -26,6 +26,7 @@ import {
 import {
   ArtifactCatalogService,
   A2APushNotificationService,
+  createDurableA2APushNotificationStore,
   InMemoryA2APushNotificationStore,
   createA2AWebhookSender,
   SemanticMemoryService,
@@ -296,7 +297,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     options.a2aPushNotificationAllowedOrigins !== undefined &&
     options.a2aPushNotificationAllowedOrigins.length > 0
       ? new A2APushNotificationService({
-          store: new InMemoryA2APushNotificationStore(),
+          store: createDurableA2APushNotificationStore(stores.a2aPushNotificationConfigs),
           ownerId: "a2a-client",
           sender: createA2AWebhookSender({
             allowedOrigins: options.a2aPushNotificationAllowedOrigins,
