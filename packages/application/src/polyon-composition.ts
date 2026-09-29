@@ -56,6 +56,8 @@ import {
   CreativeJobService,
   type CreativeAdapter,
   type ResearchRetriever,
+  type ResearchFabricProvider,
+  ResearchFabric,
   DebateOrchestrationService,
   ExecutionRetryService,
   MissionExecutionService,
@@ -139,6 +141,7 @@ export interface PolyonCompositionOptions {
   readonly emailSmtpUsername?: string;
   readonly emailTransport?: EmailTransport;
   readonly researchRetriever?: ResearchRetriever;
+  readonly researchFabricProviders?: readonly ResearchFabricProvider[];
   readonly creativeAdapter?: CreativeAdapter;
   readonly filesystemRoot?: string;
   readonly filesystemReadMaxBytes?: number;
@@ -255,6 +258,7 @@ export interface PolyonComposition {
   readonly semanticMemory?: SemanticMemoryService;
   readonly semanticMemoryIndexer?: SemanticMemoryIndexer;
   readonly research?: ResearchService;
+  readonly researchFabric: ResearchFabric;
   readonly researchSynthesis: ResearchSynthesisService;
   readonly creative?: CreativeJobService;
   readonly debates: DebateOrchestrationService;
@@ -424,6 +428,11 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     stores,
     agents,
   );
+  const researchFabric = new ResearchFabric();
+  for (const provider of options.researchFabricProviders ?? []) {
+    researchFabric.register(provider);
+  }
+
   const research =
     options.researchRetriever === undefined
       ? undefined
@@ -943,6 +952,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     ...(semanticMemory === undefined ? {} : { semanticMemory }),
     ...(semanticMemoryIndexer === undefined ? {} : { semanticMemoryIndexer }),
     ...(research === undefined ? {} : { research }),
+    researchFabric,
     researchSynthesis,
     ...(creative === undefined ? {} : { creative }),
     debates,
