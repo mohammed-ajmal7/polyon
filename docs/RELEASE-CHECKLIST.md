@@ -1,6 +1,6 @@
 # POLYON v0.1 Release Checklist
 
-This checklist is for the first self-hosted POLYON release candidate. It does not replace CI or the operational safety defaults.
+This checklist is for the first self-hosted POLYON release candidate. It is the manual release gate and must be executed against the exact release-candidate commit while preserving the operational safety defaults.
 
 ## 1. Release metadata
 
@@ -14,23 +14,26 @@ This checklist is for the first self-hosted POLYON release candidate. It does no
 - [ ] No unreviewed feature branches are included accidentally.
 - [ ] `main` remains unchanged until release approval.
 
-## 3. Automated verification
+## 3. Manual verification
 
-The exact release commit must pass the repository CI checks:
+GitHub Actions are intentionally not part of the release gate. Run the complete local verification script on the exact release-candidate commit:
 
 ```bash
-pnpm install --frozen-lockfile
-pnpm typecheck
-pnpm test
-pnpm lint
-pnpm format:check
-pnpm build
-docker build --file apps/web/Dockerfile --tag polyon:release .
-cp apps/web/.env.example apps/web/.env
-docker compose config --quiet
+bash scripts/verify-release.sh
 ```
 
-GitHub Actions performs the same quality and container checks. Verify the run against the exact commit SHA being released.
+The script performs:
+
+- frozen-lockfile dependency installation;
+- TypeScript typecheck;
+- full Vitest test suite;
+- ESLint;
+- Prettier format check;
+- production build;
+- Docker image build;
+- Docker Compose configuration validation.
+
+Do not treat a release candidate as verified until the script completes successfully on the exact commit intended for release.
 
 ## 4. Configuration and safety
 
