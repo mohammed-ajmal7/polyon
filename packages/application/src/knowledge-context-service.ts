@@ -2,6 +2,8 @@ import type { Evidence, MemoryEntry, MemoryScope, Source } from "@polyon/contrac
 
 import type { EvidenceStore, MemoryStore, SourceStore } from "@polyon/storage";
 
+import { rankEvidenceQuality } from "./evidence-quality-service";
+
 export interface KnowledgeContextInput {
   readonly query: string;
   readonly allowedScopes: readonly MemoryScope[];
@@ -12,6 +14,7 @@ export interface KnowledgeContextInput {
   readonly evidenceLimit?: number;
   readonly maxCharacters?: number;
   readonly includeEvidence?: boolean;
+  readonly now?: string;
 }
 
 export interface KnowledgeContextItem {
@@ -45,6 +48,7 @@ export class KnowledgeContextService {
     }
 
     const maxCharacters = input.maxCharacters ?? 30_000;
+    const currentTime = input.now ?? new Date().toISOString();
     const memoryLimit = input.memoryLimit ?? 20;
     const evidenceLimit = input.evidenceLimit ?? 30;
     assertBound(maxCharacters, 1, 100_000, "maxCharacters");
@@ -71,17 +75,37 @@ export class KnowledgeContextService {
     const evidenceItems =
       input.includeEvidence === false
         ? []
-        : this.evidence
-            .list()
-            .filter((item) => input.missionId === undefined || item.missionId === input.missionId)
-            .filter((item) => input.taskId === undefined || item.taskId === input.taskId)
-            .map((item) => ({
-              entry: item,
-              score: scoreText(queryTokens, normalizedQuery, item.claim, []),
-            }))
-            .filter((item) => item.score > 0)
-            .sort(compareEvidence)
-            .slice(0, evidenceLimit);
+        : (() => {
+            const candidates = this.evidence
+              .list()
+              .filter((item) => input.missionId === undefined || item.missionId === input.missionId)
+              .filter((item) => input.taskId === undefined || item.taskId === input.taskId);
+            const quality = new Map(
+              rankEvidenceQuality(candidates, new Map(this.sources.list().map((source) => [source.id, source])), new Date().toISOString())
+                .map((assessment) => [assessment.evidenceId, assessment]),
+            );
+
+            return candidates
+              .map((item) => {
+                const relevance = scoreText(queryTokens, normalizedQuery, item.claim, []);
+                const qualityScore = quality.get(item.id)?.score ?? 0;
+                return {
+                  entry: item,
+                  relevance,
+                  quality: qualityScore,
+                  score: relevance + qualityScore / 20,
+                };
+              })
+              .filter((item) => item.relevance > 0)
+              .sort(
+                (left, right) =>
+                  right.score - left.score ||
+                  right.quality - left.quality ||
+                  right.entry.capturedAt.localeCompare(left.entry.capturedAt) ||
+                  left.entry.id.localeCompare(right.entry.id),
+              )
+              .slice(0, evidenceLimit);
+          })();
 
     const items: KnowledgeContextItem[] = [];
     const sourceIds = new Set<string>();
@@ -187,17 +211,6 @@ function compareMemory(
   return (
     right.score - left.score ||
     right.entry.updatedAt.localeCompare(left.entry.updatedAt) ||
-    left.entry.id.localeCompare(right.entry.id)
-  );
-}
-
-function compareEvidence(
-  left: { entry: Evidence; score: number },
-  right: { entry: Evidence; score: number },
-): number {
-  return (
-    right.score - left.score ||
-    right.entry.capturedAt.localeCompare(left.entry.capturedAt) ||
     left.entry.id.localeCompare(right.entry.id)
   );
 }
