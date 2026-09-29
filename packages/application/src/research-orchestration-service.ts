@@ -421,7 +421,9 @@ export class ResearchOrchestrationService {
             `User request: ${command}\n\nRole: ${role}\nResearcher: ${agentName}\n\n` +
             (sourceContext === "" ? "No sources were retrieved." : `Sources:\n${sourceContext}`) +
             (evidenceContext === "" ? "" : `\n\nEvidence:\n${evidenceContext}`) +
-            "\n\nReturn the strongest supported findings, contradictory signals, and uncertainties.",
+            "\n\nReturn the strongest supported findings, contradictory signals, and uncertainties. " +
+            "When possible, also return a JSON object with claim, confidence (0..1), assumptions, " +
+            "counterarguments, disposition (SUPPORTED|CONTRADICTED|UNRESOLVED|INFERRED), and evidenceIds.",
         },
       ],
     };
