@@ -12,7 +12,7 @@ import type {
   TextModelResponse,
   Tool,
 } from "@polyon/contracts";
-import type { AgentGateway } from "@polyon/agents";
+import { buildAgentRolePrompt, type AgentGateway, type AgentRegistry } from "@polyon/agents";
 import type { IntegrationAdapterRegistry } from "@polyon/integrations";
 import { transitionExecutionStatus, transitionTaskStatus } from "@polyon/core";
 import type {
@@ -83,6 +83,7 @@ export type AgentToolOrchestrationResult =
 
 export interface AgentToolOrchestrationDependencies {
   readonly agentGateway: AgentGateway;
+  readonly agents?: AgentRegistry;
   readonly toolInvocation: ToolInvocationService;
   readonly integrationInvocation: IntegrationInvocationService;
   readonly integrations: IntegrationAdapterRegistry;
@@ -134,7 +135,10 @@ export class AgentToolOrchestrationService {
 
   async invoke(input: AgentToolOrchestrationInput): Promise<AgentToolOrchestrationResult> {
     const request = this.withToolDefinitions(
-      this.withKnowledgeContext(input.request, input.knowledgeContext),
+      this.withRolePrompt(
+        this.withKnowledgeContext(input.request, input.knowledgeContext),
+        input.agentId,
+      ),
     );
     const initial = await this.dependencies.agentGateway.invokeText({
       agentId: input.agentId,
@@ -972,6 +976,22 @@ export class AgentToolOrchestrationService {
             },
           }),
     });
+  }
+
+  private withRolePrompt(request: TextModelRequest, agentId: string): TextModelRequest {
+    const agent = this.dependencies.agents?.get(agentId);
+    if (agent === undefined) return request;
+
+    return {
+      ...request,
+      messages: [
+        {
+          role: "SYSTEM",
+          content: buildAgentRolePrompt(agent, "action"),
+        },
+        ...request.messages,
+      ],
+    };
   }
 
   private withKnowledgeContext(
