@@ -269,6 +269,37 @@ describe("A2A push notifications", () => {
     expect(outcomes).toEqual([{ status: "SUCCEEDED", attempts: 1 }]);
   });
 
+  it("does not retry when delivery telemetry itself fails", async () => {
+    let attempts = 0;
+    const service = new A2APushNotificationService({
+      store: new InMemoryA2APushNotificationStore(),
+      ownerId: "a2a-client",
+      validateTask: () => true,
+      maxDeliveryAttempts: 3,
+      wait: async () => undefined,
+      sender: {
+        send: async () => {
+          attempts += 1;
+        },
+      },
+      onDeliveryOutcome: async () => {
+        throw new Error("telemetry unavailable");
+      },
+    });
+
+    const task = {
+      id: "task-telemetry",
+      missionId: "mission-telemetry",
+      status: "SUCCEEDED",
+      updatedAt: "2026-09-29T10:00:00.000Z",
+    } as never;
+
+    service.createConfig({ taskId: task.id, url: "https://example.com/a2a" });
+    await service.notifyTask(task);
+
+    expect(attempts).toBe(1);
+  });
+
   it("reports terminal delivery failure after bounded retries", async () => {
     const outcomes: Array<{ status: string; attempts: number }> = [];
     const service = new A2APushNotificationService({
