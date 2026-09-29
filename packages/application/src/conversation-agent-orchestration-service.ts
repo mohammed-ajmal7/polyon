@@ -170,6 +170,7 @@ export class ConversationAgentOrchestrationService {
             kind: "MESSAGE_CREATED",
             actorId: target.actorId,
             conversationId: message.conversationId,
+            agentRunId: runId,
             ...(input.missionId === undefined ? {} : { missionId: input.missionId }),
             ...(input.taskId === undefined ? {} : { taskId: input.taskId }),
             ...(input.executionId === undefined ? {} : { executionId: input.executionId }),
@@ -199,6 +200,27 @@ export class ConversationAgentOrchestrationService {
 
     const hasApproval = responses.some((item) => item.result.status === "APPROVAL_REQUIRED");
     const hasSuccess = responses.some((item) => item.result.status === "SUCCEEDED");
+
+    if (this.agentRuns !== undefined && !hasApproval) {
+      this.agentRuns.syncMessageIds(runId);
+      if (hasSuccess) {
+        const finalAnswer =
+          persistedMessages[persistedMessages.length - 1]?.content ??
+          responses.find((item) => item.result.status === "SUCCEEDED")?.result.response.content ??
+          "Conversation completed.";
+        this.agentRuns.complete({
+          id: runId,
+          finalAnswer,
+          completedAt: new Date().toISOString(),
+        });
+      } else {
+        this.agentRuns.fail({
+          id: runId,
+          error: "No conversation agent returned a successful result.",
+          completedAt: new Date().toISOString(),
+        });
+      }
+    }
 
     return {
       status: hasApproval ? "APPROVAL_REQUIRED" : hasSuccess ? "SUCCEEDED" : "FAILED",
