@@ -46,6 +46,7 @@ describe("FileDomainDatabase migrations", () => {
               memory: [],
               memoryEmbeddings: [],
               sources: [],
+              jobs: [],
               migrated: true,
             };
           },
