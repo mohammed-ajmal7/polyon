@@ -250,13 +250,18 @@ export class DebateOrchestrationService {
     const operation = (stores: Pick<DomainStoreTransactionContext, "debates" | "events">) => {
       stores.debates.save(debate);
       stores.events.append(
-        this.debateEvent("DEBATE_STATUS_CHANGED", debate, now, {
-          ...(agentRunId === undefined ? {} : { agentRunId }),
-          from,
-          to: debate.status,
-          phase: debate.phase,
-          round: debate.currentRound,
-        }),
+        this.debateEvent(
+          "DEBATE_STATUS_CHANGED",
+          debate,
+          now,
+          {
+            from,
+            to: debate.status,
+            phase: debate.phase,
+            round: debate.currentRound,
+          },
+          agentRunId,
+        ),
       );
     };
     if (this.unitOfWork === undefined) {
@@ -307,7 +312,6 @@ export class DebateOrchestrationService {
           },
           agentRunId,
         ),
-      );
       );
     };
     if (this.unitOfWork === undefined) {
