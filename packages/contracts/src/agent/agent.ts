@@ -6,6 +6,7 @@ export interface Agent {
   readonly id: AgentId;
   readonly name: string;
   readonly role: string;
+  readonly roleId?: import("./roles").BuiltInAgentRoleId;
   readonly description: string;
   readonly status: AgentStatus;
 
