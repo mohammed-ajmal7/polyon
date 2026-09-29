@@ -81,7 +81,7 @@ export class SemanticMemoryService {
       readonly allowedScopes?: readonly MemoryScope[];
       readonly signal?: AbortSignal;
     },
-  ): Promise<{ readonly indexed: number; readonly stale: number; readonly skipped: number }> {
+  ): Promise<{ readonly indexed: number; readonly removed: number; readonly stale: number; readonly skipped: number }> {
     if (modelId.trim() === "") throw new RangeError("Embedding model ID must not be empty.");
 
     const batchSize = input.batchSize ?? 16;
@@ -106,6 +106,21 @@ export class SemanticMemoryService {
       .slice(0, maxEntries);
 
     let indexed = 0;
+    let removed = 0;
+
+    const validMemoryIds = new Set(this.memories.list().map((memory) => memory.id));
+    const orphanedEmbeddings = this.embeddings
+      .list()
+      .filter(
+        (embedding) =>
+          embedding.modelId === modelId && !validMemoryIds.has(embedding.memoryId),
+      );
+
+    for (const embedding of orphanedEmbeddings) {
+      this.embeddings.delete(embedding.id);
+      this.vectorIndex?.remove(embedding.id);
+      removed += 1;
+    }
 
     for (let offset = 0; offset < candidates.length; offset += batchSize) {
       const batch = candidates.slice(offset, offset + batchSize);
@@ -156,7 +171,7 @@ export class SemanticMemoryService {
       return embedding === undefined || embedding.contentHash !== this.contentHash(memory.text);
     }).length;
 
-    return { indexed, stale, skipped: this.memories.list().length - candidates.length };
+    return { indexed, removed, stale, skipped: this.memories.list().length - candidates.length };
   }
 
   async search(input: SemanticMemorySearchInput): Promise<readonly SemanticMemorySearchResult[]> {
