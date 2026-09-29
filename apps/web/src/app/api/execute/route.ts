@@ -11,6 +11,7 @@ import {
   isSameOrigin,
 } from "@/server/polyon-server";
 import { readBoundedText } from "@/server/bounded-body";
+import { BackgroundRunLimitError, startBackgroundRun } from "@/server/run-registry";
 
 export const runtime = "nodejs";
 
@@ -62,113 +63,131 @@ export async function POST(request: Request): Promise<Response> {
     const first = targets[0];
     if (first === undefined) throw new ExecuteRequestError("At least one agent is required.");
 
-    if (mode === "Direct" || mode === "Broadcast") {
-      const result = await polyon.conversationOrchestration.execute({
-        command: commandResult,
-        targets: mode === "Direct" ? [first] : targets,
+    if (mode === "Research" && polyon.researchOrchestration === undefined) {
+      throw new Error(
+        "Research is not configured. Set POLYON_RESEARCH_SEARCH_ENDPOINT and allowed hosts.",
+      );
+    }
+
+    const work = async (): Promise<unknown> => {
+      if (mode === "Direct" || mode === "Broadcast") {
+        return polyon.conversationOrchestration.execute({
+          command: commandResult,
+          targets: mode === "Direct" ? [first] : targets,
+          requiredCapabilityIds,
+          policy,
+          actorId,
+          maxToolRounds: parsePositiveInteger(input.maxToolRounds, 8, 100),
+          maxToolOutputBytes: parsePositiveInteger(
+            input.maxToolOutputBytes,
+            64 * 1024,
+            2 * 1024 * 1024,
+          ),
+        });
+      }
+
+      if (mode === "Collaborative") {
+        return polyon.collectiveOrchestration.execute({
+          command: commandResult,
+          targets,
+          requiredCapabilityIds,
+          actorId,
+          synthesizerAgentId: parseOptionalString(input.synthesizerAgentId),
+          maxParticipants: parsePositiveInteger(input.maxParticipants, 8, 8),
+        });
+      }
+
+      if (mode === "Research") {
+        return polyon.researchOrchestration!.execute({
+          command: commandResult,
+          targets,
+          requiredCapabilityIds,
+          actorId,
+          synthesizerAgentId: parseOptionalString(input.synthesizerAgentId),
+          maxParticipants: parsePositiveInteger(input.maxParticipants, 8, 8),
+          sourceLimit: parsePositiveInteger(input.researchSourceLimit, 5, 20),
+        });
+      }
+
+      if (mode === "DeepAnalysis") {
+        const factCheckerAgentId =
+          parseOptionalString(input.factCheckerAgentId) ?? agentIdForRole(polyon, "fact-checker");
+        return polyon.deepAnalysisOrchestration.execute({
+          command: commandResult,
+          targets,
+          requiredCapabilityIds,
+          actorId,
+          synthesizerAgentId: parseOptionalString(input.synthesizerAgentId),
+          ...(factCheckerAgentId === undefined ? {} : { factCheckerAgentId }),
+          maxParticipants: parsePositiveInteger(input.maxParticipants, 8, 8),
+          maxChallengeRounds: parseOptionalInteger(input.maxChallengeRounds, 1, 2),
+          maxDebateRounds: parsePositiveInteger(input.maxDebateRounds, 2, 4),
+        });
+      }
+
+      if (mode === "Debate") {
+        const debate = polyon.debates.create({
+          id: parseOptionalString(input.debateId) ?? randomUUID(),
+          objective: command,
+          participantAgentIds: targets.map((target) => target.agentId),
+          maxParticipants: Math.min(targets.length, 8),
+          maxRounds: parsePositiveInteger(input.maxRounds, 2, 6),
+          createdAt: new Date().toISOString(),
+        });
+        return polyon.debates.run({
+          debateId: debate.id,
+          requiredCapabilityIds,
+          adjudicatorAgentId: first.agentId,
+          now: () => new Date().toISOString(),
+        });
+      }
+
+      const now = new Date().toISOString();
+      return polyon.missionWorkflow.execute({
+        missionId: parseOptionalString(input.missionId) ?? randomUUID(),
+        conversationId: commandResult.conversation.id,
+        objective: command,
+        actorId,
+        planningAgentId: first.agentId,
+        executionAgentId: first.agentId,
         requiredCapabilityIds,
         policy,
-        actorId,
-        maxToolRounds: parsePositiveInteger(input.maxToolRounds, 8, 100),
-        maxToolOutputBytes: parsePositiveInteger(
-          input.maxToolOutputBytes,
-          64 * 1024,
-          2 * 1024 * 1024,
-        ),
+        riskLevel: parseRiskLevel(input.riskLevel),
+        proposalId: parseOptionalString(input.proposalId) ?? randomUUID(),
+        decisionId: parseOptionalString(input.decisionId) ?? randomUUID(),
+        approvalRequestId: parseOptionalString(input.approvalRequestId) ?? randomUUID(),
+        createdAt: now,
+        planningAt: now,
+        identities: {
+          executionId: (taskId, attempt) => `execution-${taskId}-${attempt}`,
+          policyDecisionId: (taskId, executionId) => `decision-${taskId}-${executionId}`,
+          approvalRequestId: (taskId, executionId) => `approval-${taskId}-${executionId}`,
+        },
       });
-      return Response.json({ mode, modeReason, result }, { status: 201 });
+    };
+
+    if (input.async === true) {
+      // Long team and deep runs continue in the background; the client polls /api/runs/:id.
+      const run = startBackgroundRun(
+        {
+          runId: commandResult.conversation.id,
+          mode,
+          ...(modeReason === undefined ? {} : { modeReason }),
+        },
+        work,
+      );
+      return Response.json(
+        { runId: run.runId, conversationId: run.runId, mode, modeReason, status: run.status },
+        { status: 202 },
+      );
     }
 
-    if (mode === "Collaborative") {
-      const result = await polyon.collectiveOrchestration.execute({
-        command: commandResult,
-        targets,
-        requiredCapabilityIds,
-        actorId,
-        synthesizerAgentId: parseOptionalString(input.synthesizerAgentId),
-        maxParticipants: parsePositiveInteger(input.maxParticipants, 8, 8),
-      });
-      return Response.json({ mode, modeReason, result }, { status: 201 });
-    }
-
-    if (mode === "Research") {
-      if (polyon.researchOrchestration === undefined) {
-        throw new Error(
-          "Research is not configured. Set POLYON_RESEARCH_SEARCH_ENDPOINT and allowed hosts.",
-        );
-      }
-      const result = await polyon.researchOrchestration.execute({
-        command: commandResult,
-        targets,
-        requiredCapabilityIds,
-        actorId,
-        synthesizerAgentId: parseOptionalString(input.synthesizerAgentId),
-        maxParticipants: parsePositiveInteger(input.maxParticipants, 8, 8),
-        sourceLimit: parsePositiveInteger(input.researchSourceLimit, 5, 20),
-      });
-      return Response.json({ mode, modeReason, result }, { status: 201 });
-    }
-
-    if (mode === "DeepAnalysis") {
-      const factCheckerAgentId =
-        parseOptionalString(input.factCheckerAgentId) ?? agentIdForRole(polyon, "fact-checker");
-      const result = await polyon.deepAnalysisOrchestration.execute({
-        command: commandResult,
-        targets,
-        requiredCapabilityIds,
-        actorId,
-        synthesizerAgentId: parseOptionalString(input.synthesizerAgentId),
-        ...(factCheckerAgentId === undefined ? {} : { factCheckerAgentId }),
-        maxParticipants: parsePositiveInteger(input.maxParticipants, 8, 8),
-        maxChallengeRounds: parseOptionalInteger(input.maxChallengeRounds, 1, 2),
-        maxDebateRounds: parsePositiveInteger(input.maxDebateRounds, 2, 4),
-      });
-      return Response.json({ mode, modeReason, result }, { status: 201 });
-    }
-
-    if (mode === "Debate") {
-      const debate = polyon.debates.create({
-        id: parseOptionalString(input.debateId) ?? randomUUID(),
-        objective: command,
-        participantAgentIds: targets.map((target) => target.agentId),
-        maxParticipants: Math.min(targets.length, 8),
-        maxRounds: parsePositiveInteger(input.maxRounds, 2, 6),
-        createdAt: new Date().toISOString(),
-      });
-      const result = await polyon.debates.run({
-        debateId: debate.id,
-        requiredCapabilityIds,
-        adjudicatorAgentId: first.agentId,
-        now: () => new Date().toISOString(),
-      });
-      return Response.json({ mode, modeReason, result }, { status: 201 });
-    }
-
-    const now = new Date().toISOString();
-    const result = await polyon.missionWorkflow.execute({
-      missionId: parseOptionalString(input.missionId) ?? randomUUID(),
-      conversationId: commandResult.conversation.id,
-      objective: command,
-      actorId,
-      planningAgentId: first.agentId,
-      executionAgentId: first.agentId,
-      requiredCapabilityIds,
-      policy,
-      riskLevel: parseRiskLevel(input.riskLevel),
-      proposalId: parseOptionalString(input.proposalId) ?? randomUUID(),
-      decisionId: parseOptionalString(input.decisionId) ?? randomUUID(),
-      approvalRequestId: parseOptionalString(input.approvalRequestId) ?? randomUUID(),
-      createdAt: now,
-      planningAt: now,
-      identities: {
-        executionId: (taskId, attempt) => `execution-${taskId}-${attempt}`,
-        policyDecisionId: (taskId, executionId) => `decision-${taskId}-${executionId}`,
-        approvalRequestId: (taskId, executionId) => `approval-${taskId}-${executionId}`,
-      },
-    });
-
+    const result = await work();
     return Response.json({ mode, modeReason, result }, { status: 201 });
   } catch (error) {
+    if (error instanceof BackgroundRunLimitError) {
+      return Response.json({ error: error.message }, { status: 429 });
+    }
     if (error instanceof ExecuteRequestError || error instanceof SyntaxError) {
       return Response.json({ error: error.message }, { status: 400 });
     }

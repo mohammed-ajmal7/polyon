@@ -51,6 +51,38 @@ const STEP_LABELS: Record<string, string> = {
   DEEP_ANALYSIS_COMPLETED: "Finishing up",
 };
 
+interface StoredRun {
+  readonly runId: string;
+  readonly command: string;
+  readonly startedAt: number;
+}
+
+const RUN_STORAGE_KEY = "polyon.activeRun";
+
+function readStoredRun(): StoredRun | undefined {
+  try {
+    const raw = window.sessionStorage.getItem(RUN_STORAGE_KEY);
+    if (raw === null) return undefined;
+    const parsed = JSON.parse(raw) as Partial<StoredRun>;
+    return typeof parsed.runId === "string" &&
+      typeof parsed.command === "string" &&
+      typeof parsed.startedAt === "number"
+      ? { runId: parsed.runId, command: parsed.command, startedAt: parsed.startedAt }
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function storeRun(run: StoredRun | undefined): void {
+  try {
+    if (run === undefined) window.sessionStorage.removeItem(RUN_STORAGE_KEY);
+    else window.sessionStorage.setItem(RUN_STORAGE_KEY, JSON.stringify(run));
+  } catch {
+    // Session storage is a convenience for resuming after reload; the run continues regardless.
+  }
+}
+
 interface Progress {
   readonly steps: readonly string[];
   readonly messageCount: number;
@@ -70,6 +102,7 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [approvalsWaiting, setApprovalsWaiting] = useState(0);
   const conversationRef = useRef<string | null>(null);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -114,15 +147,75 @@ export default function HomePage() {
     };
   }, [pending]);
 
+  // Resume a request that was still running when the page was reloaded.
+  useEffect(() => {
+    const stored = readStoredRun();
+    if (stored !== undefined) void followRun(stored);
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  async function followRun(run: StoredRun) {
+    conversationRef.current = run.runId;
+    setPending(true);
+    setStartedAt(run.startedAt);
+    setNow(Date.now());
+    setLastCommand(run.command);
+    try {
+      while (mountedRef.current) {
+        await new Promise((resolve) => window.setTimeout(resolve, 2_500));
+        const response = await fetch("/api/runs/" + encodeURIComponent(run.runId), {
+          cache: "no-store",
+        });
+        if (response.status === 401) {
+          window.location.assign("/login");
+          return;
+        }
+        if (response.status === 404) {
+          setError(
+            "POLYON lost track of this request, probably because the server restarted. " +
+              "Anything the team finished is listed under Activity.",
+          );
+          break;
+        }
+        if (!response.ok) continue;
+        const body = (await response.json()) as {
+          status: "running" | "succeeded" | "failed";
+          mode: string;
+          modeReason?: string;
+          result?: unknown;
+          error?: string;
+        };
+        if (body.status === "running") continue;
+        setRanMode({
+          mode: body.mode,
+          ...(body.modeReason === undefined ? {} : { reason: body.modeReason }),
+        });
+        if (body.status === "failed") setError(body.error ?? "POLYON could not run this request.");
+        else setView(toRunView(body.mode, { result: body.result }));
+        break;
+      }
+    } catch {
+      setError("POLYON stopped responding while working. Check that it is running.");
+    } finally {
+      if (mountedRef.current) {
+        setPending(false);
+        conversationRef.current = null;
+        storeRun(undefined);
+      }
+    }
+  }
+
   async function submit(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
     const trimmed = command.trim();
     if (pending || trimmed === "") return;
 
-    const conversationId = crypto.randomUUID();
-    conversationRef.current = conversationId;
+    const run: StoredRun = { runId: crypto.randomUUID(), command: trimmed, startedAt: Date.now() };
+    conversationRef.current = run.runId;
     setPending(true);
-    setStartedAt(Date.now());
+    setStartedAt(run.startedAt);
     setNow(Date.now());
     setProgress(null);
     setView(null);
@@ -137,33 +230,27 @@ export default function HomePage() {
         body: JSON.stringify({
           mode,
           command: trimmed,
-          conversationId,
+          conversationId: run.runId,
+          async: true,
           ...(mode === "DeepAnalysis" || mode === "Auto" ? { maxDebateRounds: 1 } : {}),
         }),
       });
-      const body = (await response.json().catch(() => ({}))) as {
-        mode?: string;
-        modeReason?: string;
-        error?: string;
-      };
+      const body = (await response.json().catch(() => ({}))) as { error?: string };
       if (response.status === 401) {
         window.location.assign("/login");
         return;
       }
       if (!response.ok) {
         setError(body.error ?? "POLYON could not run this request.");
+        setPending(false);
+        conversationRef.current = null;
         return;
       }
-      const ran = body.mode ?? mode;
-      setRanMode({
-        mode: ran,
-        ...(body.modeReason === undefined ? {} : { reason: body.modeReason }),
-      });
-      setView(toRunView(ran, body));
       setCommand("");
+      storeRun(run);
+      await followRun(run);
     } catch {
       setError("POLYON is not reachable. Check that it is running.");
-    } finally {
       setPending(false);
       conversationRef.current = null;
     }

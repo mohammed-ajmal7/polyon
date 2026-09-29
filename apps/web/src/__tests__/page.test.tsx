@@ -22,22 +22,26 @@ describe("POLYON home", () => {
           typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
         if (url.endsWith("/api/approvals")) return json({ approvals });
         if (url.endsWith("/api/execute") && init?.method === "POST") {
-          return json(
-            {
-              mode: "Direct",
-              modeReason: "The request can be answered directly.",
-              result: {
-                status: "SUCCEEDED",
-                responses: [
-                  {
-                    agentId: "primary-action-agent",
-                    result: { status: "SUCCEEDED", response: { content: "Hello from POLYON." } },
-                  },
-                ],
-              },
+          const body = JSON.parse(typeof init.body === "string" ? init.body : "{}") as {
+            conversationId?: string;
+          };
+          return json({ runId: body.conversationId, status: "running", mode: "Direct" }, 202);
+        }
+        if (url.includes("/api/runs/")) {
+          return json({
+            status: "succeeded",
+            mode: "Direct",
+            modeReason: "The request can be answered directly.",
+            result: {
+              status: "SUCCEEDED",
+              responses: [
+                {
+                  agentId: "primary-action-agent",
+                  result: { status: "SUCCEEDED", response: { content: "Hello from POLYON." } },
+                },
+              ],
             },
-            201,
-          );
+          });
         }
         return json({});
       }),
@@ -65,9 +69,12 @@ describe("POLYON home", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
 
-    await waitFor(() => {
-      expect(screen.getByText("Hello from POLYON.")).toBeInTheDocument();
-    });
+    await waitFor(
+      () => {
+        expect(screen.getByText("Hello from POLYON.")).toBeInTheDocument();
+      },
+      { timeout: 6_000 },
+    );
     expect(screen.getByText("Here is what POLYON found.")).toBeInTheDocument();
 
     const executeCall = vi
@@ -78,7 +85,7 @@ describe("POLYON home", () => {
       string,
       unknown
     >;
-    expect(body).toMatchObject({ mode: "Auto", command: "Hi team, how are you?" });
+    expect(body).toMatchObject({ mode: "Auto", command: "Hi team, how are you?", async: true });
     expect(body.conversationId).toEqual(expect.any(String));
     unmount();
   });
