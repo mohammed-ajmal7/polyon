@@ -72,10 +72,6 @@ export class ProviderHealthTracker {
   ): ProviderHealthSnapshot {
     const current = this.get(providerId);
 
-    if (kind === "CANCELLED") {
-      return current;
-    }
-
     const consecutiveFailures =
       kind === "AUTHENTICATION" || kind === "INVALID_REQUEST"
         ? current.consecutiveFailures
@@ -97,9 +93,6 @@ export class ProviderHealthTracker {
         break;
       case "UNKNOWN":
         status = "degraded";
-        break;
-      case "CANCELLED":
-        status = current.status;
         break;
     }
 
