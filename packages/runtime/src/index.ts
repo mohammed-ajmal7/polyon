@@ -69,3 +69,41 @@ export {
   type BoundedProcessAgentAdapterOptions,
   type BoundedProcessAgentErrorKind,
 } from "./bounded-process-agent-adapter";
+
+
+export {
+  DurableJobService,
+  JobStateError,
+  type ClaimJobInput,
+  type EnqueueJobInput,
+  type JobService,
+} from "./job-service";
+
+export {
+  DurableJobWorker,
+  JobHandlerRegistry,
+  type JobHandler,
+  type JobHandlerContext,
+  type JobWorker,
+  type JobWorkerOptions,
+} from "./job-worker";
+
+export {
+  DurableScheduleRunner,
+  type ScheduleJobEnqueuer,
+  type ScheduleRunner,
+} from "./schedule-runner";
+
+export {
+  ScheduleService,
+  ScheduleStateError,
+  type CreateScheduleInput,
+  type UpdateScheduleInput,
+} from "./schedule-service";
+
+export {
+  DurableJobRuntime,
+  type JobRuntime,
+  type JobRuntimeHealth,
+  type JobRuntimeOptions,
+} from "./job-runtime";
