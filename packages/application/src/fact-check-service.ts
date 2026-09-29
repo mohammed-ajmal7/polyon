@@ -56,6 +56,14 @@ export class FactCheckService {
       throw new Error(`Fact Checker agent is not active: ${input.factCheckerAgentId}.`);
     }
 
+    const knownEvidenceIds = new Set(this.dependencies.evidence.list().map((item) => item.id));
+    const unknownEvidenceId = input.claims
+      .flatMap((claim) => claim.evidenceIds)
+      .find((evidenceId) => !knownEvidenceIds.has(evidenceId));
+    if (unknownEvidenceId !== undefined) {
+      throw new Error(`Fact check references unknown evidence: ${unknownEvidenceId}.`);
+    }
+
     const workspace = this.buildWorkspace(input.claims, now());
     this.persistEvent({
       id: `FACT_CHECK_STARTED:${input.runId ?? "no-run"}:${input.factCheckerAgentId}:${now()}`,
@@ -179,7 +187,9 @@ export class FactCheckService {
       if (ids.has(claim.id)) throw new Error(`Duplicate fact check claim id: ${claim.id}.`);
       ids.add(claim.id);
       if (claim.evidenceIds.length > MAX_EVIDENCE_PER_CLAIM) {
-        throw new RangeError(`Fact check claim ${claim.id} exceeds ${MAX_EVIDENCE_PER_CLAIM} evidence references.`);
+        throw new RangeError(
+          `Fact check claim ${claim.id} exceeds ${MAX_EVIDENCE_PER_CLAIM} evidence references.`,
+        );
       }
     }
   }
@@ -202,7 +212,9 @@ function workspaceEvidence(
 }
 
 function formatClaims(claims: readonly FactCheckClaim[]): string {
-  return claims.map((claim) => `[claim:${claim.id}] ${claim.claim}\nEvidence: ${claim.evidenceIds.join(", ")}`).join("\n");
+  return claims
+    .map((claim) => `[claim:${claim.id}] ${claim.claim}\nEvidence: ${claim.evidenceIds.join(", ")}`)
+    .join("\n");
 }
 
 function parseFactCheckResponse(
@@ -235,7 +247,8 @@ function parseFactCheckResponse(
       confidence === undefined ||
       evidenceIds === undefined ||
       evidenceIds.some((id) => !evidenceMap.has(id))
-    ) continue;
+    )
+      continue;
 
     const allowed = new Set(claim.evidenceIds);
     if (evidenceIds.some((id) => !allowed.has(id))) continue;
@@ -304,7 +317,9 @@ function stringValue(value: unknown): string | undefined {
 }
 
 function numberValue(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1 ? value : undefined;
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1
+    ? value
+    : undefined;
 }
 
 function stringArray(value: unknown): readonly string[] | undefined {

@@ -56,7 +56,7 @@ describe("BoundedWebResearchRetriever", () => {
     );
 
     await expect(retriever.search("query", { limit: 1 })).rejects.toThrow(
-      "Research source returned HTTP 503.",
+      "Browser source returned HTTP 503.",
     );
   });
 });

@@ -1,17 +1,6 @@
-import type {
-  Agent,
-  AgentId,
-  CapabilityId,
-  Model,
-  Provider,
-  ProviderId,
-} from "@polyon/contracts";
+import type { Agent, AgentId, CapabilityId, Model, Provider, ProviderId } from "@polyon/contracts";
 
-import {
-  routeAgentModel,
-  type ModelRoutingRequest,
-  type ProviderHealth,
-} from "./model-routing";
+import { routeAgentModel, type ModelRoutingRequest, type ProviderHealth } from "./model-routing";
 import type { AgentRegistry } from "./agent-registry";
 import type { ModelRegistry } from "./model-registry";
 import type { ProviderRegistry } from "./provider-registry";
@@ -47,9 +36,7 @@ export interface AgentTeamPlan {
 }
 
 export type AgentTeamPlannerErrorKind =
-  | "INVALID_BOUNDS"
-  | "NO_ELIGIBLE_AGENTS"
-  | "INSUFFICIENT_AGENTS";
+  "INVALID_BOUNDS" | "NO_ELIGIBLE_AGENTS" | "INSUFFICIENT_AGENTS";
 
 export class AgentTeamPlannerError extends Error {
   readonly kind: AgentTeamPlannerErrorKind;
@@ -114,9 +101,7 @@ export function planAgentTeam(
         ...(request.requiredModelCapabilityIds === undefined
           ? {}
           : { requiredModelCapabilityIds: request.requiredModelCapabilityIds }),
-        ...(request.privacyClass === undefined
-          ? {}
-          : { privacyClass: request.privacyClass }),
+        ...(request.privacyClass === undefined ? {} : { privacyClass: request.privacyClass }),
         ...(request.allowPaidModels === undefined
           ? {}
           : { allowPaidModels: request.allowPaidModels }),
@@ -124,9 +109,7 @@ export function planAgentTeam(
           ? {}
           : { minimumContextWindow: request.minimumContextWindow }),
         ...(request.requireTools === undefined ? {} : { requireTools: request.requireTools }),
-        ...(request.providerHealth === undefined
-          ? {}
-          : { providerHealth: request.providerHealth }),
+        ...(request.providerHealth === undefined ? {} : { providerHealth: request.providerHealth }),
       };
       routing = routeAgentModel(routingRequest, registries);
     } catch {
@@ -140,15 +123,12 @@ export function planAgentTeam(
       score += preferredRole ? 0 : 20;
     }
 
-    if (
-      request.preferProviderDiversity &&
-      ranked.some((member) => member.provider.id === routing.provider.id)
-    ) {
-      score += 15;
-    }
-
     const rationale = [
-      preferredRole ? "preferred role" : preferredRoles.length > 0 ? "eligible role" : "eligible agent",
+      preferredRole
+        ? "preferred role"
+        : preferredRoles.length > 0
+          ? "eligible role"
+          : "eligible agent",
       routing.source === "PREFERRED" ? "preferred model" : "fallback model",
       routing.providerHealth === "healthy"
         ? "healthy provider"

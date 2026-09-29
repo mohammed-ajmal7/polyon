@@ -53,12 +53,7 @@ export class UsageGovernorError extends Error {
   readonly providerId: string;
   readonly modelId: string;
 
-  constructor(
-    kind: UsageGovernorErrorKind,
-    providerId: string,
-    modelId: string,
-    message: string,
-  ) {
+  constructor(kind: UsageGovernorErrorKind, providerId: string, modelId: string, message: string) {
     super(message);
     this.name = "UsageGovernorError";
     this.kind = kind;
@@ -148,19 +143,6 @@ export class UsageGovernor {
     }
 
     if (
-      budget?.maxTokensPerRun !== undefined &&
-      runCounter !== undefined &&
-      runCounter.tokens + runCounter.reservedTokens + estimatedTokens > budget.maxTokensPerRun
-    ) {
-      throw new UsageGovernorError(
-        "RUN_TOKEN_LIMIT",
-        request.providerId,
-        request.modelId,
-        `Per-run token limit reached for provider ${request.providerId}.`,
-      );
-    }
-
-    if (
       budget?.maxAgentsPerRun !== undefined &&
       context?.agentCount !== undefined &&
       context.agentCount > budget.maxAgentsPerRun
@@ -185,6 +167,19 @@ export class UsageGovernor {
         request.providerId,
         request.modelId,
         `Per-run agent limit reached for provider ${request.providerId}.`,
+      );
+    }
+
+    if (
+      budget?.maxTokensPerRun !== undefined &&
+      runCounter !== undefined &&
+      runCounter.tokens + runCounter.reservedTokens + estimatedTokens > budget.maxTokensPerRun
+    ) {
+      throw new UsageGovernorError(
+        "RUN_TOKEN_LIMIT",
+        request.providerId,
+        request.modelId,
+        `Per-run token limit reached for provider ${request.providerId}.`,
       );
     }
 

@@ -40,12 +40,7 @@ function createRuntime(
   return { stores, jobs, clock, runtime };
 }
 
-function createQueuedJob(
-  jobs: JobService,
-  id = "job-1",
-  runAt = baseTime,
-  maxAttempts = 2,
-): void {
+function createQueuedJob(jobs: JobService, id = "job-1", runAt = baseTime, maxAttempts = 2): void {
   jobs.create({
     id,
     userId: "user-1",
@@ -114,7 +109,11 @@ describe("createJobRuntime", () => {
     createQueuedJob(controlled.jobs);
     controlled.runtime.start();
 
-    for (let index = 0; index < 5 && calls < 1; index += 1) {
+    for (
+      let index = 0;
+      index < 10 && (calls < 1 || controlled.jobs.get("job-1")?.status === "running");
+      index += 1
+    ) {
       await Promise.resolve();
     }
 
@@ -127,7 +126,6 @@ describe("createJobRuntime", () => {
     expect(calls).toBe(2);
     expect(completed?.status).toBe("completed");
     controlled.runtime.stop();
-
   });
 
   it("fails closed when no handler exists", async () => {
@@ -162,11 +160,7 @@ describe("createJobRuntime", () => {
     createQueuedJob(activeRuntime.jobs);
     activeRuntime.runtime.start();
 
-    for (
-      let index = 0;
-      index < 5 && activeRuntime.runtime.activeJobCount === 0;
-      index += 1
-    ) {
+    for (let index = 0; index < 5 && activeRuntime.runtime.activeJobCount === 0; index += 1) {
       await Promise.resolve();
     }
 

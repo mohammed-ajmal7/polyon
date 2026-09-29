@@ -129,6 +129,7 @@ describe("A2A streaming", () => {
       result: {
         message: {
           messageId: "message-1",
+          contextId: "a2a-1",
           role: "ROLE_AGENT",
           parts: [{ text: "A2A result" }],
         },

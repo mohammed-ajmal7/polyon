@@ -15,15 +15,10 @@ function wantsEventStream(request: Request): boolean {
   return (request.headers.get("accept") ?? "")
     .split(",")
     .map((value) => value.trim().toLowerCase())
-    .some(
-      (value) => value === "text/event-stream" || value.startsWith("text/event-stream;"),
-    );
+    .some((value) => value === "text/event-stream" || value.startsWith("text/event-stream;"));
 }
 
-function sseResponse(
-  iterable: AsyncIterable<McpStreamFrame>,
-  signal: AbortSignal,
-): Response {
+function sseResponse(iterable: AsyncIterable<McpStreamFrame>, signal: AbortSignal): Response {
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream<Uint8Array>({
@@ -31,7 +26,7 @@ function sseResponse(
       try {
         for await (const item of iterable) {
           if (signal.aborted) break;
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(item)}\\n\\n`));
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(item)}\n\n`));
         }
       } catch (error) {
         if (!signal.aborted) {
@@ -44,7 +39,7 @@ function sseResponse(
                   code: -32603,
                   message: error instanceof Error ? error.message : "MCP stream failed.",
                 },
-              })}\\n\\n`,
+              })}\n\n`,
             ),
           );
         }

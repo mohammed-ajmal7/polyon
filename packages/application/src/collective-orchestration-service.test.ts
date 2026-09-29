@@ -132,8 +132,11 @@ describe("CollectiveOrchestrationService", () => {
     expect(stores.messages.list()).toHaveLength(4);
     expect(stores.events.list().map((event) => event.kind)).toEqual([
       "COLLECTIVE_STARTED",
+      "AGENT_MESSAGE_CREATED",
       "COLLECTIVE_CONTRIBUTION",
+      "AGENT_MESSAGE_CREATED",
       "COLLECTIVE_CONTRIBUTION",
+      "AGENT_MESSAGE_CREATED",
       "COLLECTIVE_SYNTHESIZED",
     ]);
   });

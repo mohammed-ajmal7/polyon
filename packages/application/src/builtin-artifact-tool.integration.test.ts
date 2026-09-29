@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -93,7 +93,7 @@ describe("built-in artifact tool integration", () => {
   });
 
   it("writes and durably registers an artifact through governed invocation", async () => {
-    const root = mkdtempSync(join(tmpdir(), "polyon-artifact-integration-"));
+    const root = realpathSync(mkdtempSync(join(tmpdir(), "polyon-artifact-integration-")));
 
     try {
       const registries = createInMemoryBuiltinToolRegistries();

@@ -313,9 +313,13 @@ export {
 
 export {
   McpServerService,
+  type McpJsonRpcNotification,
   type McpJsonRpcRequest,
   type McpJsonRpcResponse,
+  type McpRequestHeaders,
   type McpServerDependencies,
+  type McpServerOptions,
+  type McpStreamFrame,
 } from "./mcp-server-service";
 
 export {
@@ -363,13 +367,11 @@ export {
   type SemanticVectorSearchHit,
 } from "./semantic-vector-index";
 
-
 export {
   AgentMessageService,
   type AgentMessageServiceDependencies,
   type SendAgentMessageInput,
 } from "./agent-message-service";
-
 
 export {
   AgentRunService,
@@ -378,7 +380,6 @@ export {
   type CreateAgentRunInput,
   type FailAgentRunInput,
 } from "./agent-run-service";
-
 
 export {
   assessEvidenceQuality,
@@ -397,8 +398,10 @@ export {
   type FactCheckVerdict,
 } from "./fact-check-service";
 
-export { parseStructuredFinding, type ParseStructuredFindingInput } from "./structured-finding-parser";
-
+export {
+  parseStructuredFinding,
+  type ParseStructuredFindingInput,
+} from "./structured-finding-parser";
 
 export {
   InMemoryMcpSubscriptionBus,
@@ -406,7 +409,4 @@ export {
   type McpSubscriptionHandle,
   type McpSubscriptionPublisher,
 } from "./mcp-subscription-bus";
-export type {
-  McpSubscriptionFilter,
-  McpSubscriptionNotification,
-} from "./mcp-subscription-types";
+export type { McpSubscriptionFilter, McpSubscriptionNotification } from "./mcp-subscription-types";

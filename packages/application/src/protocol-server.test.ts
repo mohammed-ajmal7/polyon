@@ -53,8 +53,6 @@ describe("protocol servers", () => {
     });
   });
 
-
-
   it("exposes and manages A2A 1.0 push notification configurations", async () => {
     const push = {
       createConfig: vi.fn(() => ({
@@ -307,7 +305,7 @@ describe("protocol servers", () => {
       actorId: "a2a-client",
     });
 
-    expect(service.agentCard("http://localhost:3000/api/a2a")).toMatchObject({
+    expect(service.agentCard("http://localhost:3000")).toMatchObject({
       protocolVersion: "1.0.0",
       supportedInterfaces: [
         {
@@ -334,8 +332,12 @@ describe("protocol servers", () => {
 
     expect(conversation.execute).toHaveBeenCalledTimes(1);
     expect(response?.result).toEqual({
-      role: "agent",
-      parts: [{ kind: "text", text: "world" }],
+      message: {
+        messageId: "a2a-response",
+        contextId: "a2a-req-1",
+        role: "ROLE_AGENT",
+        parts: [{ text: "world" }],
+      },
     });
   });
 
