@@ -170,4 +170,41 @@ describe("InMemoryExecutionWorker", () => {
     expect(queue.size()).toBe(1);
     expect(stores.executions.get("execution-1")?.status).toBe("QUEUED");
   });
+
+  it("samples the completion time after the runner finishes", async () => {
+    const stores = new InMemoryDomainStores();
+    stores.tasks.save(task);
+    stores.executions.save(execution);
+
+    let current = "2026-09-27T01:05:00.000Z";
+    const queue = new InMemoryExecutionQueue();
+    const worker = new InMemoryExecutionWorker({
+      queue,
+      coordinator: new InMemoryExecutionCoordinator({
+        queue,
+        runner: {
+          async run() {
+            current = "2026-09-27T01:06:00.000Z";
+            return { status: "SUCCEEDED", output: "Done." };
+          },
+        },
+        executions: stores.executions,
+        tasks: stores.tasks,
+        events: stores.events,
+      }),
+      executions: stores.executions,
+      tasks: stores.tasks,
+      events: stores.events,
+      clock: {
+        now: () => current,
+      },
+    });
+
+    worker.start();
+    const result = await worker.runNext();
+
+    expect(result?.execution.startedAt).toBe("2026-09-27T01:05:00.000Z");
+    expect(result?.execution.completedAt).toBe("2026-09-27T01:06:00.000Z");
+    expect(stores.tasks.get("task-1")?.updatedAt).toBe("2026-09-27T01:06:00.000Z");
+  });
 });

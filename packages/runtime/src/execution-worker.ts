@@ -144,7 +144,7 @@ export class InMemoryExecutionWorker implements ExecutionWorker {
     try {
       return await this.dependencies.coordinator.runNextWithResult(
         this.dependencies.clock.now(),
-        this.dependencies.clock.now(),
+        () => this.dependencies.clock.now(),
         context,
       );
     } catch (error) {
