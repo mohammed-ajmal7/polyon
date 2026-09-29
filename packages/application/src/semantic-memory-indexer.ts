@@ -290,6 +290,7 @@ export function createSemanticMemoryIndexer(
 
   const isMatchingDurableJob = (job: Job): boolean =>
     job.kind === "scheduled" &&
+    job.id.startsWith(jobIdPrefix + ":") &&
     readCycle(job) !== undefined &&
     job.userId === jobUserId;
 
