@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { JobService } from "@polyon/runtime";
+import { InMemoryDomainStores } from "@polyon/storage";
+
 import { createSemanticMemoryIndexer } from "./semantic-memory-indexer";
 
 describe("createSemanticMemoryIndexer", () => {
@@ -104,5 +107,102 @@ describe("createSemanticMemoryIndexer", () => {
         intervalMs: 3_600_001,
       }),
     ).toThrow("interval");
+  });
+
+  it("persists the automatic schedule as a durable scheduled job", () => {
+    const stores = new InMemoryDomainStores();
+    const jobs = new JobService({ jobs: stores.jobs, events: stores.events, unitOfWork: stores });
+    const indexer = createSemanticMemoryIndexer({ reindex: vi.fn() } as never, "embedding-model", {
+      intervalMs: 1_000,
+      jobBridge: jobs,
+      jobUserId: "local-user",
+    });
+
+    indexer.start();
+    indexer.start();
+
+    const scheduled = jobs.list().filter((job) => job.kind === "scheduled");
+    expect(scheduled).toHaveLength(1);
+    expect(scheduled[0]).toMatchObject({
+      id: "semantic-memory-index:1",
+      userId: "local-user",
+      kind: "scheduled",
+      status: "queued",
+      payload: {
+        scheduler: "semantic-memory-index",
+        cycle: 1,
+        modelId: "embedding-model",
+        batchSize: 16,
+        maxEntries: 100,
+        allowedScopes: [],
+      },
+    });
+
+    indexer.stop();
+    expect(jobs.get("semantic-memory-index:1")?.status).toBe("cancelled");
+  });
+
+  it("runs a durable index job once and persists the next scheduled cycle", async () => {
+    const stores = new InMemoryDomainStores();
+    const jobs = new JobService({ jobs: stores.jobs, events: stores.events, unitOfWork: stores });
+    const reindex = vi.fn(async () => ({ indexed: 4, stale: 1, skipped: 2 }));
+    const indexer = createSemanticMemoryIndexer({ reindex } as never, "embedding-model", {
+      intervalMs: 1_000,
+      jobBridge: jobs,
+      jobUserId: "local-user",
+    });
+
+    indexer.start();
+    const first = jobs.get("semantic-memory-index:1");
+    expect(first?.status).toBe("queued");
+
+    const started = jobs.start(first!.id, "2026-09-29T08:00:00.000Z");
+    const result = await indexer.runDurableJob({
+      job: started,
+      signal: new AbortController().signal,
+      now: "2026-09-29T08:00:00.000Z",
+    });
+
+    expect(result).toEqual({ indexed: 4, stale: 1, skipped: 2 });
+    expect(reindex).toHaveBeenCalledOnce();
+    expect(jobs.get("semantic-memory-index:2")).toMatchObject({
+      kind: "scheduled",
+      status: "queued",
+      runAt: "2026-09-29T08:00:01.000Z",
+    });
+    indexer.stop();
+  });
+
+  it("keeps the durable schedule alive after the final retry attempt fails", async () => {
+    const stores = new InMemoryDomainStores();
+    const jobs = new JobService({ jobs: stores.jobs, events: stores.events, unitOfWork: stores });
+    const reindex = vi.fn(async () => {
+      throw new Error("embedding unavailable");
+    });
+    const indexer = createSemanticMemoryIndexer({ reindex } as never, "embedding-model", {
+      intervalMs: 1_000,
+      jobBridge: jobs,
+      jobUserId: "local-user",
+      jobMaxAttempts: 1,
+    });
+
+    indexer.start();
+    const first = jobs.get("semantic-memory-index:1")!;
+    const started = jobs.start(first.id, "2026-09-29T08:00:00.000Z");
+
+    await expect(
+      indexer.runDurableJob({
+        job: started,
+        signal: new AbortController().signal,
+        now: "2026-09-29T08:00:00.000Z",
+      }),
+    ).rejects.toThrow("embedding unavailable");
+
+    expect(jobs.get("semantic-memory-index:2")).toMatchObject({
+      kind: "scheduled",
+      status: "queued",
+      runAt: "2026-09-29T08:00:01.000Z",
+    });
+    indexer.stop();
   });
 });
