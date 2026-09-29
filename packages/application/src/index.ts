@@ -370,3 +370,5 @@ export {
   type EvidenceQualityAssessment,
   type EvidenceQualityBand,
 } from "./evidence-quality-service";
+
+export { parseStructuredFinding, type ParseStructuredFindingInput } from "./structured-finding-parser";
