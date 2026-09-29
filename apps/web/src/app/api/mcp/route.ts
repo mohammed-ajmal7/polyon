@@ -122,10 +122,7 @@ export async function POST(request: Request): Promise<Response> {
     name: request.headers.get("Mcp-Name") ?? undefined,
   };
 
-  if (
-    input.method === "subscriptions/listen" ||
-    wantsEventStream(request)
-  ) {
+  if (input.method === "subscriptions/listen") {
     if (!wantsEventStream(request)) {
       return Response.json(
         {
