@@ -24,6 +24,7 @@ export interface ExecuteDeepAnalysisInput {
   }[];
   readonly actorId: string;
   readonly requiredCapabilityIds: readonly string[];
+  readonly requiredModelCapabilityIds?: readonly string[];
   readonly synthesizerAgentId?: AgentId;
   readonly maxParticipants?: number;
   readonly maxChallengeRounds?: number;
@@ -97,6 +98,9 @@ export class DeepAnalysisOrchestrationService {
       targets: input.targets,
       actorId: input.actorId,
       requiredCapabilityIds: input.requiredCapabilityIds,
+      ...(input.requiredModelCapabilityIds === undefined
+        ? {}
+        : { requiredModelCapabilityIds: input.requiredModelCapabilityIds }),
       synthesizerAgentId,
       maxParticipants: input.maxParticipants,
       maxChallengeRounds: input.maxChallengeRounds ?? 0,
