@@ -167,6 +167,47 @@ describe("FileDomainStores", () => {
     }
   });
 
+  it("retries a transaction after a transient concurrent write", () => {
+    const directory = mkdtempSync(join(tmpdir(), "polyon-domain-retry-"));
+
+    try {
+      const first = new FileDomainStores(directory);
+      const second = new FileDomainStores(directory);
+      let concurrentWritePerformed = false;
+
+      first.transaction(({ missions }) => {
+        missions.save({
+          id: "mission-retry-1",
+          objective: "Retry the transaction after a concurrent write.",
+          constraints: [],
+          status: "DRAFT",
+          taskIds: [],
+          createdAt: "2026-09-29T00:00:00.000Z",
+          updatedAt: "2026-09-29T00:00:00.000Z",
+        });
+
+        if (!concurrentWritePerformed) {
+          concurrentWritePerformed = true;
+          second.missions.save({
+            id: "mission-retry-concurrent",
+            objective: "Concurrent write that wins the first commit race.",
+            constraints: [],
+            status: "DRAFT",
+            taskIds: [],
+            createdAt: "2026-09-29T00:00:30.000Z",
+            updatedAt: "2026-09-29T00:00:30.000Z",
+          });
+        }
+      });
+
+      const reopened = new FileDomainStores(directory);
+      expect(reopened.missions.get("mission-retry-1")).toBeDefined();
+      expect(reopened.missions.get("mission-retry-concurrent")).toBeDefined();
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("rejects a transaction that becomes stale during its work", () => {
     const directory = mkdtempSync(join(tmpdir(), "polyon-domain-"));
 
