@@ -51,6 +51,9 @@ export {
 
 export type { CreateMissionInput, MissionCreationErrorKind, TaskDependency } from "./work/index";
 
+export { createFinding } from "./evidence/finding";
+export type { CreateFindingInput } from "./evidence/finding";
+
 export type { CreateApprovalRequestInput, PolicyEvaluationInput } from "./policy/index";
 
 export {
