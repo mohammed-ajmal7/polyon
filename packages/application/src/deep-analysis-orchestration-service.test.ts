@@ -240,4 +240,58 @@ describe("DeepAnalysisOrchestrationService", () => {
       "ERROR",
     ]);
   });
+
+  it("passes every large collective finding into the bounded debate context", async () => {
+    const stores = new InMemoryDomainStores();
+    stores.conversations.save(command().conversation);
+    stores.messages.save(command().message);
+
+    const agents = new InMemoryAgentRegistry();
+    agents.register(agent("researcher", "Research specialist"));
+    agents.register(agent("analyst", "Analytical specialist"));
+    agents.register(agent("synthesizer", "Synthesis lead"));
+
+    const base = collectiveResult();
+    const collective: CollectiveExecutionResult = {
+      ...base,
+      contributions: Array.from({ length: 8 }, (_, index) => ({
+        ...base.contributions[0]!,
+        agentId: `agent-${index}`,
+        content: "c".repeat(12_000),
+      })),
+    };
+    const debate = debateResult();
+    const debateRun = vi.fn(async (_input: { context?: string }) => debate);
+
+    const service = new DeepAnalysisOrchestrationService({
+      collective: { execute: vi.fn(async () => collective) } as never,
+      debates: { create: vi.fn(() => debate.debate), run: debateRun } as never,
+      agents,
+      conversations: stores.conversations,
+      messages: stores.messages,
+      events: stores.events,
+      unitOfWork: stores,
+    });
+
+    await service.execute({
+      command: command(),
+      targets: [
+        { agentId: "researcher", actorId: "researcher" },
+        { agentId: "analyst", actorId: "analyst" },
+        { agentId: "synthesizer", actorId: "synthesizer" },
+      ],
+      actorId: "user-1",
+      requiredCapabilityIds: [],
+      synthesizerAgentId: "synthesizer",
+      now: () => now,
+    });
+
+    const context = debateRun.mock.calls[0]?.[0].context ?? "";
+    expect(context.length).toBeLessThanOrEqual(50_000);
+    expect(context).toContain("Collective synthesis with competing explanations.");
+    expect(context).toContain("Independent findings:");
+    for (let index = 0; index < 8; index += 1) {
+      expect(context).toContain(`[agent=agent-${index} role=`);
+    }
+  });
 });
