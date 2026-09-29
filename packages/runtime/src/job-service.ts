@@ -203,6 +203,20 @@ export class JobService {
       for (const current of stores.jobs.list()) {
         if (current.status !== "running") continue;
 
+        // A job that exhausted its attempts must not retry forever across restarts.
+        if (current.attempt >= current.maxAttempts) {
+          const failed: Job = {
+            ...current,
+            status: "failed",
+            updatedAt: input.recoveredAt,
+            completedAt: input.recoveredAt,
+            error: "Job was interrupted by a restart after its final attempt.",
+          };
+          stores.jobs.save(failed);
+          appendStatusEvent(stores.events, current, failed, input.recoveredAt);
+          continue;
+        }
+
         const next: Job = {
           ...current,
           status: "queued",
