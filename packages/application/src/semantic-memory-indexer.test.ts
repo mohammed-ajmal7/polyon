@@ -124,7 +124,7 @@ describe("createSemanticMemoryIndexer", () => {
     const scheduled = jobs.list().filter((job) => job.kind === "scheduled");
     expect(scheduled).toHaveLength(1);
     expect(scheduled[0]).toMatchObject({
-      id: "semantic-memory-index:1",
+      id: "semantic-memory-index:local-user:1",
       userId: "local-user",
       kind: "scheduled",
       status: "queued",
@@ -139,7 +139,7 @@ describe("createSemanticMemoryIndexer", () => {
     });
 
     indexer.stop();
-    expect(jobs.get("semantic-memory-index:1")?.status).toBe("cancelled");
+    expect(jobs.get("semantic-memory-index:local-user:1")?.status).toBe("cancelled");
   });
 
   it("runs a durable index job once and persists the next scheduled cycle", async () => {
@@ -153,7 +153,7 @@ describe("createSemanticMemoryIndexer", () => {
     });
 
     indexer.start();
-    const first = jobs.get("semantic-memory-index:1");
+    const first = jobs.get("semantic-memory-index:local-user:1");
     expect(first?.status).toBe("queued");
 
     const started = jobs.start(first!.id, "2026-09-29T08:00:00.000Z");
@@ -165,7 +165,7 @@ describe("createSemanticMemoryIndexer", () => {
 
     expect(result).toEqual({ indexed: 4, stale: 1, skipped: 2 });
     expect(reindex).toHaveBeenCalledOnce();
-    expect(jobs.get("semantic-memory-index:2")).toMatchObject({
+    expect(jobs.get("semantic-memory-index:local-user:2")).toMatchObject({
       kind: "scheduled",
       status: "queued",
       runAt: "2026-09-29T08:00:01.000Z",
@@ -187,7 +187,7 @@ describe("createSemanticMemoryIndexer", () => {
     });
 
     indexer.start();
-    const first = jobs.get("semantic-memory-index:1")!;
+    const first = jobs.get("semantic-memory-index:local-user:1")!;
     const started = jobs.start(first.id, "2026-09-29T08:00:00.000Z");
 
     await expect(
@@ -198,7 +198,7 @@ describe("createSemanticMemoryIndexer", () => {
       }),
     ).rejects.toThrow("embedding unavailable");
 
-    expect(jobs.get("semantic-memory-index:2")).toMatchObject({
+    expect(jobs.get("semantic-memory-index:local-user:2")).toMatchObject({
       kind: "scheduled",
       status: "queued",
       runAt: "2026-09-29T08:00:01.000Z",
