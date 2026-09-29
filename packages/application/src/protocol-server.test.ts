@@ -53,6 +53,31 @@ describe("protocol servers", () => {
     });
   });
 
+
+  it("advertises the MCP tool-change subscription capability", async () => {
+    const service = new McpServerService({
+      tools: { list: () => [], get: () => undefined },
+      integrations: { list: () => [], get: () => undefined },
+      toolInvocation: { invoke: vi.fn() } as never,
+      integrationInvocation: { invoke: vi.fn() } as never,
+      policy: policy(),
+      actorId: "mcp-client",
+    });
+
+    const response = await service.handle(
+      { jsonrpc: "2.0", id: 3, method: "server/discover" },
+      { protocolVersion: "2026-07-28", method: "server/discover" },
+    );
+
+    expect(response?.result).toMatchObject({
+      protocolVersion: "2026-07-28",
+      capabilities: {
+        tools: { listChanged: true },
+      },
+      methods: ["server/discover", "tools/list", "tools/call", "subscriptions/listen"],
+    });
+  });
+
   it("rejects MCP header mismatches and executes governed tools", async () => {
     const invoke = vi.fn(async () => ({
       status: "SUCCEEDED" as const,
