@@ -1,6 +1,7 @@
 import type { Evidence, MemoryEntry, MemoryScope, Source } from "@polyon/contracts";
 
 import type { EvidenceStore, MemoryStore, SourceStore } from "@polyon/storage";
+
 import { rankEvidenceQuality } from "./evidence-quality-service";
 
 export interface KnowledgeContextInput {
@@ -83,16 +84,20 @@ export class KnowledgeContextService {
             );
 
             return candidates
-              .map((item) => ({
-                entry: item,
-                relevance: scoreText(queryTokens, normalizedQuery, item.claim, []),
-                quality: quality.get(item.id)?.score ?? 0,
-              }))
+              .map((item) => {
+                const relevance = scoreText(queryTokens, normalizedQuery, item.claim, []);
+                const qualityScore = quality.get(item.id)?.score ?? 0;
+                return {
+                  entry: item,
+                  relevance,
+                  quality: qualityScore,
+                  score: relevance + qualityScore / 20,
+                };
+              })
               .filter((item) => item.relevance > 0)
               .sort(
                 (left, right) =>
-                  right.relevance + right.quality / 20 -
-                    (left.relevance + left.quality / 20) ||
+                  right.score - left.score ||
                   right.quality - left.quality ||
                   right.entry.capturedAt.localeCompare(left.entry.capturedAt) ||
                   left.entry.id.localeCompare(right.entry.id),
@@ -114,7 +119,7 @@ export class KnowledgeContextService {
             id: item.entry.id,
             text,
             memoryId: item.entry.id,
-            score: item.relevance + item.quality / 20,
+            score: item.score,
           },
           maxCharacters,
           usedCharacters,
@@ -204,17 +209,6 @@ function compareMemory(
   return (
     right.score - left.score ||
     right.entry.updatedAt.localeCompare(left.entry.updatedAt) ||
-    left.entry.id.localeCompare(right.entry.id)
-  );
-}
-
-function compareEvidence(
-  left: { entry: Evidence; score: number },
-  right: { entry: Evidence; score: number },
-): number {
-  return (
-    right.score - left.score ||
-    right.entry.capturedAt.localeCompare(left.entry.capturedAt) ||
     left.entry.id.localeCompare(right.entry.id)
   );
 }
