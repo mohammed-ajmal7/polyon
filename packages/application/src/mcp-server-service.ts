@@ -41,7 +41,10 @@ export interface McpRequestHeaders {
 
 export interface McpServerOptions {
   readonly subscriptionMaxDurationMs?: number;
-  readonly subscriptionWait?: (milliseconds: number) => Promise<void>;
+  readonly subscriptionWait?: (
+    milliseconds: number,
+    signal?: AbortSignal,
+  ) => Promise<void>;
 }
 
 export interface McpServerDependencies {
@@ -74,7 +77,10 @@ const SUBSCRIPTION_ID_META_KEY = "io.modelcontextprotocol/subscriptionId";
 export class McpServerService {
   private readonly subscriptions: InMemoryMcpSubscriptionBus;
   private readonly subscriptionMaxDurationMs: number;
-  private readonly subscriptionWait: (milliseconds: number) => Promise<void>;
+  private readonly subscriptionWait: (
+    milliseconds: number,
+    signal?: AbortSignal,
+  ) => Promise<void>;
 
   constructor(
     private readonly dependencies: McpServerDependencies,
@@ -297,7 +303,7 @@ export class McpServerService {
 
         const next = await Promise.race([
           iterator.next().then((result) => ({ kind: "event" as const, result })),
-          this.subscriptionWait(remaining).then(() => ({ kind: "deadline" as const })),
+          this.subscriptionWait(remaining, signal).then(() => ({ kind: "deadline" as const })),
           ...(abortPromise === undefined ? [] : [abortPromise]),
         ]);
 
@@ -375,9 +381,25 @@ export class McpServerService {
 
 async function defaultWait(
   milliseconds: number,
+  signal?: AbortSignal,
 ): Promise<void> {
   await new Promise<void>((resolve) => {
-    globalThis.setTimeout(resolve, milliseconds);
+    let timer: ReturnType<typeof setTimeout> | undefined = globalThis.setTimeout(() => {
+      timer = undefined;
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, milliseconds);
+
+    const onAbort = (): void => {
+      if (timer !== undefined) {
+        globalThis.clearTimeout(timer);
+        timer = undefined;
+      }
+      signal?.removeEventListener("abort", onAbort);
+    };
+
+    signal?.addEventListener("abort", onAbort, { once: true });
+    if (signal?.aborted) onAbort();
   });
 }
 
