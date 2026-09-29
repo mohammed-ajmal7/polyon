@@ -45,7 +45,7 @@ import {
 import { StorageConcurrencyError } from "./transaction";
 
 export interface DurableDomainState {
-  readonly version: 5;
+  readonly version: 6;
   agentRuns: AgentRun[];
   jobs: Job[];
   approvals: ApprovalRequest[];
@@ -63,6 +63,7 @@ export interface DurableDomainState {
   policyDecisions: PolicyDecision[];
   tasks: Task[];
   events: DomainEvent[];
+  a2aPushNotificationConfigs: A2APushNotificationConfig[];
 }
 
 export interface DurableDomainSnapshot {
@@ -76,7 +77,7 @@ function clone<T>(value: T): T {
 
 function emptyState(): DurableDomainState {
   return {
-    version: 5,
+    version: 6,
     agentRuns: [],
     jobs: [],
     approvals: [],
@@ -94,6 +95,7 @@ function emptyState(): DurableDomainState {
     policyDecisions: [],
     tasks: [],
     events: [],
+    a2aPushNotificationConfigs: [],
   };
 }
 
@@ -112,7 +114,7 @@ function validateState(filePath: string, value: unknown): DurableDomainState {
     throw new Error(`Invalid durable domain snapshot: ${filePath}.`);
   }
 
-  if (!("version" in value) || value.version !== 5) {
+  if (!("version" in value) || value.version !== 6) {
     throw new Error(`Unsupported durable domain snapshot version: ${filePath}.`);
   }
 
@@ -135,6 +137,7 @@ function validateState(filePath: string, value: unknown): DurableDomainState {
     "policyDecisions",
     "tasks",
     "events",
+    "a2aPushNotificationConfigs",
   ];
 
   for (const collection of collectionNames) {
