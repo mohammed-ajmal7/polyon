@@ -120,11 +120,10 @@ function passesCapabilities(
   requiredCapabilityIds: readonly CapabilityId[],
   request: ModelRoutingRequest,
 ): boolean {
-  if (request.requiredModelCapabilityIds !== undefined) {
-    if (!hasCapabilities(model.capabilityIds, request.requiredModelCapabilityIds)) {
-      return false;
-    }
-  } else if (!hasCapabilities(model.capabilityIds, requiredCapabilityIds)) {
+  if (
+    request.requiredModelCapabilityIds !== undefined &&
+    !hasCapabilities(model.capabilityIds, request.requiredModelCapabilityIds)
+  ) {
     return false;
   }
 
