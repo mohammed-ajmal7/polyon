@@ -301,7 +301,15 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
           sender: createA2AWebhookSender({
             allowedOrigins: options.a2aPushNotificationAllowedOrigins,
           }),
-          validateTask: (taskId) => stores.tasks.get(taskId) !== undefined,
+          validateTask: (taskId) => {
+            const task = stores.tasks.get(taskId);
+            return (
+              task !== undefined &&
+              stores.executions
+                .list()
+                .some((execution) => execution.taskId === taskId && execution.actorId === "a2a-client")
+            );
+          },
         })
       : undefined;
 
