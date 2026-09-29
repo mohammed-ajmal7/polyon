@@ -39,6 +39,7 @@ export async function POST(request: Request): Promise<Response> {
       tasks: polyon.stores.tasks,
       policy: getPolyonPolicy(),
       actorId: "a2a-client",
+      ...(polyon.a2aPushNotifications === undefined ? {} : { pushNotifications: polyon.a2aPushNotifications }),
     });
     return Response.json(await service.handle(input));
   } catch (error) {
