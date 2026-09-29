@@ -340,3 +340,12 @@ export {
   type CreateAgentRunInput,
   type FailAgentRunInput,
 } from "./agent-run-service";
+
+
+export {
+  assessEvidenceQuality,
+  rankEvidenceQuality,
+  type AssessEvidenceInput,
+  type EvidenceQualityAssessment,
+  type EvidenceQualityBand,
+} from "./evidence-quality-service";
