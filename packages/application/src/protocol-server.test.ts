@@ -309,7 +309,14 @@ describe("protocol servers", () => {
 
     expect(service.agentCard("http://localhost:3000/api/a2a")).toMatchObject({
       protocolVersion: "1.0.0",
-      capabilities: { streaming: false },
+      supportedInterfaces: [
+        {
+          url: "http://localhost:3000/api/a2a",
+          protocolBinding: "JSONRPC",
+          protocolVersion: "1.0",
+        },
+      ],
+      capabilities: { streaming: true, pushNotifications: false },
       defaultInputModes: ["text/plain"],
     });
 
@@ -329,6 +336,28 @@ describe("protocol servers", () => {
     expect(response?.result).toEqual({
       role: "agent",
       parts: [{ kind: "text", text: "world" }],
+    });
+  });
+
+  it("enforces the A2A 1.0 request header when supplied", async () => {
+    const server = new A2AServerService({
+      agents: { list: () => [] },
+      commandIngress: { submit: vi.fn() } as never,
+      conversationOrchestration: { execute: vi.fn() } as never,
+      executions: { list: () => [] },
+      runtime: { cancel: vi.fn() } as never,
+      tasks: { list: () => [], get: () => undefined },
+      policy: policy(),
+      actorId: "a2a-client",
+    });
+
+    const response = await server.handle(
+      { jsonrpc: "2.0", id: "version", method: "ListTasks" },
+      { version: "0.3" },
+    );
+    expect(response.error).toEqual({
+      code: -32009,
+      message: "A2A protocol version 1.0 is required.",
     });
   });
 });

@@ -14,8 +14,11 @@ type A2ATaskState =
   | "TASK_STATE_INPUT_REQUIRED"
   | "TASK_STATE_REJECTED";
 
+const A2A_PROTOCOL_VERSION = "1.0";
 const DEFAULT_TASK_PAGE_SIZE = 50;
 const MAX_TASK_PAGE_SIZE = 100;
+const DEFAULT_STREAM_POLL_INTERVAL_MS = 250;
+const DEFAULT_STREAM_MAX_DURATION_MS = 300_000;
 
 export interface A2AJsonRpcRequest {
   readonly jsonrpc: "2.0";
@@ -29,6 +32,19 @@ export interface A2AJsonRpcResponse {
   readonly id: string | number | null;
   readonly result?: unknown;
   readonly error?: { readonly code: number; readonly message: string };
+}
+
+export type A2AStreamWait = (milliseconds: number) => Promise<void>;
+
+export interface A2AServerOptions {
+  readonly streamPollIntervalMs?: number;
+  readonly streamMaxDurationMs?: number;
+  readonly wait?: A2AStreamWait;
+  readonly now?: () => number;
+}
+
+export interface A2ARequestHeaders {
+  readonly version?: string;
 }
 
 export interface A2AExecutionRuntime {
@@ -66,9 +82,33 @@ export interface A2AServerDependencies {
 }
 
 export class A2AServerService {
-  constructor(private readonly dependencies: A2AServerDependencies) {}
+  private readonly streamPollIntervalMs: number;
+  private readonly streamMaxDurationMs: number;
+  private readonly wait: A2AStreamWait;
+  private readonly now: () => number;
 
-  async handle(request: A2AJsonRpcRequest): Promise<A2AJsonRpcResponse> {
+  constructor(
+    private readonly dependencies: A2AServerDependencies,
+    options: A2AServerOptions = {},
+  ) {
+    this.streamPollIntervalMs =
+      options.streamPollIntervalMs ?? DEFAULT_STREAM_POLL_INTERVAL_MS;
+    this.streamMaxDurationMs =
+      options.streamMaxDurationMs ?? DEFAULT_STREAM_MAX_DURATION_MS;
+    this.wait = options.wait ?? defaultWait;
+    this.now = options.now ?? Date.now;
+
+    validateNonNegativeNumber(this.streamPollIntervalMs, "A2A stream poll interval");
+    validatePositiveNumber(this.streamMaxDurationMs, "A2A stream maximum duration");
+  }
+
+  async handle(
+    request: A2AJsonRpcRequest,
+    headers: A2ARequestHeaders = {},
+  ): Promise<A2AJsonRpcResponse> {
+    const versionError = validateVersion(headers.version);
+    if (versionError !== undefined) return error(request.id, -32009, versionError);
+
     if (request.jsonrpc !== "2.0") {
       return error(request.id, -32600, "Invalid JSON-RPC request.");
     }
@@ -94,21 +134,85 @@ export class A2AServerService {
         return this.listPushNotificationConfigs(request);
       case "DeleteTaskPushNotificationConfig":
         return this.deletePushNotificationConfig(request);
+      case "SendStreamingMessage":
+      case "message/stream":
+      case "SubscribeToTask":
+      case "tasks/subscribe":
+      case "tasks/resubscribe":
+        return error(
+          request.id,
+          -32004,
+          "A2A streaming operations require an SSE response.",
+        );
       default:
         return error(request.id, -32601, "A2A method is not supported.");
     }
   }
 
+  async *stream(
+    request: A2AJsonRpcRequest,
+    headers: A2ARequestHeaders = {},
+    signal?: AbortSignal,
+  ): AsyncIterable<A2AJsonRpcResponse> {
+    const versionError = validateVersion(headers.version);
+    if (versionError !== undefined) {
+      yield error(request.id, -32004, versionError);
+      return;
+    }
+
+    if (request.jsonrpc !== "2.0") {
+      yield error(request.id, -32600, "Invalid JSON-RPC request.");
+      return;
+    }
+
+    switch (request.method) {
+      case "SendStreamingMessage":
+      case "message/stream": {
+        const response = await this.sendMessage(request);
+        if (response.error !== undefined) {
+          yield response;
+          return;
+        }
+
+        const result = isRecord(response.result) ? response.result : undefined;
+        const message = result?.message ?? result;
+        yield {
+          jsonrpc: "2.0",
+          id: request.id,
+          result: {
+            message: normalizeAgentMessage(message, "a2a-stream-response-" + String(request.id)),
+          },
+        };
+        return;
+      }
+      case "SubscribeToTask":
+      case "tasks/subscribe":
+      case "tasks/resubscribe":
+        yield* this.subscribeToTask(request, signal);
+        return;
+      default:
+        yield error(request.id, -32601, "A2A streaming method is not supported.");
+    }
+  }
+
   agentCard(baseUrl: string): Record<string, unknown> {
     const agents = this.dependencies.agents.list().filter((agent) => agent.status === "ACTIVE");
+    const endpoint = baseUrl.replace(/\/$/u, "") + "/api/a2a";
+
     return {
       protocolVersion: "1.0.0",
       name: "POLYON",
       description: "Personal AI Operations Network",
-      url: baseUrl,
+      supportedInterfaces: [
+        {
+          url: endpoint,
+          protocolBinding: "JSONRPC",
+          protocolVersion: A2A_PROTOCOL_VERSION,
+        },
+      ],
       version: "0.1.0",
       capabilities: {
-        streaming: false,
+        streaming: true,
         pushNotifications: this.dependencies.pushNotifications !== undefined,
         extendedAgentCard: false,
       },
@@ -122,8 +226,9 @@ export class A2AServerService {
       })),
       securitySchemes: {
         bearer: {
-          type: "http",
-          scheme: "bearer",
+          httpAuthSecurityScheme: {
+            scheme: "Bearer",
+          },
         },
       },
     };
@@ -263,6 +368,86 @@ export class A2AServerService {
         totalSize: filtered.length,
       },
     };
+  }
+
+  private async *subscribeToTask(
+    request: A2AJsonRpcRequest,
+    signal?: AbortSignal,
+  ): AsyncIterable<A2AJsonRpcResponse> {
+    const params = request.params ?? {};
+    const taskId =
+      typeof params.id === "string"
+        ? params.id.trim()
+        : typeof params.taskId === "string"
+          ? params.taskId.trim()
+          : "";
+
+    if (taskId === "") {
+      yield error(request.id, -32602, "Task id is required.");
+      return;
+    }
+
+    const visible = (): Task | undefined => {
+      const task = this.dependencies.tasks.get(taskId);
+      if (
+        task === undefined ||
+        !isTaskVisible(task, this.dependencies.actorId, this.dependencies.executions.list())
+      ) {
+        return undefined;
+      }
+      return task;
+    };
+
+    let task = visible();
+    if (task === undefined) {
+      yield error(request.id, -32001, "Task not found.");
+      return;
+    }
+
+    if (isTerminalTask(task)) {
+      yield error(
+        request.id,
+        -32004,
+        "Task subscription is not supported for terminal tasks.",
+      );
+      return;
+    }
+
+    yield {
+      jsonrpc: "2.0",
+      id: request.id,
+      result: { task: mapTask(task) },
+    };
+
+    const deadline = this.now() + this.streamMaxDurationMs;
+
+    while (!isTerminalTask(task) && this.now() < deadline) {
+      if (signal?.aborted) return;
+
+      await this.wait(this.streamPollIntervalMs);
+      if (signal?.aborted) return;
+
+      const current = visible();
+      if (current === undefined) {
+        yield error(request.id, -32001, "Task not found.");
+        return;
+      }
+
+      if (current.updatedAt !== task.updatedAt || current.status !== task.status) {
+        task = current;
+        yield {
+          jsonrpc: "2.0",
+          id: request.id,
+          result: { statusUpdate: mapTaskStatusUpdate(task) },
+        };
+
+        if (isTerminalTask(task)) return;
+      }
+    }
+
+    if (!isTerminalTask(task) && !signal?.aborted) {
+      yield error(request.id, -32603, "A2A stream deadline exceeded.");
+    }
   }
 
   private createPushNotificationConfig(request: A2AJsonRpcRequest): A2AJsonRpcResponse {
@@ -436,8 +621,12 @@ export class A2AServerService {
       jsonrpc: "2.0",
       id: request.id,
       result: {
-        role: "agent",
-        parts: [{ kind: "text", text: result.persistedMessages[0]?.content ?? "" }],
+        message: {
+          messageId: result.persistedMessages[0]?.id ?? "a2a-response-" + String(request.id),
+          contextId: "a2a-" + String(request.id),
+          role: "ROLE_AGENT",
+          parts: [{ text: result.persistedMessages[0]?.content ?? "" }],
+        },
       },
     };
   }
@@ -454,6 +643,51 @@ function mapTask(task: Task): Record<string, unknown> {
     metadata: {
       polyonTaskKind: task.kind,
     },
+  };
+}
+
+function mapTaskStatusUpdate(task: Task): Record<string, unknown> {
+  return {
+    taskId: task.id,
+    contextId: task.missionId,
+    status: {
+      state: mapTaskState(task.status),
+      timestamp: task.updatedAt,
+    },
+  };
+}
+
+function normalizeAgentMessage(
+  value: unknown,
+  fallbackMessageId: string,
+): Record<string, unknown> {
+  if (!isRecord(value)) {
+    return {
+      messageId: fallbackMessageId,
+      role: "ROLE_AGENT",
+      parts: [{ text: "" }],
+    };
+  }
+
+  const parts = Array.isArray(value.parts)
+    ? value.parts
+        .map((part) => {
+          if (!isRecord(part) || typeof part.text !== "string") return undefined;
+          return { text: part.text };
+        })
+        .filter((part): part is { text: string } => part !== undefined)
+    : [];
+
+  return {
+    messageId:
+      typeof value.messageId === "string" && value.messageId.trim() !== ""
+        ? value.messageId
+        : fallbackMessageId,
+    ...(typeof value.contextId === "string" && value.contextId.trim() !== ""
+      ? { contextId: value.contextId }
+      : {}),
+    role: "ROLE_AGENT",
+    parts,
   };
 }
 
@@ -477,6 +711,15 @@ function mapTaskState(status: Task["status"]): A2ATaskState {
     case "REJECTED":
       return "TASK_STATE_REJECTED";
   }
+}
+
+function isTerminalTask(task: Task): boolean {
+  return (
+    task.status === "SUCCEEDED" ||
+    task.status === "FAILED" ||
+    task.status === "CANCELLED" ||
+    task.status === "REJECTED"
+  );
 }
 
 function parseTaskStateFilter(value: unknown): {
@@ -574,13 +817,39 @@ function extractText(message: Record<string, unknown>): string {
   if (!Array.isArray(parts)) return "";
   return parts
     .map((part) => (isRecord(part) && typeof part.text === "string" ? part.text : ""))
-    .join("
-")
+    .join("\n")
     .trim();
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function validateVersion(value: string | undefined): string | undefined {
+  if (value === undefined || value.trim() === "" || value.trim() === A2A_PROTOCOL_VERSION) {
+    return undefined;
+  }
+
+  if (value.trim() === "1.0.0") return undefined;
+  return "A2A protocol version 1.0 is required.";
+}
+
+function validateNonNegativeNumber(value: number, field: string): void {
+  if (!Number.isFinite(value) || value < 0) {
+    throw new RangeError(field + " must be a finite non-negative number.");
+  }
+}
+
+function validatePositiveNumber(value: number, field: string): void {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new RangeError(field + " must be a positive finite number.");
+  }
+}
+
+function defaultWait(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => {
+    globalThis.setTimeout(resolve, milliseconds);
+  });
 }
 
 function error(id: string | number | null, code: number, message: string): A2AJsonRpcResponse {

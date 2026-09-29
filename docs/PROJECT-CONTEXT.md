@@ -317,14 +317,14 @@ Implemented:
 - configurable creative HTTP adapter exposed through governed creative tooling;
 - authenticated browser APIs, login/logout, approval inbox, trace, memory/evidence/source/artifact APIs;
 - MCP HTTP baseline with current stateless routing-header validation and tools/discovery/call support;
-- A2A HTTP baseline with agent card, SendMessage, GetTask, ListTasks;
+- A2A 1.0 HTTP interoperability with streaming message delivery, bounded task subscriptions, agent card, SendMessage, GetTask, ListTasks, CancelTask, and opt-in push notification configuration/delivery;
 - Docker/Compose deployment, liveness healthcheck, root Docker context exclusions, and CI image/Compose validation;
 - adversarial, recovery, and volume sanity coverage across application/runtime/storage/security paths.
 
 Remaining depth:
 
 - provider-independent embedding routing, bounded persisted semantic memory search, durable automatic indexing/reindex scheduling, and the exact vector-index scale boundary are implemented.
-- advanced MCP/A2A protocol capabilities;
+- advanced MCP/A2A protocol capabilities beyond the implemented streaming/push interoperability baseline;
 - optional enterprise/multi-user auth;
 - production-scale performance and broader E2E testing;
 - deployment automation for a specific infrastructure target.

@@ -28,6 +28,7 @@ export async function GET(request: Request): Promise<Response> {
       updatedAt: new Date().toISOString(),
     },
     actorId: "a2a-client",
+    ...(polyon.a2aPushNotifications === undefined ? {} : { pushNotifications: polyon.a2aPushNotifications }),
   });
 
   return Response.json(service.agentCard(getPolyonBaseUrl(request)));
