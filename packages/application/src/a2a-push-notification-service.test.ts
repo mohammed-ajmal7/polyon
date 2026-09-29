@@ -48,6 +48,25 @@ describe("A2A push notifications", () => {
     expect(store.delete("owner-b", "task-1", created.id)).toBe(false);
   });
 
+  it("does not expose configs for tasks outside the caller scope", () => {
+    const store = new InMemoryA2APushNotificationStore();
+    const service = new A2APushNotificationService({
+      store,
+      ownerId: "actor-1",
+      sender: { send: async () => undefined },
+      validateTask: (taskId) => taskId === "visible-task",
+    });
+
+    const created = store.create("actor-1", {
+      taskId: "hidden-task",
+      url: "https://client.example.test/a2a/push",
+    });
+
+    expect(service.getConfig("hidden-task", created.id)).toBeUndefined();
+    expect(service.listConfigs("hidden-task")).toEqual([]);
+    expect(service.deleteConfig("hidden-task", created.id)).toBe(false);
+  });
+
   it("sends a v1 StreamResponse status update and isolates delivery failures", async () => {
     const sent: unknown[] = [];
     const store = new InMemoryA2APushNotificationStore();
