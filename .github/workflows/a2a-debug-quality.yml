@@ -1,0 +1,51 @@
+name: A2A Debug Quality
+
+on:
+  push:
+    branches:
+      - feature/a2a-streaming
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24.13.1
+          cache: pnpm
+      - name: Install
+        run: |
+          mkdir -p ci-debug
+          pnpm install --frozen-lockfile > ci-debug/install.log 2>&1
+          echo $? > ci-debug/install.code
+      - name: Typecheck
+        run: |
+          pnpm typecheck > ci-debug/typecheck.log 2>&1
+          echo $? > ci-debug/typecheck.code
+      - name: Test
+        run: |
+          pnpm test > ci-debug/test.log 2>&1
+          echo $? > ci-debug/test.code
+      - name: Lint
+        run: |
+          pnpm lint > ci-debug/lint.log 2>&1
+          echo $? > ci-debug/lint.code
+      - name: Format check
+        run: |
+          pnpm format:check > ci-debug/format.log 2>&1
+          echo $? > ci-debug/format.code
+      - name: Build
+        run: |
+          pnpm build > ci-debug/build.log 2>&1
+          echo $? > ci-debug/build.code
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: a2a-debug-quality
+          path: ci-debug/
