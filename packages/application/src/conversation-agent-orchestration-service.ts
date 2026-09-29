@@ -51,8 +51,8 @@ export class ConversationAgentOrchestrationService {
     private readonly conversations: ConversationStore,
     private readonly messages: MessageStore,
     private readonly events: EventStore,
-    private readonly agentRuns?: AgentRunService,
     private readonly unitOfWork?: DomainUnitOfWork,
+    private readonly agentRuns?: AgentRunService,
   ) {}
 
   async execute(input: ExecuteConversationInput): Promise<ConversationExecutionResult> {
