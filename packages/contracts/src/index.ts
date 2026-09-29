@@ -129,3 +129,5 @@ export type {
 export { validateInteroperabilityEnvelope } from "./interoperability/index";
 
 export { JsonInteroperabilityAdapter } from "./interoperability/index";
+
+export type { A2APushNotificationAuthentication, A2APushNotificationConfig } from "./a2a/push-notification";
