@@ -35,7 +35,7 @@ export interface A2APushNotificationSender {
 }
 
 export interface A2APushNotificationServiceOptions {
-  readonly store?: A2APushNotificationStore;
+  readonly store: A2APushNotificationStore;
   readonly sender: A2APushNotificationSender;
   readonly ownerId: string;
   readonly validateTask: (taskId: string) => boolean;
@@ -75,20 +75,19 @@ export class A2APushNotificationService {
   createConfig(input: Omit<A2ATaskPushNotificationConfig, "id">) {
     validateConfig(input);
     if (!this.options.validateTask(input.taskId)) throw new Error("Task not found.");
-    return this.options.store?.create(this.options.ownerId, input) ??
-      (() => { throw new Error("Push notification storage is not configured."); })();
+    return this.options.store.create(this.options.ownerId, input);
   }
 
   getConfig(taskId: string, configId: string) {
-    return this.options.store?.get(this.options.ownerId, taskId, configId);
+    return this.options.store.get(this.options.ownerId, taskId, configId);
   }
 
   listConfigs(taskId: string) {
-    return this.options.store?.list(this.options.ownerId, taskId) ?? [];
+    return this.options.store.list(this.options.ownerId, taskId);
   }
 
   deleteConfig(taskId: string, configId: string) {
-    return this.options.store?.delete(this.options.ownerId, taskId, configId) ?? false;
+    return this.options.store.delete(this.options.ownerId, taskId, configId);
   }
 
   async notifyTask(task: Task): Promise<void> {
@@ -131,7 +130,7 @@ export function createA2AWebhookSender(options: {
       const origin = normalizeOrigin(url.origin);
       if (!allowed.has(origin)) throw new Error("A2A push URL is not allowlisted.");
 
-      const headers = new Headers({ "content-type": "application/json" });
+      const headers = new Headers({ "content-type": "application/a2a+json" });
       if (config.token !== undefined) headers.set("X-A2A-Notification-Token", config.token);
       if (config.authentication !== undefined) {
         const scheme = config.authentication.scheme.trim();
@@ -151,7 +150,7 @@ export function createA2AWebhookSender(options: {
       try {
         const response = await fetchImpl(url, {
           method: "POST",
-          headers: new Headers({ ...Object.fromEntries(headers), "content-type": "application/a2a+json" }),
+          headers,
           body,
           signal: controller.signal,
         });
