@@ -127,6 +127,46 @@ describe("FileDomainStores", () => {
     }
   });
 
+  it("refreshes a long-lived store before a later write", () => {
+    const directory = mkdtempSync(join(tmpdir(), "polyon-domain-refresh-"));
+
+    try {
+      const first = new FileDomainStores(directory);
+      const second = new FileDomainStores(directory);
+
+      first.missions.save({
+        id: "mission-refresh-1",
+        objective: "Write from the first store.",
+        constraints: [],
+        status: "DRAFT",
+        taskIds: [],
+        createdAt: "2026-09-29T00:00:00.000Z",
+        updatedAt: "2026-09-29T00:00:00.000Z",
+      });
+
+      second.refresh();
+      second.missions.save({
+        id: "mission-refresh-2",
+        objective: "Preserve the first store's committed state.",
+        constraints: [],
+        status: "DRAFT",
+        taskIds: [],
+        createdAt: "2026-09-29T00:01:00.000Z",
+        updatedAt: "2026-09-29T00:01:00.000Z",
+      });
+
+      const reopened = new FileDomainStores(directory);
+      expect(reopened.missions.get("mission-refresh-1")?.objective).toBe(
+        "Write from the first store.",
+      );
+      expect(reopened.missions.get("mission-refresh-2")?.objective).toBe(
+        "Preserve the first store's committed state.",
+      );
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("rejects a transaction that becomes stale during its work", () => {
     const directory = mkdtempSync(join(tmpdir(), "polyon-domain-"));
 
