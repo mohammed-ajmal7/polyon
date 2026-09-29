@@ -12,6 +12,8 @@ export {
   type ProviderAdapterRegistryErrorKind,
 } from "./provider-adapter-registry";
 
+export { ConcurrencyLimitedProviderAdapter } from "./concurrency-limited-provider-adapter";
+
 export {
   OpenAICompatibleTextModelAdapter,
   type OpenAICompatibleFetch,

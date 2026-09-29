@@ -28,6 +28,76 @@ const request: TextModelRequest = {
 };
 
 describe("OpenAICompatibleTextModelAdapter", () => {
+  it("sends reasoning_effort only when configured", async () => {
+    const bodies: Record<string, unknown>[] = [];
+    const fetchImpl: OpenAICompatibleFetch = async (_input, init) => {
+      bodies.push(JSON.parse(init.body) as Record<string, unknown>);
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return { choices: [{ message: { content: "ok" }, finish_reason: "stop" }] };
+        },
+      };
+    };
+    const endpoint = "http://127.0.0.1:11434/v1/chat/completions";
+
+    await new OpenAICompatibleTextModelAdapter({
+      providerId: "local",
+      endpoint,
+      fetch: fetchImpl,
+    }).invoke({ modelId: "model", input: request });
+    await new OpenAICompatibleTextModelAdapter({
+      providerId: "local",
+      endpoint,
+      fetch: fetchImpl,
+      reasoningEffort: "none",
+    }).invoke({ modelId: "model", input: request });
+
+    expect(bodies[0]).not.toHaveProperty("reasoning_effort");
+    expect(bodies[1]).toMatchObject({ reasoning_effort: "none" });
+  });
+
+  it("explains an answer lost to an exhausted reasoning budget", async () => {
+    const adapter = new OpenAICompatibleTextModelAdapter({
+      providerId: "local",
+      endpoint: "http://127.0.0.1:11434/v1/chat/completions",
+      fetch: createFetch({
+        ok: true,
+        status: 200,
+        payload: {
+          choices: [
+            { message: { content: "", reasoning: "Let me think..." }, finish_reason: "length" },
+          ],
+        },
+      }),
+    });
+
+    await expect(adapter.invoke({ modelId: "model", input: request })).rejects.toMatchObject({
+      kind: "INVALID_REQUEST",
+      message: expect.stringContaining("output budget on reasoning"),
+    });
+  });
+
+  it("classifies network failures as retryable and keeps their cause", async () => {
+    const adapter = new OpenAICompatibleTextModelAdapter({
+      providerId: "local",
+      endpoint: "http://127.0.0.1:11434/v1/chat/completions",
+      fetch: async () => {
+        const cause = Object.assign(new Error("Headers Timeout Error"), {
+          code: "UND_ERR_HEADERS_TIMEOUT",
+        });
+        throw new TypeError("fetch failed", { cause });
+      },
+    });
+
+    await expect(adapter.invoke({ modelId: "model", input: request })).rejects.toMatchObject({
+      kind: "UNAVAILABLE",
+      retryable: true,
+      message: "Provider request failed: fetch failed (UND_ERR_HEADERS_TIMEOUT).",
+    });
+  });
+
   it("maps a successful chat response into the POLYON response contract", async () => {
     let receivedBody: Record<string, unknown> | undefined;
     const fetchImpl: OpenAICompatibleFetch = async (_input, init) => {
