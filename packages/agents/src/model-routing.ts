@@ -19,6 +19,7 @@ export type ProviderHealth = "healthy" | "degraded" | "quota_limited" | "unavail
 export interface ModelRoutingRequest {
   readonly agentId: AgentId;
   readonly requiredCapabilityIds: readonly CapabilityId[];
+  readonly requiredModelCapabilityIds?: readonly CapabilityId[];
   readonly privacyClass?: ModelPrivacyClass;
   readonly allowPaidModels?: boolean;
   readonly minimumContextWindow?: number;
@@ -114,12 +115,11 @@ function passesCost(
   return effectiveCostClass(model, provider) === "free";
 }
 
-function passesCapabilities(
-  model: Model,
-  requiredCapabilityIds: readonly CapabilityId[],
-  request: ModelRoutingRequest,
-): boolean {
-  if (!hasCapabilities(model.capabilityIds, requiredCapabilityIds)) {
+function passesCapabilities(model: Model, request: ModelRoutingRequest): boolean {
+  if (
+    request.requiredModelCapabilityIds !== undefined &&
+    !hasCapabilities(model.capabilityIds, request.requiredModelCapabilityIds)
+  ) {
     return false;
   }
 
@@ -213,7 +213,7 @@ export function routeAgentModel(
     if (
       !passesPrivacy(model, provider, request.privacyClass) ||
       !passesCost(model, provider, request.allowPaidModels) ||
-      !passesCapabilities(model, request.requiredCapabilityIds, request)
+      !passesCapabilities(model, request)
     ) {
       continue;
     }
