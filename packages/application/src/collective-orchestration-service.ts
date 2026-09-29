@@ -352,6 +352,9 @@ export class CollectiveOrchestrationService {
             const response = await this.dependencies.agentGateway.invokeText({
               agentId: target.agentId,
               requiredCapabilityIds: input.requiredCapabilityIds,
+              ...(input.requiredModelCapabilityIds === undefined
+                ? {}
+                : { requiredModelCapabilityIds: input.requiredModelCapabilityIds }),
               request: this.buildChallengeRequest(
                 input.command.message.content,
                 agent,
@@ -422,6 +425,9 @@ export class CollectiveOrchestrationService {
       const response = await this.dependencies.agentGateway.invokeText({
         agentId: synthesizerAgentId,
         requiredCapabilityIds: input.requiredCapabilityIds,
+        ...(input.requiredModelCapabilityIds === undefined
+          ? {}
+          : { requiredModelCapabilityIds: input.requiredModelCapabilityIds }),
         request: this.buildSynthesisRequest(
           input.command.message.content,
           synthesizer,
@@ -629,7 +635,7 @@ export class CollectiveOrchestrationService {
         {
           role: "USER",
           content:
-            `User request: ${command}\n\nYour role: ${role}\nAgent: ${agentName}\n\n` +
+            `User request: ${command}\n\nYour role: ${agent?.role ?? "Generalist"}\nAgent: ${agent?.name ?? "Unknown"}\n\n` +
             "Analyze the request from your specialist perspective. " +
             "Return useful findings, important assumptions, and uncertainties for another agent " +
             "to synthesize." +
