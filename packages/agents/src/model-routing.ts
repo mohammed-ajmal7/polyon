@@ -115,11 +115,7 @@ function passesCost(
   return effectiveCostClass(model, provider) === "free";
 }
 
-function passesCapabilities(
-  model: Model,
-  requiredCapabilityIds: readonly CapabilityId[],
-  request: ModelRoutingRequest,
-): boolean {
+function passesCapabilities(model: Model, request: ModelRoutingRequest): boolean {
   if (
     request.requiredModelCapabilityIds !== undefined &&
     !hasCapabilities(model.capabilityIds, request.requiredModelCapabilityIds)
@@ -217,7 +213,7 @@ export function routeAgentModel(
     if (
       !passesPrivacy(model, provider, request.privacyClass) ||
       !passesCost(model, provider, request.allowPaidModels) ||
-      !passesCapabilities(model, request.requiredCapabilityIds, request)
+      !passesCapabilities(model, request)
     ) {
       continue;
     }
