@@ -9,9 +9,8 @@
 - Integration branch: `develop`
 - Historical architecture branch: `feature/core-architecture`
 - Release branch for the first release candidate: `release/0.1.0`
-- Current `develop` head: **48d6361f20c50642c5508083954dd752550f3ea6**
 - Historical architecture/release baseline head: **2c84f17060ea468105395ef264d4f6a7bed95002**
-- CI is the source of truth for verification. Do not call any branch green until the latest run for the exact head succeeds.
+- Local manual verification is the release verification path. Do not call the release candidate verified until `bash scripts/verify-release.sh` and the operational smoke checks pass on the exact release commit.
 
 ## Implemented operating loop
 
@@ -66,7 +65,7 @@
 - explicit model/SMTP/research environment configuration;
 - file-backed durable state with migrations, atomic replacement, optimistic concurrency and backup/restore;
 - self-hosted Dockerfile + compose configuration;
-- CI typecheck/test/lint/format/build gates;
+- local typecheck/test/lint/format/build release gates;
 - readiness health checks fail closed on composition/configuration initialization errors and return a stable `503` response without leaking initialization details.
 
 ## Intentional remaining work
@@ -87,14 +86,14 @@ Use:
 feature/* -> develop -> release/* -> main
 ```
 
-Always create a feature branch for a coherent implementation slice. Merge features into `develop` only through CI-backed pull requests. Use `release/0.1.0` for stabilization and final release verification; `main` is reserved for released code.
+Always create a feature branch for a coherent implementation slice. Merge features into `develop` through normal pull requests; verification is performed locally because hosted GitHub Actions is intentionally not used. Use `release/0.1.0` for stabilization and final release verification; `main` is reserved for released code.
 
 ## Continuation rules
 
 Always:
 
 1. inspect the live branch;
-2. inspect the newest CI run for the exact head;
+2. run `bash scripts/verify-release.sh` when validating a release candidate;
 3. select one coherent slice;
 4. preserve domain/provider/adapter boundaries;
 5. add tests for behavior changes;
