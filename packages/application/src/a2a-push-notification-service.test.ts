@@ -261,7 +261,7 @@ describe("A2A push notifications", () => {
       missionId: "mission-1",
       status: "SUCCEEDED",
       updatedAt: "2026-09-29T10:00:00.000Z",
-    } as Task;
+    } as never;
 
     service.createConfig({ taskId: task.id, url: "https://example.com/a2a" });
     await service.notifyTask(task);
@@ -294,7 +294,7 @@ describe("A2A push notifications", () => {
       missionId: "mission-2",
       status: "FAILED",
       updatedAt: "2026-09-29T10:00:00.000Z",
-    } as Task;
+    } as never;
 
     service.createConfig({ taskId: task.id, url: "https://example.com/a2a" });
     await service.notifyTask(task);
