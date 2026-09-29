@@ -318,6 +318,22 @@ export class DebateOrchestrationService {
   }
 }
 
+function promptStageForDebatePhase(
+  phase: Debate["phase"],
+): "analysis" | "critique" | "fact-check" | "judge" {
+  switch (phase) {
+    case "PROPOSAL":
+    case "REBUTTAL":
+      return "analysis";
+    case "CRITICISM":
+      return "critique";
+    case "EVIDENCE":
+      return "fact-check";
+    case "ADJUDICATION":
+      return "judge";
+  }
+}
+
 function phaseInstruction(phase: Debate["phase"]): string {
   switch (phase) {
     case "PROPOSAL":
