@@ -38,6 +38,21 @@ export interface A2APushNotificationServiceOptions {
   readonly sender: A2APushNotificationSender;
   readonly ownerId: string;
   readonly validateTask: (taskId: string) => boolean;
+  readonly maxDeliveryAttempts?: number;
+  readonly retryBackoffInitialMs?: number;
+  readonly retryBackoffMaxMs?: number;
+  readonly wait?: (delayMs: number) => Promise<void>;
+}
+
+export class A2APushNotificationDeliveryError extends Error {
+  constructor(
+    message: string,
+    readonly retryable: boolean,
+    readonly status?: number,
+  ) {
+    super(message);
+    this.name = "A2APushNotificationDeliveryError";
+  }
 }
 
 export class InMemoryA2APushNotificationStore implements A2APushNotificationStore {
@@ -116,10 +131,31 @@ export class A2APushNotificationService {
 
     await Promise.allSettled(
       configs.map(async (config) => {
-        try {
-          await this.options.sender.send(config, payload);
-        } catch {
-          // Push delivery is best-effort. The task lifecycle remains authoritative.
+        const maxAttempts = Math.max(
+          1,
+          Math.min(10, Math.floor(this.options.maxDeliveryAttempts ?? 3)),
+        );
+        const initialDelay = Math.max(0, this.options.retryBackoffInitialMs ?? 250);
+        const maxDelay = Math.max(initialDelay, this.options.retryBackoffMaxMs ?? 2_000);
+        const wait = this.options.wait ?? ((delayMs: number) => new Promise<void>((resolve) => setTimeout(resolve, delayMs)));
+
+        for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+          try {
+            await this.options.sender.send(config, payload);
+            return;
+          } catch (error) {
+            const retryable =
+              error instanceof A2APushNotificationDeliveryError
+                ? error.retryable
+                : true;
+            if (!retryable || attempt === maxAttempts) return;
+
+            const delay = Math.min(
+              maxDelay,
+              initialDelay * 2 ** (attempt - 1),
+            );
+            await wait(delay);
+          }
         }
       }),
     );
@@ -217,10 +253,23 @@ export function createA2AWebhookSender(options: {
           signal: controller.signal,
         });
         if (!response.ok) {
-          throw new Error(
+          const retryable =
+            response.status === 408 ||
+            response.status === 425 ||
+            response.status === 429 ||
+            response.status >= 500;
+          throw new A2APushNotificationDeliveryError(
             "A2A push webhook returned HTTP " + String(response.status) + ".",
+            retryable,
+            response.status,
           );
         }
+      } catch (error) {
+        if (error instanceof A2APushNotificationDeliveryError) throw error;
+        throw new A2APushNotificationDeliveryError(
+          error instanceof Error ? error.message : "A2A push webhook delivery failed.",
+          true,
+        );
       } finally {
         clearTimeout(timeout);
       }
