@@ -149,6 +149,79 @@ describe("MissionPlanningService", () => {
     expect(stores.tasks.list()).toHaveLength(2);
   });
 
+  it("repairs a plan that exceeds the dependency bound before persistence", async () => {
+    const stores = new InMemoryDomainStores();
+    const tooManyDependencies = Array.from({ length: 11 }, (_, index) => `dependency-${index + 1}`);
+    const invokeText = vi
+      .fn()
+      .mockResolvedValueOnce({
+        agentId: "planner",
+        modelId: "model",
+        providerId: "provider",
+        source: "preferred" as const,
+        output: {
+          content: JSON.stringify({
+            rationale: "too many dependencies",
+            tasks: [
+              {
+                id: "step_analyze_obj",
+                kind: "ANALYSIS",
+                title: "Analyze",
+                description: "Analyze the objective.",
+                dependsOn: tooManyDependencies,
+              },
+            ],
+          }),
+        },
+      })
+      .mockResolvedValueOnce({
+        agentId: "planner",
+        modelId: "model",
+        providerId: "provider",
+        source: "preferred" as const,
+        output: {
+          content: JSON.stringify({
+            rationale: "bounded dependency graph",
+            tasks: [
+              {
+                id: "step_analyze_obj",
+                kind: "ANALYSIS",
+                title: "Analyze",
+                description: "Analyze the objective.",
+                dependsOn: [],
+              },
+            ],
+          }),
+        },
+      });
+
+    const service = new MissionPlanningService(
+      { invokeText } as never,
+      stores.tasks,
+      stores.events,
+      stores,
+    );
+
+    const result = await service.generate({
+      mission: {
+        id: "mission-dependency-bound",
+        objective: "Validate dependency bounds.",
+        constraints: [],
+        status: "PLANNING",
+        taskIds: [],
+        createdAt: "2026-09-28T00:00:00.000Z",
+        updatedAt: "2026-09-28T00:00:00.000Z",
+      },
+      planningAgentId: "planner",
+      requiredCapabilityIds: [],
+      now: "2026-09-28T00:00:00.000Z",
+    });
+
+    expect(invokeText).toHaveBeenCalledTimes(2);
+    expect(result.tasks[0]?.dependsOn).toEqual([]);
+    expect(stores.tasks.list()).toHaveLength(1);
+  });
+
   it("rejects cyclic plans after the bounded repair attempt", async () => {
     const stores = new InMemoryDomainStores();
     const invokeText = vi

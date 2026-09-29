@@ -78,16 +78,33 @@ export class MissionPlanningService {
       },
     });
 
-    let proposal = parseGeneratedPlan(initialResponse.output.content);
-    let generatedTasks = buildGeneratedTasks(input, proposal.tasks);
-    let validation = validateTaskGraph(generatedTasks);
+    let proposal: ReturnType<typeof parseGeneratedPlan> | undefined;
+    let generatedTasks: Task[] | undefined;
+    let validation: ReturnType<typeof validateTaskGraph> | undefined;
+    let lastPlanningError: Error | undefined;
+    let response = initialResponse;
 
-    for (
-      let attempt = 0;
-      !validation.valid && attempt < MAX_VALIDATION_REPAIR_ATTEMPTS;
-      attempt += 1
-    ) {
-      const repairResponse = await this.agentGateway.invokeText({
+    for (let attempt = 0; attempt <= MAX_VALIDATION_REPAIR_ATTEMPTS; attempt += 1) {
+      try {
+        proposal = parseGeneratedPlan(response.output.content);
+        generatedTasks = buildGeneratedTasks(input, proposal.tasks);
+        validation = validateTaskGraph(generatedTasks);
+
+        if (validation.valid) {
+          break;
+        }
+
+        lastPlanningError = new MissionPlanningValidationError(validation.errors);
+      } catch (error) {
+        lastPlanningError =
+          error instanceof Error ? error : new Error("Generated mission plan was invalid.");
+      }
+
+      if (attempt >= MAX_VALIDATION_REPAIR_ATTEMPTS) {
+        break;
+      }
+
+      response = await this.agentGateway.invokeText({
         agentId: input.planningAgentId,
         requiredCapabilityIds: input.requiredCapabilityIds,
         request: {
@@ -97,9 +114,10 @@ export class MissionPlanningService {
               content:
                 "You are repairing a POLYON mission plan. Return ONLY valid JSON with this exact shape: " +
                 '{"rationale":"string","tasks":[{"id":"string","kind":"RESEARCH|ANALYSIS|CODING|CREATIVE|VALIDATION|OTHER","title":"string","description":"string","dependsOn":["task-id"]}]}. ' +
-                "Correct every reported deterministic task-graph validation error. Every dependsOn value MUST exactly match an id in the same response. " +
-                "Never use mission-prefixed ids, task titles, or invented ids as dependencies. Keep the graph acyclic; use [] when no dependency is necessary. " +
-                "Keep task count within the requested bound, preserve the mission intent, and do not invent capabilities, tools, credentials, or external actions.",
+                "Correct every reported plan-validation error. Every dependsOn value MUST exactly match an id in the same response. " +
+                `Never exceed ${MAX_DEPENDENCIES} dependencies on any task. Never use mission-prefixed ids, task titles, or invented ids as dependencies. ` +
+                "Keep the graph acyclic; use [] when a dependency is not necessary. " +
+                `Keep task count between 1 and ${MAX_TASKS}, preserve the mission intent, and do not invent capabilities, tools, credentials, or external actions. `,
             },
             {
               role: "USER",
@@ -108,17 +126,19 @@ export class MissionPlanningService {
                 objective: input.mission.objective,
                 constraints: input.mission.constraints,
                 maxTasks: MAX_TASKS,
-                previousPlan: proposal,
-                validationErrors: validation.errors,
+                maxDependenciesPerTask: MAX_DEPENDENCIES,
+                previousPlan: proposal ?? null,
+                validationError: lastPlanningError?.message ?? "Unknown plan validation failure.",
+                validationErrors: validation?.errors ?? [],
               }),
             },
           ],
         },
       });
+    }
 
-      proposal = parseGeneratedPlan(repairResponse.output.content);
-      generatedTasks = buildGeneratedTasks(input, proposal.tasks);
-      validation = validateTaskGraph(generatedTasks);
+    if (proposal === undefined || generatedTasks === undefined || validation === undefined) {
+      throw lastPlanningError ?? new Error("Generated mission plan was invalid.");
     }
 
     if (!validation.valid) {
