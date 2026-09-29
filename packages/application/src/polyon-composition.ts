@@ -46,6 +46,7 @@ import {
   AgentToolOrchestrationService,
   AgentMessageService,
   AgentRunService,
+  FactCheckService,
   MemoryService,
   MissionPlanningService,
   MissionCreationService,
@@ -263,6 +264,7 @@ export interface PolyonComposition {
   readonly agentToolOrchestration: AgentToolOrchestrationService;
   readonly codingAgent: CodingAgentService;
   readonly memory: MemoryService;
+  readonly factCheck: FactCheckService;
   readonly semanticMemory?: SemanticMemoryService;
   readonly semanticMemoryIndexer?: SemanticMemoryIndexer;
   readonly research?: ResearchService;
@@ -486,6 +488,14 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   });
 
   const memory = new MemoryService(stores.memory, stores.events, stores);
+  const factCheck = new FactCheckService({
+    agents,
+    agentGateway,
+    evidence: stores.evidence,
+    sources: stores.sources,
+    events: stores.events,
+    unitOfWork: stores,
+  });
   const semanticVectorIndex =
     embeddingGateway === undefined ? undefined : new ExactNormalizedSemanticVectorIndex();
   const semanticMemory =
@@ -1076,6 +1086,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     agentToolOrchestration,
     codingAgent,
     memory,
+    factCheck,
     ...(semanticMemory === undefined ? {} : { semanticMemory }),
     ...(semanticMemoryIndexer === undefined ? {} : { semanticMemoryIndexer }),
     ...(research === undefined ? {} : { research }),
