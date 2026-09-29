@@ -7,12 +7,12 @@ import type {
   Source,
   TextModelRequest,
 } from "@polyon/contracts";
-import type {
-  AgentGateway,
-  AgentRegistry,
-  AgentTeamPlanningRequest,
-  AgentTeamPlan,
+import {
   buildAgentStageInstructions,
+  type AgentGateway,
+  type AgentRegistry,
+  type AgentTeamPlanningRequest,
+  type AgentTeamPlan,
 } from "@polyon/agents";
 import type {
   ConversationStore,
