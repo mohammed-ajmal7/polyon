@@ -6,6 +6,8 @@ import type {
   ScheduleStore,
 } from "@polyon/storage";
 
+import type { EnqueueJobInput } from "./job-service";
+
 export interface ScheduleRunner {
   runDue(now: string, limit?: number): readonly Job[];
 }
