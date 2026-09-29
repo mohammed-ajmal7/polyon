@@ -1,38 +1,34 @@
-import type { A2APushNotificationAuthentication, A2APushNotificationConfig, Task } from "@polyon/contracts";
+import type {
+  A2APushNotificationAuthentication,
+  A2APushNotificationConfig,
+  Task,
+} from "@polyon/contracts";
 import type { A2APushNotificationConfigStore } from "@polyon/storage";
 
 export type { A2APushNotificationAuthentication, A2APushNotificationConfig };
 
-export interface A2APushNotificationAuthentication {
-  readonly scheme: string;
-  readonly credentials: string;
-}
-
-export interface Omit<A2APushNotificationConfig, "ownerId"> {
-  readonly id: string;
-  readonly taskId: string;
-  readonly url: string;
-  readonly token?: string;
-  readonly authentication?: A2APushNotificationAuthentication;
-}
+export type A2ATaskPushNotificationConfig = Omit<A2APushNotificationConfig, "ownerId">;
 
 export interface A2APushNotificationStore {
   create(
     ownerId: string,
-    input: Omit<Omit<A2APushNotificationConfig, "ownerId">, "id">,
-  ): Omit<A2APushNotificationConfig, "ownerId">;
+    input: Omit<A2ATaskPushNotificationConfig, "id">,
+  ): A2ATaskPushNotificationConfig;
   get(
     ownerId: string,
     taskId: string,
     configId: string,
-  ): Omit<A2APushNotificationConfig, "ownerId"> | undefined;
-  list(ownerId: string, taskId: string): readonly Omit<A2APushNotificationConfig, "ownerId">[];
+  ): A2ATaskPushNotificationConfig | undefined;
+  list(
+    ownerId: string,
+    taskId: string,
+  ): readonly A2ATaskPushNotificationConfig[];
   delete(ownerId: string, taskId: string, configId: string): boolean;
 }
 
 export interface A2APushNotificationSender {
   send(
-    config: Omit<A2APushNotificationConfig, "ownerId">,
+    config: A2ATaskPushNotificationConfig,
     payload: Record<string, unknown>,
   ): Promise<void>;
 }
@@ -48,10 +44,10 @@ export class InMemoryA2APushNotificationStore implements A2APushNotificationStor
   private sequence = 0;
   private readonly records = new Map<
     string,
-    { ownerId: string; config: Omit<A2APushNotificationConfig, "ownerId"> }
+    { ownerId: string; config: A2ATaskPushNotificationConfig }
   >();
 
-  create(ownerId: string, input: Omit<Omit<A2APushNotificationConfig, "ownerId">, "id">) {
+  create(ownerId: string, input: Omit<A2ATaskPushNotificationConfig, "id">) {
     const id = "a2a-push:" + String(++this.sequence);
     const config = { ...input, id };
     this.records.set(id, { ownerId, config });
@@ -80,7 +76,7 @@ export class InMemoryA2APushNotificationStore implements A2APushNotificationStor
 export class A2APushNotificationService {
   constructor(private readonly options: A2APushNotificationServiceOptions) {}
 
-  createConfig(input: Omit<Omit<A2APushNotificationConfig, "ownerId">, "id">) {
+  createConfig(input: Omit<A2ATaskPushNotificationConfig, "id">) {
     validateConfig(input);
     if (!this.options.validateTask(input.taskId)) {
       throw new Error("Task not found.");
@@ -128,6 +124,51 @@ export class A2APushNotificationService {
       }),
     );
   }
+}
+
+export function createDurableA2APushNotificationStore(
+  store: A2APushNotificationConfigStore,
+): A2APushNotificationStore {
+  return {
+    create(ownerId, input) {
+      const id = "a2a-push:" + crypto.randomUUID();
+      const config = { ...input, id, ownerId };
+      store.save(config);
+      return stripOwner(config);
+    },
+    get(ownerId, taskId, configId) {
+      const config = store.get(configId);
+      return config !== undefined &&
+          config.ownerId === ownerId &&
+          config.taskId === taskId
+        ? stripOwner(config)
+        : undefined;
+    },
+    list(ownerId, taskId) {
+      return store
+        .list()
+        .filter(
+          (config) =>
+            config.ownerId === ownerId && config.taskId === taskId,
+        )
+        .map(stripOwner);
+    },
+    delete(ownerId, taskId, configId) {
+      const config = store.get(configId);
+      return config !== undefined &&
+          config.ownerId === ownerId &&
+          config.taskId === taskId
+        ? store.delete(configId)
+        : false;
+    },
+  };
+}
+
+function stripOwner(
+  config: A2APushNotificationConfig,
+): A2ATaskPushNotificationConfig {
+  const { ownerId: _ownerId, ...publicConfig } = config;
+  return publicConfig;
 }
 
 export function createA2AWebhookSender(options: {
@@ -187,7 +228,7 @@ export function createA2AWebhookSender(options: {
   };
 }
 
-function validateConfig(config: Omit<Omit<A2APushNotificationConfig, "ownerId">, "id">): void {
+function validateConfig(config: Omit<A2ATaskPushNotificationConfig, "id">): void {
   if (config.taskId.trim() === "") throw new Error("Task id is required.");
   if (config.url.length > 2048) throw new Error("A2A push URL is too long.");
 
@@ -235,45 +276,4 @@ function mapTaskState(status: Task["status"]): string {
     case "REJECTED":
       return "TASK_STATE_REJECTED";
   }
-}
-
-
-export function createDurableA2APushNotificationStore(
-  store: A2APushNotificationConfigStore,
-): A2APushNotificationStore {
-  return {
-    create(ownerId, input) {
-      const id = "a2a-push:" + crypto.randomUUID();
-      const config = { ...input, id, ownerId };
-      store.save(config);
-      return inputWithId(config);
-    },
-    get(ownerId, taskId, configId) {
-      const config = store.get(configId);
-      return config !== undefined &&
-          config.ownerId === ownerId &&
-          config.taskId === taskId
-        ? inputWithId(config)
-        : undefined;
-    },
-    list(ownerId, taskId) {
-      return store
-        .list()
-        .filter((config) => config.ownerId === ownerId && config.taskId === taskId)
-        .map(inputWithId);
-    },
-    delete(ownerId, taskId, configId) {
-      const config = store.get(configId);
-      return config !== undefined &&
-          config.ownerId === ownerId &&
-          config.taskId === taskId
-        ? store.delete(configId)
-        : false;
-    },
-  };
-}
-
-function inputWithId(config: A2APushNotificationConfig): Omit<A2APushNotificationConfig, "ownerId"> {
-  const { ownerId: _ownerId, ...publicConfig } = config;
-  return publicConfig;
 }
