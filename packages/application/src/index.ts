@@ -384,3 +384,15 @@ export {
 } from "./evidence-quality-service";
 
 export { parseStructuredFinding, type ParseStructuredFindingInput } from "./structured-finding-parser";
+
+
+export {
+  InMemoryMcpSubscriptionBus,
+  McpSubscriptionEventPublisher,
+  type McpSubscriptionHandle,
+  type McpSubscriptionPublisher,
+} from "./mcp-subscription-bus";
+export type {
+  McpSubscriptionFilter,
+  McpSubscriptionNotification,
+} from "./mcp-subscription-types";
