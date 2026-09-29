@@ -99,11 +99,7 @@ export class McpServerService {
 
   async handle(
     request: McpJsonRpcRequest,
-    headers: {
-      readonly protocolVersion?: string;
-      readonly method?: string;
-      readonly name?: string;
-    },
+    headers: McpRequestHeaders,
   ): Promise<McpJsonRpcResponse | undefined> {
     if (request.jsonrpc !== "2.0") {
       return rpcError(request.id ?? null, -32600, "Invalid JSON-RPC request.");
