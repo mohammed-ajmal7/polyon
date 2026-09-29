@@ -33,6 +33,7 @@ export function getPolyonComposition(): PolyonComposition {
   if (globalState.__polyonComposition !== undefined) return globalState.__polyonComposition;
   const composition = createPolyonComposition(buildOptions());
   if (process.env.POLYON_RUNTIME_AUTOSTART !== "false") composition.runtime.start();
+  if (process.env.POLYON_JOB_RUNTIME_AUTOSTART !== "false") composition.jobRuntime.start();
   if (process.env.POLYON_SEMANTIC_INDEXING_AUTOSTART !== "false") {
     composition.semanticMemoryIndexer?.start();
   }

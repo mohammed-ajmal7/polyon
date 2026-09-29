@@ -159,6 +159,9 @@ describe("createPolyonComposition", () => {
       expect(composition.models.get(model.id)?.providerId).toBe("provider.test");
       expect(composition.providers.get("provider.test")?.enabled).toBe(true);
       expect(composition.runtime.status).toBe("STOPPED");
+      expect(composition.jobRuntime.status).toBe("STOPPED");
+      expect(composition.jobService).toBeDefined();
+      expect(composition.stores.jobs.list()).toEqual([]);
       expect(composition.toolInvocation).toBeDefined();
       expect(composition.artifactCatalog).toBeDefined();
       expect(composition.localArtifactContent).toBeDefined();
