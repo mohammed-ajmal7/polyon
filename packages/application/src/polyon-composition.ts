@@ -27,7 +27,6 @@ import {
   ArtifactCatalogService,
   A2APushNotificationService,
   createDurableA2APushNotificationStore,
-  InMemoryA2APushNotificationStore,
   createA2AWebhookSender,
   SemanticMemoryService,
   createSemanticMemoryIndexer,
