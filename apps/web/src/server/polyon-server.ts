@@ -143,6 +143,10 @@ function buildConfiguredModelRegistrations() {
     providerName: process.env.POLYON_PROVIDER_NAME?.trim() || "Configured model provider",
     endpoint,
     apiKeyEnv: "POLYON_MODEL_API_KEY",
+    ...(process.env.POLYON_MODEL_SUPPORTS_TOOLS === undefined ||
+    process.env.POLYON_MODEL_SUPPORTS_TOOLS.trim() === ""
+      ? {}
+      : { supportsTools: readBoolean(process.env.POLYON_MODEL_SUPPORTS_TOOLS.trim(), false) }),
   };
 
   if ((process.env.POLYON_COLLECTIVE_PRESET?.trim() || "default").toLowerCase() !== "default") {

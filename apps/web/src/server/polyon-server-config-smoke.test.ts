@@ -30,6 +30,27 @@ afterEach(() => {
 });
 
 describe("POLYON server configuration smoke", () => {
+  it("marks the single configured model as tool-capable when requested", () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "polyon-server-single-model-"));
+
+    try {
+      process.env.POLYON_DATA_DIR = dataDir;
+      process.env.POLYON_RUNTIME_AUTOSTART = "false";
+      process.env.POLYON_SEMANTIC_INDEXING_AUTOSTART = "false";
+      delete process.env.POLYON_MODEL_PROFILES_JSON;
+      process.env.POLYON_MODEL_ENDPOINT = "http://127.0.0.1:11434/v1/chat/completions";
+      process.env.POLYON_MODEL_ID = "local-model";
+      process.env.POLYON_MODEL_SUPPORTS_TOOLS = "true";
+
+      const model = getPolyonComposition().models.get("local-model");
+
+      expect(model?.supportsTools).toBe(true);
+      expect(model?.capabilityIds).toContain("ai.tool-calling");
+    } finally {
+      rmSync(dataDir, { recursive: true, force: true });
+    }
+  });
+
   it("boots the real composition from a representative model-fleet configuration", () => {
     const dataDir = mkdtempSync(join(tmpdir(), "polyon-server-config-smoke-"));
     const secret = "smoke-secret-that-must-not-enter-domain-data";
