@@ -66,6 +66,7 @@ export type {
   Evidence,
   EvidenceId,
   EvidenceKind,
+  EvidenceQuality,
   Source,
   SourceId,
   SourceKind,
