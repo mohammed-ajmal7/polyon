@@ -29,7 +29,6 @@ export class FileDomainStores implements DurableDomainStores {
   private revision: string;
   private readonly context: DomainStoreTransactionContext;
   private readonly committedEventListeners = new Set<CommittedEventListener>();
-  private readonly committedEventListeners = new Set<CommittedEventListener>();
 
   constructor(readonly rootDir: string) {
     this.database = new FileDomainDatabase(join(rootDir, "domain-state.json"));
