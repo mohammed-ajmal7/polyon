@@ -196,6 +196,13 @@ function appendApprovalResolvedEvent(
   });
 }
 
+/**
+ * Artifact ids are content-addressed by the adapter (location, content, kind,
+ * MIME type) and the id is what models and the catalog use to read them, so
+ * an identical write from another mission, task, or execution is the same
+ * artifact. Only the descriptive metadata must match; the stored record keeps
+ * the lineage of the execution that first produced it.
+ */
 function areArtifactMetadataEqual(actual: Artifact, expected: Artifact): boolean {
   return (
     JSON.stringify({
@@ -205,9 +212,6 @@ function areArtifactMetadataEqual(actual: Artifact, expected: Artifact): boolean
       mimeType: actual.mimeType,
       location: actual.location,
       status: actual.status,
-      missionId: actual.missionId,
-      taskId: actual.taskId,
-      executionId: actual.executionId,
     }) ===
     JSON.stringify({
       id: expected.id,
@@ -216,9 +220,6 @@ function areArtifactMetadataEqual(actual: Artifact, expected: Artifact): boolean
       mimeType: expected.mimeType,
       location: expected.location,
       status: expected.status,
-      missionId: expected.missionId,
-      taskId: expected.taskId,
-      executionId: expected.executionId,
     })
   );
 }
