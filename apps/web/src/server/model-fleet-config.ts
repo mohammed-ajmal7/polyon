@@ -44,7 +44,7 @@ export interface ModelRegistrationBundle {
   readonly providers: PolyonProviderRegistration[];
 }
 
-const MAX_MODEL_PROFILES = 8;
+const MAX_MODEL_PROFILES = 12;
 const MAX_TEXT_LENGTH = 200;
 
 export function parseModelProfiles(value: string): ModelProfileConfig[] {
@@ -204,7 +204,17 @@ function profilesByProviderId(profiles: readonly ModelProfileConfig[]): ModelPro
 }
 
 function sameModelConfiguration(a: ModelProfileConfig, b: ModelProfileConfig): boolean {
-  return a.modelName === b.modelName && a.providerId === b.providerId;
+  return (
+    a.modelName === b.modelName &&
+    a.providerId === b.providerId &&
+    JSON.stringify(a.modelCapabilityIds ?? a.capabilityIds ?? ["ai.chat"]) ===
+      JSON.stringify(b.modelCapabilityIds ?? b.capabilityIds ?? ["ai.chat"]) &&
+    a.contextWindow === b.contextWindow &&
+    a.supportsTools === b.supportsTools &&
+    a.supportsVision === b.supportsVision &&
+    a.privacyClass === b.privacyClass &&
+    a.costClass === b.costClass
+  );
 }
 
 function sameProviderConfiguration(a: ModelProfileConfig, b: ModelProfileConfig): boolean {
