@@ -4,7 +4,7 @@ import { createSemanticMemoryIndexer } from "./semantic-memory-indexer";
 
 describe("createSemanticMemoryIndexer", () => {
   it("runs an immediate bounded cycle on start and schedules future cycles", async () => {
-    const reindex = vi.fn(async () => ({ indexed: 2, stale: 0, skipped: 3 }));
+    const reindex = vi.fn(async () => ({ indexed: 2, removed: 1, stale: 0, skipped: 3 }));
     const service = { reindex } as never;
 
     const indexer = createSemanticMemoryIndexer(service, "embedding-model", {
@@ -27,6 +27,13 @@ describe("createSemanticMemoryIndexer", () => {
 
     expect(indexer.health.running).toBe(true);
     expect(indexer.health.indexedCount).toBe(2);
+    expect(indexer.health.removedCount).toBe(1);
+    expect(indexer.health.lastCycleResult).toEqual({
+      indexed: 2,
+      removed: 1,
+      stale: 0,
+      skipped: 3,
+    });
 
     indexer.stop();
     expect(indexer.health.running).toBe(false);
@@ -37,7 +44,7 @@ describe("createSemanticMemoryIndexer", () => {
     const reindex = vi
       .fn()
       .mockRejectedValueOnce(new Error("embedding unavailable"))
-      .mockResolvedValue({ indexed: 0, stale: 0, skipped: 1 });
+      .mockResolvedValue({ indexed: 0, removed: 0, stale: 0, skipped: 1 });
 
     const indexer = createSemanticMemoryIndexer({ reindex } as never, "embedding-model", {
       intervalMs: 1_000,
