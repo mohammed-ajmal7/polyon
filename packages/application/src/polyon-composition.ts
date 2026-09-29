@@ -79,12 +79,17 @@ import {
 import { FileDomainStores } from "@polyon/storage";
 import {
   createExecutionRuntime,
+  createJobRuntime,
+  JobService,
   ModelExecutionRunner,
   type ExecutionRunOutcome,
   type ExecutionRuntime,
   type ExecutionRuntimeCompletionHandler,
   type ExecutionRuntimeWait,
   type ExecutionWorkerClock,
+  type JobHandlers,
+  type JobRuntime,
+  type JobRuntimeWait,
 } from "@polyon/runtime";
 import {
   createInMemoryBuiltinToolRegistries,
@@ -192,6 +197,16 @@ export interface PolyonCompositionOptions {
   readonly onError?: (error: unknown) => void;
   readonly onExecutionCompleted?: ExecutionRuntimeCompletionHandler;
   readonly onReadyTasks?: ReadyTaskHandler;
+  readonly jobHandlers?: JobHandlers;
+  readonly jobPollIntervalMs?: number;
+  readonly jobMaxConcurrency?: number;
+  readonly jobRetryBackoffInitialMs?: number;
+  readonly jobRetryBackoffMaxMs?: number;
+  readonly jobWait?: JobRuntimeWait;
+  readonly onJobError?: (error: unknown) => void;
+  readonly onJobCompleted?: (
+    job: import("@polyon/contracts").Job,
+  ) => void | Promise<void>;
 }
 
 export interface PolyonComposition {
@@ -244,6 +259,8 @@ export interface PolyonComposition {
   readonly creative?: CreativeJobService;
   readonly debates: DebateOrchestrationService;
   readonly runtime: ExecutionRuntime;
+  readonly jobService: JobService;
+  readonly jobRuntime: JobRuntime;
 }
 
 class SystemClock implements ExecutionWorkerClock {
@@ -254,6 +271,11 @@ class SystemClock implements ExecutionWorkerClock {
 
 export function createPolyonComposition(options: PolyonCompositionOptions): PolyonComposition {
   const stores = new FileDomainStores(options.storageRoot);
+  const jobService = new JobService({
+    jobs: stores.jobs,
+    events: stores.events,
+    unitOfWork: stores,
+  });
   const agents = new InMemoryAgentRegistry();
   const models = new InMemoryModelRegistry();
   const providers = new InMemoryProviderRegistry();
@@ -688,6 +710,29 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     unitOfWork: stores,
   });
 
+  const jobRuntime = createJobRuntime({
+    jobs: jobService,
+    ...(options.jobHandlers === undefined ? {} : { handlers: options.jobHandlers }),
+    clock: options.clock ?? new SystemClock(),
+    ...(options.jobPollIntervalMs === undefined
+      ? {}
+      : { pollIntervalMs: options.jobPollIntervalMs }),
+    ...(options.jobMaxConcurrency === undefined
+      ? {}
+      : { maxConcurrency: options.jobMaxConcurrency }),
+    ...(options.jobRetryBackoffInitialMs === undefined
+      ? {}
+      : { retryBackoffInitialMs: options.jobRetryBackoffInitialMs }),
+    ...(options.jobRetryBackoffMaxMs === undefined
+      ? {}
+      : { retryBackoffMaxMs: options.jobRetryBackoffMaxMs }),
+    ...(options.jobWait === undefined ? {} : { wait: options.jobWait }),
+    ...(options.onJobError === undefined ? {} : { onError: options.onJobError }),
+    ...(options.onJobCompleted === undefined
+      ? {}
+      : { onJobCompleted: options.onJobCompleted }),
+  });
+
   const executionDispatch = new ExecutionDispatchService({
     queue: runtime.queue,
     executions: stores.executions,
@@ -901,5 +946,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     ...(creative === undefined ? {} : { creative }),
     debates,
     runtime,
+    jobService,
+    jobRuntime,
   };
 }
