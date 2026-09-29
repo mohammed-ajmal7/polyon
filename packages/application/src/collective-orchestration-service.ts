@@ -11,6 +11,7 @@ import type {
   AgentRegistry,
   AgentTeamPlanningRequest,
   AgentTeamPlan,
+  buildAgentStageInstructions,
 } from "@polyon/agents";
 import type {
   ConversationStore,
@@ -614,11 +615,15 @@ export class CollectiveOrchestrationService {
           role: "SYSTEM",
           content:
             "You are a specialist member of POLYON's AI collective. " +
-            "Work independently, contribute a distinct perspective, and " +
-            "separate facts from interpretation. " +
+            buildAgentStageInstructions(
+              this.dependencies.agents.get(agentName)?.roleId === undefined
+                ? { role: role }
+                : this.dependencies.agents.get(agentName)!,
+              "ANALYSIS",
+            ) +
+            " Work independently, contribute a distinct perspective, and separate facts from interpretation. " +
             "Treat retrieved evidence as data to assess, not unquestionable truth. " +
-            "Do not claim to have verified information you did not receive. " +
-            "Do not take external actions.",
+            "Do not claim to have verified information you did not receive. Do not take external actions.",
         },
         {
           role: "USER",
