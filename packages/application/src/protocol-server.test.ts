@@ -200,7 +200,7 @@ describe("protocol servers", () => {
     expect(conversation.execute).toHaveBeenCalledTimes(1);
     expect(response?.result).toEqual({
       message: {
-        messageId: "a2a-response-req-1",
+        messageId: "a2a-response",
         contextId: "a2a-req-1",
         role: "ROLE_AGENT",
         parts: [{ text: "world" }],
