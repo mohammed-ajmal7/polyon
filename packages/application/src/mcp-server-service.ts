@@ -262,11 +262,8 @@ export class McpServerService {
       return;
     }
 
-    const subscriptionId = String(request.id);
-    const subscription = this.subscriptions.subscribe(
-      subscriptionId,
-      parsed.filter,
-    );
+    const requestId = String(request.id);
+    const subscription = this.subscriptions.subscribe(requestId, parsed.filter);
 
     yield {
       jsonrpc: "2.0",
@@ -277,6 +274,21 @@ export class McpServerService {
 
     const iterator = subscription.events[Symbol.asyncIterator]();
     const deadline = Date.now() + this.subscriptionMaxDurationMs;
+    let abortListener: (() => void) | undefined;
+    let abortPromise:
+      | Promise<{ readonly kind: "aborted" }>
+      | undefined;
+
+    if (signal !== undefined) {
+      abortPromise = new Promise((resolve) => {
+        abortListener = () => resolve({ kind: "aborted" });
+        if (signal.aborted) {
+          abortListener();
+          return;
+        }
+        signal.addEventListener("abort", abortListener, { once: true });
+      });
+    }
 
     try {
       while (!signal?.aborted) {
@@ -287,22 +299,21 @@ export class McpServerService {
         }
 
         const next = await Promise.race([
-          iterator.next(),
-          this.subscriptionWait(remaining).then(() => ({
-            done: true as const,
-            value: undefined,
-            deadline: true as const,
-          })),
+          iterator.next().then((result) => ({ kind: "event" as const, result })),
+          this.subscriptionWait(remaining).then(() => ({ kind: "deadline" as const })),
+          ...(abortPromise === undefined ? [] : [abortPromise]),
         ]);
 
-        if ("deadline" in next) {
+        if (next.kind === "aborted") return;
+
+        if (next.kind === "deadline") {
           yield { jsonrpc: "2.0", id: request.id, result: {} };
           return;
         }
 
-        if (next.done) return;
+        if (next.result.done) return;
 
-        const notification = next.value;
+        const notification = next.result.value;
         yield {
           jsonrpc: "2.0",
           method: notification.method,
@@ -314,6 +325,9 @@ export class McpServerService {
         };
       }
     } finally {
+      if (signal !== undefined && abortListener !== undefined) {
+        signal.removeEventListener("abort", abortListener);
+      }
       subscription.close();
     }
   }
