@@ -431,7 +431,7 @@ export class A2AServerService {
     }
 
     if (!isTerminalTask(task) && !signal?.aborted) {
-      yield error(request.id, -32005, "A2A stream deadline exceeded.");
+      yield error(request.id, -32603, "A2A stream deadline exceeded.");
     }
   }
 
