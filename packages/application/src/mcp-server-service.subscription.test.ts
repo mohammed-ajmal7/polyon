@@ -146,4 +146,34 @@ describe("McpServerService subscriptions/listen", () => {
       value: undefined,
     });
   });
+  it("acknowledges only the supported subset of a mixed filter", async () => {
+    const bus = new InMemoryMcpSubscriptionBus();
+    const server = createServer(bus);
+    const iterator = server.stream(
+      {
+        jsonrpc: "2.0",
+        id: "listen-4",
+        method: "subscriptions/listen",
+        params: {
+          notifications: {
+            toolsListChanged: true,
+            promptsListChanged: true,
+            resourcesListChanged: true,
+            resourceSubscriptions: ["file:///tmp/x"],
+          },
+        },
+      },
+      headers,
+    )[Symbol.asyncIterator]();
+
+    const acknowledgement = await iterator.next();
+    expect(acknowledgement.value).toEqual({
+      jsonrpc: "2.0",
+      method: "notifications/subscriptions/acknowledged",
+      params: { notifications: { toolsListChanged: true } },
+      _meta: { "io.modelcontextprotocol/subscriptionId": "listen-4" },
+    });
+
+    await iterator.return?.();
+  });
 });
