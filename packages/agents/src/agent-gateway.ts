@@ -109,7 +109,6 @@ export class AgentGateway {
       input.requiredCapabilityIds,
       input.requiredModelCapabilityIds,
       input.runId,
-      input.runId,
       input.routing,
       (modelId, usageContext) =>
         this.dependencies.modelGateway.invoke<TInput, TOutput>(modelId, input.input, {
