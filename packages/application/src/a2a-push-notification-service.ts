@@ -43,7 +43,7 @@ export interface A2APushNotificationServiceOptions {
 
 export class InMemoryA2APushNotificationStore implements A2APushNotificationStore {
   private sequence = 0;
-  private readonly records = new Map<string, { ownerId: string; config: A2ATaskPushNotificationConfig }>();
+  private readonly records = new Map<\n    string,\n    { ownerId: string; config: A2ATaskPushNotificationConfig }\n  >();
 
   create(ownerId: string, input: Omit<A2ATaskPushNotificationConfig, "id">) {
     const id = "a2a-push:" + String(++this.sequence);
@@ -54,7 +54,7 @@ export class InMemoryA2APushNotificationStore implements A2APushNotificationStor
 
   get(ownerId: string, taskId: string, configId: string) {
     const record = this.records.get(configId);
-    return record?.ownerId === ownerId && record.config.taskId === taskId ? record.config : undefined;
+    return record?.ownerId === ownerId && record.config.taskId === taskId\n      ? record.config\n      : undefined;
   }
 
   list(ownerId: string, taskId: string) {
@@ -137,7 +137,7 @@ export function createA2AWebhookSender(options: {
       if (config.token !== undefined) headers.set("X-A2A-Notification-Token", config.token);
       if (config.authentication !== undefined) {
         const scheme = config.authentication.scheme.trim();
-        if (scheme === "" || /[\\r\\n]/.test(scheme) || /[\\r\\n]/.test(config.authentication.credentials)) {
+        if (\n          scheme === "" ||\n          /[\\r\\n]/.test(scheme) ||\n          /[\\r\\n]/.test(config.authentication.credentials)\n        ) {
           throw new Error("Invalid A2A push authentication.");
         }
         headers.set("Authorization", scheme + " " + config.authentication.credentials);
@@ -157,7 +157,7 @@ export function createA2AWebhookSender(options: {
           body,
           signal: controller.signal,
         });
-        if (!response.ok) throw new Error("A2A push webhook returned HTTP " + String(response.status) + ".");
+        if (!response.ok) {\n          throw new Error(\n            "A2A push webhook returned HTTP " + String(response.status) + ".",\n          );\n        }
       } finally {
         clearTimeout(timeout);
       }
@@ -175,7 +175,7 @@ function validateConfig(config: Omit<A2ATaskPushNotificationConfig, "id">): void
   }
 
   if (config.authentication !== undefined) {
-    if (config.authentication.scheme.trim() === "" || config.authentication.credentials.length > 4096) {
+    if (\n      config.authentication.scheme.trim() === "" ||\n      config.authentication.credentials.length > 4096\n    ) {
       throw new Error("Invalid A2A push authentication.");
     }
   }
