@@ -47,6 +47,7 @@ describe("FileDomainDatabase migrations", () => {
               memoryEmbeddings: [],
               sources: [],
               jobs: [],
+              a2aPushNotificationConfigs: [],
               migrated: true,
             };
           },
