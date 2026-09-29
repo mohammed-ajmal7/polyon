@@ -315,6 +315,7 @@ export {
   McpServerService,
   type McpJsonRpcRequest,
   type McpJsonRpcResponse,
+  type McpRequestHeaders,
   type McpServerDependencies,
 } from "./mcp-server-service";
 
