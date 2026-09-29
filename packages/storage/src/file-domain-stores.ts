@@ -12,9 +12,9 @@ import { createStateContext } from "./state-store";
 import type { DomainStores } from "./domain-stores";
 import type { EventStore } from "./event-store";
 
-export type CommittedEventListener = (event: import("@polyon/contracts").DomainEvent) => void | Promise<void>;
-
-export type CommittedEventListener = (event: import("@polyon/contracts").DomainEvent) => void | Promise<void>;
+export type CommittedEventListener = (
+  event: import("@polyon/contracts").DomainEvent,
+) => void | Promise<void>;
 
 export interface DurableDomainStores extends DomainStores, DomainUnitOfWork {
   readonly events: EventStore;
