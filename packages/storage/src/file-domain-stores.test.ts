@@ -340,6 +340,62 @@ describe("FileDomainStores", () => {
     }
   });
 
+  it("publishes newly committed domain events after transactions", () => {
+    const directory = mkdtempSync(join(tmpdir(), "polyon-events-"));
+
+    try {
+      const stores = new FileDomainStores(directory);
+      const events = [
+        {
+          id: "event-1",
+          kind: "TASK_STATUS_CHANGED" as const,
+          taskId: "task-1",
+          occurredAt: "2026-09-29T10:00:00.000Z",
+          data: { from: "PENDING", to: "RUNNING" },
+        },
+      ];
+      const received: string[] = [];
+      stores.subscribeCommittedEvents((event) => {
+        received.push(event.id);
+      });
+
+      stores.transaction((context) => {
+        for (const event of events) context.events.append(event);
+      });
+
+      expect(received).toEqual(["event-1"]);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("persists A2A push notification configurations across restart", () => {
+    const directory = mkdtempSync(join(tmpdir(), "polyon-a2a-push-"));
+
+    try {
+      const first = new FileDomainStores(directory);
+      first.a2aPushNotificationConfigs.save({
+        id: "a2a-push:durable-1",
+        ownerId: "actor-1",
+        taskId: "task-1",
+        url: "https://client.example.test/a2a/push",
+        token: "token-1",
+      });
+
+      const reopened = new FileDomainStores(directory);
+
+      expect(reopened.a2aPushNotificationConfigs.get("a2a-push:durable-1")).toEqual({
+        id: "a2a-push:durable-1",
+        ownerId: "actor-1",
+        taskId: "task-1",
+        url: "https://client.example.test/a2a/push",
+        token: "token-1",
+      });
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("keeps domain stores on the existing replaceable interfaces", () => {
     const directory = mkdtempSync(join(tmpdir(), "polyon-domain-"));
 

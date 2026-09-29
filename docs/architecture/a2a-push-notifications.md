@@ -36,4 +36,4 @@ The capability remains disabled when the allowlist is empty. This prevents an un
 
 ## Scope
 
-This slice intentionally does not persist push configurations across process restarts. Durable push-configuration storage and richer event dispatch can be added behind the existing service/store/sender boundaries without coupling the A2A protocol to a storage or HTTP implementation.
+Push configurations are stored in the existing durable domain-state file and participate in the same revision/migration/backup boundary as other POLYON domain data. The A2A service still depends only on its store abstraction, so the storage implementation remains replaceable.

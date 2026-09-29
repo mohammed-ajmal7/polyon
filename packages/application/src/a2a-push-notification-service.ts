@@ -1,17 +1,13 @@
-import type { Task } from "@polyon/contracts";
+import type {
+  A2APushNotificationAuthentication,
+  A2APushNotificationConfig,
+  Task,
+} from "@polyon/contracts";
+import type { A2APushNotificationConfigStore } from "@polyon/storage";
 
-export interface A2APushNotificationAuthentication {
-  readonly scheme: string;
-  readonly credentials: string;
-}
+export type { A2APushNotificationAuthentication, A2APushNotificationConfig };
 
-export interface A2ATaskPushNotificationConfig {
-  readonly id: string;
-  readonly taskId: string;
-  readonly url: string;
-  readonly token?: string;
-  readonly authentication?: A2APushNotificationAuthentication;
-}
+export type A2ATaskPushNotificationConfig = Omit<A2APushNotificationConfig, "ownerId">;
 
 export interface A2APushNotificationStore {
   create(
@@ -23,7 +19,10 @@ export interface A2APushNotificationStore {
     taskId: string,
     configId: string,
   ): A2ATaskPushNotificationConfig | undefined;
-  list(ownerId: string, taskId: string): readonly A2ATaskPushNotificationConfig[];
+  list(
+    ownerId: string,
+    taskId: string,
+  ): readonly A2ATaskPushNotificationConfig[];
   delete(ownerId: string, taskId: string, configId: string): boolean;
 }
 
@@ -39,6 +38,28 @@ export interface A2APushNotificationServiceOptions {
   readonly sender: A2APushNotificationSender;
   readonly ownerId: string;
   readonly validateTask: (taskId: string) => boolean;
+  readonly maxDeliveryAttempts?: number;
+  readonly retryBackoffInitialMs?: number;
+  readonly retryBackoffMaxMs?: number;
+  readonly wait?: (delayMs: number) => Promise<void>;
+  readonly onDeliveryOutcome?: (outcome: {
+    readonly status: "SUCCEEDED" | "FAILED";
+    readonly taskId: string;
+    readonly configId: string;
+    readonly attempts: number;
+    readonly error?: string;
+  }) => void | Promise<void>;
+}
+
+export class A2APushNotificationDeliveryError extends Error {
+  constructor(
+    message: string,
+    readonly retryable: boolean,
+    readonly status?: number,
+  ) {
+    super(message);
+    this.name = "A2APushNotificationDeliveryError";
+  }
 }
 
 export class InMemoryA2APushNotificationStore implements A2APushNotificationStore {
@@ -117,14 +138,105 @@ export class A2APushNotificationService {
 
     await Promise.allSettled(
       configs.map(async (config) => {
-        try {
-          await this.options.sender.send(config, payload);
-        } catch {
-          // Push delivery is best-effort. The task lifecycle remains authoritative.
+        const maxAttempts = Math.max(
+          1,
+          Math.min(10, Math.floor(this.options.maxDeliveryAttempts ?? 3)),
+        );
+        const initialDelay = Math.max(0, this.options.retryBackoffInitialMs ?? 250);
+        const maxDelay = Math.max(initialDelay, this.options.retryBackoffMaxMs ?? 2_000);
+        const wait = this.options.wait ?? ((delayMs: number) => new Promise<void>((resolve) => setTimeout(resolve, delayMs)));
+
+        const report = async (outcome: Parameters<NonNullable<A2APushNotificationServiceOptions["onDeliveryOutcome"]>>[0]): Promise<void> => {
+          try {
+            await this.options.onDeliveryOutcome?.(outcome);
+          } catch {
+            // Delivery telemetry is observational and must never change delivery semantics.
+          }
+        };
+
+        for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+          try {
+            await this.options.sender.send(config, payload);
+          } catch (error) {
+            const retryable =
+              error instanceof A2APushNotificationDeliveryError
+                ? error.retryable
+                : true;
+            if (!retryable || attempt === maxAttempts) {
+              await report({
+                status: "FAILED",
+                taskId: task.id,
+                configId: config.id,
+                attempts: attempt,
+                error: error instanceof Error ? error.message : "A2A push delivery failed.",
+              });
+              return;
+            }
+
+            const delay = Math.min(
+              maxDelay,
+              initialDelay * 2 ** (attempt - 1),
+            );
+            await wait(delay);
+            continue;
+          }
+
+          await report({
+            status: "SUCCEEDED",
+            taskId: task.id,
+            configId: config.id,
+            attempts: attempt,
+          });
+          return;
         }
       }),
     );
   }
+}
+
+export function createDurableA2APushNotificationStore(
+  store: A2APushNotificationConfigStore,
+): A2APushNotificationStore {
+  return {
+    create(ownerId, input) {
+      const id = "a2a-push:" + crypto.randomUUID();
+      const config = { ...input, id, ownerId };
+      store.save(config);
+      return stripOwner(config);
+    },
+    get(ownerId, taskId, configId) {
+      const config = store.get(configId);
+      return config !== undefined &&
+          config.ownerId === ownerId &&
+          config.taskId === taskId
+        ? stripOwner(config)
+        : undefined;
+    },
+    list(ownerId, taskId) {
+      return store
+        .list()
+        .filter(
+          (config) =>
+            config.ownerId === ownerId && config.taskId === taskId,
+        )
+        .map(stripOwner);
+    },
+    delete(ownerId, taskId, configId) {
+      const config = store.get(configId);
+      return config !== undefined &&
+          config.ownerId === ownerId &&
+          config.taskId === taskId
+        ? store.delete(configId)
+        : false;
+    },
+  };
+}
+
+function stripOwner(
+  config: A2APushNotificationConfig,
+): A2ATaskPushNotificationConfig {
+  const { ownerId: _ownerId, ...publicConfig } = config;
+  return publicConfig;
 }
 
 export function createA2AWebhookSender(options: {
@@ -173,10 +285,23 @@ export function createA2AWebhookSender(options: {
           signal: controller.signal,
         });
         if (!response.ok) {
-          throw new Error(
+          const retryable =
+            response.status === 408 ||
+            response.status === 425 ||
+            response.status === 429 ||
+            response.status >= 500;
+          throw new A2APushNotificationDeliveryError(
             "A2A push webhook returned HTTP " + String(response.status) + ".",
+            retryable,
+            response.status,
           );
         }
+      } catch (error) {
+        if (error instanceof A2APushNotificationDeliveryError) throw error;
+        throw new A2APushNotificationDeliveryError(
+          error instanceof Error ? error.message : "A2A push webhook delivery failed.",
+          true,
+        );
       } finally {
         clearTimeout(timeout);
       }

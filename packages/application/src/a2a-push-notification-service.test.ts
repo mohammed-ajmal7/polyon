@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
+import type { A2APushNotificationConfig } from "@polyon/contracts";
+import { InMemoryEntityStore } from "@polyon/storage";
 
 import {
+  A2APushNotificationDeliveryError,
   A2APushNotificationService,
   InMemoryA2APushNotificationStore,
+  createDurableA2APushNotificationStore,
   createA2AWebhookSender,
 } from "./a2a-push-notification-service";
 
@@ -46,6 +50,20 @@ describe("A2A push notifications", () => {
     expect(store.get("owner-b", "task-1", created.id)).toBeUndefined();
     expect(store.list("owner-b", "task-1")).toEqual([]);
     expect(store.delete("owner-b", "task-1", created.id)).toBe(false);
+  });
+
+  it("persists configurations through the durable storage adapter", () => {
+    const store = new InMemoryEntityStore<A2APushNotificationConfig>();
+    const durable = createDurableA2APushNotificationStore(store);
+    const created = durable.create("actor-1", {
+      taskId: "task-1",
+      url: "https://client.example.test/a2a/push",
+    });
+
+    expect(durable.get("actor-1", "task-1", created.id)).toEqual(created);
+    expect(durable.list("actor-1", "task-1")).toEqual([created]);
+    expect(durable.delete("actor-1", "task-1", created.id)).toBe(true);
+    expect(durable.get("actor-1", "task-1", created.id)).toBeUndefined();
   });
 
   it("does not expose configs for tasks outside the caller scope", () => {
@@ -100,6 +118,66 @@ describe("A2A push notifications", () => {
         },
       },
     ]);
+  });
+
+  it("retries transient push failures with bounded exponential backoff", async () => {
+    let attempts = 0;
+    const delays: number[] = [];
+    const service = new A2APushNotificationService({
+      store: new InMemoryA2APushNotificationStore(),
+      ownerId: "actor-1",
+      sender: {
+        send: async () => {
+          attempts += 1;
+          if (attempts < 3) {
+            throw new A2APushNotificationDeliveryError("temporary", true, 503);
+          }
+        },
+      },
+      validateTask: () => true,
+      maxDeliveryAttempts: 4,
+      retryBackoffInitialMs: 10,
+      retryBackoffMaxMs: 30,
+      wait: async (delayMs) => {
+        delays.push(delayMs);
+      },
+    });
+
+    service.createConfig({
+      taskId: "task-1",
+      url: "https://client.example.test/a2a/push",
+    });
+
+    await service.notifyTask(task);
+
+    expect(attempts).toBe(3);
+    expect(delays).toEqual([10, 20]);
+  });
+
+  it("does not retry non-retryable delivery failures", async () => {
+    let attempts = 0;
+    const service = new A2APushNotificationService({
+      store: new InMemoryA2APushNotificationStore(),
+      ownerId: "actor-1",
+      sender: {
+        send: async () => {
+          attempts += 1;
+          throw new A2APushNotificationDeliveryError("bad request", false, 400);
+        },
+      },
+      validateTask: () => true,
+      maxDeliveryAttempts: 4,
+      wait: async () => undefined,
+    });
+
+    service.createConfig({
+      taskId: "task-1",
+      url: "https://client.example.test/a2a/push",
+    });
+
+    await service.notifyTask(task);
+
+    expect(attempts).toBe(1);
   });
 
   it("rejects non-HTTPS public webhook URLs", () => {
@@ -167,4 +245,92 @@ describe("A2A push notifications", () => {
       ),
     ).rejects.toThrow("allowlisted");
   });
+  it("reports delivery success and attempt count", async () => {
+    const outcomes: Array<{ status: string; attempts: number }> = [];
+    const service = new A2APushNotificationService({
+      store: new InMemoryA2APushNotificationStore(),
+      ownerId: "a2a-client",
+      validateTask: () => true,
+      sender: { send: async () => undefined },
+      onDeliveryOutcome: (outcome) => {
+        outcomes.push({ status: outcome.status, attempts: outcome.attempts });
+      },
+    });
+    const task = {
+      id: "task-1",
+      missionId: "mission-1",
+      status: "SUCCEEDED",
+      updatedAt: "2026-09-29T10:00:00.000Z",
+    } as never;
+
+    service.createConfig({ taskId: task.id, url: "https://example.com/a2a" });
+    await service.notifyTask(task);
+
+    expect(outcomes).toEqual([{ status: "SUCCEEDED", attempts: 1 }]);
+  });
+
+  it("does not retry when delivery telemetry itself fails", async () => {
+    let attempts = 0;
+    const service = new A2APushNotificationService({
+      store: new InMemoryA2APushNotificationStore(),
+      ownerId: "a2a-client",
+      validateTask: () => true,
+      maxDeliveryAttempts: 3,
+      wait: async () => undefined,
+      sender: {
+        send: async () => {
+          attempts += 1;
+        },
+      },
+      onDeliveryOutcome: async () => {
+        throw new Error("telemetry unavailable");
+      },
+    });
+
+    const task = {
+      id: "task-telemetry",
+      missionId: "mission-telemetry",
+      status: "SUCCEEDED",
+      updatedAt: "2026-09-29T10:00:00.000Z",
+    } as never;
+
+    service.createConfig({ taskId: task.id, url: "https://example.com/a2a" });
+    await service.notifyTask(task);
+
+    expect(attempts).toBe(1);
+  });
+
+  it("reports terminal delivery failure after bounded retries", async () => {
+    const outcomes: Array<{ status: string; attempts: number }> = [];
+    const service = new A2APushNotificationService({
+      store: new InMemoryA2APushNotificationStore(),
+      ownerId: "a2a-client",
+      validateTask: () => true,
+      maxDeliveryAttempts: 2,
+      wait: async () => undefined,
+      sender: {
+        send: async () => {
+          throw new A2APushNotificationDeliveryError("temporary", true, 503);
+        },
+      },
+      onDeliveryOutcome: (outcome) => {
+        outcomes.push({
+          status: outcome.status,
+          attempts: outcome.attempts,
+        });
+      },
+    });
+    const task = {
+      id: "task-2",
+      missionId: "mission-2",
+      status: "FAILED",
+      updatedAt: "2026-09-29T10:00:00.000Z",
+    } as never;
+
+    service.createConfig({ taskId: task.id, url: "https://example.com/a2a" });
+    await service.notifyTask(task);
+
+    expect(outcomes).toEqual([{ status: "FAILED", attempts: 2 }]);
+  });
+
 });

@@ -26,7 +26,7 @@ import {
 import {
   ArtifactCatalogService,
   A2APushNotificationService,
-  InMemoryA2APushNotificationStore,
+  createDurableA2APushNotificationStore,
   createA2AWebhookSender,
   SemanticMemoryService,
   createSemanticMemoryIndexer,
@@ -296,7 +296,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     options.a2aPushNotificationAllowedOrigins !== undefined &&
     options.a2aPushNotificationAllowedOrigins.length > 0
       ? new A2APushNotificationService({
-          store: new InMemoryA2APushNotificationStore(),
+          store: createDurableA2APushNotificationStore(stores.a2aPushNotificationConfigs),
           ownerId: "a2a-client",
           sender: createA2AWebhookSender({
             allowedOrigins: options.a2aPushNotificationAllowedOrigins,
@@ -307,8 +307,28 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
               task !== undefined &&
               stores.executions
                 .list()
-                .some((execution) => execution.taskId === taskId && execution.actorId === "a2a-client")
+                .some(
+                  (execution) =>
+                    execution.taskId === taskId && execution.actorId === "a2a-client",
+                )
             );
+          },
+          onDeliveryOutcome: (outcome) => {
+            stores.events.append({
+              id: `A2A_PUSH_DELIVERY:${crypto.randomUUID()}`,
+              kind:
+                outcome.status === "SUCCEEDED"
+                  ? "A2A_PUSH_DELIVERY_SUCCEEDED"
+                  : "A2A_PUSH_DELIVERY_FAILED",
+              actorId: "a2a-client",
+              taskId: outcome.taskId,
+              occurredAt: new Date().toISOString(),
+              data: {
+                configId: outcome.configId,
+                attempts: outcome.attempts,
+                ...(outcome.error === undefined ? {} : { error: outcome.error }),
+              },
+            });
           },
         })
       : undefined;
@@ -605,13 +625,20 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
       }
     }
 
-    if (a2aPushNotifications !== undefined) {
-      const task = stores.tasks.get(outcome.execution.taskId);
-      if (task !== undefined) await a2aPushNotifications.notifyTask(task);
-    }
-
     await externalHandler?.(outcome);
   };
+
+  if (a2aPushNotifications !== undefined) {
+    stores.subscribeCommittedEvents((event) => {
+      if (event.kind !== "TASK_STATUS_CHANGED" || event.taskId === undefined) {
+        return;
+      }
+      const task = stores.tasks.get(event.taskId);
+      if (task !== undefined) {
+        void a2aPushNotifications.notifyTask(task);
+      }
+    });
+  }
 
   const artifactCatalog = new ArtifactCatalogService({
     artifacts: stores.artifacts,

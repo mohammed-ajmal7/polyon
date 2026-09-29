@@ -1,4 +1,4 @@
-export const CURRENT_DURABLE_DOMAIN_VERSION = 5;
+export const CURRENT_DURABLE_DOMAIN_VERSION = 6;
 
 export interface DurableMigration {
   readonly fromVersion: number;
@@ -155,4 +155,15 @@ export const durableMigrations: readonly DurableMigration[] = [
       jobs: Array.isArray(state.jobs) ? state.jobs : [],
     }),
   },
+  {
+    fromVersion: 5,
+    toVersion: 6,
+    migrate: (state) => ({
+      ...state,
+      a2aPushNotificationConfigs: Array.isArray(state.a2aPushNotificationConfigs)
+        ? state.a2aPushNotificationConfigs
+        : [],
+    }),
+  },
 ];
+

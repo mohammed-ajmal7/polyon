@@ -12,6 +12,10 @@ import { createStateContext } from "./state-store";
 import type { DomainStores } from "./domain-stores";
 import type { EventStore } from "./event-store";
 
+export type CommittedEventListener = (
+  event: import("@polyon/contracts").DomainEvent,
+) => void | Promise<void>;
+
 export interface DurableDomainStores extends DomainStores, DomainUnitOfWork {
   readonly events: EventStore;
   readonly rootDir: string;
@@ -24,6 +28,7 @@ export class FileDomainStores implements DurableDomainStores {
   private readonly state: ReturnType<FileDomainDatabase["snapshot"]>;
   private revision: string;
   private readonly context: DomainStoreTransactionContext;
+  private readonly committedEventListeners = new Set<CommittedEventListener>();
 
   constructor(readonly rootDir: string) {
     this.database = new FileDomainDatabase(join(rootDir, "domain-state.json"));
@@ -103,8 +108,17 @@ export class FileDomainStores implements DurableDomainStores {
     return this.context.tasks;
   }
 
+  get a2aPushNotificationConfigs() {
+    return this.context.a2aPushNotificationConfigs;
+  }
+
   get events() {
     return this.context.events;
+  }
+
+  subscribeCommittedEvents(listener: CommittedEventListener): () => void {
+    this.committedEventListeners.add(listener);
+    return () => this.committedEventListeners.delete(listener);
   }
 
   transaction<T>(work: (context: DomainStoreTransactionContext) => T): T {
@@ -121,8 +135,10 @@ export class FileDomainStores implements DurableDomainStores {
       const result = work(stagedContext);
 
       const nextRevision = this.database.replaceIfRevision(stagedState, snapshot.revision);
+      const previousEventIds = new Set(this.state.events.map((event) => event.id));
       Object.assign(this.state, stagedState);
       this.revision = nextRevision;
+      this.publishCommittedEvents(stagedState.events, previousEventIds);
 
       return result;
     } finally {
@@ -131,8 +147,22 @@ export class FileDomainStores implements DurableDomainStores {
   }
 
   private persistAndPublish(nextState: ReturnType<FileDomainDatabase["snapshot"]>): void {
+    const previousEventIds = new Set(this.state.events.map((event) => event.id));
     const nextRevision = this.database.replaceIfRevision(nextState, this.revision);
     Object.assign(this.state, nextState);
     this.revision = nextRevision;
+    this.publishCommittedEvents(nextState.events, previousEventIds);
+  }
+
+  private publishCommittedEvents(
+    events: readonly import("@polyon/contracts").DomainEvent[],
+    previousEventIds: ReadonlySet<string>,
+  ): void {
+    for (const event of events) {
+      if (previousEventIds.has(event.id)) continue;
+      for (const listener of this.committedEventListeners) {
+        void listener(event);
+      }
+    }
   }
 }
