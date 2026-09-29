@@ -325,6 +325,18 @@ export {
   type A2AServerDependencies,
 } from "./a2a-server-service";
 
+export {
+  A2APushNotificationService,
+  InMemoryA2APushNotificationStore,
+  createA2AWebhookSender,
+  createDurableA2APushNotificationStore,
+  type A2ATaskPushNotificationConfig,
+  A2APushNotificationDeliveryError,
+  type A2APushNotificationAuthentication,
+  type A2APushNotificationSender,
+  type A2APushNotificationStore,
+} from "./a2a-push-notification-service";
+
 export { registerCreativeTools } from "./creative-tools";
 
 export {

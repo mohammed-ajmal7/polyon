@@ -26,7 +26,7 @@ Current capabilities:
 
 ## Remaining production-depth work
 
-1. Advanced MCP/A2A features such as streaming, push, subscriptions, and broader specification coverage. MCP initialization notifications and bounded `tools/list` pagination are implemented, and A2A `ListTasks` plus `CancelTask` now have bounded pagination, filtering, actor-scoped task visibility, and runtime-backed cancellation; streaming, push, subscriptions, and remaining spec coverage stay pending.
+1. Advanced MCP/A2A features and broader specification coverage. MCP initialization notifications and bounded `tools/list` pagination are implemented. The A2A push-notification configuration/delivery boundary is now implemented as an opt-in in-process capability with webhook allowlisting; durable push-configuration persistence, richer task-event dispatch, and the remaining protocol surface still require follow-up.
 2. Multi-user/enterprise identity and tenancy, outside the personal deployment scope.
 3. Sustained load testing, profiling, and broader adversarial E2E coverage beyond the current deterministic production-scale suite.
 4. Deployment automation for a specific infrastructure target beyond self-hosted Docker/Compose.

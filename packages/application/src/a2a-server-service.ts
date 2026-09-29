@@ -1,5 +1,7 @@
 import type { AgentId, Execution, Task } from "@polyon/contracts";
 
+import type { A2APushNotificationService } from "./a2a-push-notification-service";
+
 import type { ConversationAgentOrchestrationService } from "./conversation-agent-orchestration-service";
 import type { CommandIngressService } from "./command-ingress";
 
@@ -60,6 +62,7 @@ export interface A2AServerDependencies {
   };
   readonly policy: import("@polyon/contracts").Policy;
   readonly actorId: string;
+  readonly pushNotifications?: A2APushNotificationService;
 }
 
 export class A2AServerService {
@@ -83,6 +86,14 @@ export class A2AServerService {
       case "ListTasks":
       case "tasks/list":
         return this.listTasks(request);
+      case "CreateTaskPushNotificationConfig":
+        return this.createPushNotificationConfig(request);
+      case "GetTaskPushNotificationConfig":
+        return this.getPushNotificationConfig(request);
+      case "ListTaskPushNotificationConfigs":
+        return this.listPushNotificationConfigs(request);
+      case "DeleteTaskPushNotificationConfig":
+        return this.deletePushNotificationConfig(request);
       default:
         return error(request.id, -32601, "A2A method is not supported.");
     }
@@ -98,7 +109,7 @@ export class A2AServerService {
       version: "0.1.0",
       capabilities: {
         streaming: false,
-        pushNotifications: false,
+        pushNotifications: this.dependencies.pushNotifications !== undefined,
         extendedAgentCard: false,
       },
       defaultInputModes: ["text/plain"],
@@ -252,6 +263,119 @@ export class A2AServerService {
         totalSize: filtered.length,
       },
     };
+  }
+
+  private createPushNotificationConfig(request: A2AJsonRpcRequest): A2AJsonRpcResponse {
+    const service = this.dependencies.pushNotifications;
+    if (service === undefined) {
+      return error(request.id, -32004, "A2A push notifications are not supported.");
+    }
+
+    const params = request.params ?? {};
+    const taskId = readRequiredString(params.taskId);
+    const url = readRequiredString(params.url);
+    if (taskId === "" || url === "") {
+      return error(request.id, -32602, "taskId and url are required.");
+    }
+
+    try {
+      const config = service.createConfig({
+        taskId,
+        url,
+        ...(typeof params.token === "string" ? { token: params.token } : {}),
+        ...parsePushAuthentication(params.authentication),
+      });
+      return { jsonrpc: "2.0", id: request.id, result: redactPushConfig(config) };
+    } catch (cause) {
+      return error(
+        request.id,
+        cause instanceof Error ? -32602 : -32000,
+        cause instanceof Error
+          ? cause.message
+          : "Unable to create push notification configuration.",
+      );
+    }
+  }
+
+  private getPushNotificationConfig(request: A2AJsonRpcRequest): A2AJsonRpcResponse {
+    const service = this.dependencies.pushNotifications;
+    if (service === undefined) {
+      return error(request.id, -32004, "A2A push notifications are not supported.");
+    }
+
+    const params = request.params ?? {};
+    const taskId = readRequiredString(params.taskId);
+    const configId = readRequiredString(params.id);
+    if (taskId === "" || configId === "") {
+      return error(request.id, -32602, "taskId and id are required.");
+    }
+
+    const config = service.getConfig(taskId, configId);
+    if (config === undefined) {
+      return error(request.id, -32001, "Push notification configuration not found.");
+    }
+    return { jsonrpc: "2.0", id: request.id, result: redactPushConfig(config) };
+  }
+
+  private listPushNotificationConfigs(request: A2AJsonRpcRequest): A2AJsonRpcResponse {
+    const service = this.dependencies.pushNotifications;
+    if (service === undefined) return error(request.id, -32004, "A2A push notifications are not supported.");
+
+    const params = request.params ?? {};
+    const taskId = readRequiredString(params.taskId);
+    if (taskId === "") return error(request.id, -32602, "taskId is required.");
+
+    const rawPageSize = params.pageSize;
+    const pageSize = rawPageSize === undefined ? DEFAULT_TASK_PAGE_SIZE : Number(rawPageSize);
+    if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > MAX_TASK_PAGE_SIZE) {
+      return error(request.id, -32602, "pageSize must be between 1 and 100.");
+    }
+
+    const pageToken = decodePushPageToken(params.pageToken);
+    if (pageToken.error !== undefined) return error(request.id, -32602, pageToken.error);
+
+    const configs = service
+      .listConfigs(taskId)
+      .sort((left, right) => left.id.localeCompare(right.id));
+    const startIndex =
+      pageToken.configId === undefined
+        ? 0
+        : configs.findIndex((config) => config.id === pageToken.configId) + 1;
+    if (pageToken.configId !== undefined && startIndex === 0) {
+      return error(request.id, -32602, "A2A push notification page token is out of range.");
+    }
+
+    const page = configs.slice(startIndex, startIndex + pageSize);
+    const nextPageToken =
+      startIndex + page.length < configs.length && page.length > 0
+        ? encodePushPageToken(page[page.length - 1]!.id)
+        : "";
+
+    return {
+      jsonrpc: "2.0",
+      id: request.id,
+      result: {
+        configs: page.map(redactPushConfig),
+        nextPageToken,
+      },
+    };
+  }
+
+  private deletePushNotificationConfig(request: A2AJsonRpcRequest): A2AJsonRpcResponse {
+    const service = this.dependencies.pushNotifications;
+    if (service === undefined) return error(request.id, -32004, "A2A push notifications are not supported.");
+
+    const params = request.params ?? {};
+    const taskId = readRequiredString(params.taskId);
+    const configId = readRequiredString(params.id);
+    if (taskId === "" || configId === "") {
+      return error(request.id, -32602, "taskId and id are required.");
+    }
+
+    if (!service.deleteConfig(taskId, configId)) {
+      return error(request.id, -32001, "Push notification configuration not found.");
+    }
+    return { jsonrpc: "2.0", id: request.id, result: {} };
   }
 
   private async sendMessage(request: A2AJsonRpcRequest): Promise<A2AJsonRpcResponse> {
@@ -450,7 +574,8 @@ function extractText(message: Record<string, unknown>): string {
   if (!Array.isArray(parts)) return "";
   return parts
     .map((part) => (isRecord(part) && typeof part.text === "string" ? part.text : ""))
-    .join("\n")
+    .join("
+")
     .trim();
 }
 
@@ -460,4 +585,64 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function error(id: string | number | null, code: number, message: string): A2AJsonRpcResponse {
   return { jsonrpc: "2.0", id, error: { code, message } };
+}
+
+
+function readRequiredString(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function parsePushAuthentication(value: unknown):
+  | { readonly authentication: { readonly scheme: string; readonly credentials: string } }
+  | Record<string, never> {
+  if (value === undefined) return {};
+  if (
+    !isRecord(value) ||
+    typeof value.scheme !== "string" ||
+    typeof value.credentials !== "string"
+  ) {
+    throw new Error("authentication must contain scheme and credentials.");
+  }
+  return { authentication: { scheme: value.scheme, credentials: value.credentials } };
+}
+
+function redactPushConfig(config: {
+  readonly id: string;
+  readonly taskId: string;
+  readonly url: string;
+  readonly token?: string;
+  readonly authentication?: { readonly scheme: string; readonly credentials: string };
+}): Record<string, unknown> {
+  return {
+    id: config.id,
+    taskId: config.taskId,
+    url: config.url,
+    ...(config.token === undefined ? {} : { token: config.token }),
+    ...(config.authentication === undefined
+      ? {}
+      : { authentication: { scheme: config.authentication.scheme } }),
+  };
+}
+
+
+function encodePushPageToken(configId: string): string {
+  return "a2a-push-config:" + encodeURIComponent(configId);
+}
+
+function decodePushPageToken(value: unknown): {
+  readonly configId?: string;
+  readonly error?: string;
+} {
+  if (value === undefined) return {};
+  if (typeof value !== "string" || !value.startsWith("a2a-push-config:")) {
+    return { error: "A2A push notification page token is invalid." };
+  }
+  try {
+    const configId = decodeURIComponent(value.slice("a2a-push-config:".length));
+    return configId === ""
+      ? { error: "A2A push notification page token is invalid." }
+      : { configId };
+  } catch {
+    return { error: "A2A push notification page token is invalid." };
+  }
 }

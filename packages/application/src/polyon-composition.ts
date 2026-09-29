@@ -25,6 +25,9 @@ import {
 } from "@polyon/agents";
 import {
   ArtifactCatalogService,
+  A2APushNotificationService,
+  createDurableA2APushNotificationStore,
+  createA2AWebhookSender,
   SemanticMemoryService,
   createSemanticMemoryIndexer,
   ExactNormalizedSemanticVectorIndex,
@@ -200,6 +203,7 @@ export interface PolyonCompositionOptions {
   readonly wait?: ExecutionRuntimeWait;
   readonly onError?: (error: unknown) => void;
   readonly onExecutionCompleted?: ExecutionRuntimeCompletionHandler;
+  readonly a2aPushNotificationAllowedOrigins?: readonly string[];
   readonly onReadyTasks?: ReadyTaskHandler;
   readonly jobHandlers?: JobHandlers;
   readonly jobPollIntervalMs?: number;
@@ -266,6 +270,7 @@ export interface PolyonComposition {
   readonly runtime: ExecutionRuntime;
   readonly jobService: JobService;
   readonly jobRuntime: JobRuntime;
+  readonly a2aPushNotifications?: A2APushNotificationService;
 }
 
 class SystemClock implements ExecutionWorkerClock {
@@ -287,6 +292,46 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   const providerAdapters = new InMemoryProviderAdapterRegistry();
   const embeddingAdapters = new InMemoryEmbeddingAdapterRegistry();
   const integrations = new InMemoryIntegrationAdapterRegistry();
+  const a2aPushNotifications =
+    options.a2aPushNotificationAllowedOrigins !== undefined &&
+    options.a2aPushNotificationAllowedOrigins.length > 0
+      ? new A2APushNotificationService({
+          store: createDurableA2APushNotificationStore(stores.a2aPushNotificationConfigs),
+          ownerId: "a2a-client",
+          sender: createA2AWebhookSender({
+            allowedOrigins: options.a2aPushNotificationAllowedOrigins,
+          }),
+          validateTask: (taskId) => {
+            const task = stores.tasks.get(taskId);
+            return (
+              task !== undefined &&
+              stores.executions
+                .list()
+                .some(
+                  (execution) =>
+                    execution.taskId === taskId && execution.actorId === "a2a-client",
+                )
+            );
+          },
+          onDeliveryOutcome: (outcome) => {
+            stores.events.append({
+              id: `A2A_PUSH_DELIVERY:${crypto.randomUUID()}`,
+              kind:
+                outcome.status === "SUCCEEDED"
+                  ? "A2A_PUSH_DELIVERY_SUCCEEDED"
+                  : "A2A_PUSH_DELIVERY_FAILED",
+              actorId: "a2a-client",
+              taskId: outcome.taskId,
+              occurredAt: new Date().toISOString(),
+              data: {
+                configId: outcome.configId,
+                attempts: outcome.attempts,
+                ...(outcome.error === undefined ? {} : { error: outcome.error }),
+              },
+            });
+          },
+        })
+      : undefined;
 
   if (
     options.secretResolver !== undefined &&
@@ -582,6 +627,18 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
 
     await externalHandler?.(outcome);
   };
+
+  if (a2aPushNotifications !== undefined) {
+    stores.subscribeCommittedEvents((event) => {
+      if (event.kind !== "TASK_STATUS_CHANGED" || event.taskId === undefined) {
+        return;
+      }
+      const task = stores.tasks.get(event.taskId);
+      if (task !== undefined) {
+        void a2aPushNotifications.notifyTask(task);
+      }
+    });
+  }
 
   const artifactCatalog = new ArtifactCatalogService({
     artifacts: stores.artifacts,
@@ -994,5 +1051,6 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     runtime,
     jobService,
     jobRuntime,
+    ...(a2aPushNotifications === undefined ? {} : { a2aPushNotifications }),
   };
 }

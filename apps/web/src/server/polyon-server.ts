@@ -53,6 +53,9 @@ function buildOptions() {
   const semanticMemoryIndexAllowedScopes = parseMemoryScopes(
     process.env.POLYON_SEMANTIC_INDEX_ALLOWED_SCOPES,
   );
+  const a2aPushNotificationAllowedOrigins = parseCsv(
+    process.env.POLYON_A2A_PUSH_ALLOWED_ORIGINS,
+  );
   return {
     storageRoot: process.env.POLYON_DATA_DIR?.trim() || join(process.cwd(), ".polyon-data"),
     ...(model === undefined
@@ -70,6 +73,9 @@ function buildOptions() {
     usageGovernor,
     semanticMemoryIndexAllowedScopes,
     semanticMemoryIndexingEnabled: semanticMemoryIndexAllowedScopes.length > 0,
+    ...(a2aPushNotificationAllowedOrigins.length === 0
+      ? {}
+      : { a2aPushNotificationAllowedOrigins }),
     ...(email === undefined
       ? {}
       : {
@@ -560,4 +566,10 @@ function optionalUsageLimit(value: unknown, field: string, index: number): numbe
     throw new Error(`Usage budget ${field} at index ${index} must be a non-negative integer.`);
   }
   return value as number;
+}
+
+
+function parseCsv(value: string | undefined): string[] {
+  if (value === undefined || value.trim() === "") return [];
+  return [...new Set(value.split(",").map((item) => item.trim()).filter(Boolean))];
 }

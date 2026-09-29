@@ -45,6 +45,8 @@ export type EventKind =
   | "DEBATE_CONTRIBUTION"
   | "DEBATE_DECIDED"
   | "ERROR"
+  | "A2A_PUSH_DELIVERY_SUCCEEDED"
+  | "A2A_PUSH_DELIVERY_FAILED"
   | "OTHER";
 
 export interface DomainEvent {

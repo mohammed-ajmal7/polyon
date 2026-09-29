@@ -25,6 +25,7 @@ export {
   type MissionPlanProposalStore,
   type PolicyDecisionStore,
   type TaskStore,
+  type A2APushNotificationConfigStore,
 } from "./domain-stores";
 
 export { FileDomainStores, type DurableDomainStores } from "./file-domain-stores";
