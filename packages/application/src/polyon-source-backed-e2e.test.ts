@@ -191,7 +191,9 @@ describe("POLYON minimum source-backed deep-analysis flow", () => {
       expect(searchQueries).toHaveLength(3);
       expect(
         searchQueries.every((query) =>
-          query.startsWith("Investigate the strongest explanations for this incident and verify the evidence."),
+          query.startsWith(
+            "Investigate the strongest explanations for this incident and verify the evidence.",
+          ),
         ),
       ).toBe(true);
 
