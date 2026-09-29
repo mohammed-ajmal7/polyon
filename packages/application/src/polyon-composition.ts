@@ -25,6 +25,9 @@ import {
 } from "@polyon/agents";
 import {
   ArtifactCatalogService,
+  A2APushNotificationService,
+  InMemoryA2APushNotificationStore,
+  createA2AWebhookSender,
   SemanticMemoryService,
   createSemanticMemoryIndexer,
   ExactNormalizedSemanticVectorIndex,
@@ -200,6 +203,7 @@ export interface PolyonCompositionOptions {
   readonly wait?: ExecutionRuntimeWait;
   readonly onError?: (error: unknown) => void;
   readonly onExecutionCompleted?: ExecutionRuntimeCompletionHandler;
+  readonly a2aPushNotificationAllowedOrigins?: readonly string[];
   readonly onReadyTasks?: ReadyTaskHandler;
   readonly jobHandlers?: JobHandlers;
   readonly jobPollIntervalMs?: number;
@@ -266,6 +270,7 @@ export interface PolyonComposition {
   readonly runtime: ExecutionRuntime;
   readonly jobService: JobService;
   readonly jobRuntime: JobRuntime;
+  readonly a2aPushNotifications?: A2APushNotificationService;
 }
 
 class SystemClock implements ExecutionWorkerClock {
@@ -287,6 +292,18 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   const providerAdapters = new InMemoryProviderAdapterRegistry();
   const embeddingAdapters = new InMemoryEmbeddingAdapterRegistry();
   const integrations = new InMemoryIntegrationAdapterRegistry();
+  const a2aPushNotifications =
+    options.a2aPushNotificationAllowedOrigins !== undefined &&
+    options.a2aPushNotificationAllowedOrigins.length > 0
+      ? new A2APushNotificationService({
+          store: new InMemoryA2APushNotificationStore(),
+          ownerId: "a2a-client",
+          sender: createA2AWebhookSender({
+            allowedOrigins: options.a2aPushNotificationAllowedOrigins,
+          }),
+          validateTask: (taskId) => stores.tasks.get(taskId) !== undefined,
+        })
+      : undefined;
 
   if (
     options.secretResolver !== undefined &&
@@ -578,6 +595,11 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
           createdAt: outcome.execution.completedAt ?? outcome.execution.updatedAt,
         });
       }
+    }
+
+    if (a2aPushNotifications !== undefined) {
+      const task = stores.tasks.get(outcome.execution.taskId);
+      if (task !== undefined) await a2aPushNotifications.notifyTask(task);
     }
 
     await externalHandler?.(outcome);
@@ -994,5 +1016,6 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     runtime,
     jobService,
     jobRuntime,
+    ...(a2aPushNotifications === undefined ? {} : { a2aPushNotifications }),
   };
 }
