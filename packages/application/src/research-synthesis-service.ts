@@ -49,7 +49,13 @@ export class ResearchSynthesisService {
     const selected = evidence
       .filter((item) => input.missionId === undefined || item.missionId === input.missionId)
       .filter((item) => input.taskId === undefined || item.taskId === input.taskId)
-      .slice(-200);
+      .sort(
+        (left, right) =>
+          (right.quality?.score ?? 0) - (left.quality?.score ?? 0) ||
+          right.capturedAt.localeCompare(left.capturedAt) ||
+          left.id.localeCompare(right.id),
+      )
+      .slice(0, 200);
 
     const context = formatEvidenceContext(selected, sourcesById);
     const response = await this.agentGateway.invokeText({
@@ -62,6 +68,7 @@ export class ResearchSynthesisService {
             content:
               "You are POLYON's research synthesizer. Produce an evidence-grounded report. " +
               "Separate supported findings, contradictions, uncertainty, and unanswered questions. " +
+              "Prioritize higher-quality evidence while preserving material contradictions. " +
               "Cite sources by their provided source IDs. Never invent evidence.",
           },
           {
