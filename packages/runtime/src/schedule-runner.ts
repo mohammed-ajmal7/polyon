@@ -3,7 +3,6 @@ import type {
   DomainStoreTransactionContext,
   DomainUnitOfWork,
   EventStore,
-  JobService,
   ScheduleStore,
 } from "@polyon/storage";
 
@@ -12,14 +11,10 @@ export interface ScheduleRunner {
 }
 
 export interface ScheduleJobEnqueuer {
-  enqueue(input: {
-    readonly id: string;
-    readonly userId: string;
-    readonly type: string;
-    readonly payload: unknown;
-    readonly runAt: string;
-    readonly now: string;
-  }): Job;
+  enqueueInTransaction(
+    stores: Pick<DomainStoreTransactionContext, "jobs" | "events">,
+    input: EnqueueJobInput,
+  ): Job;
 }
 
 export class DurableScheduleRunner implements ScheduleRunner {
@@ -62,7 +57,7 @@ export class DurableScheduleRunner implements ScheduleRunner {
 
       const job =
         existing ??
-        this.jobs.enqueue({
+        this.jobs.enqueueInTransaction(stores, {
           id: jobId,
           userId: current.userId,
           type: current.jobType,
