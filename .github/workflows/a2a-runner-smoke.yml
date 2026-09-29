@@ -1,0 +1,13 @@
+name: A2A Runner Smoke
+
+on:
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Runner smoke
+        run: |
+          echo "runner-online"
+          node --version
