@@ -9,6 +9,7 @@ Current capabilities:
 - provider-independent model routing and OpenAI-compatible text execution;
 - governed filesystem, terminal, Git, artifact, Google Drive, Telegram, and SMTP Email tooling;
 - durable memory/source/evidence, bounded research, synthesis, and privacy-aware context assembly;
+- bounded Fact Checker application service over explicit claims and supplied evidence, with deterministic verdict validation and audit trace;
 - bounded coding-agent process execution;
 - authenticated web APIs and live AI HQ;
 - MCP 2026-07-28 HTTP interoperability with subscriptions/listen plus A2A 1.0 HTTP interoperability with streaming task subscriptions, opt-in push notifications, and authenticated extended Agent Card retrieval;

@@ -314,6 +314,7 @@ Implemented:
 - bounded coding-agent process and coding tool profile;
 - Google Drive, Telegram, Email/SMTP integrations;
 - durable memory/source/evidence, bounded web research, synthesis, privacy-aware context assembly, and governed memory writes;
+- bounded Fact Checker application service over explicit claims and supplied evidence, with deterministic verdict validation and audit trace;
 - configurable creative HTTP adapter exposed through governed creative tooling;
 - authenticated browser APIs, login/logout, approval inbox, trace, memory/evidence/source/artifact APIs;
 - MCP HTTP baseline with current stateless routing-header validation and tools/discovery/call support;
