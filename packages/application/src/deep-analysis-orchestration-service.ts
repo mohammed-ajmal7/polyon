@@ -30,6 +30,7 @@ export interface ExecuteDeepAnalysisInput {
   readonly maxDebateRounds?: number;
   readonly researchEnabled?: boolean;
   readonly researchSourceLimit?: number;
+  readonly factCheckerAgentId?: AgentId;
   readonly now?: () => string;
 }
 
@@ -102,6 +103,7 @@ export class DeepAnalysisOrchestrationService {
       maxChallengeRounds: input.maxChallengeRounds ?? 0,
       researchEnabled: input.researchEnabled,
       researchSourceLimit: input.researchSourceLimit,
+      factCheckerAgentId: input.factCheckerAgentId,
       now,
     });
 
