@@ -166,7 +166,7 @@ describe("AgentGateway", () => {
 
     const modelGateway = new ModelGateway({ models, providers, adapters });
     const originalInvoke = modelGateway.invoke.bind(modelGateway);
-    modelGateway.invoke = async (modelId, input, options) => {
+    modelGateway.invoke = async (modelId, input, options = {}) => {
       usageContexts.push(options.usageContext);
       return originalInvoke(modelId, input, options);
     };
