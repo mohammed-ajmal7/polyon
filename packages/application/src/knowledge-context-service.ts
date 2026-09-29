@@ -14,6 +14,7 @@ export interface KnowledgeContextInput {
   readonly evidenceLimit?: number;
   readonly maxCharacters?: number;
   readonly includeEvidence?: boolean;
+  readonly now?: string;
 }
 
 export interface KnowledgeContextItem {
@@ -47,6 +48,7 @@ export class KnowledgeContextService {
     }
 
     const maxCharacters = input.maxCharacters ?? 30_000;
+    const currentTime = input.now ?? new Date().toISOString();
     const memoryLimit = input.memoryLimit ?? 20;
     const evidenceLimit = input.evidenceLimit ?? 30;
     assertBound(maxCharacters, 1, 100_000, "maxCharacters");
