@@ -105,10 +105,17 @@ export function buildEvidenceQuality(
 
   const distinctRelatedSources = new Set(
     context.evidence
-      .filter((candidate) => normalize(candidate.claim) === normalize(item.claim))
+      .filter(
+        (candidate) =>
+          candidate.id !== item.id &&
+          normalize(candidate.claim) === normalize(item.claim),
+      )
       .map((candidate) => candidate.sourceId),
   );
-  const independence = distinctRelatedSources.size <= 1 ? 1 : Math.min(1, 1 / distinctRelatedSources.size + 0.5);
+  const independence =
+    distinctRelatedSources.size === 0
+      ? 1
+      : Math.min(1, 0.5 + distinctRelatedSources.size / 6);
 
   const capturedAt = Date.parse(item.capturedAt);
   const now = Date.parse(context.now);
