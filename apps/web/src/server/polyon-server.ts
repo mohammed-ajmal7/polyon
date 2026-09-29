@@ -10,6 +10,7 @@ import {
 import { OpenAICompatibleEmbeddingAdapter, UsageGovernor } from "@polyon/providers";
 import { EncryptedFileSecretResolver, NodeSmtpConnectionFactory } from "@polyon/runtime";
 import {
+  BoundedHttpBrowserProvider,
   BoundedWebResearchRetriever,
   ConfiguredHttpCreativeAdapter,
   ConfiguredHttpResearchProvider,
@@ -46,7 +47,7 @@ function buildOptions() {
   const embedding = buildEmbeddingRegistration();
   const email = buildEmailRegistration();
   const secretResolver = email === undefined ? undefined : buildSecretResolver();
-  const researchRetriever = buildResearchRetriever();
+  const research = buildResearchRetriever();
   const creativeAdapter = buildCreativeAdapter();
   const usageGovernor = buildUsageGovernor();
   const semanticMemoryIndexAllowedScopes = parseMemoryScopes(
@@ -59,7 +60,12 @@ function buildOptions() {
       : { agents: model.agents, models: model.models, providers: model.providers }),
     ...(embedding === undefined ? {} : { embeddingProvider: embedding }),
     ...(secretResolver === undefined ? {} : { secretResolver }),
-    ...(researchRetriever === undefined ? {} : { researchRetriever }),
+    ...(research === undefined
+      ? {}
+      : {
+          researchRetriever: research.retriever,
+          researchFabricProviders: research.providers,
+        }),
     ...(creativeAdapter === undefined ? {} : { creativeAdapter }),
     usageGovernor,
     semanticMemoryIndexAllowedScopes,
@@ -242,7 +248,12 @@ function buildEmailRegistration():
   return { username, secretReference, transport };
 }
 
-function buildResearchRetriever() {
+function buildResearchRetriever():
+  | {
+      retriever: BoundedWebResearchRetriever;
+      providers: readonly [ConfiguredHttpResearchProvider, BoundedHttpBrowserProvider];
+    }
+  | undefined {
   const endpoint = process.env.POLYON_RESEARCH_SEARCH_ENDPOINT?.trim();
   const allowedHosts = (process.env.POLYON_RESEARCH_ALLOWED_HOSTS ?? "")
     .split(",")
@@ -270,10 +281,21 @@ function buildResearchRetriever() {
     maxRequestBytes: 16_384,
   });
 
-  const provider = new ConfiguredHttpResearchProvider({ endpoint, http });
-  return new BoundedWebResearchRetriever(provider, http, {
+  const searchProvider = new ConfiguredHttpResearchProvider({
+    endpoint,
+    http,
+  });
+  const browserProvider = new BoundedHttpBrowserProvider(http, {
+    maxResponseBytes: 100_000,
+  });
+  const retriever = new BoundedWebResearchRetriever(searchProvider, http, {
     maxContentBytes: 100_000,
   });
+
+  return {
+    retriever,
+    providers: [searchProvider, browserProvider],
+  };
 }
 
 function buildCreativeAdapter() {
