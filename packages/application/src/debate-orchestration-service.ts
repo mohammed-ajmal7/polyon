@@ -29,6 +29,7 @@ export interface CreateDebateInput {
 
 export interface RunDebateInput {
   readonly debateId: string;
+  readonly runId?: string;
   readonly requiredCapabilityIds: readonly string[];
   readonly adjudicatorAgentId: AgentId;
   readonly now: () => string;
@@ -189,6 +190,7 @@ export class DebateOrchestrationService {
 
     const response = await this.agentGateway.invokeText({
       agentId,
+      runId: input.runId,
       requiredCapabilityIds: input.requiredCapabilityIds,
       request,
       modelOptions: input.modelOptions,
@@ -235,6 +237,7 @@ export class DebateOrchestrationService {
 
     const response = await this.agentGateway.invokeText({
       agentId: adjudicatorAgentId,
+      runId: input.runId,
       requiredCapabilityIds: input.requiredCapabilityIds,
       request,
       modelOptions: input.modelOptions,
