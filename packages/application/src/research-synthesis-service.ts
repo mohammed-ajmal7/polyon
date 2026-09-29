@@ -1,6 +1,7 @@
 import type { AgentId, Evidence, MemoryEntry, Source } from "@polyon/contracts";
 
-import type { AgentGateway } from "@polyon/agents";
+import { buildAgentRolePrompt, type AgentGateway } from "@polyon/agents";
+
 import { rankEvidenceQuality } from "./evidence-quality-service";
 import type {
   DomainStoreTransactionContext,
@@ -29,6 +30,7 @@ export interface ResearchSynthesisResult {
   readonly memory: MemoryEntry;
   readonly sources: readonly Source[];
   readonly evidence: readonly Evidence[];
+  readonly quality: readonly ReturnType<typeof rankEvidenceQuality>[number][];
 }
 
 export class ResearchSynthesisService {
@@ -68,13 +70,15 @@ export class ResearchSynthesisService {
       agentId: input.agentId,
       requiredCapabilityIds: input.requiredCapabilityIds,
       request: {
+
         messages: [
           {
             role: "SYSTEM",
             content:
               "You are POLYON's research synthesizer. Produce an evidence-grounded report. " +
               "Separate supported findings, contradictions, uncertainty, and unanswered questions. " +
-              "Cite sources by their provided source IDs. Never invent evidence.",
+              "Cite sources by their provided source IDs. Never invent evidence.\n" +
+              buildAgentRolePrompt(undefined, "synthesis", "synthesizer"),
           },
           {
             role: "USER",
@@ -116,6 +120,11 @@ export class ResearchSynthesisService {
           memoryId: memory.id,
           evidenceCount: selected.length,
           sourceIds: [...new Set(selected.map((item) => item.sourceId))],
+          evidenceQuality: quality.map((assessment) => ({
+            evidenceId: assessment.evidenceId,
+            score: assessment.score,
+            band: assessment.band,
+          })),
         },
       });
     };
@@ -132,7 +141,8 @@ export class ResearchSynthesisService {
       sources: selected
         .map((item) => sourcesById.get(item.sourceId))
         .filter((source): source is Source => source !== undefined),
-      evidence: selected,
+      evidence: rankedEvidence,
+      quality,
     };
   }
 }
