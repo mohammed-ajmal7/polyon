@@ -14,30 +14,35 @@ describe("ResearchFabric", () => {
   it("keeps research provider classes independently addressable", () => {
     const fabric = new ResearchFabric();
     const search: SearchProvider = {
+      kind: "search",
       id: "search",
       async search() {
         return [];
       },
     };
     const browser: BrowserProvider = {
+      kind: "browser",
       id: "browser",
       async fetch(locator) {
         return { locator, content: "page", retrievedAt: "2026-09-29T00:00:00.000Z" };
       },
     };
     const crawler: CrawlerProvider = {
+      kind: "crawler",
       id: "crawler",
       async crawl() {
         return { pages: [] };
       },
     };
     const publicData: PublicDataProvider = {
+      kind: "public-data",
       id: "public-data",
       async query(dataset) {
         return { dataset, records: [], retrievedAt: "2026-09-29T00:00:00.000Z" };
       },
     };
     const academic: AcademicProvider = {
+      kind: "academic",
       id: "academic",
       async search() {
         return [];
@@ -59,8 +64,8 @@ describe("ResearchFabric", () => {
 
   it("rejects duplicate providers in the same capability namespace", () => {
     const fabric = new ResearchFabric();
-    const first: SearchProvider = { id: "search", async search() { return []; } };
-    const second: SearchProvider = { id: "search", async search() { return []; } };
+    const first: SearchProvider = { kind: "search", id: "search", async search() { return []; } };
+    const second: SearchProvider = { kind: "search", id: "search", async search() { return []; } };
 
     fabric.register(first);
 
