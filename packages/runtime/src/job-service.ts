@@ -31,6 +31,10 @@ export interface ClaimJobInput {
 
 export interface JobService {
   enqueue(input: EnqueueJobInput): Job;
+  enqueueInTransaction(
+    stores: Pick<DomainStoreTransactionContext, "jobs" | "events">,
+    input: EnqueueJobInput,
+  ): Job;
   claimNext(input: ClaimJobInput): Job | undefined;
   complete(jobId: JobId, workerId: string, now: string): Job;
   fail(jobId: JobId, workerId: string, now: string, error: string, retryAt?: string): Job;
@@ -77,17 +81,42 @@ export class DurableJobService implements JobService {
       updatedAt: now,
     };
 
-    return this.transaction((stores) => {
-      const existing = stores.jobs.get(job.id);
-      if (existing !== undefined) return existing;
+    return this.transaction((stores) => this.enqueueInTransaction(stores, input));
+  }
 
-      stores.jobs.save(job);
-      appendJobEvent(stores.events, "JOB_ENQUEUED", job, now, {
-        type: job.type,
-        runAt: job.runAt,
-      });
-      return job;
+  enqueueInTransaction(
+    stores: Pick<DomainStoreTransactionContext, "jobs" | "events">,
+    input: EnqueueJobInput,
+  ): Job {
+    validateEnqueueInput(input);
+    const now = input.now ?? new Date().toISOString();
+    const runAt = input.runAt ?? now;
+    const id = input.id ?? "job:" + crypto.randomUUID();
+    const job: Job = {
+      id,
+      ...(input.userId === undefined ? {} : { userId: input.userId }),
+      ...(input.agentRunId === undefined ? {} : { agentRunId: input.agentRunId }),
+      type: input.type.trim(),
+      payload: structuredClone(input.payload),
+      status: "queued",
+      priority: input.priority ?? DEFAULT_PRIORITY,
+      attempt: 0,
+      maxAttempts: input.maxAttempts ?? DEFAULT_MAX_ATTEMPTS,
+      runAt,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const existing = stores.jobs.get(job.id);
+    if (existing !== undefined) return existing;
+
+    stores.jobs.save(job);
+    appendJobEvent(stores.events, "JOB_ENQUEUED", job, now, {
+      type: job.type,
+      runAt: job.runAt,
     });
+    return job;
+  }
   }
 
   claimNext(input: ClaimJobInput): Job | undefined {
