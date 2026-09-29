@@ -139,25 +139,32 @@ function buildConfiguredModelRegistrations() {
 
   const roles = [
     {
+      id: "planner",
+      roleId: "planner" as const,
+      name: "Planner",
+      role: "Planner",
+      description: "Breaks user goals into bounded, executable plans.",
+    },
+    {
       id: "researcher",
       roleId: "researcher" as const,
       name: "Researcher",
       role: "Researcher",
-      description: "Finds relevant facts, context, assumptions, and gaps.",
+      description: "Finds relevant facts, sources, context, and information gaps.",
     },
     {
       id: "analyst",
       roleId: "analyst" as const,
       name: "Analyst",
       role: "Analyst",
-      description: "Compares explanations, patterns, trade-offs, and implications.",
+      description: "Compares evidence, explanations, patterns, and implications.",
     },
     {
-      id: "fact-checker",
-      roleId: "fact-checker" as const,
-      name: "Fact Checker",
-      role: "Fact Checker",
-      description: "Challenges unsupported claims, hidden assumptions, and verifies available evidence.",
+      id: "specialist",
+      roleId: "specialist" as const,
+      name: "Specialist",
+      role: "Specialist",
+      description: "Applies focused domain expertise to a bounded problem.",
     },
     {
       id: "critic",
@@ -167,11 +174,32 @@ function buildConfiguredModelRegistrations() {
       description: "Challenges weak reasoning, edge cases, and overconfident conclusions.",
     },
     {
+      id: "fact-checker",
+      roleId: "fact-checker" as const,
+      name: "Fact Checker",
+      role: "Fact Checker",
+      description: "Tests claims against supplied evidence and identifies verification gaps.",
+    },
+    {
+      id: "judge",
+      roleId: "judge" as const,
+      name: "Judge",
+      role: "Judge",
+      description: "Adjudicates bounded disagreements and records uncertainty.",
+    },
+    {
       id: "synthesizer",
       roleId: "synthesizer" as const,
       name: "Synthesizer",
       role: "Synthesizer",
-      description: "Compares team findings and produces a transparent final answer.",
+      description: "Combines independent findings into a transparent final response.",
+    },
+    {
+      id: "action-agent",
+      roleId: "action-agent" as const,
+      name: "Action Agent",
+      role: "Action Agent",
+      description: "Executes approved actions through governed tools and integrations.",
     },
   ];
 
