@@ -117,7 +117,6 @@ export class DurableJobService implements JobService {
     });
     return job;
   }
-  }
 
   claimNext(input: ClaimJobInput): Job | undefined {
     validateWorkerId(input.workerId);
