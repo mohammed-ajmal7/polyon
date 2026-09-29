@@ -1,6 +1,7 @@
 import type { Evidence, MemoryEntry, MemoryScope, Source } from "@polyon/contracts";
 
 import type { EvidenceStore, MemoryStore, SourceStore } from "@polyon/storage";
+import { rankEvidenceQuality } from "./evidence-quality-service";
 
 export interface KnowledgeContextInput {
   readonly query: string;
@@ -71,17 +72,33 @@ export class KnowledgeContextService {
     const evidenceItems =
       input.includeEvidence === false
         ? []
-        : this.evidence
-            .list()
-            .filter((item) => input.missionId === undefined || item.missionId === input.missionId)
-            .filter((item) => input.taskId === undefined || item.taskId === input.taskId)
-            .map((item) => ({
-              entry: item,
-              score: scoreText(queryTokens, normalizedQuery, item.claim, []),
-            }))
-            .filter((item) => item.score > 0)
-            .sort(compareEvidence)
-            .slice(0, evidenceLimit);
+        : (() => {
+            const candidates = this.evidence
+              .list()
+              .filter((item) => input.missionId === undefined || item.missionId === input.missionId)
+              .filter((item) => input.taskId === undefined || item.taskId === input.taskId);
+            const quality = new Map(
+              rankEvidenceQuality(candidates, new Map(this.sources.list().map((source) => [source.id, source])), new Date().toISOString())
+                .map((assessment) => [assessment.evidenceId, assessment]),
+            );
+
+            return candidates
+              .map((item) => ({
+                entry: item,
+                relevance: scoreText(queryTokens, normalizedQuery, item.claim, []),
+                quality: quality.get(item.id)?.score ?? 0,
+              }))
+              .filter((item) => item.relevance > 0)
+              .sort(
+                (left, right) =>
+                  right.relevance + right.quality / 20 -
+                    (left.relevance + left.quality / 20) ||
+                  right.quality - left.quality ||
+                  right.entry.capturedAt.localeCompare(left.entry.capturedAt) ||
+                  left.entry.id.localeCompare(right.entry.id),
+              )
+              .slice(0, evidenceLimit);
+          })();
 
     const items: KnowledgeContextItem[] = [];
     const sourceIds = new Set<string>();
@@ -97,7 +114,7 @@ export class KnowledgeContextService {
             id: item.entry.id,
             text,
             memoryId: item.entry.id,
-            score: item.score,
+            score: item.relevance + item.quality / 20,
           },
           maxCharacters,
           usedCharacters,
