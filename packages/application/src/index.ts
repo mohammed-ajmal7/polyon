@@ -388,6 +388,15 @@ export {
   type EvidenceQualityBand,
 } from "./evidence-quality-service";
 
+export {
+  FactCheckService,
+  type ExecuteFactCheckInput,
+  type FactCheckClaim,
+  type FactCheckResult,
+  type FactCheckServiceDependencies,
+  type FactCheckVerdict,
+} from "./fact-check-service";
+
 export { parseStructuredFinding, type ParseStructuredFindingInput } from "./structured-finding-parser";
 
 
