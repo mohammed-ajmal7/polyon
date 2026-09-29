@@ -77,7 +77,8 @@ export class KnowledgeContextService {
             .filter((item) => input.taskId === undefined || item.taskId === input.taskId)
             .map((item) => ({
               entry: item,
-              score: scoreText(queryTokens, normalizedQuery, item.claim, []),
+              score: scoreText(queryTokens, normalizedQuery, item.claim, []) +
+                (item.quality?.score ?? 0) * 2,
             }))
             .filter((item) => item.score > 0)
             .sort(compareEvidence)
