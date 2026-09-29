@@ -16,6 +16,7 @@ import type {
   MissionPlanProposal,
   PolicyDecision,
   Task,
+  A2APushNotificationConfig,
 } from "@polyon/contracts";
 
 import type { EntityStore } from "./entity-store";
@@ -164,6 +165,11 @@ export function createStateContext(
     ),
     policyDecisions: new StateEntityStore<PolicyDecision>(getState, persist, "policyDecisions"),
     tasks: new StateEntityStore<Task>(getState, persist, "tasks"),
+    a2aPushNotificationConfigs: new StateEntityStore<A2APushNotificationConfig>(
+      getState,
+      persist,
+      "a2aPushNotificationConfigs",
+    ),
     events: new StateEventStore(getState, persist),
   };
 }
