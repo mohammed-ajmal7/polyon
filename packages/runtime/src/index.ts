@@ -69,3 +69,26 @@ export {
   type BoundedProcessAgentAdapterOptions,
   type BoundedProcessAgentErrorKind,
 } from "./bounded-process-agent-adapter";
+
+
+export { JobQueue } from "./job-queue";
+export {
+  JobService,
+  type CompleteJobInput,
+  type CreateJobInput,
+  type FailJobInput,
+  type JobServiceDependencies,
+  type RecoverJobsInput,
+} from "./job-service";
+export {
+  createJobRuntime,
+  type JobHandler,
+  type JobHandlerContext,
+  type JobHandlers,
+  type JobRuntime,
+  type JobRuntimeClock,
+  type JobRuntimeDependencies,
+  type JobRuntimeHealth,
+  type JobRuntimeStatus,
+  type JobRuntimeWait,
+} from "./job-runtime";
