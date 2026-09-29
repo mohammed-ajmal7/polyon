@@ -118,7 +118,7 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json(
       {
         jsonrpc: "2.0",
-        id: input.id ?? null,
+        id: null,
         error: { code: -32600, message: "A2A method is required." },
       },
       { status: 400 },
