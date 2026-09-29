@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { FileDomainStores, InMemoryDomainStores, type DomainUnitOfWork } from "@polyon/storage";
+import {
+  FileDomainStores,
+  InMemoryDomainStores,
+  type DomainUnitOfWork,
+  type EventStore,
+  type JobStore,
+} from "@polyon/storage";
 
 import { JobService } from "./job-service";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -9,7 +15,12 @@ import { tmpdir } from "node:os";
 
 const createdAt = "2026-09-29T08:00:00.000Z";
 
-function createService(stores: DomainUnitOfWork & Pick<InMemoryDomainStores, "jobs" | "events"> = new InMemoryDomainStores()): JobService {
+function createService(
+  stores: DomainUnitOfWork & {
+    readonly jobs: JobStore;
+    readonly events: EventStore;
+  } = new InMemoryDomainStores(),
+): JobService {
   return new JobService({
     jobs: stores.jobs,
     events: stores.events,
