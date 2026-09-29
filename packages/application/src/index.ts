@@ -185,6 +185,11 @@ export {
 } from "./bounded-web-research-retriever";
 
 export {
+  BoundedHttpBrowserProvider,
+  type BoundedHttpBrowserProviderOptions,
+} from "./bounded-http-browser-provider";
+
+export {
   ResearchFabric,
   ResearchFabricError,
   type AcademicProvider,
