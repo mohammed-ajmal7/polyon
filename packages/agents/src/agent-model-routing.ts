@@ -8,6 +8,7 @@ import type { ProviderRegistry } from "./provider-registry";
 export interface ResolveAgentModelInput {
   readonly agentId: AgentId;
   readonly requiredCapabilityIds: readonly CapabilityId[];
+  readonly requiredModelCapabilityIds?: readonly CapabilityId[];
 }
 
 export interface AgentModelResolution {
@@ -43,6 +44,9 @@ export function resolveAgentModel(
   const request: ModelRoutingRequest = {
     agentId: input.agentId,
     requiredCapabilityIds: input.requiredCapabilityIds,
+    ...(input.requiredModelCapabilityIds === undefined
+      ? {}
+      : { requiredModelCapabilityIds: input.requiredModelCapabilityIds }),
   };
 
   try {
