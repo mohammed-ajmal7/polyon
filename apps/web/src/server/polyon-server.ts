@@ -28,7 +28,10 @@ export function getPolyonActorId(): string {
 }
 
 export function getPolyonComposition(): PolyonComposition {
-  if (globalState.__polyonComposition !== undefined) return globalState.__polyonComposition;
+  if (globalState.__polyonComposition !== undefined) {
+    globalState.__polyonComposition.stores.refresh();
+    return globalState.__polyonComposition;
+  }
   const composition = createPolyonComposition(buildOptions());
   if (process.env.POLYON_RUNTIME_AUTOSTART !== "false") composition.runtime.start();
   if (process.env.POLYON_SEMANTIC_INDEXING_AUTOSTART !== "false") {
