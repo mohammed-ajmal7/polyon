@@ -141,7 +141,7 @@ export function buildModelRegistrations(
   });
 
   const models = [...profilesByModelId(profiles)].map((profile) => {
-    const configuredCapabilities = profile.modelCapabilityIds ?? profile.capabilityIds ?? ["ai.chat"];
+    const configuredCapabilities = profile.modelCapabilityIds ?? ["ai.chat"];
     const capabilityIds = new Set(configuredCapabilities);
 
     if (profile.supportsTools === true) capabilityIds.add("ai.tool-calling");
