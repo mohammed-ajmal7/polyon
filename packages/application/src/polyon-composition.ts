@@ -315,7 +315,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
           },
           onDeliveryOutcome: (outcome) => {
             stores.events.append({
-              id: `A2A_PUSH_DELIVERY_${outcome.status}:${outcome.configId}:${outcome.taskId}:${Date.now()}`,
+              id: `A2A_PUSH_DELIVERY:${crypto.randomUUID()}`,
               kind:
                 outcome.status === "SUCCEEDED"
                   ? "A2A_PUSH_DELIVERY_SUCCEEDED"
