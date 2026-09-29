@@ -299,7 +299,9 @@ export class A2AServerService {
 
   private getPushNotificationConfig(request: A2AJsonRpcRequest): A2AJsonRpcResponse {
     const service = this.dependencies.pushNotifications;
-    if (service === undefined) return error(request.id, -32004, "A2A push notifications are not supported.");
+    if (service === undefined) {
+      return error(request.id, -32004, "A2A push notifications are not supported.");
+    }
 
     const params = request.params ?? {};
     const taskId = readRequiredString(params.taskId);
@@ -366,7 +368,9 @@ export class A2AServerService {
     const params = request.params ?? {};
     const taskId = readRequiredString(params.taskId);
     const configId = readRequiredString(params.id);
-    if (taskId === "" || configId === "") return error(request.id, -32602, "taskId and id are required.");
+    if (taskId === "" || configId === "") {
+      return error(request.id, -32602, "taskId and id are required.");
+    }
 
     if (!service.deleteConfig(taskId, configId)) {
       return error(request.id, -32001, "Push notification configuration not found.");
