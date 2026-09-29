@@ -180,6 +180,7 @@ export class CollectiveOrchestrationService {
             query: buildResearchQuery(input.command.message.content, role),
             sourceLimit: researchSourceLimit,
             actorId: target.actorId,
+            agentId: target.agentId,
             taskId: collectiveId,
             sourceIdFactory: (index, candidate) =>
               "collective-source-" +
