@@ -92,6 +92,59 @@ describe("built-in artifact tool integration", () => {
     }
   });
 
+  it("treats an identical artifact written by another execution as idempotent", async () => {
+    const root = mkdtempSync(join(tmpdir(), "polyon-artifact-cross-execution-"));
+
+    try {
+      const registries = createInMemoryBuiltinToolRegistries();
+      const stores = new InMemoryDomainStores();
+      registerBuiltinTools(registries, { artifactRoot: root });
+
+      const service = new ToolInvocationService({
+        tools: registries.tools,
+        adapters: registries.adapters,
+        approvals: stores.approvals,
+        policyDecisions: stores.policyDecisions,
+        events: stores.events,
+        artifacts: stores.artifacts,
+        unitOfWork: stores,
+      });
+
+      const write = (suffix: string) =>
+        service.invoke({
+          invocationId: `artifact-cross-${suffix}`,
+          decisionId: `artifact-cross-decision-${suffix}`,
+          approvalRequestId: `artifact-cross-approval-${suffix}`,
+          toolId: BUILTIN_TOOL_IDS.artifactWrite,
+          input: { name: "shared.txt", content: "same artifact", kind: "REPORT" as const },
+          action: "WRITE" as const,
+          riskLevel: "MEDIUM" as const,
+          policy,
+          actorId: "agent-1",
+          missionId: "mission-1",
+          taskId: `task-${suffix}`,
+          executionId: `execution-${suffix}`,
+          agentId: "agent-1",
+          requestedBy: "agent-1",
+          requestedAt: "2026-09-27T01:01:00.000Z",
+          evaluatedAt: "2026-09-27T01:01:00.000Z",
+        });
+
+      const first = await write("1");
+      const second = await write("2");
+
+      expect(first.status).toBe("SUCCEEDED");
+      expect(second).toMatchObject({ status: "SUCCEEDED", output: { created: false } });
+      expect(stores.artifacts.list()).toHaveLength(1);
+      expect(stores.artifacts.list()[0]).toMatchObject({
+        executionId: "execution-1",
+        taskId: "task-1",
+      });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("writes and durably registers an artifact through governed invocation", async () => {
     const root = realpathSync(mkdtempSync(join(tmpdir(), "polyon-artifact-integration-")));
 

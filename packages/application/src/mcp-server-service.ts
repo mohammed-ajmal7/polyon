@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import type { ActionKind, Policy, RiskLevel, Tool } from "@polyon/contracts";
 
 import { InMemoryMcpSubscriptionBus } from "./mcp-subscription-bus";
@@ -45,6 +47,11 @@ export interface McpRequestHeaders {
 export interface McpServerOptions {
   readonly subscriptionMaxDurationMs?: number;
   readonly subscriptionWait?: (milliseconds: number, signal?: AbortSignal) => Promise<void>;
+  /**
+   * Server-side id for each tools/call. Client JSON-RPC ids restart per
+   * session, so they are used only to correlate the response.
+   */
+  readonly createInvocationId?: () => string;
 }
 
 export interface McpServerDependencies {
@@ -78,6 +85,7 @@ export class McpServerService {
   private readonly subscriptions: InMemoryMcpSubscriptionBus;
   private readonly subscriptionMaxDurationMs: number;
   private readonly subscriptionWait: (milliseconds: number, signal?: AbortSignal) => Promise<void>;
+  private readonly createInvocationId: () => string;
 
   constructor(
     private readonly dependencies: McpServerDependencies,
@@ -87,6 +95,7 @@ export class McpServerService {
     this.subscriptionMaxDurationMs =
       options.subscriptionMaxDurationMs ?? DEFAULT_SUBSCRIPTION_MAX_DURATION_MS;
     this.subscriptionWait = options.subscriptionWait ?? defaultWait;
+    this.createInvocationId = options.createInvocationId ?? randomUUID;
 
     if (!Number.isInteger(this.subscriptionMaxDurationMs) || this.subscriptionMaxDurationMs <= 0) {
       throw new RangeError("MCP subscription maximum duration must be a positive integer.");
@@ -153,6 +162,17 @@ export class McpServerService {
       return rpcError(request.id ?? null, -32601, "MCP method is not supported.");
     }
 
+    try {
+      return await this.callTool(request, headers);
+    } catch {
+      return rpcError(request.id ?? null, -32603, "MCP tool invocation failed.");
+    }
+  }
+
+  private async callTool(
+    request: McpJsonRpcRequest,
+    headers: McpRequestHeaders,
+  ): Promise<McpJsonRpcResponse> {
     const params = request.params ?? {};
     const name = typeof params.name === "string" ? params.name.trim() : "";
     if (name === "")
@@ -164,18 +184,19 @@ export class McpServerService {
 
     const input = params.arguments ?? {};
     const tool = this.dependencies.tools.get(name);
+    const callId = this.createInvocationId();
 
     if (tool !== undefined) {
       const action = selectAction(tool);
       const outcome = await this.dependencies.toolInvocation.invoke({
-        invocationId: "mcp:" + String(request.id),
+        invocationId: "mcp:" + callId,
         toolId: tool.id,
         input,
         action,
         riskLevel: defaultRiskForAction(action),
         policy: this.dependencies.policy,
-        decisionId: "mcp-policy:" + String(request.id),
-        approvalRequestId: "mcp-approval:" + String(request.id),
+        decisionId: "mcp-policy:" + callId,
+        approvalRequestId: "mcp-approval:" + callId,
         requestedBy: this.dependencies.actorId,
         requestedAt: new Date().toISOString(),
         evaluatedAt: new Date().toISOString(),
@@ -209,15 +230,15 @@ export class McpServerService {
       return rpcError(request.id ?? null, -32602, "MCP integration has no action classification.");
 
     const outcome = await this.dependencies.integrationInvocation.invoke({
-      invocationId: "mcp:" + String(request.id),
+      invocationId: "mcp:" + callId,
       integrationId: registered.integrationId,
       operation: integration.operation,
       input,
       action,
       riskLevel: defaultRiskForAction(action),
       policy: this.dependencies.policy,
-      decisionId: "mcp-policy:" + String(request.id),
-      approvalRequestId: "mcp-approval:" + String(request.id),
+      decisionId: "mcp-policy:" + callId,
+      approvalRequestId: "mcp-approval:" + callId,
       requestedBy: this.dependencies.actorId,
       requestedAt: new Date().toISOString(),
       evaluatedAt: new Date().toISOString(),

@@ -10,7 +10,7 @@ export interface ParseStructuredFindingInput {
 }
 
 export function parseStructuredFinding(input: ParseStructuredFindingInput): Finding | undefined {
-  const object = extractObject(input.content);
+  const object = extractJsonObject(input.content);
   if (object === undefined) return undefined;
 
   const claim = stringField(object.claim);
@@ -59,7 +59,8 @@ export function parseStructuredFinding(input: ParseStructuredFindingInput): Find
   }
 }
 
-function extractObject(content: string): Record<string, unknown> | undefined {
+/** Parses the outermost JSON object in model output, tolerating code fences and surrounding prose. */
+export function extractJsonObject(content: string): Record<string, unknown> | undefined {
   const start = content.indexOf("{");
   const end = content.lastIndexOf("}");
   if (start < 0 || end <= start) return undefined;
