@@ -1,3 +1,4 @@
+import type { Source } from "@polyon/contracts";
 import { describe, expect, it } from "vitest";
 
 import { assessEvidenceQuality, rankEvidenceQuality } from "./evidence-quality-service";
