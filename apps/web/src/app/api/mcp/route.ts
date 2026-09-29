@@ -78,7 +78,12 @@ function parseSubscriptionRequest(input: McpJsonRpcRequest): {
   }
 
   const notifications = input.params?.notifications;
-  if (notifications === undefined || notifications === null || typeof notifications !== "object") {
+  if (
+    notifications === undefined ||
+    notifications === null ||
+    typeof notifications !== "object" ||
+    Array.isArray(notifications)
+  ) {
     return {
       error: {
         code: -32602,
