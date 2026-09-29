@@ -103,7 +103,7 @@ The historical `feature/core-architecture` branch contains the architecture buil
 
 ## Verification
 
-CI runs all of:
+Local manual verification runs all of:
 
 1. frozen-lockfile dependency installation;
 2. TypeScript typecheck;
