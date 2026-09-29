@@ -1,6 +1,9 @@
 import type { AgentId, Evidence, Source } from "@polyon/contracts";
 
-import { buildAgentRolePrompt } from "@polyon/agents";
+import {
+  buildAgentRolePrompt,
+  type AgentGateway,
+} from "@polyon/agents";
 import type {
   DomainStoreTransactionContext,
   DomainUnitOfWork,
@@ -10,7 +13,6 @@ import type {
 } from "@polyon/storage";
 
 import { rankEvidenceQuality } from "./evidence-quality-service";
-import type { AgentGateway } from "@polyon/agents";
 
 export type FactCheckStatus = "SUPPORTED" | "CONTRADICTED" | "UNRESOLVED";
 
@@ -82,7 +84,7 @@ export class FactCheckService {
 
     const claimResults: FactCheckClaimResult[] = [];
     for (const claim of input.claims) {
-      const relevant = rankRelevantEvidence(claim.text, corpus, quality);
+      const relevant = rankRelevantEvidence(claim.text, corpus, quality, sources);
       const supportingEvidenceIds = relevant
         .filter((item) => item.entry.kind === "SUPPORTING")
         .map((item) => item.entry.id);
@@ -249,6 +251,7 @@ function rankRelevantEvidence(
   claim: string,
   evidence: readonly Evidence[],
   quality: ReadonlyMap<string, { readonly score: number }>,
+  sources: ReadonlyMap<string, Source>,
 ): readonly {
   entry: Evidence;
   source?: Source;
@@ -261,6 +264,7 @@ function rankRelevantEvidence(
       const qualityScore = quality.get(entry.id)?.score ?? 0;
       return {
         entry,
+        source: sources.get(entry.sourceId),
         score: overlap * 10 + qualityScore,
       };
     })
