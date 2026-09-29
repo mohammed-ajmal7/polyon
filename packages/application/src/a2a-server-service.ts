@@ -104,7 +104,7 @@ export class A2AServerService {
     headers: A2ARequestHeaders = {},
   ): Promise<A2AJsonRpcResponse> {
     const versionError = validateVersion(headers.version);
-    if (versionError !== undefined) return error(request.id, -32004, versionError);
+    if (versionError !== undefined) return error(request.id, -32009, versionError);
 
     if (request.jsonrpc !== "2.0") {
       return error(request.id, -32600, "Invalid JSON-RPC request.");
