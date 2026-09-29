@@ -40,6 +40,7 @@ export interface AgentGatewayRoutingOptions {
 
 export interface AgentGatewayInvocationInput<TInput = unknown> {
   readonly agentId: AgentId;
+  readonly runId?: string;
   readonly requiredCapabilityIds: readonly CapabilityId[];
   readonly requiredModelCapabilityIds?: readonly CapabilityId[];
   readonly input: TInput;
@@ -57,6 +58,7 @@ export interface AgentGatewayInvocationResult<TOutput = unknown> {
 
 export interface AgentGatewayTextInvocationInput {
   readonly agentId: AgentId;
+  readonly runId?: string;
   readonly requiredCapabilityIds: readonly CapabilityId[];
   readonly requiredModelCapabilityIds?: readonly CapabilityId[];
   readonly request: TextModelRequest;
@@ -82,6 +84,7 @@ export class AgentGateway {
       input.agentId,
       input.requiredCapabilityIds,
       input.requiredModelCapabilityIds,
+      input.runId,
       input.routing,
       (modelId) => this.dependencies.modelGateway.invokeText(modelId, input.request, input.modelOptions),
     );
@@ -94,6 +97,7 @@ export class AgentGateway {
       input.agentId,
       input.requiredCapabilityIds,
       input.requiredModelCapabilityIds,
+      input.runId,
       input.routing,
       (modelId) =>
         this.dependencies.modelGateway.invoke<TInput, TOutput>(
@@ -108,8 +112,12 @@ export class AgentGateway {
     agentId: AgentId,
     requiredCapabilityIds: readonly CapabilityId[],
     requiredModelCapabilityIds: readonly CapabilityId[] | undefined,
+    runId: string | undefined,
     routingOptions: AgentGatewayRoutingOptions | undefined,
-    invokeModel: (modelId: ModelId) => Promise<{ output: TOutput }>,
+    invokeModel: (
+      modelId: ModelId,
+      usageContext?: { readonly runId?: string; readonly agentId?: AgentId },
+    ) => Promise<{ output: TOutput }>,
   ): Promise<AgentGatewayInvocationResult<TOutput>> {
     let failedProviderId: ProviderId | undefined;
 
@@ -148,7 +156,15 @@ export class AgentGateway {
       }
 
       try {
-        const result = await invokeModel(route.model.id);
+        const result = await invokeModel(
+          route.model.id,
+          runId === undefined && agentId === undefined
+            ? undefined
+            : {
+                ...(runId === undefined ? {} : { runId }),
+                ...(agentId === undefined ? {} : { agentId }),
+              },
+        );
         this.providerHealth.recordSuccess(route.provider.id);
 
         return {
