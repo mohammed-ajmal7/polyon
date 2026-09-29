@@ -5,6 +5,7 @@ import type {
   AgentToolOrchestrationService,
 } from "./agent-tool-orchestration-service";
 import type { CommandIngressResult } from "./command-ingress";
+import type { AgentRunService } from "./agent-run-service";
 import type {
   ConversationStore,
   DomainStoreTransactionContext,
@@ -28,6 +29,7 @@ export interface ExecuteConversationInput {
   readonly missionId?: string;
   readonly taskId?: string;
   readonly executionId?: string;
+  readonly requiredModelCapabilityIds?: readonly string[];
   readonly maxToolRounds?: number;
   readonly maxToolOutputBytes?: number;
 }
@@ -49,16 +51,60 @@ export class ConversationAgentOrchestrationService {
     private readonly conversations: ConversationStore,
     private readonly messages: MessageStore,
     private readonly events: EventStore,
+    private readonly agentRuns?: AgentRunService,
     private readonly unitOfWork?: DomainUnitOfWork,
   ) {}
 
   async execute(input: ExecuteConversationInput): Promise<ConversationExecutionResult> {
+    const runId = `conversation:${input.command.conversation.id}:${input.command.message.id}`;
+
     if (input.command.message.actorId !== input.actorId) {
       throw new Error("Command actor and execution actor must match.");
     }
     if (input.targets.length === 0 || input.targets.length > 20) {
       throw new RangeError("Conversation execution requires 1-20 agent targets.");
     }
+
+    if (this.agentRuns !== undefined) {
+      const existingRun = this.agentRuns.get(runId);
+      if (existingRun === undefined) {
+        this.agentRuns.create({
+          id: runId,
+          userId: input.actorId,
+          task: input.command.message.content,
+          mode: "simple",
+          agentIds: input.targets.map((target) => target.agentId),
+          createdAt: new Date().toISOString(),
+        });
+        this.agentRuns.start(runId, new Date().toISOString());
+      } else if (existingRun.status === "queued") {
+        this.agentRuns.start(runId, new Date().toISOString());
+      } else if (existingRun.status !== "running") {
+        throw new Error(`Conversation run already reached terminal state: ${runId}.`);
+      }
+    }
+
+    try {
+      return await this.executeStarted(input, runId);
+    } catch (error) {
+      const run = this.agentRuns?.get(runId);
+      if (run?.status === "running") {
+        this.agentRuns?.syncMessageIds(runId);
+        this.agentRuns?.fail({
+          id: runId,
+          error: error instanceof Error ? error.message : "Conversation execution failed unexpectedly.",
+          completedAt: new Date().toISOString(),
+        });
+      }
+      throw error;
+    }
+
+  }
+
+  private async executeStarted(
+    input: ExecuteConversationInput,
+    runId: string,
+  ): Promise<ConversationExecutionResult> {
 
     const requestBase: TextModelRequest = {
       messages: [{ role: "USER", content: input.command.message.content }],
@@ -72,6 +118,9 @@ export class ConversationAgentOrchestrationService {
       const result = await this.orchestration.invoke({
         agentId: target.agentId,
         requiredCapabilityIds: input.requiredCapabilityIds,
+        ...(input.requiredModelCapabilityIds === undefined
+          ? {}
+          : { requiredModelCapabilityIds: input.requiredModelCapabilityIds }),
         request: requestBase,
         policy: input.policy,
         actorId: input.actorId,
@@ -92,6 +141,12 @@ export class ConversationAgentOrchestrationService {
           role: "AGENT",
           kind: "TEXT",
           content: result.response.content,
+          runId,
+          fromAgentId: target.agentId,
+          agentMessageType: "finding",
+          payload: {
+            status: result.status,
+          },
           createdAt: new Date().toISOString(),
         };
 
