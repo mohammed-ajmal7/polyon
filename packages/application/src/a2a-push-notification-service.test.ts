@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { A2APushNotificationConfig } from "@polyon/contracts";
 import { InMemoryEntityStore } from "@polyon/storage";
 
 import {
@@ -51,13 +52,8 @@ describe("A2A push notifications", () => {
   });
 
   it("persists configurations through the durable storage adapter", () => {
-    const store = new InMemoryEntityStore<{
-      readonly id: string;
-      readonly ownerId: string;
-      readonly taskId: string;
-      readonly url: string;
-    }>();
-    const durable = createDurableA2APushNotificationStore(store as never);
+    const store = new InMemoryEntityStore<A2APushNotificationConfig>();
+    const durable = createDurableA2APushNotificationStore(store);
     const created = durable.create("actor-1", {
       taskId: "task-1",
       url: "https://client.example.test/a2a/push",
