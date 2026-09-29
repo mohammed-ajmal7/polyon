@@ -629,6 +629,34 @@ describe("A2A task listing", () => {
     });
   });
 
+  it("serves the authenticated extended agent card operation", async () => {
+    const server = service();
+
+    const card = server.agentCard("https://polyon.example");
+    expect(card).toMatchObject({
+      capabilities: {
+        extendedAgentCard: true,
+      },
+    });
+
+    const response = await server.handle({
+      jsonrpc: "2.0",
+      id: 9,
+      method: "GetExtendedAgentCard",
+    });
+
+    expect(response).toMatchObject({
+      jsonrpc: "2.0",
+      id: 9,
+      result: {
+        capabilities: {
+          extendedAgentCard: true,
+        },
+        name: "POLYON",
+      },
+    });
+  });
+
   it("rejects invalid pagination parameters and tokens", async () => {
     const invalidSize = await service().handle({
       jsonrpc: "2.0",
