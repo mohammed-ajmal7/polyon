@@ -36,6 +36,38 @@ describe("built-in provider presets", () => {
     });
   });
 
+  it("defines Groq and OpenRouter as hosted provider presets", () => {
+    expect(getBuiltInProviderPreset("groq")).toEqual({
+      providerId: "groq",
+      providerName: "Groq",
+      kind: "HOSTED_MODEL",
+      defaultEndpoint: "https://api.groq.com/openai/v1/chat/completions",
+      defaultApiKeyEnv: "GROQ_API_KEY",
+      privacyClass: "cloud",
+      costClass: "paid",
+    });
+    expect(getBuiltInProviderPreset("openrouter")).toEqual({
+      providerId: "openrouter",
+      providerName: "OpenRouter",
+      kind: "HOSTED_MODEL",
+      defaultEndpoint: "https://openrouter.ai/api/v1/chat/completions",
+      defaultApiKeyEnv: "OPENROUTER_API_KEY",
+      privacyClass: "cloud",
+      costClass: "paid",
+    });
+  });
+
+  it("resolves the new built-in endpoints without explicit endpoint configuration", () => {
+    expect(resolveProviderEndpoint("groq")).toBe(
+      "https://api.groq.com/openai/v1/chat/completions",
+    );
+    expect(resolveProviderEndpoint("openrouter")).toBe(
+      "https://openrouter.ai/api/v1/chat/completions",
+    );
+    expect(resolveProviderApiKeyEnv("groq")).toBe("GROQ_API_KEY");
+    expect(resolveProviderApiKeyEnv("openrouter")).toBe("OPENROUTER_API_KEY");
+  });
+
   it("keeps custom providers supported when an explicit endpoint is supplied", () => {
     expect(resolveProviderEndpoint("custom-provider", "https://example.test/chat")).toBe(
       "https://example.test/chat",

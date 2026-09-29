@@ -158,8 +158,8 @@ export function buildModelRegistrations(
       ...(profile.contextWindow === undefined ? {} : { contextWindow: profile.contextWindow }),
       ...(profile.supportsTools === undefined ? {} : { supportsTools: profile.supportsTools }),
       ...(profile.supportsVision === undefined ? {} : { supportsVision: profile.supportsVision }),
-      ...(profile.privacyClass === undefined ? {} : { privacyClass: profile.privacyClass }),
-      ...(profile.costClass === undefined ? {} : { costClass: profile.costClass }),
+      privacyClass: profile.privacyClass ?? getBuiltInProviderPreset(profile.providerId)?.privacyClass,
+      costClass: profile.costClass ?? getBuiltInProviderPreset(profile.providerId)?.costClass,
       enabled: true,
     };
   });

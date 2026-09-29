@@ -9,6 +9,8 @@ POLYON currently defines these built-in provider configurations:
 - Ollama: local model provider with a loopback OpenAI-compatible chat endpoint.
 - Google Gemini: hosted provider using Google's OpenAI-compatible chat endpoint.
 - OpenAI: hosted provider using the OpenAI Chat Completions endpoint.
+- Groq: hosted provider using Groq's OpenAI-compatible Chat API endpoint.
+- OpenRouter: hosted provider using OpenRouter's OpenAI-compatible API endpoint.
 
 Built-in profiles may omit an endpoint because POLYON can resolve the configured provider default. Custom providers must provide an explicit endpoint.
 

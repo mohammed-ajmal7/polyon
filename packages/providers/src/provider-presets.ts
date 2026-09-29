@@ -7,7 +7,7 @@ import type {
 } from "./openai-compatible-text-model-adapter";
 import type { TextModelProviderAdapter } from "./provider-adapter";
 
-export type BuiltInProviderId = "ollama" | "gemini" | "openai";
+export type BuiltInProviderId = "ollama" | "gemini" | "openai" | "groq" | "openrouter";
 
 export interface BuiltInProviderPreset {
   readonly providerId: BuiltInProviderId;
@@ -45,6 +45,24 @@ const BUILT_IN_PROVIDER_PRESETS: Readonly<Record<BuiltInProviderId, BuiltInProvi
     kind: "HOSTED_MODEL",
     defaultEndpoint: "https://api.openai.com/v1/chat/completions",
     defaultApiKeyEnv: "OPENAI_API_KEY",
+    privacyClass: "cloud",
+    costClass: "paid",
+  },
+  groq: {
+    providerId: "groq",
+    providerName: "Groq",
+    kind: "HOSTED_MODEL",
+    defaultEndpoint: "https://api.groq.com/openai/v1/chat/completions",
+    defaultApiKeyEnv: "GROQ_API_KEY",
+    privacyClass: "cloud",
+    costClass: "paid",
+  },
+  openrouter: {
+    providerId: "openrouter",
+    providerName: "OpenRouter",
+    kind: "HOSTED_MODEL",
+    defaultEndpoint: "https://openrouter.ai/api/v1/chat/completions",
+    defaultApiKeyEnv: "OPENROUTER_API_KEY",
     privacyClass: "cloud",
     costClass: "paid",
   },
@@ -108,5 +126,11 @@ export function createTextModelProviderAdapter(
 }
 
 function isBuiltInProviderId(providerId: ProviderId): providerId is BuiltInProviderId {
-  return providerId === "ollama" || providerId === "gemini" || providerId === "openai";
+  return (
+    providerId === "ollama" ||
+    providerId === "gemini" ||
+    providerId === "openai" ||
+    providerId === "groq" ||
+    providerId === "openrouter"
+  );
 }
