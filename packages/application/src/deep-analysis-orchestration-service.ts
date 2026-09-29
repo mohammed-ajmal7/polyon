@@ -193,7 +193,7 @@ export class DeepAnalysisOrchestrationService {
       kind: "DEEP_ANALYSIS_COMPLETED",
       actorId: synthesizerAgentId,
       conversationId: input.command.conversation.id,
-      agentRunId: collective.runId,
+      agentRunId,
       occurredAt: now(),
       data: {
         deepAnalysisId,
@@ -251,7 +251,7 @@ export class DeepAnalysisOrchestrationService {
             role: "AGENT",
             kind: "TEXT",
             content: contribution.content,
-            runId: collective.runId,
+            runId: agentRunId,
             fromAgentId: contribution.agentId,
             agentMessageType: contribution.phase === "ADJUDICATION" ? "decision" : "challenge",
             payload: {
@@ -319,6 +319,7 @@ export class DeepAnalysisOrchestrationService {
     deepAnalysisId: string,
     occurredAt: string,
     error: string,
+    agentRunId: string,
   ): void {
     this.persistEvent({
       id: "ERROR:DEEP_ANALYSIS:" + deepAnalysisId,
