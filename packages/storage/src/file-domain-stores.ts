@@ -103,6 +103,10 @@ export class FileDomainStores implements DurableDomainStores {
     return this.context.tasks;
   }
 
+  get a2aPushNotificationConfigs() {
+    return this.context.a2aPushNotificationConfigs;
+  }
+
   get events() {
     return this.context.events;
   }
