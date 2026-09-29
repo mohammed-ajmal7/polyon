@@ -13,6 +13,7 @@ export interface SemanticMemoryIndexJobBridge {
   }): Job;
   get(id: string): Job | undefined;
   list(): readonly Job[];
+  cancel?(id: string, cancelledAt: string): Job | undefined;
 }
 
 export interface SemanticMemoryIndexJobContext {
@@ -264,7 +265,7 @@ export function createSemanticMemoryIndexer(
 
     try {
       const result = await executeCycle(context.signal);
-      if (options.jobBridge !== undefined) {
+      if (options.jobBridge !== undefined && running) {
         const completedAt = new Date().toISOString();
         const nextRunAt = new Date(
           Date.parse(completedAt) + intervalMs,
@@ -275,6 +276,7 @@ export function createSemanticMemoryIndexer(
     } catch (error) {
       if (
         options.jobBridge !== undefined &&
+        running &&
         context.job.attempt >= context.job.maxAttempts
       ) {
         const retryAt = new Date(
@@ -315,6 +317,16 @@ export function createSemanticMemoryIndexer(
       }
       controller?.abort();
       controller = undefined;
+
+      if (options.jobBridge !== undefined && options.jobBridge.cancel !== undefined) {
+        const queuedJobs = options.jobBridge
+          .list()
+          .filter((job) => isMatchingDurableJob(job) && job.status === "queued");
+        const cancelledAt = new Date().toISOString();
+        for (const job of queuedJobs) {
+          options.jobBridge.cancel(job.id, cancelledAt);
+        }
+      }
     },
 
     runOnce(): Promise<{
