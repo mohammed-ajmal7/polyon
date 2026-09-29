@@ -154,8 +154,7 @@ export class ResearchFabric {
   listAcademicProviders(): readonly AcademicProvider[] {
     return [...this.academicProviders.values()];
   }
-
-
+}
 
 function registerProvider<T extends { readonly id: string }>(
   collection: Map<string, T>,
