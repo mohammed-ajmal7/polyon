@@ -65,7 +65,7 @@ The current integration line contains the core operating loop for:
 - governed filesystem, terminal, Git, artifact, and integration tools;
 - Google Drive, Telegram, and SMTP Email adapters;
 - durable memory, Source/Evidence records, bounded web research, evidence-grounded synthesis, and optional semantic memory search with durable embeddings;
-- bounded automatic semantic indexing with explicit privacy scope opt-in and an exact local vector index with a replaceable acceleration boundary;
+- bounded automatic semantic indexing with explicit privacy scope opt-in and an exact local vector index with model/dimension candidate bucketing behind a replaceable acceleration boundary;
 - authenticated MCP 2026-07-28 subscriptions/listen streaming with bounded notification buffering and a typed publisher boundary;
 - A2A 1.0 push-notification configuration with durable task-event dispatch, bounded retries, and delivery auditing;
 - explicit bounded coding-agent tool/process execution;
