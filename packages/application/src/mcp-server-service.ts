@@ -428,31 +428,15 @@ function parseSubscriptionFilter(value: unknown): {
     return { filter: {}, error: "resourcesListChanged must be boolean." };
   }
 
-  if (promptsListChanged === true || resourcesListChanged === true) {
-    return {
-      filter: {},
-      error: "This MCP server does not support prompt/resource list change subscriptions.",
-    };
-  }
-  if (resourceSubscriptions !== undefined && resourceSubscriptions.length > 0) {
-    return {
-      filter: {},
-      error: "This MCP server does not support resource subscriptions.",
-    };
-  }
-  if (toolsListChanged !== true) {
-    return {
-      filter: {},
-      error: "subscriptions/listen currently requires toolsListChanged: true.",
-    };
-  }
-
   return {
-    filter: {
-      notifications: {
-        toolsListChanged: true,
-      },
-    },
+    filter:
+      toolsListChanged === true
+        ? {
+            notifications: {
+              toolsListChanged: true,
+            },
+          }
+        : {},
   };
 }
 
