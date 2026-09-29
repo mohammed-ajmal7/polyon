@@ -59,7 +59,7 @@ export class MissionPlanningService {
               '{"rationale":"string","tasks":[{"id":"string","kind":"RESEARCH|ANALYSIS|CODING|CREATIVE|VALIDATION|OTHER","title":"string","description":"string","dependsOn":["task-id"]}]}. ' +
               "Create a finite task graph for the mission. Never invent capabilities, tools, credentials, or external actions. " +
               "Keep dependencies acyclic and use only task IDs declared in the same response.\n" +
-              buildAgentRolePrompt(undefined, "planning"),
+              buildAgentRolePrompt(undefined, "planning", "planner"),
           },
           {
             role: "USER",
