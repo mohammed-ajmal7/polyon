@@ -468,7 +468,12 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   const embeddingGateway =
     options.embeddingProvider === undefined
       ? undefined
-      : new EmbeddingGateway({ models, providers, adapters: embeddingAdapters });
+      : new EmbeddingGateway({
+          models,
+          providers,
+          adapters: embeddingAdapters,
+          ...(options.usageGovernor === undefined ? {} : { usageGovernor: options.usageGovernor }),
+        });
   const agentGateway = new AgentGateway({
     agents,
     models,
@@ -748,11 +753,12 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
       ...(options.toolPolicy === undefined
         ? {}
         : {
-            resumeApprovedToolContinuation: async (executionId) => {
+            resumeApprovedToolContinuation: async (executionId, signal) => {
               const result = await agentToolOrchestration.resumeApprovedExecution(
                 executionId,
                 options.toolPolicy!,
                 options.maxToolOutputBytes,
+                signal,
               );
               if (result.status === "NO_CONTINUATION") {
                 return { status: "NO_CONTINUATION" as const };

@@ -504,6 +504,7 @@ export class AgentToolOrchestrationService {
     executionId: string,
     policy: Policy,
     maxToolOutputBytes = DEFAULT_MAX_TOOL_OUTPUT_BYTES,
+    signal?: AbortSignal,
   ): Promise<AgentToolOrchestrationResult> {
     assertPositiveLimit(maxToolOutputBytes, "maxToolOutputBytes");
     const candidates = this.dependencies.approvals
@@ -540,6 +541,7 @@ export class AgentToolOrchestrationService {
         executionId,
         policy,
         maxToolOutputBytes,
+        signal,
       );
     }
 
@@ -551,6 +553,10 @@ export class AgentToolOrchestrationService {
         response: continuation.response,
         rounds: continuation.rounds,
       };
+    }
+
+    if (isAborted(signal)) {
+      return cancelledResult(continuation.response, continuation.rounds);
     }
 
     if (continuation.state === "AWAITING_TOOL") {
@@ -614,6 +620,7 @@ export class AgentToolOrchestrationService {
         requiredCapabilityIds: continuation.requiredCapabilityIds,
         requiredModelCapabilityIds: continuation.requiredModelCapabilityIds ?? ["ai.tool-calling"],
         request: this.withToolDefinitions(pending.nextRequest),
+        ...withSignal(signal),
       });
 
       continuation = {
@@ -645,6 +652,7 @@ export class AgentToolOrchestrationService {
           maxToolRounds: 8,
           maxToolOutputBytes,
           checkpointApprovalId: approval.id,
+          ...(signal === undefined ? {} : { signal }),
         },
         request,
         continuation.response,
@@ -669,7 +677,12 @@ export class AgentToolOrchestrationService {
     executionId: string,
     policy: Policy,
     maxToolOutputBytes: number,
+    signal?: AbortSignal,
   ): Promise<AgentToolOrchestrationResult> {
+    if (continuation.state !== "COMPLETED" && isAborted(signal)) {
+      return cancelledResult(continuation.response, continuation.rounds);
+    }
+
     if (continuation.state === "COMPLETED") {
       return {
         status: "SUCCEEDED",
@@ -757,6 +770,7 @@ export class AgentToolOrchestrationService {
         requiredCapabilityIds: current.requiredCapabilityIds,
         requiredModelCapabilityIds: current.requiredModelCapabilityIds ?? ["ai.tool-calling"],
         request: this.withToolDefinitions(pending.nextRequest),
+        ...withSignal(signal),
       });
 
       current = {
@@ -787,6 +801,7 @@ export class AgentToolOrchestrationService {
           maxToolRounds: 8,
           maxToolOutputBytes,
           checkpointApprovalId: approval.id,
+          ...(signal === undefined ? {} : { signal }),
         },
         current.nextRequest,
         current.response,

@@ -416,6 +416,78 @@ describe("AgentToolOrchestrationService", () => {
     }
   });
 
+  it("does not run an approved tool when the resumed execution was cancelled", async () => {
+    const root = mkdtempSync(join(tmpdir(), "polyon-tool-cancelled-resume-"));
+    let toolCalls = 0;
+    const modelInvoke = vi.fn();
+
+    try {
+      const stores = new FileDomainStores(root);
+      const { orchestrator, toolInvocation } = createOrchestrator(
+        stores,
+        modelInvoke as never,
+        vi.fn(async () => {
+          toolCalls += 1;
+          return { output: "tool result" };
+        }),
+      );
+
+      await toolInvocation.invoke({
+        invocationId: "tool-call:call-1",
+        toolId: tool.id,
+        input: { value: "hello" },
+        action: "TERMINAL",
+        riskLevel: "MEDIUM",
+        policy,
+        decisionId: "policy-decision:call-1",
+        approvalRequestId: "approval:call-1",
+        requestedBy: "actor.test",
+        requestedAt: now,
+        evaluatedAt: now,
+        actorId: "actor.test",
+        executionId: "execution.cancelled-resume",
+        agentId,
+        toolContinuation: {
+          agentId,
+          requiredCapabilityIds: ["text.generate"],
+          request: { messages: [{ role: "USER", content: "Use the tool." }] },
+          response: {
+            content: "",
+            finishReason: "TOOL_CALL",
+            toolCalls: [{ id: "call-1", toolId: tool.id, input: { value: "hello" } }],
+          },
+          toolCall: { id: "call-1", toolId: tool.id, input: { value: "hello" } },
+          rounds: 1,
+          state: "AWAITING_TOOL",
+        },
+      });
+      toolInvocation.resolveApproval({
+        approvalId: "approval:call-1",
+        status: "APPROVED",
+        resolvedAt: "2026-09-27T02:01:00.000Z",
+        resolvedBy: "actor.test",
+      });
+
+      const controller = new AbortController();
+      controller.abort();
+      const result = await orchestrator.resumeApprovedExecution(
+        "execution.cancelled-resume",
+        policy,
+        undefined,
+        controller.signal,
+      );
+
+      expect(result).toMatchObject({
+        status: "FAILED",
+        error: "Tool orchestration was cancelled.",
+      });
+      expect(toolCalls).toBe(0);
+      expect(modelInvoke).not.toHaveBeenCalled();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("recovers an approved continuation without re-running a completed tool after restart", async () => {
     const root = mkdtempSync(join(tmpdir(), "polyon-tool-continuation-"));
     let toolCalls = 0;
