@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { JobService } from "@polyon/runtime";
 import { InMemoryDomainStores } from "@polyon/storage";
@@ -6,6 +6,10 @@ import { InMemoryDomainStores } from "@polyon/storage";
 import { createSemanticMemoryIndexer } from "./semantic-memory-indexer";
 
 describe("createSemanticMemoryIndexer", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("runs an immediate bounded cycle on start and schedules future cycles", async () => {
     const reindex = vi.fn(async () => ({ indexed: 2, removed: 1, stale: 0, skipped: 3 }));
     const service = { reindex } as never;
@@ -149,6 +153,9 @@ describe("createSemanticMemoryIndexer", () => {
   });
 
   it("runs a durable indexing job and schedules the next cycle", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-29T08:00:00.000Z"));
+
     const stores = new InMemoryDomainStores();
     const jobs = new JobService({ jobs: stores.jobs, events: stores.events, unitOfWork: stores });
     const reindex = vi.fn(async () => ({ indexed: 4, removed: 1, stale: 2, skipped: 3 }));
@@ -180,6 +187,9 @@ describe("createSemanticMemoryIndexer", () => {
   });
 
   it("keeps the schedule alive when the final retry attempt fails", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-29T08:00:00.000Z"));
+
     const stores = new InMemoryDomainStores();
     const jobs = new JobService({ jobs: stores.jobs, events: stores.events, unitOfWork: stores });
     const reindex = vi.fn(async () => {
@@ -211,5 +221,4 @@ describe("createSemanticMemoryIndexer", () => {
     });
     indexer.stop();
   });
-
 });

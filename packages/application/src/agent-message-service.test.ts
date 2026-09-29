@@ -178,9 +178,16 @@ describe("AgentMessageService", () => {
       unitOfWork: stores,
     });
 
+    // Storage transactions do not nest, so the in-transaction service writes through the
+    // transaction context stores that the outer rollback governs.
     expect(() =>
-      stores.transaction(() => {
-        service.send({
+      stores.transaction((context) => {
+        const transactional = new AgentMessageService({
+          conversations: context.conversations,
+          messages: context.messages,
+          events: context.events,
+        });
+        transactional.send({
           messageId: "agent-message-rollback",
           runId: "run-5",
           conversationId: conversation.id,
@@ -224,9 +231,7 @@ describe("AgentMessageService", () => {
       });
 
       const reopened = new FileDomainStores(root);
-      expect(
-        reopened.messages.get("agent-message-durable"),
-      ).toMatchObject({
+      expect(reopened.messages.get("agent-message-durable")).toMatchObject({
         runId: "run-durable",
         fromAgentId: "researcher",
         agentMessageType: "finding",

@@ -115,7 +115,9 @@ export function createSemanticMemoryIndexer(
   }
 
   if (!Number.isInteger(jobMaxAttempts) || jobMaxAttempts < 1 || jobMaxAttempts > 10) {
-    throw new RangeError("Semantic memory indexing job max attempts must be an integer between 1 and 10.");
+    throw new RangeError(
+      "Semantic memory indexing job max attempts must be an integer between 1 and 10.",
+    );
   }
 
   let running = false;
@@ -200,7 +202,7 @@ export function createSemanticMemoryIndexer(
     }
 
     const latest = jobs[0];
-    const cycle = (readCycle(latest) ?? 0) + 1;
+    const cycle = (latest === undefined ? 0 : (readCycle(latest) ?? 0)) + 1;
 
     const runAt =
       latest?.status === "completed" && latest.completedAt !== undefined
@@ -278,9 +280,7 @@ export function createSemanticMemoryIndexer(
       const result = await executeCycle(context.signal);
       if (options.jobBridge !== undefined && running) {
         const completedAt = new Date().toISOString();
-        const nextRunAt = new Date(
-          Date.parse(completedAt) + intervalMs,
-        ).toISOString();
+        const nextRunAt = new Date(Date.parse(completedAt) + intervalMs).toISOString();
         scheduleNextDurableJob(cycle + 1, nextRunAt, completedAt);
       }
       return result;
@@ -290,9 +290,7 @@ export function createSemanticMemoryIndexer(
         running &&
         context.job.attempt >= context.job.maxAttempts
       ) {
-        const retryAt = new Date(
-          Date.parse(context.now) + intervalMs,
-        ).toISOString();
+        const retryAt = new Date(Date.parse(context.now) + intervalMs).toISOString();
         scheduleNextDurableJob(cycle + 1, retryAt, context.now);
       }
       throw error;

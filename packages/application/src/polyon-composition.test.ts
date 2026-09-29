@@ -310,15 +310,11 @@ describe("createPolyonComposition", () => {
         limit: 2,
       });
 
-      expect(result.map((item) => item.memory.id)).toEqual([
-        "memory.vector.a",
-        "memory.vector.b",
-      ]);
+      expect(result.map((item) => item.memory.id)).toEqual(["memory.vector.a", "memory.vector.b"]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
   });
-
 
   it("wires an optional embedding provider to durable semantic memory", async () => {
     const root = mkdtempSync(join(tmpdir(), "polyon-composition-embedding-"));
@@ -390,7 +386,8 @@ describe("createPolyonComposition", () => {
         semanticMemoryIndexJobUserId: "actor.test",
         semanticMemoryIndexIntervalMs: 1_000,
         jobPollIntervalMs: 1,
-        jobWait: async () => Promise.resolve(),
+        // Yield a macrotask so the runtime loop cannot starve vi.waitFor's timers.
+        jobWait: () => new Promise<void>((resolve) => setImmediate(resolve)),
       });
 
       composition.semanticMemoryIndexer!.start();
@@ -634,7 +631,14 @@ describe("createPolyonComposition", () => {
         storageRoot: root,
         filesystemRoot: workspace,
         providers: [{ provider, adapter }],
-        models: [{ ...model, id: "model.tool-loop", providerId: provider.id }],
+        models: [
+          {
+            ...model,
+            id: "model.tool-loop",
+            providerId: provider.id,
+            capabilityIds: [...model.capabilityIds, "ai.tool-calling"],
+          },
+        ],
         agents: [{ ...agent, id: "agent.tool-loop", preferredModelId: "model.tool-loop" }],
         toolPolicy: policy,
         maxToolRounds: 3,

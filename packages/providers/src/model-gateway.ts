@@ -17,6 +17,7 @@ import {
   UsageGovernor,
   type UsageCostClass,
   type UsageInvocationContext,
+  type UsageReservation,
 } from "./usage-governor";
 import type { ModelInvocationTelemetrySink } from "./model-invocation-telemetry";
 
@@ -155,6 +156,8 @@ export class ModelGateway {
       throw new RangeError("Model invocation retries must be a non-negative integer.");
     }
 
+    const reservation = this.authorizeUsage(provider, model, modelId, options);
+
     return this.invokeWithRetry<TInput, TOutput>(
       adapter,
       provider,
@@ -162,7 +165,25 @@ export class ModelGateway {
       modelId,
       input,
       options,
+      reservation,
     );
+  }
+
+  private authorizeUsage(
+    provider: Provider,
+    model: Model,
+    modelId: ModelId,
+    options: ModelInvocationOptions,
+  ): UsageReservation | undefined {
+    return this.dependencies.usageGovernor?.authorize({
+      providerId: provider.id,
+      modelId,
+      estimatedTokens: options.estimatedTokens,
+      context: {
+        ...options.usageContext,
+        costClass: options.usageContext?.costClass ?? effectiveCostClass(model, provider),
+      },
+    });
   }
 
   private async invokeWithRetry<TInput, TOutput>(
@@ -172,32 +193,23 @@ export class ModelGateway {
     modelId: ModelId,
     input: TInput,
     options: ModelInvocationOptions,
+    initialReservation: UsageReservation | undefined,
   ): Promise<ProviderInvocationResult<TOutput>> {
     let attempt = 0;
     const maxRetries = options.retries ?? 0;
+    let reservation = initialReservation;
 
     while (true) {
+      // Each retry is a new provider request and must be authorized against the budget.
+      // Usage governor errors propagate as-is; they are not provider failures.
+      if (attempt > 0) {
+        reservation = this.authorizeUsage(provider, model, modelId, options);
+      }
+
       const startedAt = Date.now();
-      let reservation: ReturnType<UsageGovernor["authorize"]> | undefined;
 
       try {
-        reservation = this.dependencies.usageGovernor?.authorize({
-          providerId: provider.id,
-          modelId,
-          estimatedTokens: options.estimatedTokens,
-          context: {
-            ...options.usageContext,
-            costClass:
-              options.usageContext?.costClass ?? effectiveCostClass(model, provider),
-          },
-        });
-
-        const result = await this.invokeOnce<TInput, TOutput>(
-          adapter,
-          modelId,
-          input,
-          options,
-        );
+        const result = await this.invokeOnce<TInput, TOutput>(adapter, modelId, input, options);
         const actualTokens = extractUsageTokens(result);
         reservation?.complete(actualTokens);
         await this.recordTelemetry({
@@ -210,8 +222,7 @@ export class ModelGateway {
           estimatedTokens: options.estimatedTokens,
           actualTokens,
           latencyMs: Math.max(0, Date.now() - startedAt),
-          costClass:
-            options.usageContext?.costClass ?? effectiveCostClass(model, provider),
+          costClass: options.usageContext?.costClass ?? effectiveCostClass(model, provider),
           recordedAt: new Date().toISOString(),
         });
         return result;
@@ -228,8 +239,7 @@ export class ModelGateway {
           status: "FAILED",
           estimatedTokens: options.estimatedTokens,
           latencyMs: Math.max(0, Date.now() - startedAt),
-          costClass:
-            options.usageContext?.costClass ?? effectiveCostClass(model, provider),
+          costClass: options.usageContext?.costClass ?? effectiveCostClass(model, provider),
           errorKind: normalized.kind,
           recordedAt: new Date().toISOString(),
         });

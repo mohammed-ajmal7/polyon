@@ -17,10 +17,13 @@ export default function MemoryPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function search() {
-    const response = await fetch("/api/memory?limit=50&q=" + encodeURIComponent(query), {
-      cache: "no-store",
-    });
+  async function searchMemory(searchQuery: string) {
+    const response = await fetch(
+      "/api/memory?limit=50&q=" + encodeURIComponent(searchQuery),
+      {
+        cache: "no-store",
+      },
+    );
     const body = (await response.json().catch(() => ({}))) as {
       memories?: Memory[];
       error?: string;
@@ -29,8 +32,12 @@ export default function MemoryPage() {
     setMemories(body.memories ?? []);
   }
 
+  async function search() {
+    await searchMemory(query);
+  }
+
   useEffect(() => {
-    void search().catch((cause) =>
+    void searchMemory("").catch((cause) =>
       setError(cause instanceof Error ? cause.message : "Memory search failed."),
     );
   }, []);

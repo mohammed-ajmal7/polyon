@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
-import { isAbsolute, relative, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { createHash } from "node:crypto";
 
 import type { Artifact, ArtifactId } from "@polyon/contracts";
@@ -87,7 +87,7 @@ export class LocalArtifactContentService {
 
     const location = artifact.location;
     const candidate = isAbsolute(location) ? location : resolve(this.rootDir, location);
-    const resolved = existsSync(candidate) ? realpathSync(candidate) : candidate;
+    const resolved = resolveThroughExistingAncestor(candidate);
 
     if (!isInsideRoot(this.rootDir, resolved)) {
       throw new LocalArtifactContentServiceError(
@@ -149,4 +149,13 @@ function isInsideRoot(rootDir: string, candidate: string): boolean {
   const rel = relative(rootDir, candidate);
 
   return rel === "" || (!isAbsolute(rel) && rel !== ".." && !rel.startsWith(".." + sep));
+}
+
+function resolveThroughExistingAncestor(path: string): string {
+  if (existsSync(path)) return realpathSync(path);
+
+  const parent = dirname(path);
+  if (parent === path) return path;
+
+  return join(resolveThroughExistingAncestor(parent), basename(path));
 }

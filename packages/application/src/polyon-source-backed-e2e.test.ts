@@ -10,12 +10,7 @@ import { createPolyonComposition, type PolyonProviderRegistration } from "./poly
 
 const now = "2026-09-29T08:00:00.000Z";
 
-function makeAgent(
-  agentId: string,
-  modelId: string,
-  role: string,
-  providerId: string,
-): Agent {
+function makeAgent(agentId: string, modelId: string, role: string, providerId: string): Agent {
   return {
     id: agentId,
     name: agentId,
@@ -149,7 +144,8 @@ describe("POLYON minimum source-backed deep-analysis flow", () => {
 
       const command = composition.commandIngress.submit({
         mode: "DeepAnalysis",
-        command: "Investigate the strongest explanations for this incident and verify the evidence.",
+        command:
+          "Investigate the strongest explanations for this incident and verify the evidence.",
         actorId: "user.e2e",
         conversationId: "conversation.source-backed-e2e",
         messageId: "message.source-backed-e2e",
@@ -183,7 +179,7 @@ describe("POLYON minimum source-backed deep-analysis flow", () => {
       );
       expect(result.collective.sourceIds).toHaveLength(3);
       expect(result.collective.evidenceIds).toHaveLength(3);
-      expect(result.collective.challenges).toHaveLength(3);
+      expect(result.collective.challenges).toHaveLength(4);
       expect(result.debate?.debate.status).toBe("DECIDED");
       expect(result.decision?.actorId).toBe("judge");
       expect(result.decision?.content).toContain("[source:");
@@ -201,7 +197,7 @@ describe("POLYON minimum source-backed deep-analysis flow", () => {
       expect(events.filter((event) => event.kind === "SOURCE_RETRIEVED")).toHaveLength(3);
       expect(events.filter((event) => event.kind === "EVIDENCE_CAPTURED")).toHaveLength(3);
       expect(events.filter((event) => event.kind === "COLLECTIVE_CONTRIBUTION")).toHaveLength(3);
-      expect(events.filter((event) => event.kind === "COLLECTIVE_CHALLENGE")).toHaveLength(3);
+      expect(events.filter((event) => event.kind === "COLLECTIVE_CHALLENGE")).toHaveLength(4);
       expect(events.filter((event) => event.kind === "DEBATE_DECIDED")).toHaveLength(1);
       expect(events.filter((event) => event.kind === "DEEP_ANALYSIS_COMPLETED")).toHaveLength(1);
 
