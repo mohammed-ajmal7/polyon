@@ -5,6 +5,7 @@ export interface SearchResult {
 }
 
 export interface SearchProvider {
+  readonly kind: "search";
   readonly id: string;
   search(
     query: string,
@@ -21,6 +22,7 @@ export interface BrowseResult {
 }
 
 export interface BrowserProvider {
+  readonly kind: "browser";
   readonly id: string;
   fetch(
     locator: string,
@@ -33,6 +35,7 @@ export interface CrawlResult {
 }
 
 export interface CrawlerProvider {
+  readonly kind: "crawler";
   readonly id: string;
   crawl(
     locator: string,
@@ -51,6 +54,7 @@ export interface PublicDataResult {
 }
 
 export interface PublicDataProvider {
+  readonly kind: "public-data";
   readonly id: string;
   query(
     dataset: string,
@@ -67,6 +71,7 @@ export interface AcademicSearchResult {
 }
 
 export interface AcademicProvider {
+  readonly kind: "academic";
   readonly id: string;
   search(
     query: string,
@@ -141,12 +146,24 @@ export class ResearchFabric {
 
   private collectionFor(
     provider: ResearchFabricProvider,
-  ): Map<string, ResearchFabricProvider & { readonly id: string }> {
-    if (isSearchProvider(provider)) return this.searchProviders;
-    if (isBrowserProvider(provider)) return this.browserProviders;
-    if (isCrawlerProvider(provider)) return this.crawlerProviders;
-    if (isPublicDataProvider(provider)) return this.publicDataProviders;
-    return this.academicProviders;
+  ):
+    | Map<string, SearchProvider>
+    | Map<string, BrowserProvider>
+    | Map<string, CrawlerProvider>
+    | Map<string, PublicDataProvider>
+    | Map<string, AcademicProvider> {
+    switch (provider.kind) {
+      case "search":
+        return this.searchProviders;
+      case "browser":
+        return this.browserProviders;
+      case "crawler":
+        return this.crawlerProviders;
+      case "public-data":
+        return this.publicDataProviders;
+      case "academic":
+        return this.academicProviders;
+    }
   }
 }
 
@@ -162,19 +179,21 @@ export class ResearchFabricError extends Error {
   }
 }
 
+
+
 function isSearchProvider(provider: ResearchFabricProvider): provider is SearchProvider {
-  return "search" in provider && !("query" in provider);
+  return provider.kind === "search";
 }
 
 function isBrowserProvider(provider: ResearchFabricProvider): provider is BrowserProvider {
-  return "fetch" in provider;
+  return provider.kind === "browser";
 }
 
 function isCrawlerProvider(provider: ResearchFabricProvider): provider is CrawlerProvider {
-  return "crawl" in provider;
+  return provider.kind === "crawler";
 }
 
 function isPublicDataProvider(provider: ResearchFabricProvider): provider is PublicDataProvider {
-  return "query" in provider;
+  return provider.kind === "public-data";
 }
 
