@@ -160,7 +160,7 @@ describe("SemanticMemoryService", () => {
       maxEntries: 5,
     });
 
-    expect(result).toEqual({ indexed: 5, stale: 0, skipped: 0 });
+    expect(result).toEqual({ indexed: 5, removed: 0, stale: 0, skipped: 0 });
     expect(calls).toBe(3);
     expect(stores.memoryEmbeddings.list()).toHaveLength(5);
 
@@ -170,8 +170,75 @@ describe("SemanticMemoryService", () => {
       maxEntries: 5,
     });
 
-    expect(second).toEqual({ indexed: 0, stale: 0, skipped: 5 });
+    expect(second).toEqual({ indexed: 0, removed: 0, stale: 0, skipped: 5 });
     expect(calls).toBe(3);
+  });
+
+  it("removes orphaned embeddings for the reindexed model", async () => {
+    const stores = new InMemoryDomainStores();
+    const adapterRegistry = new InMemoryEmbeddingAdapterRegistry();
+    adapterRegistry.register({
+      providerId: "embedding-provider",
+      embed: async ({ input }) => ({
+        output: { vectors: input.input.map(() => [1, 0]) },
+      }),
+    });
+
+    const gateway = new EmbeddingGateway({
+      models: {
+        get: () => ({
+          id: "embedding-model",
+          providerId: "embedding-provider",
+          name: "Test embedding",
+          kind: "EMBEDDING",
+          capabilityIds: [],
+          enabled: true,
+        }),
+      },
+      providers: {
+        get: () => ({
+          id: "embedding-provider",
+          name: "Test provider",
+          kind: "HOSTED_MODEL",
+          enabled: true,
+        }),
+      },
+      adapters: adapterRegistry,
+    });
+
+    stores.memory.save({
+      id: "live-memory",
+      kind: "FACT",
+      scope: "PROJECT",
+      text: "live memory",
+      tags: [],
+      createdAt: "2026-09-28T00:00:00.000Z",
+      updatedAt: "2026-09-28T00:00:00.000Z",
+    });
+    stores.memoryEmbeddings.save({
+      id: "orphan",
+      memoryId: "deleted-memory",
+      modelId: "embedding-model",
+      dimensions: 2,
+      vector: [1, 0],
+      contentHash: "orphan",
+      createdAt: "2026-09-28T00:00:00.000Z",
+      updatedAt: "2026-09-28T00:00:00.000Z",
+    });
+
+    const service = new SemanticMemoryService(
+      stores.memory,
+      stores.memoryEmbeddings,
+      gateway,
+      stores,
+    );
+
+    const result = await service.reindex("embedding-model", {
+      now: "2026-09-28T00:10:00.000Z",
+    });
+
+    expect(result.removed).toBe(1);
+    expect(stores.memoryEmbeddings.get("orphan")).toBeUndefined();
   });
 
   it("does not embed memory scopes outside the explicit indexing allowlist", async () => {
