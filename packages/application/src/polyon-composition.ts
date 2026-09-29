@@ -485,10 +485,18 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   });
 
   const memory = new MemoryService(stores.memory, stores.events, stores);
+  const semanticVectorIndex =
+    embeddingGateway === undefined ? undefined : new ExactNormalizedSemanticVectorIndex();
   const semanticMemory =
     embeddingGateway === undefined
       ? undefined
-      : new SemanticMemoryService(stores.memory, stores.memoryEmbeddings, embeddingGateway, stores);
+      : new SemanticMemoryService(
+          stores.memory,
+          stores.memoryEmbeddings,
+          embeddingGateway,
+          stores,
+          semanticVectorIndex,
+        );
   const semanticMemoryIndexer =
     semanticMemory === undefined ||
     embeddingGateway === undefined ||
