@@ -315,10 +315,6 @@ export {
   McpServerService,
   type McpJsonRpcRequest,
   type McpJsonRpcResponse,
-  type McpJsonRpcNotification,
-  type McpStreamFrame,
-  type McpRequestHeaders,
-  type McpServerOptions,
   type McpServerDependencies,
 } from "./mcp-server-service";
 
@@ -328,6 +324,18 @@ export {
   type A2AJsonRpcResponse,
   type A2AServerDependencies,
 } from "./a2a-server-service";
+
+export {
+  A2APushNotificationService,
+  InMemoryA2APushNotificationStore,
+  createA2AWebhookSender,
+  createDurableA2APushNotificationStore,
+  type A2ATaskPushNotificationConfig,
+  A2APushNotificationDeliveryError,
+  type A2APushNotificationAuthentication,
+  type A2APushNotificationSender,
+  type A2APushNotificationStore,
+} from "./a2a-push-notification-service";
 
 export { registerCreativeTools } from "./creative-tools";
 
