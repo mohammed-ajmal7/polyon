@@ -63,7 +63,7 @@ export interface McpServerDependencies {
   readonly integrationInvocation: IntegrationInvocationService;
   readonly policy: Policy;
   readonly actorId: string;
-  readonly subscriptions: InMemoryMcpSubscriptionBus;
+  readonly subscriptions?: InMemoryMcpSubscriptionBus;
 }
 
 const MCP_TOOLS_PAGE_SIZE = 50;
@@ -72,6 +72,7 @@ const MAX_SUBSCRIPTION_FILTER_URIS = 100;
 const SUBSCRIPTION_ID_META_KEY = "io.modelcontextprotocol/subscriptionId";
 
 export class McpServerService {
+  private readonly subscriptions: InMemoryMcpSubscriptionBus;
   private readonly subscriptionMaxDurationMs: number;
   private readonly subscriptionWait: (milliseconds: number) => Promise<void>;
 
@@ -79,6 +80,8 @@ export class McpServerService {
     private readonly dependencies: McpServerDependencies,
     options: McpServerOptions = {},
   ) {
+    this.subscriptions =
+      dependencies.subscriptions ?? new InMemoryMcpSubscriptionBus();
     this.subscriptionMaxDurationMs =
       options.subscriptionMaxDurationMs ?? DEFAULT_SUBSCRIPTION_MAX_DURATION_MS;
     this.subscriptionWait =
@@ -125,7 +128,7 @@ export class McpServerService {
             typeof request.params.requestId === "number")
             ? String(request.params.requestId)
             : undefined;
-        if (requestId !== undefined) this.dependencies.subscriptions.closeByRequestId(requestId);
+        if (requestId !== undefined) this.subscriptions.closeByRequestId(requestId);
       }
       return undefined;
     }
@@ -264,7 +267,7 @@ export class McpServerService {
     }
 
     const subscriptionId = String(request.id);
-    const subscription = this.dependencies.subscriptions.subscribe(
+    const subscription = this.subscriptions.subscribe(
       subscriptionId,
       parsed.filter,
     );
