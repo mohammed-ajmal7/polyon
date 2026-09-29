@@ -309,11 +309,39 @@ export class A2AServerService {
     const taskId = readRequiredString(params.taskId);
     if (taskId === "") return error(request.id, -32602, "taskId is required.");
 
-    const configs = service.listConfigs(taskId);
+    const rawPageSize = params.pageSize;
+    const pageSize = rawPageSize === undefined ? DEFAULT_TASK_PAGE_SIZE : Number(rawPageSize);
+    if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > MAX_TASK_PAGE_SIZE) {
+      return error(request.id, -32602, "pageSize must be between 1 and 100.");
+    }
+
+    const pageToken = decodePushPageToken(params.pageToken);
+    if (pageToken.error !== undefined) return error(request.id, -32602, pageToken.error);
+
+    const configs = service.listConfigs(taskId).sort((left, right) => left.id.localeCompare(right.id));
+    const startIndex =
+      pageToken.configId === undefined
+        ? 0
+        : configs.findIndex((config) => config.id === pageToken.configId) + 1;
+    if (pageToken.configId !== undefined && startIndex === 0) {
+      return error(request.id, -32602, "A2A push notification page token is out of range.");
+    }
+
+    const page = configs.slice(startIndex, startIndex + pageSize);
+    const nextPageToken =
+      startIndex + page.length < configs.length && page.length > 0
+        ? encodePushPageToken(page[page.length - 1]!.id)
+        : "";
+
     return {
       jsonrpc: "2.0",
       id: request.id,
-      result: { configs: configs.map(redactPushConfig), nextPageToken: "" },
+      result: {
+        configs: page.map(redactPushConfig),
+        nextPageToken,
+        pageSize,
+        totalSize: configs.length,
+      },
     };
   }
 
@@ -571,4 +599,27 @@ function redactPushConfig(config: {
       ? {}
       : { authentication: { scheme: config.authentication.scheme } }),
   };
+}
+
+
+function encodePushPageToken(configId: string): string {
+  return "a2a-push-config:" + encodeURIComponent(configId);
+}
+
+function decodePushPageToken(value: unknown): {
+  readonly configId?: string;
+  readonly error?: string;
+} {
+  if (value === undefined) return {};
+  if (typeof value !== "string" || !value.startsWith("a2a-push-config:")) {
+    return { error: "A2A push notification page token is invalid." };
+  }
+  try {
+    const configId = decodeURIComponent(value.slice("a2a-push-config:".length));
+    return configId === ""
+      ? { error: "A2A push notification page token is invalid." }
+      : { configId };
+  } catch {
+    return { error: "A2A push notification page token is invalid." };
+  }
 }
