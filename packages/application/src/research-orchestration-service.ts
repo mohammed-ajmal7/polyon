@@ -9,7 +9,11 @@ import type {
   TextModelRequest,
 } from "@polyon/contracts";
 
-import type { AgentGateway, AgentRegistry } from "@polyon/agents";
+import {
+  buildAgentRolePrompt,
+  type AgentGateway,
+  type AgentRegistry,
+} from "@polyon/agents";
 import type {
   ConversationStore,
   DomainStoreTransactionContext,
@@ -174,6 +178,10 @@ export class ResearchOrchestrationService {
           findings,
           failures,
           researchContext,
+          buildAgentRolePrompt(
+            this.dependencies.agents.get(synthesizerAgentId),
+            "synthesis",
+          ),
         ),
         ...(input.signal === undefined ? {} : { modelOptions: { signal: input.signal } }),
       });
@@ -313,6 +321,7 @@ export class ResearchOrchestrationService {
           role,
           agent?.name ?? target.agentId,
           research,
+          buildAgentRolePrompt(agent, "research"),
         ),
         ...(input.signal === undefined ? {} : { modelOptions: { signal: input.signal } }),
       });
@@ -377,6 +386,7 @@ export class ResearchOrchestrationService {
     role: string,
     agentName: string,
     research: ResearchContext,
+    rolePrompt: string,
   ): TextModelRequest {
     const sourceContext = research.sources
       .map((source) => `[source:${source.id}] ${source.title} — ${source.locator}`)
@@ -390,7 +400,8 @@ export class ResearchOrchestrationService {
           content:
             "You are a research member of POLYON. Investigate only from the evidence provided. " +
             "Separate source-supported facts from interpretation, identify gaps, and do not invent " +
-            "verification or external actions.",
+            "verification or external actions.\n" +
+            rolePrompt,
         },
         {
           role: "USER",
@@ -409,6 +420,7 @@ export class ResearchOrchestrationService {
     findings: readonly ResearchFinding[],
     failures: readonly ResearchFailure[],
     research: ResearchContext,
+    rolePrompt: string,
   ): TextModelRequest {
     const findingContext = findings
       .map(
@@ -438,7 +450,8 @@ export class ResearchOrchestrationService {
             "You are POLYON's research synthesis lead. Build one evidence-grounded answer from " +
             "multiple research members. Never treat agent agreement as proof. Distinguish facts, " +
             "source-backed claims, interpretation, contradictions, gaps, and uncertainty. Cite " +
-            "source IDs when making source-supported claims. Never invent sources.",
+            "source IDs when making source-supported claims. Never invent sources.\n" +
+            rolePrompt,
         },
         {
           role: "USER",
