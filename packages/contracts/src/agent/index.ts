@@ -10,7 +10,7 @@ export type {
   BuiltInAgentRoleId,
 } from "./roles";
 export { BUILT_IN_AGENT_ROLES, getBuiltInAgentRole } from "./roles";
-export type { Model, ModelId, ModelKind } from "./model";
+export type { Model, ModelCostClass, ModelId, ModelKind, ModelPrivacyClass } from "./model";
 export type { Provider, ProviderId, ProviderKind } from "./provider";
 export type { AgentId } from "./ids";
 export type {
