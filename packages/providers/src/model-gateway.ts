@@ -18,6 +18,7 @@ import {
   type UsageCostClass,
   type UsageInvocationContext,
 } from "./usage-governor";
+import type { ModelInvocationTelemetrySink } from "./model-invocation-telemetry";
 
 export type ModelGatewayErrorKind =
   | "MODEL_NOT_FOUND"
@@ -60,6 +61,7 @@ export interface ModelGatewayDependencies {
   readonly providers: ProviderCatalog;
   readonly adapters: ProviderAdapterRegistry;
   readonly usageGovernor?: UsageGovernor;
+  readonly telemetry?: ModelInvocationTelemetrySink;
 }
 
 export class ModelGateway {
@@ -167,8 +169,11 @@ export class ModelGateway {
     const maxRetries = options.retries ?? 0;
 
     while (true) {
+      const startedAt = Date.now();
+      let reservation: ReturnType<UsageGovernor["authorize"]> | undefined;
+
       try {
-        const reservation = this.dependencies.usageGovernor?.authorize({
+        reservation = this.dependencies.usageGovernor?.authorize({
           providerId: provider.id,
           modelId,
           estimatedTokens: options.estimatedTokens,
@@ -179,27 +184,61 @@ export class ModelGateway {
           },
         });
 
-        try {
-          const result = await this.invokeOnce<TInput, TOutput>(
-            adapter,
-            modelId,
-            input,
-            options,
-          );
-          reservation?.complete(extractUsageTokens(result));
-          return result;
-        } catch (error) {
-          reservation?.complete();
-          const normalized = normalizeProviderInvocationError(error, provider.id, modelId);
+        const result = await this.invokeOnce<TInput, TOutput>(
+          adapter,
+          modelId,
+          input,
+          options,
+        );
+        const actualTokens = extractUsageTokens(result);
+        reservation?.complete(actualTokens);
+        await this.recordTelemetry({
+          providerId: provider.id,
+          modelId,
+          runId: options.usageContext?.runId,
+          agentId: options.usageContext?.agentId,
+          attempt,
+          status: "SUCCEEDED",
+          estimatedTokens: options.estimatedTokens,
+          actualTokens,
+          latencyMs: Math.max(0, Date.now() - startedAt),
+          costClass:
+            options.usageContext?.costClass ?? effectiveCostClass(model, provider),
+          recordedAt: new Date().toISOString(),
+        });
+        return result;
+      } catch (error) {
+        reservation?.complete();
+        const normalized = normalizeProviderInvocationError(error, provider.id, modelId);
 
-          if (!normalized.retryable || attempt >= maxRetries) {
-            throw normalized;
-          }
+        await this.recordTelemetry({
+          providerId: provider.id,
+          modelId,
+          runId: options.usageContext?.runId,
+          agentId: options.usageContext?.agentId,
+          attempt,
+          status: "FAILED",
+          estimatedTokens: options.estimatedTokens,
+          latencyMs: Math.max(0, Date.now() - startedAt),
+          costClass:
+            options.usageContext?.costClass ?? effectiveCostClass(model, provider),
+          errorKind: normalized.kind,
+          recordedAt: new Date().toISOString(),
+        });
 
-          attempt += 1;
+        if (!normalized.retryable || attempt >= maxRetries) {
+          throw normalized;
         }
+
+        attempt += 1;
       }
     }
+  }
+
+  private async recordTelemetry(
+    record: import("./model-invocation-telemetry").ModelInvocationTelemetryRecord,
+  ): Promise<void> {
+    await this.dependencies.telemetry?.record(record);
   }
 
   private async invokeOnce<TInput, TOutput>(
