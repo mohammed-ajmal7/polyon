@@ -3,11 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import type { Agent, Model, Provider, TextModelRequest } from "@polyon/contracts";
-import type {
-  ModelInvocationResult,
-  TextModelProviderAdapter,
-  ProviderInvocationRequest,
-} from "@polyon/providers";
+import type { ProviderInvocationRequest, TextModelProviderAdapter } from "@polyon/providers";
 import { describe, expect, it } from "vitest";
 
 import { createPolyonComposition, type PolyonProviderRegistration } from "./polyon-composition";
@@ -63,18 +59,18 @@ function makeProvider(
 
       const userMessage =
         request.input.messages.find((message) => message.role === "USER")?.content ?? "";
-      const sourceId = userMessage.match(/\\[source:([^\\]\\s]+)/u)?.[1] ?? "source-missing";
+      const sourceId = userMessage.match(/\[source:([^\]\s]+)/u)?.[1] ?? "source-missing";
 
-      let content = `${request.modelId} produced an evidence-aware finding. [source:${sourceId}]`;
+      let content = \`\${request.modelId} produced an evidence-aware finding. [source:\${sourceId}]\`;
 
       if (userMessage.includes("Return the strongest challenges")) {
-        content = `${request.modelId} identified an unsupported assumption and a competing explanation. [source:${sourceId}]`;
+        content = \`\${request.modelId} identified an unsupported assumption and a competing explanation. [source:\${sourceId}]\`;
       } else if (userMessage.includes("Format the response with these sections")) {
         content =
-          "Findings\\nThe team has independent evidence.\\nEvidence\\n" +
-          `[source:${sourceId}]\\nAgreements\\nSupported signals overlap.\\n` +
-          "Disagreements\\nInterpretations remain distinct.\\nCounterclaims\\nAlternative explanations remain possible.\\n" +
-          "Uncertainty\\nThe retrieved evidence is bounded.\\nConclusion\\nUse the source-backed signals with explicit caveats.";
+          "Findings\nThe team has independent evidence.\nEvidence\n" +
+          \`[source:\${sourceId}]\nAgreements\nSupported signals overlap.\n\` +
+          "Disagreements\nInterpretations remain distinct.\nCounterclaims\nAlternative explanations remain possible.\n" +
+          "Uncertainty\nThe retrieved evidence is bounded.\nConclusion\nUse the source-backed signals with explicit caveats.";
       }
 
       return {
@@ -97,8 +93,18 @@ describe("POLYON minimum source-backed deep-analysis flow", () => {
     try {
       const provider = makeProvider("provider.shared", invocations);
       const agents = [
-        makeAgent("research-a", "model.research-a", "Company research specialist", provider.provider.id),
-        makeAgent("research-b", "model.research-b", "Market research specialist", provider.provider.id),
+        makeAgent(
+          "research-a",
+          "model.research-a",
+          "Company research specialist",
+          provider.provider.id,
+        ),
+        makeAgent(
+          "research-b",
+          "model.research-b",
+          "Market research specialist",
+          provider.provider.id,
+        ),
         makeAgent("critic", "model.critic", "Critical research reviewer", provider.provider.id),
         makeAgent("judge", "model.judge", "Judging and synthesis lead", provider.provider.id),
       ];
@@ -118,6 +124,7 @@ describe("POLYON minimum source-backed deep-analysis flow", () => {
           search: async (query, options) => {
             expect(options.limit).toBe(1);
             searchQueries.push(query);
+
             const sourceKey = query.toLowerCase().includes("company")
               ? "company"
               : query.toLowerCase().includes("market")
@@ -174,19 +181,19 @@ describe("POLYON minimum source-backed deep-analysis flow", () => {
       expect(new Set(result.collective.contributions.map((item) => item.agentId))).toEqual(
         new Set(["research-a", "research-b", "critic"]),
       );
-      expect(result.collective.sourceIds.length).toBe(3);
-      expect(result.collective.evidenceIds.length).toBe(3);
+      expect(result.collective.sourceIds).toHaveLength(3);
+      expect(result.collective.evidenceIds).toHaveLength(3);
       expect(result.collective.challenges).toHaveLength(3);
       expect(result.debate?.debate.status).toBe("DECIDED");
       expect(result.decision?.actorId).toBe("judge");
       expect(result.decision?.content).toContain("[source:");
 
       expect(searchQueries).toHaveLength(3);
-      expect(new Set(searchQueries.map((query) => query.split("\\n\\nResearch focus: ")[0]))).toEqual(
-        new Set([
-          "Investigate the strongest explanations for this incident and verify the evidence.",
-        ]),
-      );
+      expect(
+        searchQueries.every((query) =>
+          query.startsWith("Investigate the strongest explanations for this incident and verify the evidence."),
+        ),
+      ).toBe(true);
 
       const events = composition.stores.events.list();
       expect(events.filter((event) => event.kind === "SOURCE_RETRIEVED")).toHaveLength(3);
@@ -203,8 +210,7 @@ describe("POLYON minimum source-backed deep-analysis flow", () => {
       const evidenceBackedCall = invocations.find((request) =>
         request.input.messages.some(
           (message) =>
-            message.role === "USER" &&
-            message.content.includes("Verified fixture evidence"),
+            message.role === "USER" && message.content.includes("Verified fixture evidence"),
         ),
       );
       expect(evidenceBackedCall).toBeDefined();
