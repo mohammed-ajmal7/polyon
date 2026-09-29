@@ -121,4 +121,29 @@ describe("McpServerService subscriptions/listen", () => {
 
     await iterator.return?.();
   });
-}
+
+  it("stops a live subscription promptly when the request is aborted", async () => {
+    const bus = new InMemoryMcpSubscriptionBus();
+    const server = createServer(bus);
+    const controller = new AbortController();
+    const iterator = server.stream(
+      {
+        jsonrpc: "2.0",
+        id: "listen-3",
+        method: "subscriptions/listen",
+        params: { notifications: { toolsListChanged: true } },
+      },
+      headers,
+      controller.signal,
+    )[Symbol.asyncIterator]();
+
+    await iterator.next();
+    const pending = iterator.next();
+    controller.abort();
+
+    await expect(pending).resolves.toEqual({
+      done: true,
+      value: undefined,
+    });
+  });
+});
