@@ -1,4 +1,5 @@
 import type {
+  Agent,
   AgentId,
   DomainEvent,
   Evidence,
@@ -242,8 +243,7 @@ export class CollectiveOrchestrationService {
               : { requiredModelCapabilityIds: input.requiredModelCapabilityIds }),
             request: this.buildContributorRequest(
               input.command.message.content,
-              role,
-              agent?.name ?? target.agentId,
+              agent,
               research,
             ),
           });
@@ -600,8 +600,7 @@ export class CollectiveOrchestrationService {
 
   private buildContributorRequest(
     command: string,
-    role: string,
-    agentName: string,
+    agent: Pick<Agent, "name" | "role" | "roleId"> | undefined,
     research: ResearchContext,
   ): TextModelRequest {
     const evidenceContext = formatEvidenceContext(research);
@@ -616,9 +615,9 @@ export class CollectiveOrchestrationService {
           content:
             "You are a specialist member of POLYON's AI collective. " +
             buildAgentStageInstructions(
-              this.dependencies.agents.get(agentName)?.roleId === undefined
-                ? { role: role }
-                : this.dependencies.agents.get(agentName)!,
+              agent === undefined
+                ? { role: "Generalist" }
+                : { role: agent.role, ...(agent.roleId === undefined ? {} : { roleId: agent.roleId }) },
               "ANALYSIS",
             ) +
             " Work independently, contribute a distinct perspective, and separate facts from interpretation. " +
