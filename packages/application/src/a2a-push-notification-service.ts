@@ -43,7 +43,10 @@ export interface A2APushNotificationServiceOptions {
 
 export class InMemoryA2APushNotificationStore implements A2APushNotificationStore {
   private sequence = 0;
-  private readonly records = new Map<\n    string,\n    { ownerId: string; config: A2ATaskPushNotificationConfig }\n  >();
+  private readonly records = new Map<
+    string,
+    { ownerId: string; config: A2ATaskPushNotificationConfig }
+  >();
 
   create(ownerId: string, input: Omit<A2ATaskPushNotificationConfig, "id">) {
     const id = "a2a-push:" + String(++this.sequence);
@@ -54,7 +57,9 @@ export class InMemoryA2APushNotificationStore implements A2APushNotificationStor
 
   get(ownerId: string, taskId: string, configId: string) {
     const record = this.records.get(configId);
-    return record?.ownerId === ownerId && record.config.taskId === taskId\n      ? record.config\n      : undefined;
+    return record?.ownerId === ownerId && record.config.taskId === taskId
+      ? record.config
+      : undefined;
   }
 
   list(ownerId: string, taskId: string) {
@@ -74,7 +79,9 @@ export class A2APushNotificationService {
 
   createConfig(input: Omit<A2ATaskPushNotificationConfig, "id">) {
     validateConfig(input);
-    if (!this.options.validateTask(input.taskId)) throw new Error("Task not found.");
+    if (!this.options.validateTask(input.taskId)) {
+      throw new Error("Task not found.");
+    }
     return this.options.store.create(this.options.ownerId, input);
   }
 
@@ -131,13 +138,21 @@ export function createA2AWebhookSender(options: {
     async send(config, payload) {
       const url = new URL(config.url);
       const origin = normalizeOrigin(url.origin);
-      if (!allowed.has(origin)) throw new Error("A2A push URL is not allowlisted.");
+      if (!allowed.has(origin)) {
+        throw new Error("A2A push URL is not allowlisted.");
+      }
 
       const headers = new Headers({ "content-type": "application/a2a+json" });
-      if (config.token !== undefined) headers.set("X-A2A-Notification-Token", config.token);
+      if (config.token !== undefined) {
+        headers.set("X-A2A-Notification-Token", config.token);
+      }
       if (config.authentication !== undefined) {
         const scheme = config.authentication.scheme.trim();
-        if (\n          scheme === "" ||\n          /[\\r\\n]/.test(scheme) ||\n          /[\\r\\n]/.test(config.authentication.credentials)\n        ) {
+        if (
+          scheme === "" ||
+          /[\r\n]/.test(scheme) ||
+          /[\r\n]/.test(config.authentication.credentials)
+        ) {
           throw new Error("Invalid A2A push authentication.");
         }
         headers.set("Authorization", scheme + " " + config.authentication.credentials);
@@ -157,7 +172,11 @@ export function createA2AWebhookSender(options: {
           body,
           signal: controller.signal,
         });
-        if (!response.ok) {\n          throw new Error(\n            "A2A push webhook returned HTTP " + String(response.status) + ".",\n          );\n        }
+        if (!response.ok) {
+          throw new Error(
+            "A2A push webhook returned HTTP " + String(response.status) + ".",
+          );
+        }
       } finally {
         clearTimeout(timeout);
       }
@@ -175,7 +194,10 @@ function validateConfig(config: Omit<A2ATaskPushNotificationConfig, "id">): void
   }
 
   if (config.authentication !== undefined) {
-    if (\n      config.authentication.scheme.trim() === "" ||\n      config.authentication.credentials.length > 4096\n    ) {
+    if (
+      config.authentication.scheme.trim() === "" ||
+      config.authentication.credentials.length > 4096
+    ) {
       throw new Error("Invalid A2A push authentication.");
     }
   }
