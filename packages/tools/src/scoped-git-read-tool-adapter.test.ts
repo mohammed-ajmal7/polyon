@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -86,6 +86,46 @@ describe("ScopedGitReadToolAdapter", () => {
           operation: "STATUS",
         },
       });
+    } finally {
+      cleanup(root);
+    }
+  });
+
+  it("limits read operations to a scoped subdirectory of the repository", async () => {
+    const root = createRepository();
+
+    try {
+      mkdirSync(join(root, "scoped"));
+      writeFileSync(join(root, "scoped", "inside.txt"), "inside\n");
+      writeFileSync(join(root, "outside.txt"), "outside\n");
+      execFileSync("git", ["-C", root, "add", "--", "."]);
+      execFileSync("git", ["-C", root, "commit", "-q", "-m", "chore: add both files"]);
+      writeFileSync(join(root, "outside.txt"), "outside changed\n");
+      execFileSync("git", ["-C", root, "commit", "-q", "-a", "-m", "chore: change outside file"]);
+      writeFileSync(join(root, "scoped", "inside.txt"), "inside changed\n");
+      writeFileSync(join(root, "outside.txt"), "outside changed again\n");
+      writeFileSync(join(root, "untracked-outside.txt"), "untracked\n");
+
+      const adapter = new ScopedGitReadToolAdapter({
+        toolId: "git.read.scoped",
+        rootDir: join(root, "scoped"),
+      });
+      const read = async (operation: "STATUS" | "DIFF" | "LOG" | "SHOW") =>
+        (await adapter.invoke({ input: { operation } })).output.commandOutput.stdout;
+
+      const status = await read("STATUS");
+      expect(status).toContain("inside.txt");
+      expect(status).not.toContain("outside");
+
+      const diff = await read("DIFF");
+      expect(diff).toContain("inside changed");
+      expect(diff).not.toContain("outside");
+
+      const log = await read("LOG");
+      expect(log).toContain("chore: add both files");
+      expect(log).not.toContain("chore: change outside file");
+
+      expect(await read("SHOW")).not.toContain("outside.txt");
     } finally {
       cleanup(root);
     }
