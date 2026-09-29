@@ -724,3 +724,152 @@ describe("createPolyonComposition", () => {
     }
   });
 });
+
+describe("createPolyonComposition runtime tool loop", () => {
+  const toolModel: Model = {
+    ...model,
+    id: "model.runtime-tools",
+    providerId: "provider.runtime-tools",
+    capabilityIds: [...model.capabilityIds, "ai.tool-calling"],
+  };
+  const toolAgent: Agent = {
+    ...agent,
+    id: "agent.runtime-tools",
+    preferredModelId: toolModel.id,
+  };
+  const executionId = "execution:task.test:1";
+
+  function readCall(id: string, path: string) {
+    return {
+      content: "",
+      finishReason: "TOOL_CALL",
+      toolCalls: [{ id, toolId: BUILTIN_TOOL_IDS.filesystemRead, input: { path, maxBytes: 1024 } }],
+    };
+  }
+
+  function bootWithTools(
+    root: string,
+    invoke: PolyonProviderRegistration["adapter"]["invoke"],
+    toolPolicy: Policy,
+  ) {
+    const workspace = join(root, "workspace");
+    mkdirSync(workspace, { recursive: true });
+    writeFileSync(join(workspace, "notes.txt"), "runtime tool content", "utf8");
+
+    const composition = createPolyonComposition({
+      storageRoot: root,
+      filesystemRoot: workspace,
+      providers: [
+        {
+          provider: {
+            id: toolModel.providerId,
+            name: "Runtime tools provider",
+            kind: "HOSTED_MODEL",
+            enabled: true,
+          },
+          adapter: { providerId: toolModel.providerId, invoke },
+        },
+      ],
+      models: [toolModel],
+      agents: [toolAgent],
+      toolPolicy,
+      toolRequiredCapabilityIds: ["text.generate"],
+      pollIntervalMs: 5,
+    });
+
+    composition.stores.tasks.save(task);
+    const dispatched = composition.missionExecution.dispatchReadyTasks({
+      mission,
+      tasks: [task],
+      actorId: "actor.test",
+      agentId: toolAgent.id,
+      requiredCapabilityIds: ["text.generate"],
+      policy,
+      requestedBy: "actor.test",
+      now,
+      riskLevel: "LOW",
+      identities,
+    });
+    expect(dispatched.dispatched).toHaveLength(1);
+
+    return composition;
+  }
+
+  function toolInvocationIds(composition: ReturnType<typeof createPolyonComposition>) {
+    return composition.stores.events
+      .listByExecution(executionId)
+      .filter((event) => event.kind === "TOOL_INVOKED")
+      .map((event) => (event.data as { invocationId: string }).invocationId);
+  }
+
+  it("stops the agent tool loop once the runtime cancels the execution", async () => {
+    const root = mkdtempSync(join(tmpdir(), "polyon-tool-cancel-"));
+    let calls = 0;
+    let composition: ReturnType<typeof createPolyonComposition> | undefined;
+
+    try {
+      composition = bootWithTools(
+        root,
+        async () => {
+          calls += 1;
+          if (calls === 1) return { output: readCall("call-1", "notes.txt") };
+          if (calls === 2) {
+            composition!.runtime.cancel(executionId);
+            return { output: readCall("call-2", "notes.txt") };
+          }
+          return { output: { content: "should not be reached", finishReason: "STOP" } };
+        },
+        policy,
+      );
+
+      composition.runtime.start();
+      await vi.waitFor(() => {
+        expect(calls).toBeGreaterThanOrEqual(2);
+        expect(composition!.runtime.activeExecutionCount).toBe(0);
+      });
+
+      expect(composition.stores.executions.get(executionId)?.status).toBe("CANCELLED");
+      expect(calls).toBe(2);
+      expect(toolInvocationIds(composition)).not.toContain("tool-call:call-2");
+    } finally {
+      composition?.runtime.stop();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("surfaces the real error when an approved tool continuation fails", async () => {
+    const root = mkdtempSync(join(tmpdir(), "polyon-tool-resume-error-"));
+    let composition: ReturnType<typeof createPolyonComposition> | undefined;
+
+    try {
+      composition = bootWithTools(
+        root,
+        async () => ({ output: readCall("call-1", "missing.txt") }),
+        { ...policy, defaultEffect: "REQUIRE_APPROVAL" },
+      );
+
+      composition.runtime.start();
+      await vi.waitFor(() => {
+        expect(composition!.stores.executions.get(executionId)?.status).toBe("PAUSED");
+      });
+
+      await composition.agentToolOrchestration.resolveToolApproval({
+        approvalId: "approval:tool-call:call-1",
+        status: "APPROVED",
+        resolvedAt: "2026-09-27T12:01:00.000Z",
+        resolvedBy: "actor.test",
+      });
+
+      await vi.waitFor(() => {
+        expect(composition!.stores.executions.get(executionId)?.status).toBe("FAILED");
+      });
+
+      const error = composition.stores.executions.get(executionId)?.error ?? "";
+      expect(error).not.toBe("Approved tool continuation failed.");
+      expect(error).toContain("missing.txt");
+    } finally {
+      composition?.runtime.stop();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});

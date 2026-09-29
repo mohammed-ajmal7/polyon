@@ -87,13 +87,13 @@ After all checks pass:
 1. merge `release/0.1.0` into `main`;
 2. tag the released commit as `v0.1.0`;
 3. publish the GitHub release notes with the actual supported scope and known limitations;
-4. retain the release commit, tag, backup procedure, and CI run as the release record.
+4. retain the release commit, tag, backup procedure, and the local verification output as the release record.
 
 ## 8. Known post-v0.1 depth work
 
-The first release does not claim:
+The first release implements MCP `subscriptions/listen` and A2A streaming, task subscriptions and opt-in push notifications. It does not claim:
 
-- advanced MCP/A2A streaming, push, or subscription behavior;
+- MCP/A2A specification coverage beyond those implemented methods;
 - multi-user/enterprise tenancy;
 - sustained production load/profiling coverage;
 - target-specific cloud deployment automation.

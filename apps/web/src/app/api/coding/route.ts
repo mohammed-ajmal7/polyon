@@ -6,6 +6,7 @@ import {
   isSameOrigin,
   executionEnabled,
 } from "@/server/polyon-server";
+import { readBoundedText } from "@/server/bounded-body";
 
 export const runtime = "nodejs";
 const MAX_REQUEST_BYTES = 65_536;
@@ -22,8 +23,8 @@ export async function POST(request: Request): Promise<Response> {
     );
 
   try {
-    const raw = await request.text();
-    if (new TextEncoder().encode(raw).byteLength > MAX_REQUEST_BYTES) {
+    const raw = await readBoundedText(request, MAX_REQUEST_BYTES);
+    if (raw === undefined) {
       return Response.json(
         { error: "Coding request exceeds the 65536-byte limit." },
         { status: 413 },

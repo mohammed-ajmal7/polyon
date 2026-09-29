@@ -15,7 +15,7 @@ export default function EvidencePage() {
         </p>
       </header>
       <div className="grid gap-6 xl:grid-cols-2">
-        <Collection title="Sources" empty="No sources recorded.">
+        <Collection title="Sources" empty="No sources recorded." isEmpty={sources.length === 0}>
           {sources.map((source) => (
             <article key={source.id} className="p-5">
               <div className="text-sm font-medium text-slate-100">{source.title}</div>
@@ -24,7 +24,7 @@ export default function EvidencePage() {
             </article>
           ))}
         </Collection>
-        <Collection title="Evidence" empty="No evidence recorded.">
+        <Collection title="Evidence" empty="No evidence recorded." isEmpty={evidence.length === 0}>
           {evidence.map((item) => (
             <article key={item.id} className="p-5">
               <div className="text-sm font-medium text-slate-100">{item.claim}</div>
@@ -41,10 +41,12 @@ export default function EvidencePage() {
 function Collection({
   title,
   empty,
+  isEmpty,
   children,
 }: {
   title: string;
   empty: string;
+  isEmpty: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -53,7 +55,7 @@ function Collection({
         <h2 className="text-sm font-semibold text-white">{title}</h2>
       </div>
       <div className="divide-y divide-white/6">
-        {children || <div className="p-5 text-sm text-slate-500">{empty}</div>}
+        {isEmpty ? <div className="p-5 text-sm text-slate-400">{empty}</div> : children}
       </div>
     </section>
   );

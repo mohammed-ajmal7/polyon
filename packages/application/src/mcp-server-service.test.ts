@@ -1,6 +1,9 @@
+import { InMemoryDomainStores } from "@polyon/storage";
+import { InMemoryToolAdapterRegistry, InMemoryToolRegistry } from "@polyon/tools";
 import { describe, expect, it, vi } from "vitest";
 
 import { McpServerService } from "./mcp-server-service";
+import { ToolInvocationService } from "./tool-invocation-service";
 
 const policy = {
   id: "policy",
@@ -91,5 +94,68 @@ describe("MCP notification and pagination handling", () => {
       code: -32602,
       message: "MCP tools/list cursor is invalid.",
     });
+  });
+});
+
+describe("MCP tools/call identity", () => {
+  const readTool = {
+    id: "tool.read",
+    name: "Read",
+    description: "read",
+    kind: "OTHER" as const,
+    actionKinds: ["READ" as const],
+    enabled: true,
+  };
+  const headers = { protocolVersion: "2026-07-28", method: "tools/call", name: readTool.id };
+  const call = {
+    jsonrpc: "2.0" as const,
+    id: 1,
+    method: "tools/call",
+    params: { name: readTool.id, arguments: {} },
+  };
+
+  function session(toolInvocation: ToolInvocationService): McpServerService {
+    return new McpServerService({
+      tools: { list: () => [readTool], get: (id) => (id === readTool.id ? readTool : undefined) },
+      integrations: { list: () => [], get: () => undefined },
+      toolInvocation,
+      integrationInvocation: { invoke: vi.fn() } as never,
+      policy: { ...policy, defaultEffect: "ALLOW" },
+      actorId: "mcp-client",
+    });
+  }
+
+  it("does not collide when separate sessions reuse the same JSON-RPC request id", async () => {
+    const stores = new InMemoryDomainStores();
+    const tools = new InMemoryToolRegistry();
+    const adapters = new InMemoryToolAdapterRegistry();
+    tools.register(readTool);
+    adapters.register({ toolId: readTool.id, invoke: async () => ({ output: { ok: true } }) });
+    const toolInvocation = new ToolInvocationService({
+      tools,
+      adapters,
+      approvals: stores.approvals,
+      policyDecisions: stores.policyDecisions,
+      events: stores.events,
+      unitOfWork: stores,
+    });
+
+    const first = await session(toolInvocation).handle(call, headers);
+    const second = await session(toolInvocation).handle(call, headers);
+
+    expect(first).toMatchObject({ id: 1, result: { content: [{ text: '{"ok":true}' }] } });
+    expect(second).toMatchObject({ id: 1, result: { content: [{ text: '{"ok":true}' }] } });
+  });
+
+  it("returns invocation service errors as JSON-RPC errors", async () => {
+    const toolInvocation = {
+      invoke: vi.fn(async () => {
+        throw new Error("Tool invocation already has a trace: mcp:1.");
+      }),
+    } as unknown as ToolInvocationService;
+
+    const response = await session(toolInvocation).handle(call, headers);
+
+    expect(response).toMatchObject({ jsonrpc: "2.0", id: 1, error: { code: -32603 } });
   });
 });

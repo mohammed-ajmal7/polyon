@@ -42,16 +42,25 @@ export class BoundedWebResearchRetriever implements ResearchRetriever {
       maxResponseBytes: this.maxContentBytes,
     });
     const candidates: ResearchSourceCandidate[] = [];
+    const failures: unknown[] = [];
 
     for (const result of results.slice(0, options.limit)) {
       if (options.signal?.aborted) {
         throw new Error("Research retrieval was cancelled.");
       }
 
-      const page = await browser.fetch(result.locator, {
-        signal: options.signal,
-        maxCharacters: this.maxContentBytes,
-      });
+      let page: Awaited<ReturnType<BoundedHttpBrowserProvider["fetch"]>>;
+      try {
+        page = await browser.fetch(result.locator, {
+          signal: options.signal,
+          maxCharacters: this.maxContentBytes,
+        });
+      } catch (error) {
+        // One unreachable or disallowed page must not discard the other sources.
+        if (options.signal?.aborted) throw error;
+        failures.push(error);
+        continue;
+      }
 
       candidates.push({
         title: result.title,
@@ -62,6 +71,9 @@ export class BoundedWebResearchRetriever implements ResearchRetriever {
         retrievedAt: page.retrievedAt,
       });
     }
+
+    // Fail closed only when no source could be read at all.
+    if (candidates.length === 0 && failures.length > 0) throw failures[0];
 
     return candidates;
   }

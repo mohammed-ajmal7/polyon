@@ -133,6 +133,7 @@ export class AgentGateway {
     ) => Promise<{ output: TOutput }>,
   ): Promise<AgentGatewayInvocationResult<TOutput>> {
     let failedProviderId: ProviderId | undefined;
+    let lastError: ProviderInvocationError | undefined;
 
     for (let attempt = 0; attempt < 2; attempt += 1) {
       const request: ModelRoutingRequest = {
@@ -161,8 +162,12 @@ export class AgentGateway {
       });
 
       if (failedProviderId !== undefined && route.provider.id === failedProviderId) {
-        throw new Error(
-          `Provider failover did not select an alternative provider for agent: ${agentId}.`,
+        // No alternative provider is available; surface the original failure and its kind.
+        throw (
+          lastError ??
+          new Error(
+            `Provider failover did not select an alternative provider for agent: ${agentId}.`,
+          )
         );
       }
 
@@ -187,6 +192,7 @@ export class AgentGateway {
 
         this.providerHealth.recordFailure(error.providerId, error.kind);
         failedProviderId = error.providerId;
+        lastError = error;
 
         if (!error.retryable || attempt === 1) {
           throw error;

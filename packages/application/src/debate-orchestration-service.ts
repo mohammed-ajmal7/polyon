@@ -15,8 +15,19 @@ import type {
 
 import { buildAgentRolePrompt, type AgentGateway, type AgentRegistry } from "@polyon/agents";
 
+import { fitRecentBlocksToBudget } from "./context-budget";
+
 const MAX_PROMPT_CONTEXT = 48_000;
 const MAX_CONTRIBUTION_LENGTH = 100_000;
+
+/** Canonical order of debate phases within a round, as advanced by @polyon/core. */
+const DEBATE_PHASE_ORDER: readonly Debate["phase"][] = [
+  "PROPOSAL",
+  "CRITICISM",
+  "EVIDENCE",
+  "REBUTTAL",
+  "ADJUDICATION",
+];
 
 export interface CreateDebateInput {
   readonly id: string;
@@ -86,7 +97,7 @@ export class DebateOrchestrationService {
       throw new Error("Adjudicator must be one of the debate participants.");
     }
 
-    const persistedContributions = this.loadContributions(debate.id);
+    const persistedContributions = this.loadContributions(debate);
     const contributions: DebateRunResult["contributions"][number][] = [...persistedContributions];
 
     if (debate.status === "DECIDED") {
@@ -142,10 +153,15 @@ export class DebateOrchestrationService {
     return { debate: decided, decision, contributions };
   }
 
-  private loadContributions(debateId: string): DebateRunResult["contributions"] {
+  private loadContributions(debate: Debate): DebateRunResult["contributions"] {
+    const participantIndex = (agentId: string) => {
+      const index = debate.participantAgentIds.indexOf(agentId);
+      return index === -1 ? debate.participantAgentIds.length : index;
+    };
+
     return this.events
       .list()
-      .filter((event) => event.kind === "DEBATE_CONTRIBUTION" && event.data.debateId === debateId)
+      .filter((event) => event.kind === "DEBATE_CONTRIBUTION" && event.data.debateId === debate.id)
       .map((event) => ({
         agentId: String(event.data.agentId),
         round: Number(event.data.round),
@@ -154,7 +170,10 @@ export class DebateOrchestrationService {
       }))
       .sort(
         (a, b) =>
-          a.round - b.round || a.phase.localeCompare(b.phase) || a.agentId.localeCompare(b.agentId),
+          a.round - b.round ||
+          DEBATE_PHASE_ORDER.indexOf(a.phase) - DEBATE_PHASE_ORDER.indexOf(b.phase) ||
+          participantIndex(a.agentId) - participantIndex(b.agentId) ||
+          a.agentId.localeCompare(b.agentId),
       );
   }
 
@@ -349,13 +368,9 @@ function phaseInstruction(phase: Debate["phase"]): string {
 function formatContributions(
   contributions: readonly DebateRunResult["contributions"][number][],
 ): string {
-  const lines: string[] = [];
-  let total = 0;
-  for (const item of contributions) {
-    const line = `[${item.round}/${item.phase}/${item.agentId}] ${item.content}`;
-    if (total + line.length > MAX_PROMPT_CONTEXT) break;
-    lines.push(line);
-    total += line.length + 1;
-  }
-  return lines.join("\n");
+  return fitRecentBlocksToBudget(
+    contributions.map((item) => `[${item.round}/${item.phase}/${item.agentId}] ${item.content}`),
+    MAX_PROMPT_CONTEXT,
+    "\n",
+  );
 }

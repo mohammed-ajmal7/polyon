@@ -176,10 +176,14 @@ export function buildModelRegistrations(
       kind: preset?.kind ?? "HOSTED_MODEL",
       enabled: true,
     };
+    const reasoningEffort = environment.POLYON_MODEL_REASONING_EFFORT?.trim();
+    const maxConcurrency = parseMaxConcurrency(environment.POLYON_MODEL_MAX_CONCURRENCY);
     const adapter = createTextModelProviderAdapter({
       providerId: profile.providerId,
       endpoint,
       ...(apiKey === undefined || apiKey === "" ? {} : { apiKey }),
+      ...(reasoningEffort === undefined || reasoningEffort === "" ? {} : { reasoningEffort }),
+      ...(maxConcurrency === undefined ? {} : { maxConcurrency }),
     });
 
     return { provider, adapter } satisfies PolyonProviderRegistration;
@@ -350,4 +354,14 @@ function parseFallbacks(value: unknown, index: number): readonly string[] {
   }
 
   return value.map((item) => requiredString(item, "fallbackModelId", index));
+}
+
+function parseMaxConcurrency(value: string | undefined): number | undefined {
+  const trimmed = value?.trim() ?? "";
+  if (trimmed === "") return undefined;
+  const parsed = Number(trimmed);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 64) {
+    throw new Error("POLYON_MODEL_MAX_CONCURRENCY must be an integer between 1 and 64.");
+  }
+  return parsed;
 }

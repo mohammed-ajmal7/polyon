@@ -22,6 +22,7 @@ import type { Finding } from "@polyon/contracts";
 import { parseStructuredFinding } from "./structured-finding-parser";
 
 import type { CommandIngressResult } from "./command-ingress";
+import { fitBlocksToBudget } from "./context-budget";
 import type { ResearchService } from "./research-service";
 
 const DEFAULT_MAX_PARTICIPANTS = 8;
@@ -431,25 +432,19 @@ export class ResearchOrchestrationService {
     research: ResearchContext,
     rolePrompt: string,
   ): TextModelRequest {
-    const findingContext = findings
-      .map(
-        (finding) =>
-          `[agent=${finding.agentId} role=${finding.role} model=${finding.modelId} provider=${finding.providerId}]\n${finding.content}`,
-      )
-      .join("\n\n");
-    const failureContext = failures
-      .map(
-        (failure) => `[agent=${failure.agentId} stage=${failure.stage}] failed: ${failure.error}`,
-      )
-      .join("\n\n");
+    const findingBlocks = findings.map(
+      (finding) =>
+        `[agent=${finding.agentId} role=${finding.role} model=${finding.modelId} provider=${finding.providerId}]\n${finding.content}`,
+    );
+    const failureBlocks = failures.map(
+      (failure) => `[agent=${failure.agentId} stage=${failure.stage}] failed: ${failure.error}`,
+    );
     const evidenceContext = formatEvidenceContext(research);
 
-    let context = "";
-    for (const block of [findingContext, failureContext, evidenceContext]) {
-      if (block === "") continue;
-      if (context.length + block.length + 2 > MAX_CONTEXT_CHARACTERS) break;
-      context += (context === "" ? "" : "\n\n") + block;
-    }
+    const context = fitBlocksToBudget(
+      [...findingBlocks, ...failureBlocks, evidenceContext],
+      MAX_CONTEXT_CHARACTERS,
+    );
 
     return {
       messages: [

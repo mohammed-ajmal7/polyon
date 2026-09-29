@@ -468,7 +468,12 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   const embeddingGateway =
     options.embeddingProvider === undefined
       ? undefined
-      : new EmbeddingGateway({ models, providers, adapters: embeddingAdapters });
+      : new EmbeddingGateway({
+          models,
+          providers,
+          adapters: embeddingAdapters,
+          ...(options.usageGovernor === undefined ? {} : { usageGovernor: options.usageGovernor }),
+        });
   const agentGateway = new AgentGateway({
     agents,
     models,
@@ -748,11 +753,12 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
       ...(options.toolPolicy === undefined
         ? {}
         : {
-            resumeApprovedToolContinuation: async (executionId) => {
+            resumeApprovedToolContinuation: async (executionId, signal) => {
               const result = await agentToolOrchestration.resumeApprovedExecution(
                 executionId,
                 options.toolPolicy!,
                 options.maxToolOutputBytes,
+                signal,
               );
               if (result.status === "NO_CONTINUATION") {
                 return { status: "NO_CONTINUATION" as const };
@@ -768,12 +774,14 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
                         : ("FAILED" as const),
                 ...(result.status === "SUCCEEDED"
                   ? { output: result.response.content }
-                  : { error: "Approved tool continuation failed." }),
+                  : result.status === "APPROVAL_REQUIRED"
+                    ? { error: "Execution paused for required tool approval." }
+                    : { error: result.error }),
               };
             },
             toolDefinitions: agentToolOrchestration.modelToolDefinitions(),
             toolOrchestrator: {
-              continueFromResponse: async ({ execution, request, response }) => {
+              continueFromResponse: async ({ execution, request, response, signal }) => {
                 if (execution.agentId === undefined) {
                   return {
                     status: "FAILED" as const,
@@ -794,6 +802,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
                     executionId: execution.id,
                     maxToolRounds: options.maxToolRounds,
                     maxToolOutputBytes: options.maxToolOutputBytes,
+                    signal,
                   },
                   request,
                   response,

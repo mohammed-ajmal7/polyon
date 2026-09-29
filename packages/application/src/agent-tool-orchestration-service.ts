@@ -45,6 +45,12 @@ export interface AgentToolOrchestrationInput {
   readonly defaultRiskLevel?: RiskLevel;
   readonly checkpointApprovalId?: string;
   readonly now?: () => string;
+  /**
+   * Cancellation or deadline signal for the owning execution. It is passed to
+   * every model round and checked before each tool invocation, so no further
+   * tool runs and no approval is persisted once the execution is aborted.
+   */
+  readonly signal?: AbortSignal;
   readonly knowledgeContext?: {
     readonly service: KnowledgeContextService;
     readonly query: string;
@@ -145,6 +151,7 @@ export class AgentToolOrchestrationService {
       requiredCapabilityIds: input.requiredCapabilityIds,
       requiredModelCapabilityIds: input.requiredModelCapabilityIds ?? ["ai.tool-calling"],
       request,
+      ...withSignal(input.signal),
     });
 
     return this.continueFromResponse(input, request, initial.output);
@@ -188,10 +195,20 @@ export class AgentToolOrchestrationService {
       const toolMessages: ModelMessage[] = [];
 
       for (const toolCall of currentResponse.toolCalls) {
+        if (isAborted(input.signal)) {
+          return cancelledResult(currentResponse, rounds);
+        }
+
         const outcome = await this.invokeTool(input, toolCall, {
           request: currentRequest,
           response: currentResponse,
           rounds,
+          // Results already produced in this round travel with any approval
+          // checkpoint so a resume replays them instead of dropping them.
+          nextRequest: {
+            ...currentRequest,
+            messages: [...currentRequest.messages, assistantMessage, ...toolMessages],
+          },
         });
 
         if (outcome.status === "APPROVAL_REQUIRED") {
@@ -225,12 +242,21 @@ export class AgentToolOrchestrationService {
         messages: [...currentRequest.messages, assistantMessage, ...toolMessages],
       };
 
+      if (isAborted(input.signal)) {
+        return cancelledResult(currentResponse, rounds);
+      }
+
       const next = await this.dependencies.agentGateway.invokeText({
         agentId: input.agentId,
         requiredCapabilityIds: input.requiredCapabilityIds,
         requiredModelCapabilityIds: input.requiredModelCapabilityIds ?? ["ai.tool-calling"],
         request: currentRequest,
+        ...withSignal(input.signal),
       });
+
+      if (isAborted(input.signal)) {
+        return cancelledResult(next.output, rounds);
+      }
 
       if (input.checkpointApprovalId !== undefined) {
         const checkpoint = this.dependencies.approvals.get(
@@ -394,13 +420,7 @@ export class AgentToolOrchestrationService {
         ...continuation,
         state: "AWAITING_MODEL",
         integrationOutput: input.output,
-        nextRequest: appendToolResult(
-          continuation.request,
-          continuation.response,
-          continuation.toolCall,
-          input.output,
-          DEFAULT_MAX_TOOL_OUTPUT_BYTES,
-        ),
+        nextRequest: appendToolResult(continuation, input.output, DEFAULT_MAX_TOOL_OUTPUT_BYTES),
       };
     } else {
       continuation = {
@@ -484,6 +504,7 @@ export class AgentToolOrchestrationService {
     executionId: string,
     policy: Policy,
     maxToolOutputBytes = DEFAULT_MAX_TOOL_OUTPUT_BYTES,
+    signal?: AbortSignal,
   ): Promise<AgentToolOrchestrationResult> {
     assertPositiveLimit(maxToolOutputBytes, "maxToolOutputBytes");
     const candidates = this.dependencies.approvals
@@ -520,6 +541,7 @@ export class AgentToolOrchestrationService {
         executionId,
         policy,
         maxToolOutputBytes,
+        signal,
       );
     }
 
@@ -531,6 +553,10 @@ export class AgentToolOrchestrationService {
         response: continuation.response,
         rounds: continuation.rounds,
       };
+    }
+
+    if (isAborted(signal)) {
+      return cancelledResult(continuation.response, continuation.rounds);
     }
 
     if (continuation.state === "AWAITING_TOOL") {
@@ -556,13 +582,7 @@ export class AgentToolOrchestrationService {
         } as AgentToolOrchestrationResult;
       }
 
-      const nextRequest = appendToolResult(
-        continuation.request,
-        continuation.response,
-        continuation.toolCall,
-        outcome.output,
-        maxToolOutputBytes,
-      );
+      const nextRequest = appendToolResult(continuation, outcome.output, maxToolOutputBytes);
 
       continuation = {
         ...continuation,
@@ -578,11 +598,29 @@ export class AgentToolOrchestrationService {
         throw new Error(`Approval ${approval.id} is missing its next model request checkpoint.`);
       }
 
+      const pending = await this.runRemainingToolCalls(
+        approval,
+        { ...continuation, nextRequest: continuation.nextRequest },
+        executionId,
+        policy,
+        maxToolOutputBytes,
+        (nextRequest) => {
+          continuation = { ...continuation, nextRequest };
+          this.saveContinuation(approval.id, continuation);
+        },
+      );
+
+      if (pending.status !== "READY") {
+        this.saveContinuation(approval.id, { ...continuation, state: "COMPLETED" });
+        return pending;
+      }
+
       const next = await this.dependencies.agentGateway.invokeText({
         agentId: continuation.agentId,
         requiredCapabilityIds: continuation.requiredCapabilityIds,
         requiredModelCapabilityIds: continuation.requiredModelCapabilityIds ?? ["ai.tool-calling"],
-        request: this.withToolDefinitions(continuation.nextRequest),
+        request: this.withToolDefinitions(pending.nextRequest),
+        ...withSignal(signal),
       });
 
       continuation = {
@@ -614,6 +652,7 @@ export class AgentToolOrchestrationService {
           maxToolRounds: 8,
           maxToolOutputBytes,
           checkpointApprovalId: approval.id,
+          ...(signal === undefined ? {} : { signal }),
         },
         request,
         continuation.response,
@@ -638,7 +677,12 @@ export class AgentToolOrchestrationService {
     executionId: string,
     policy: Policy,
     maxToolOutputBytes: number,
+    signal?: AbortSignal,
   ): Promise<AgentToolOrchestrationResult> {
+    if (continuation.state !== "COMPLETED" && isAborted(signal)) {
+      return cancelledResult(continuation.response, continuation.rounds);
+    }
+
     if (continuation.state === "COMPLETED") {
       return {
         status: "SUCCEEDED",
@@ -694,13 +738,7 @@ export class AgentToolOrchestrationService {
         ...current,
         state: "AWAITING_MODEL",
         integrationOutput: outcome.output,
-        nextRequest: appendToolResult(
-          current.request,
-          current.response,
-          current.toolCall,
-          outcome.output,
-          maxToolOutputBytes,
-        ),
+        nextRequest: appendToolResult(current, outcome.output, maxToolOutputBytes),
       };
       this.saveIntegrationContinuation(approval.id, current);
     }
@@ -710,11 +748,29 @@ export class AgentToolOrchestrationService {
         throw new Error(`Approval ${approval.id} is missing its next model request checkpoint.`);
       }
 
+      const pending = await this.runRemainingToolCalls(
+        approval,
+        { ...current, nextRequest: current.nextRequest },
+        executionId,
+        policy,
+        maxToolOutputBytes,
+        (nextRequest) => {
+          current = { ...current, nextRequest };
+          this.saveIntegrationContinuation(approval.id, current);
+        },
+      );
+
+      if (pending.status !== "READY") {
+        this.saveIntegrationContinuation(approval.id, { ...current, state: "COMPLETED" });
+        return pending;
+      }
+
       const next = await this.dependencies.agentGateway.invokeText({
         agentId: current.agentId,
         requiredCapabilityIds: current.requiredCapabilityIds,
         requiredModelCapabilityIds: current.requiredModelCapabilityIds ?? ["ai.tool-calling"],
-        request: this.withToolDefinitions(current.nextRequest),
+        request: this.withToolDefinitions(pending.nextRequest),
+        ...withSignal(signal),
       });
 
       current = {
@@ -745,6 +801,7 @@ export class AgentToolOrchestrationService {
           maxToolRounds: 8,
           maxToolOutputBytes,
           checkpointApprovalId: approval.id,
+          ...(signal === undefined ? {} : { signal }),
         },
         current.nextRequest,
         current.response,
@@ -759,6 +816,87 @@ export class AgentToolOrchestrationService {
     }
 
     throw new Error(`Unsupported integration continuation state: ${current.state}.`);
+  }
+
+  /**
+   * Runs the tool calls of the checkpointed model response that have no TOOL
+   * result yet, in order, appending each result to the checkpoint as it
+   * completes. A call that needs approval hands the accumulated results to
+   * its own approval checkpoint, so every tool_call_id gets exactly one TOOL
+   * message and no completed call runs twice.
+   */
+  private async runRemainingToolCalls(
+    approval: import("@polyon/contracts").ApprovalRequest,
+    continuation: {
+      readonly agentId: string;
+      readonly requiredCapabilityIds: readonly CapabilityId[];
+      readonly requiredModelCapabilityIds?: readonly CapabilityId[];
+      readonly request: TextModelRequest;
+      readonly response: TextModelResponse;
+      readonly rounds: number;
+      readonly nextRequest: TextModelRequest;
+    },
+    executionId: string,
+    policy: Policy,
+    maxToolOutputBytes: number,
+    saveNextRequest: (nextRequest: TextModelRequest) => void,
+  ): Promise<
+    | { readonly status: "READY"; readonly nextRequest: TextModelRequest }
+    | Exclude<AgentToolOrchestrationResult, { status: "SUCCEEDED" | "NO_CONTINUATION" }>
+  > {
+    const input: AgentToolOrchestrationInput = {
+      agentId: continuation.agentId,
+      requiredCapabilityIds: continuation.requiredCapabilityIds,
+      ...(continuation.requiredModelCapabilityIds === undefined
+        ? {}
+        : { requiredModelCapabilityIds: continuation.requiredModelCapabilityIds }),
+      request: continuation.request,
+      policy,
+      actorId: approval.requestedBy,
+      missionId: approval.missionId,
+      taskId: approval.taskId,
+      executionId,
+      maxToolOutputBytes,
+    };
+    let nextRequest = continuation.nextRequest;
+
+    for (const toolCall of pendingToolCalls(nextRequest)) {
+      const outcome = await this.invokeTool(input, toolCall, {
+        request: continuation.request,
+        response: continuation.response,
+        rounds: continuation.rounds,
+        nextRequest,
+      });
+
+      if (outcome.status === "APPROVAL_REQUIRED") {
+        return {
+          status: "APPROVAL_REQUIRED",
+          response: continuation.response,
+          approval: outcome.approvalRequest,
+          rounds: continuation.rounds,
+        };
+      }
+
+      if (outcome.status === "REJECTED" || outcome.status === "FAILED") {
+        return {
+          status: outcome.status,
+          response: continuation.response,
+          error: outcome.error,
+          rounds: continuation.rounds,
+        };
+      }
+
+      nextRequest = {
+        ...nextRequest,
+        messages: [
+          ...nextRequest.messages,
+          toolResultMessage(toolCall, outcome.output, maxToolOutputBytes),
+        ],
+      };
+      saveNextRequest(nextRequest);
+    }
+
+    return { status: "READY", nextRequest };
   }
 
   private saveIntegrationContinuation(
@@ -809,6 +947,8 @@ export class AgentToolOrchestrationService {
       readonly request: TextModelRequest;
       readonly response: TextModelResponse;
       readonly rounds: number;
+      /** The next model request so far: the assistant turn plus completed tool results. */
+      readonly nextRequest: TextModelRequest;
     },
   ): Promise<ToolInvocationOutcome> {
     if (input.request.tools !== undefined) {
@@ -902,6 +1042,7 @@ export class AgentToolOrchestrationService {
           input: toolCall.input,
           sideEffectClass: integration.sideEffectClass,
           state: "AWAITING_INTEGRATION",
+          nextRequest: continuation.nextRequest,
         },
       });
 
@@ -957,6 +1098,7 @@ export class AgentToolOrchestrationService {
         toolCall,
         rounds: continuation.rounds,
         state: "AWAITING_TOOL",
+        nextRequest: continuation.nextRequest,
       },
       ...(input.checkpointApprovalId === undefined
         ? {}
@@ -1125,30 +1267,92 @@ function mapIntegrationOutcome(
   }
 }
 
+/**
+ * Appends an approved call's result to its checkpoint. While a call awaits
+ * approval, `nextRequest` holds the assistant turn plus the results of calls
+ * already completed in that turn; older checkpoints without it fall back to
+ * the assistant turn alone.
+ */
 function appendToolResult(
-  request: TextModelRequest,
-  response: TextModelResponse,
-  toolCall: ModelToolCall,
+  continuation: {
+    readonly request: TextModelRequest;
+    readonly response: TextModelResponse;
+    readonly toolCall: ModelToolCall;
+    readonly nextRequest?: TextModelRequest;
+  },
   output: unknown,
   maxToolOutputBytes = DEFAULT_MAX_TOOL_OUTPUT_BYTES,
 ): TextModelRequest {
-  return {
-    ...request,
+  const base = continuation.nextRequest ?? {
+    ...continuation.request,
     messages: [
-      ...request.messages,
+      ...continuation.request.messages,
       {
-        role: "ASSISTANT",
-        content: response.content,
-        toolCalls: response.toolCalls,
-      },
-      {
-        role: "TOOL",
-        name: toolCall.toolId,
-        toolCallId: toolCall.id,
-        content: stringifyToolOutput(output, maxToolOutputBytes),
+        role: "ASSISTANT" as const,
+        content: continuation.response.content,
+        toolCalls: continuation.response.toolCalls,
       },
     ],
   };
+
+  return {
+    ...base,
+    messages: [
+      ...base.messages,
+      toolResultMessage(continuation.toolCall, output, maxToolOutputBytes),
+    ],
+  };
+}
+
+function toolResultMessage(
+  toolCall: ModelToolCall,
+  output: unknown,
+  maxToolOutputBytes: number,
+): ModelMessage {
+  return {
+    role: "TOOL",
+    name: toolCall.toolId,
+    toolCallId: toolCall.id,
+    content: stringifyToolOutput(output, maxToolOutputBytes),
+  };
+}
+
+/** Tool calls of the latest assistant turn that do not yet have a TOOL result. */
+function pendingToolCalls(request: TextModelRequest): readonly ModelToolCall[] {
+  let assistantIndex = request.messages.length - 1;
+  while (assistantIndex >= 0 && request.messages[assistantIndex]!.role !== "ASSISTANT") {
+    assistantIndex -= 1;
+  }
+  const assistant = request.messages[assistantIndex];
+  if (assistant?.toolCalls === undefined) return [];
+
+  const answered = new Set(
+    request.messages
+      .slice(assistantIndex + 1)
+      .filter((message) => message.role === "TOOL")
+      .map((message) => message.toolCallId),
+  );
+
+  return assistant.toolCalls.filter((toolCall) => !answered.has(toolCall.id));
+}
+
+const TOOL_ORCHESTRATION_CANCELLED = "Tool orchestration was cancelled.";
+
+function isAborted(signal: AbortSignal | undefined): boolean {
+  return signal?.aborted === true;
+}
+
+function cancelledResult(
+  response: TextModelResponse,
+  rounds: number,
+): AgentToolOrchestrationResult {
+  return { status: "FAILED", response, error: TOOL_ORCHESTRATION_CANCELLED, rounds };
+}
+
+function withSignal(
+  signal: AbortSignal | undefined,
+): { readonly modelOptions: { readonly signal: AbortSignal } } | Record<string, never> {
+  return signal === undefined ? {} : { modelOptions: { signal } };
 }
 
 function toModelToolName(toolId: string): string {

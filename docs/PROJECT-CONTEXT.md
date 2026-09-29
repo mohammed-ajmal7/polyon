@@ -487,12 +487,16 @@ Status: in progress.
 
 Implemented:
 
-- Google Drive READ adapter;
-- Telegram bounded SEND_MESSAGE adapter.
+- Google Drive READ adapter (LIST_FILES, GET_METADATA);
+- Telegram bounded SEND_MESSAGE adapter;
+- Email SEND_EMAIL over SMTP, wired into the web server.
 
 Remaining:
 
-- Email;
+- wire the Google Drive and Telegram adapters into the web server configuration (they exist in
+  `packages/integrations` but `apps/web/src/server/polyon-server.ts` does not register them);
+- Telegram inbound messages as a command channel;
+- Gmail read/search (the specification's Gmail scope; only SMTP send exists);
 - production credential lifecycle beyond environment-backed secret references.
 
 Build authentication and secret storage without exposing credentials to the browser.

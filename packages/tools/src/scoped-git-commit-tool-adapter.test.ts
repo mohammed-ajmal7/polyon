@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -51,6 +51,57 @@ describe("ScopedGitCommitToolAdapter", () => {
         encoding: "utf8",
       }).trim();
       expect(subject).toBe("feat: add notes");
+    } finally {
+      cleanup(root);
+    }
+  });
+
+  it("refuses to commit staged changes outside a scoped subdirectory", async () => {
+    const root = createRepository();
+
+    try {
+      mkdirSync(join(root, "scoped"));
+      writeFileSync(join(root, "scoped", "inside.txt"), "inside");
+      writeFileSync(join(root, "outside.txt"), "outside");
+      execFileSync("git", ["-C", root, "add", "--", "scoped/inside.txt", "outside.txt"]);
+
+      const adapter = new ScopedGitCommitToolAdapter({
+        toolId: "git.commit.scoped",
+        rootDir: join(root, "scoped"),
+      });
+
+      await expect(
+        adapter.invoke({
+          input: {
+            message: "feat: add both files",
+          },
+        }),
+      ).rejects.toMatchObject({
+        kind: "OUTSIDE_ROOT",
+      });
+      expect(() =>
+        execFileSync("git", ["-C", root, "rev-parse", "--verify", "-q", "HEAD"]),
+      ).toThrow();
+
+      execFileSync("git", ["-C", root, "rm", "--cached", "-q", "--", "outside.txt"]);
+      await expect(
+        adapter.invoke({
+          input: {
+            message: "feat: add inside file",
+          },
+        }),
+      ).resolves.toMatchObject({
+        output: {
+          commandOutput: {
+            exitCode: 0,
+          },
+        },
+      });
+
+      const files = execFileSync("git", ["-C", root, "show", "--name-only", "--format=", "HEAD"], {
+        encoding: "utf8",
+      });
+      expect(files.trim()).toBe("scoped/inside.txt");
     } finally {
       cleanup(root);
     }

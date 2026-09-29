@@ -130,6 +130,33 @@ describe("JobService", () => {
     expect(stores.events.list().some((event) => event.kind === "JOB_RECOVERED")).toBe(true);
   });
 
+  it("fails interrupted running jobs that have exhausted their attempts", () => {
+    const stores = new InMemoryDomainStores();
+    const service = createService(stores);
+
+    createJob(service);
+    service.start("job-1", "2026-09-29T08:00:01.000Z");
+    service.fail({
+      id: "job-1",
+      error: "temporary failure",
+      retryAt: "2026-09-29T08:00:02.000Z",
+      occurredAt: "2026-09-29T08:00:01.500Z",
+    });
+    service.start("job-1", "2026-09-29T08:00:02.000Z");
+
+    const recovered = service.recoverRunningJobs({
+      recoveredAt: "2026-09-29T08:05:00.000Z",
+    });
+
+    expect(recovered).toEqual([]);
+    const job = service.get("job-1");
+    expect(job?.status).toBe("failed");
+    expect(job?.attempt).toBe(2);
+    expect(job?.completedAt).toBe("2026-09-29T08:05:00.000Z");
+    expect(job?.error).toContain("interrupted");
+    expect(stores.events.list().some((event) => event.kind === "JOB_RECOVERED")).toBe(false);
+  });
+
   it("persists jobs across FileDomainStores restarts", () => {
     const directory = mkdtempSync(join(tmpdir(), "polyon-job-service-"));
 

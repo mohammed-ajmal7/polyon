@@ -16,9 +16,15 @@ export default function SettingsPage() {
       isConfigured(process.env.POLYON_API_TOKEN) ? "Configured" : "Open/local",
     ],
     [
-      "Model endpoint",
-      isConfigured(process.env.POLYON_MODEL_ENDPOINT) ? "Configured" : "Not configured",
+      "Models",
+      polyon.models.list().length === 0
+        ? "Not configured"
+        : polyon.models
+            .list()
+            .map((model) => model.name)
+            .join(", "),
     ],
+    ["Team members", String(polyon.agents.list().length)],
     [
       "Embedding provider",
       isConfigured(process.env.POLYON_EMBEDDING_ENDPOINT) ? "Configured" : "Not configured",

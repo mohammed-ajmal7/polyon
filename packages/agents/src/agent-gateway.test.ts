@@ -64,6 +64,42 @@ function createGateway(adapter: ModelProviderAdapter) {
 }
 
 describe("AgentGateway", () => {
+  it("surfaces the original retryable error when no alternative provider exists", async () => {
+    const gateway = createGateway({
+      providerId: "provider-1",
+      async invoke() {
+        throw new ProviderInvocationError("TIMEOUT", "provider-1", "model-1", "slow", true);
+      },
+    });
+
+    await expect(
+      gateway.invoke({ agentId: "agent-1", requiredCapabilityIds: ["research"], input: "hi" }),
+    ).rejects.toMatchObject({ name: "ProviderInvocationError", kind: "TIMEOUT" });
+  });
+
+  it("keeps routing to a provider after a request-specific invalid request", async () => {
+    let calls = 0;
+    const gateway = createGateway({
+      providerId: "provider-1",
+      async invoke() {
+        calls += 1;
+        if (calls === 1) {
+          throw new ProviderInvocationError(
+            "INVALID_REQUEST",
+            "provider-1",
+            "model-1",
+            "context too long",
+          );
+        }
+        return { output: "ok" };
+      },
+    });
+    const request = { agentId: "agent-1", requiredCapabilityIds: ["research"], input: "hi" };
+
+    await expect(gateway.invoke(request)).rejects.toMatchObject({ kind: "INVALID_REQUEST" });
+    await expect(gateway.invoke(request)).resolves.toMatchObject({ output: "ok" });
+  });
+
   it("supports typed text model invocations through the agent boundary", async () => {
     const gateway = createGateway({
       providerId: "provider-1",
