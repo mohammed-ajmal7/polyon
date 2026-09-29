@@ -304,25 +304,35 @@ export interface ToolInvocationServiceDependencies {
   readonly unitOfWork?: DomainUnitOfWork;
 }
 
+/**
+ * Appends an approved call's result to its checkpoint. While a call awaits
+ * approval, `nextRequest` already holds the assistant turn plus the results
+ * of calls completed earlier in that turn, so those results are preserved.
+ */
 function appendToolResult(
-  request: import("@polyon/contracts").TextModelRequest,
-  response: import("@polyon/contracts").TextModelResponse,
-  toolCall: import("@polyon/contracts").ModelToolCall,
+  continuation: NonNullable<ApprovalRequest["toolContinuation"]>,
   output: unknown,
 ): import("@polyon/contracts").TextModelRequest {
-  return {
-    ...request,
+  const base = continuation.nextRequest ?? {
+    ...continuation.request,
     messages: [
-      ...request.messages,
+      ...continuation.request.messages,
       {
-        role: "ASSISTANT",
-        content: response.content,
-        toolCalls: response.toolCalls,
+        role: "ASSISTANT" as const,
+        content: continuation.response.content,
+        toolCalls: continuation.response.toolCalls,
       },
+    ],
+  };
+
+  return {
+    ...base,
+    messages: [
+      ...base.messages,
       {
         role: "TOOL",
-        name: toolCall.toolId,
-        toolCallId: toolCall.id,
+        name: continuation.toolCall.toolId,
+        toolCallId: continuation.toolCall.id,
         content: stringifyToolOutput(output),
       },
     ],
@@ -676,12 +686,7 @@ export class ToolInvocationService {
               ...continuation,
               state: "AWAITING_MODEL",
               toolOutput: result.output,
-              nextRequest: appendToolResult(
-                continuation.request,
-                continuation.response,
-                continuation.toolCall,
-                result.output,
-              ),
+              nextRequest: appendToolResult(continuation, result.output),
             },
           });
         } else if (continuationCheckpoint !== undefined) {

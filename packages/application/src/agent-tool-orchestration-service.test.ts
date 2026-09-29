@@ -542,3 +542,285 @@ describe("AgentToolOrchestrationService", () => {
     }
   });
 });
+
+const allowedTool: Tool = {
+  id: "tool.allowed",
+  name: "Allowed tool",
+  description: "A deterministic tool the policy allows without approval.",
+  kind: "TERMINAL",
+  actionKinds: ["TERMINAL"],
+  enabled: true,
+};
+
+const mixedPolicy: Policy = {
+  ...policy,
+  defaultEffect: "ALLOW",
+  rules: [{ priority: 1, toolId: tool.id, effect: "REQUIRE_APPROVAL" }],
+};
+
+function createMultiToolOrchestrator(
+  stores: InMemoryDomainStores,
+  modelInvoke: AgentGateway["invokeText"],
+  toolInvoke: (toolId: string, input: unknown) => Promise<{ output: unknown }>,
+) {
+  const tools = new InMemoryToolRegistry();
+  const adapters = new InMemoryToolAdapterRegistry();
+  for (const registered of [tool, allowedTool]) {
+    tools.register(registered);
+    adapters.register({
+      toolId: registered.id,
+      invoke: async ({ input }) => toolInvoke(registered.id, input),
+    });
+  }
+
+  const integrations = new InMemoryIntegrationAdapterRegistry();
+  const toolInvocation = new ToolInvocationService({
+    tools,
+    adapters,
+    approvals: stores.approvals,
+    policyDecisions: stores.policyDecisions,
+    events: stores.events,
+    unitOfWork: stores,
+  });
+
+  const orchestrator = new AgentToolOrchestrationService({
+    agentGateway: { invokeText: modelInvoke } as unknown as AgentGateway,
+    toolInvocation,
+    integrationInvocation: new IntegrationInvocationService({
+      integrations,
+      approvals: stores.approvals,
+      policyDecisions: stores.policyDecisions,
+      events: stores.events,
+      unitOfWork: stores,
+    }),
+    integrations,
+    tools,
+    approvals: stores.approvals,
+    executions: stores.executions,
+    tasks: stores.tasks,
+    events: stores.events,
+    unitOfWork: stores,
+    enqueueExecution: vi.fn(),
+  });
+
+  return { orchestrator, toolInvocation };
+}
+
+function modelResult(output: {
+  readonly content: string;
+  readonly finishReason: "STOP" | "TOOL_CALL";
+  readonly toolCalls?: readonly { id: string; toolId: string; input: unknown }[];
+}) {
+  return {
+    agentId,
+    modelId: model.id,
+    providerId: provider.id,
+    source: "PREFERRED" as const,
+    output,
+  };
+}
+
+describe("AgentToolOrchestrationService cancellation", () => {
+  it("passes the abort signal to model rounds and stops before later tools and approvals", async () => {
+    const stores = new InMemoryDomainStores();
+    const controller = new AbortController();
+    const toolRuns: string[] = [];
+    const invokeText = vi.fn(async (_input: { request: TextModelRequest }) =>
+      modelResult({
+        content: "",
+        finishReason: "TOOL_CALL",
+        toolCalls: [
+          { id: "call-a", toolId: allowedTool.id, input: {} },
+          { id: "call-b", toolId: allowedTool.id, input: {} },
+          { id: "call-c", toolId: tool.id, input: {} },
+        ],
+      }),
+    );
+    const { orchestrator } = createMultiToolOrchestrator(
+      stores,
+      invokeText as unknown as AgentGateway["invokeText"],
+      async (toolId) => {
+        toolRuns.push(toolId);
+        // Simulate runtime.cancel() while the first allowed tool is running.
+        controller.abort();
+        return { output: "ok" };
+      },
+    );
+
+    const result = await orchestrator.invoke({
+      agentId,
+      requiredCapabilityIds: ["text.generate"],
+      request: { messages: [{ role: "USER", content: "Use the tools." }] },
+      policy: mixedPolicy,
+      actorId: "actor.test",
+      executionId: "execution.cancelled",
+      signal: controller.signal,
+    });
+
+    expect(invokeText).toHaveBeenCalledTimes(1);
+    expect(invokeText.mock.calls[0]?.[0]).toMatchObject({
+      modelOptions: { signal: controller.signal },
+    });
+    expect(toolRuns).toEqual([allowedTool.id]);
+    expect(stores.approvals.list()).toEqual([]);
+    expect(result).toMatchObject({ status: "FAILED", error: "Tool orchestration was cancelled." });
+  });
+
+  it("does not start any tool or model round when the signal is already aborted", async () => {
+    const stores = new InMemoryDomainStores();
+    const controller = new AbortController();
+    controller.abort();
+    const toolRun = vi.fn(async () => ({ output: "ok" }));
+    const invokeText = vi.fn();
+    const { orchestrator } = createMultiToolOrchestrator(
+      stores,
+      invokeText as unknown as AgentGateway["invokeText"],
+      toolRun,
+    );
+
+    const result = await orchestrator.continueFromResponse(
+      {
+        agentId,
+        requiredCapabilityIds: ["text.generate"],
+        request: { messages: [{ role: "USER", content: "Use the tools." }] },
+        policy: mixedPolicy,
+        actorId: "actor.test",
+        executionId: "execution.cancelled",
+        signal: controller.signal,
+      },
+      { messages: [{ role: "USER", content: "Use the tools." }] },
+      {
+        content: "",
+        finishReason: "TOOL_CALL",
+        toolCalls: [{ id: "call-c", toolId: tool.id, input: {} }],
+      },
+    );
+
+    expect(result.status).toBe("FAILED");
+    expect(toolRun).not.toHaveBeenCalled();
+    expect(invokeText).not.toHaveBeenCalled();
+    expect(stores.approvals.list()).toEqual([]);
+  });
+});
+
+describe("AgentToolOrchestrationService multi-tool approvals", () => {
+  function threeCallModel(secondToolId: string, thirdToolId: string) {
+    const modelRequests: TextModelRequest[] = [];
+    const invokeText = vi.fn(async ({ request }: { request: TextModelRequest }) => {
+      modelRequests.push(request);
+      return modelRequests.length === 1
+        ? modelResult({
+            content: "",
+            finishReason: "TOOL_CALL",
+            toolCalls: [
+              { id: "call-1", toolId: allowedTool.id, input: { n: 1 } },
+              { id: "call-2", toolId: secondToolId, input: { n: 2 } },
+              { id: "call-3", toolId: thirdToolId, input: { n: 3 } },
+            ],
+          })
+        : modelResult({ content: "All done.", finishReason: "STOP" });
+    });
+    return { modelRequests, invokeText: invokeText as unknown as AgentGateway["invokeText"] };
+  }
+
+  function recordingTool(toolRuns: string[]) {
+    return async (toolId: string, input: unknown) => {
+      const n = (input as { n: number }).n;
+      toolRuns.push(`${toolId}#${n}`);
+      return { output: `result-${n}` };
+    };
+  }
+
+  const invokeInput = {
+    agentId,
+    requiredCapabilityIds: ["text.generate"],
+    request: { messages: [{ role: "USER" as const, content: "Use the tools." }] },
+    policy: mixedPolicy,
+    actorId: "actor.test",
+    executionId: "execution.multi",
+  };
+
+  it("keeps completed results and runs remaining calls once after an approval", async () => {
+    const stores = new InMemoryDomainStores();
+    const toolRuns: string[] = [];
+    const { modelRequests, invokeText } = threeCallModel(tool.id, allowedTool.id);
+    const { orchestrator, toolInvocation } = createMultiToolOrchestrator(
+      stores,
+      invokeText,
+      recordingTool(toolRuns),
+    );
+
+    const first = await orchestrator.invoke(invokeInput);
+
+    expect(first.status).toBe("APPROVAL_REQUIRED");
+    expect(toolRuns).toEqual([`${allowedTool.id}#1`]);
+
+    toolInvocation.resolveApproval({
+      approvalId: "approval:tool-call:call-2",
+      status: "APPROVED",
+      resolvedAt: "2026-09-27T02:01:00.000Z",
+      resolvedBy: "actor.test",
+    });
+
+    const resumed = await orchestrator.resumeApprovedExecution("execution.multi", mixedPolicy);
+
+    expect(resumed.status).toBe("SUCCEEDED");
+    expect(toolRuns).toEqual([`${allowedTool.id}#1`, `${tool.id}#2`, `${allowedTool.id}#3`]);
+    expect(modelRequests).toHaveLength(2);
+
+    const finalMessages = modelRequests[1]!.messages;
+    const assistantIndex = finalMessages.findIndex((message) => message.role === "ASSISTANT");
+    expect(finalMessages.filter((message) => message.role === "ASSISTANT")).toHaveLength(1);
+    expect(
+      finalMessages
+        .slice(assistantIndex + 1)
+        .map((message) => [message.role, message.toolCallId, message.content]),
+    ).toEqual([
+      ["TOOL", "call-1", "result-1"],
+      ["TOOL", "call-2", "result-2"],
+      ["TOOL", "call-3", "result-3"],
+    ]);
+  });
+
+  it("pauses again for a later call that needs approval without re-running earlier calls", async () => {
+    const stores = new InMemoryDomainStores();
+    const toolRuns: string[] = [];
+    const { modelRequests, invokeText } = threeCallModel(tool.id, tool.id);
+    const { orchestrator, toolInvocation } = createMultiToolOrchestrator(
+      stores,
+      invokeText,
+      recordingTool(toolRuns),
+    );
+
+    await orchestrator.invoke(invokeInput);
+
+    toolInvocation.resolveApproval({
+      approvalId: "approval:tool-call:call-2",
+      status: "APPROVED",
+      resolvedAt: "2026-09-27T02:01:00.000Z",
+      resolvedBy: "actor.test",
+    });
+
+    const second = await orchestrator.resumeApprovedExecution("execution.multi", mixedPolicy);
+    expect(second.status).toBe("APPROVAL_REQUIRED");
+    expect(toolRuns).toEqual([`${allowedTool.id}#1`, `${tool.id}#2`]);
+    expect(modelRequests).toHaveLength(1);
+
+    toolInvocation.resolveApproval({
+      approvalId: "approval:tool-call:call-3",
+      status: "APPROVED",
+      resolvedAt: "2026-09-27T02:02:00.000Z",
+      resolvedBy: "actor.test",
+    });
+
+    const third = await orchestrator.resumeApprovedExecution("execution.multi", mixedPolicy);
+    expect(third.status).toBe("SUCCEEDED");
+    expect(toolRuns).toEqual([`${allowedTool.id}#1`, `${tool.id}#2`, `${tool.id}#3`]);
+    expect(modelRequests).toHaveLength(2);
+    expect(
+      modelRequests[1]!.messages
+        .filter((message) => message.role === "TOOL")
+        .map((message) => message.toolCallId),
+    ).toEqual(["call-1", "call-2", "call-3"]);
+  });
+});

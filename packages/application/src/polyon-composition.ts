@@ -768,12 +768,14 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
                         : ("FAILED" as const),
                 ...(result.status === "SUCCEEDED"
                   ? { output: result.response.content }
-                  : { error: "Approved tool continuation failed." }),
+                  : result.status === "APPROVAL_REQUIRED"
+                    ? { error: "Execution paused for required tool approval." }
+                    : { error: result.error }),
               };
             },
             toolDefinitions: agentToolOrchestration.modelToolDefinitions(),
             toolOrchestrator: {
-              continueFromResponse: async ({ execution, request, response }) => {
+              continueFromResponse: async ({ execution, request, response, signal }) => {
                 if (execution.agentId === undefined) {
                   return {
                     status: "FAILED" as const,
@@ -794,6 +796,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
                     executionId: execution.id,
                     maxToolRounds: options.maxToolRounds,
                     maxToolOutputBytes: options.maxToolOutputBytes,
+                    signal,
                   },
                   request,
                   response,
