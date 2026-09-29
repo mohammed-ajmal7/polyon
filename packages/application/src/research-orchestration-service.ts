@@ -21,6 +21,9 @@ import type {
   EventStore,
   MessageStore,
 } from "@polyon/storage";
+import type { Finding } from "@polyon/contracts";
+
+import { parseStructuredFinding } from "./structured-finding-parser";
 
 import type { CommandIngressResult } from "./command-ingress";
 import type { ResearchService } from "./research-service";
@@ -58,6 +61,7 @@ export interface ResearchFinding {
   readonly content: string;
   readonly sourceIds: readonly string[];
   readonly evidenceIds: readonly string[];
+  readonly finding?: Finding;
 }
 
 export interface ResearchFailure {
@@ -328,6 +332,13 @@ export class ResearchOrchestrationService {
       const content = response.output.content.trim().slice(0, MAX_FINDING_CHARACTERS);
       if (content === "") throw new Error("Research analyst returned empty content.");
 
+      const structuredFinding = parseStructuredFinding({
+        id: `finding:${researchId}:${target.agentId}`,
+        agentId: target.agentId,
+        content,
+        evidence: research.evidence,
+        createdAt: now(),
+      });
       const finding: ResearchFinding = {
         agentId: target.agentId,
         actorId: target.actorId,
@@ -337,6 +348,7 @@ export class ResearchOrchestrationService {
         content,
         sourceIds: research.sources.map((source) => source.id),
         evidenceIds: research.evidence.map((evidence) => evidence.id),
+        ...(structuredFinding === undefined ? {} : { finding: structuredFinding }),
       };
 
       this.persistFinding(researchId, input, finding, now());
@@ -536,6 +548,16 @@ export class ResearchOrchestrationService {
           messageId,
           sourceIds: [...finding.sourceIds],
           evidenceIds: [...finding.evidenceIds],
+          ...(finding.finding === undefined
+            ? {}
+            : {
+                finding: {
+                  id: finding.finding.id,
+                  confidence: finding.finding.confidence,
+                  disposition: finding.finding.disposition,
+                  evidenceIds: finding.finding.evidence.map((item) => item.evidenceId),
+                },
+              }),
         },
       });
     });
