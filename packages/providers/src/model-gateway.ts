@@ -246,7 +246,11 @@ export class ModelGateway {
   private async recordTelemetry(
     record: import("./model-invocation-telemetry").ModelInvocationTelemetryRecord,
   ): Promise<void> {
-    await this.dependencies.telemetry?.record(record);
+    try {
+      await this.dependencies.telemetry?.record(record);
+    } catch {
+      // Telemetry is observational and must not change model invocation semantics.
+    }
   }
 
   private async invokeOnce<TInput, TOutput>(
