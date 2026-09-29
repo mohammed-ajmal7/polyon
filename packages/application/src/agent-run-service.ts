@@ -203,7 +203,7 @@ export class AgentRunService {
 
   private withStores<T>(
     work: (
-      stores: Pick<AgentRunServiceDependencies, "agentRuns" | "events">,
+      stores: Pick<AgentRunServiceDependencies, "agentRuns" | "messages" | "events">,
     ) => T,
   ): T {
     if (this.dependencies.unitOfWork === undefined) {

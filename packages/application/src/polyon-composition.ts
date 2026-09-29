@@ -733,7 +733,6 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   const agentToolOrchestration = new AgentToolOrchestrationService({
     agentGateway,
     toolInvocation,
-    agentRuns,
     integrationInvocation,
     integrations,
     tools: builtinTools.tools,
