@@ -252,10 +252,8 @@ export function createA2AWebhookSender(options: {
         const scheme = config.authentication.scheme.trim();
         if (
           scheme === "" ||
-          /[\r
-]/.test(scheme) ||
-          /[\r
-]/.test(config.authentication.credentials)
+          /[\\r\\n]/.test(scheme) ||
+          /[\\r\\n]/.test(config.authentication.credentials)
         ) {
           throw new Error("Invalid A2A push authentication.");
         }
