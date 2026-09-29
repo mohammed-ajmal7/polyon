@@ -84,10 +84,7 @@ export class McpServerService {
       dependencies.subscriptions ?? new InMemoryMcpSubscriptionBus();
     this.subscriptionMaxDurationMs =
       options.subscriptionMaxDurationMs ?? DEFAULT_SUBSCRIPTION_MAX_DURATION_MS;
-    this.subscriptionWait =
-      options.subscriptionWait ??
-      ((milliseconds) =>
-        new Promise((resolve) => globalThis.setTimeout(resolve, milliseconds)));
+    this.subscriptionWait = options.subscriptionWait ?? defaultWait;
 
     if (
       !Number.isInteger(this.subscriptionMaxDurationMs) ||
@@ -374,6 +371,14 @@ export class McpServerService {
       },
     };
   }
+}
+
+async function defaultWait(
+  milliseconds: number,
+): Promise<void> {
+  await new Promise<void>((resolve) => {
+    globalThis.setTimeout(resolve, milliseconds);
+  });
 }
 
 function parseSubscriptionFilter(value: unknown): {
