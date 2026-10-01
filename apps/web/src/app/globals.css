@@ -1,34 +1,12 @@
 @import "tailwindcss";
 
-:root {
-  color-scheme: dark;
-  --background: #07090d;
-  --foreground: #e7ebf3;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html {
-  min-height: 100%;
-  background: var(--background);
-}
-
-body {
-  margin: 0;
-  min-height: 100%;
-  background:
-    radial-gradient(circle at top right, rgba(124, 58, 237, 0.08), transparent 26rem),
-    radial-gradient(circle at bottom left, rgba(6, 182, 212, 0.05), transparent 24rem),
-    var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
-}
+:root{color-scheme:dark;--background:#05070b;--foreground:#edf2f7;--line:rgba(255,255,255,.085);--muted:#8792a6}
+@theme inline{--color-background:var(--background);--color-foreground:var(--foreground);--font-sans:var(--font-geist-sans);--font-mono:var(--font-geist-mono)}
+*{box-sizing:border-box}html{min-height:100%;background:var(--background);scroll-behavior:smooth}
+body{margin:0;min-height:100%;background:radial-gradient(circle at 72% -8%,rgba(124,58,237,.18),transparent 30rem),radial-gradient(circle at -5% 65%,rgba(34,211,238,.07),transparent 26rem),linear-gradient(180deg,#070a10 0%,#05070b 55%,#04060a 100%);color:var(--foreground);font-family:var(--font-geist-sans),system-ui,sans-serif}
+::selection{background:rgba(167,139,250,.28);color:white}::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:999px}::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.18)}
+.polyon-grid{background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:32px 32px;mask-image:linear-gradient(to bottom,black,transparent 75%)}
+.polyon-panel{border:1px solid var(--line);background:linear-gradient(145deg,rgba(19,24,35,.88),rgba(10,14,21,.78));box-shadow:0 20px 70px rgba(0,0,0,.22),inset 0 1px rgba(255,255,255,.035);backdrop-filter:blur(22px)}
+.polyon-panel-hover{transition:border-color .2s,transform .2s,background .2s,box-shadow .2s}.polyon-panel-hover:hover{border-color:rgba(167,139,250,.2);transform:translateY(-1px);box-shadow:0 24px 80px rgba(0,0,0,.3),inset 0 1px rgba(255,255,255,.05)}
+.polyon-kicker{color:#8994a8;font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase}.polyon-glow{box-shadow:0 0 0 1px rgba(167,139,250,.08),0 0 60px rgba(124,58,237,.12)}.polyon-dot{box-shadow:0 0 12px currentColor}
+button,a,textarea,input{-webkit-tap-highlight-color:transparent}button:focus-visible,a:focus-visible,textarea:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid rgba(167,139,250,.7);outline-offset:2px}
