@@ -74,8 +74,13 @@ export async function POST(request: Request): Promise<Response> {
     maxToolOutputBytes: 64 * 1024,
   });
 
+  const successfulResponse = execution.responses.find(
+    (item): item is (typeof execution.responses)[number] & {
+      result: Extract<(typeof item.result), { status: "SUCCEEDED" }>;
+    } => item.result.status === "SUCCEEDED",
+  );
   const responseText =
-    execution.responses.find((item) => item.result.status === "SUCCEEDED")?.result.response.content ??
+    successfulResponse?.result.response.content ??
     (execution.status === "APPROVAL_REQUIRED"
       ? "POLYON needs approval before it can complete that action. Please review it in the POLYON workspace."
       : "POLYON could not complete that request.");
