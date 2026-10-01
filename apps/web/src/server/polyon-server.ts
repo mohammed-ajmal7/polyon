@@ -59,8 +59,14 @@ function buildOptions() {
     process.env.POLYON_SEMANTIC_INDEX_ALLOWED_SCOPES,
   );
   const a2aPushNotificationAllowedOrigins = parseCsv(process.env.POLYON_A2A_PUSH_ALLOWED_ORIGINS);
+  const configuredDataDir = process.env.POLYON_DATA_DIR?.trim();
+  const storageRoot =
+    process.env.VERCEL === "1"
+      ? join("/tmp", "polyon-data")
+      : configuredDataDir || join(process.cwd(), ".polyon-data");
+
   return {
-    storageRoot: process.env.POLYON_DATA_DIR?.trim() || join(process.cwd(), ".polyon-data"),
+    storageRoot,
     ...(model === undefined
       ? {}
       : { agents: model.agents, models: model.models, providers: model.providers }),
@@ -446,6 +452,16 @@ function buildSecretResolver() {
         provider: "email",
         kind: "SMTP_CREDENTIAL",
         environmentVariable: "POLYON_SMTP_PASSWORD",
+      },
+      "google-drive.primary": {
+        provider: "google",
+        kind: "OAUTH_ACCESS_TOKEN",
+        environmentVariable: "POLYON_GOOGLE_DRIVE_ACCESS_TOKEN",
+      },
+      "telegram.primary": {
+        provider: "telegram",
+        kind: "API_KEY",
+        environmentVariable: "POLYON_TELEGRAM_BOT_TOKEN",
       },
       "google-drive.primary": {
         provider: "google",
