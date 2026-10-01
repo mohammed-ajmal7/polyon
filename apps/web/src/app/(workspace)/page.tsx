@@ -3,18 +3,6 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 
-import { MarkdownContent } from "@/components/markdown-content";
-import {
-  getActiveChatId,
-  getChat,
-  normalizeAssistantText,
-  readChats,
-  setActiveChatId,
-  titleFromCommand,
-  upsertChat,
-  type ChatMessage,
-  type ChatRecord,
-} from "@/lib/chat-store";
 import { agentLabel, toRunView, type RunView } from "@/lib/run-result";
 
 type Depth = "Auto" | "Direct" | "Collaborative" | "DeepAnalysis";
@@ -25,12 +13,16 @@ const DEPTHS: readonly { readonly mode: Depth; readonly label: string; readonly 
   { mode: "Auto", label: "Auto", hint: "POLYON decides how much of the team to involve." },
   { mode: "Direct", label: "Quick", hint: "One agent answers right away." },
   { mode: "Collaborative", label: "Team", hint: "Several specialists answer, then one synthesis." },
-  { mode: "DeepAnalysis", label: "Deep", hint: "Research, challenge, fact-check, debate and judge." },
+  {
+    mode: "DeepAnalysis",
+    label: "Deep",
+    hint: "Research, challenge, fact-check, debate and judge. Slow on local models.",
+  },
 ];
 
 const ADVANCED: readonly { readonly mode: AdvancedMode; readonly label: string }[] = [
   { mode: "Broadcast", label: "Ask several agents separately" },
-  { mode: "Research", label: "Web research" },
+  { mode: "Research", label: "Web research (needs a search endpoint)" },
   { mode: "Debate", label: "Structured debate" },
   { mode: "Mission", label: "Plan a multi-step mission" },
 ];
@@ -61,12 +53,11 @@ const STEP_LABELS: Record<string, string> = {
 
 interface StoredRun {
   readonly runId: string;
-  readonly chatId: string;
   readonly command: string;
   readonly startedAt: number;
 }
 
-const RUN_STORAGE_KEY = "polyon.activeRun.v2";
+const RUN_STORAGE_KEY = "polyon.activeRun";
 
 function readStoredRun(): StoredRun | undefined {
   try {
@@ -74,10 +65,9 @@ function readStoredRun(): StoredRun | undefined {
     if (raw === null) return undefined;
     const parsed = JSON.parse(raw) as Partial<StoredRun>;
     return typeof parsed.runId === "string" &&
-      typeof parsed.chatId === "string" &&
       typeof parsed.command === "string" &&
       typeof parsed.startedAt === "number"
-      ? { runId: parsed.runId, chatId: parsed.chatId, command: parsed.command, startedAt: parsed.startedAt }
+      ? { runId: parsed.runId, command: parsed.command, startedAt: parsed.startedAt }
       : undefined;
   } catch {
     return undefined;
@@ -89,7 +79,7 @@ function storeRun(run: StoredRun | undefined): void {
     if (run === undefined) window.sessionStorage.removeItem(RUN_STORAGE_KEY);
     else window.sessionStorage.setItem(RUN_STORAGE_KEY, JSON.stringify(run));
   } catch {
-    // The run can continue without the resume hint.
+    // Session storage is a convenience for resuming after reload; the run continues regardless.
   }
 }
 
@@ -111,102 +101,8 @@ export default function HomePage() {
   const [ranMode, setRanMode] = useState<{ mode: string; reason?: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [approvalsWaiting, setApprovalsWaiting] = useState(0);
-  const [chat, setChat] = useState<ChatRecord | null>(null);
-  const [chatList, setChatList] = useState<ChatRecord[]>([]);
   const conversationRef = useRef<string | null>(null);
-  const chatRef = useRef<ChatRecord | null>(null);
   const mountedRef = useRef(true);
-
-  function saveChat(next: ChatRecord) {
-    chatRef.current = next;
-    setChat(next);
-    upsertChat(next);
-    setChatList(readChats());
-  }
-
-  function makeNewChat(): ChatRecord {
-    const nowIso = new Date().toISOString();
-    const next: ChatRecord = {
-      id: crypto.randomUUID(),
-      title: "New chat",
-      createdAt: nowIso,
-      updatedAt: nowIso,
-      messages: [],
-    };
-    saveChat(next);
-    setActiveChatId(next.id);
-    setView(null);
-    setRanMode(null);
-    setError(null);
-    setCommand("");
-    return next;
-  }
-
-  function selectChat(id: string) {
-    const next = getChat(id);
-    if (next === undefined) return;
-    setActiveChatId(id);
-    chatRef.current = next;
-    setChat(next);
-    setView(null);
-    setRanMode(null);
-    setError(null);
-    setCommand("");
-  }
-
-  function renameChat(title: string) {
-    const current = chatRef.current;
-    if (current === null) return;
-    const clean = title.trim().slice(0, 80);
-    if (clean === "" || clean === current.title) return;
-    saveChat({ ...current, title: clean, updatedAt: new Date().toISOString() });
-  }
-
-  function appendMessage(message: ChatMessage) {
-    const current = chatRef.current ?? makeNewChat();
-    const next: ChatRecord = {
-      ...current,
-      messages: [...current.messages, message],
-      title: current.messages.length === 0 && message.role === "user"
-        ? titleFromCommand(message.content)
-        : current.title,
-      updatedAt: message.createdAt,
-    };
-    saveChat(next);
-  }
-
-  useEffect(() => {
-    const chats = readChats();
-    setChatList(chats);
-
-    const activeId = getActiveChatId();
-    const restored = (activeId === undefined ? undefined : getChat(activeId)) ?? chats[0];
-    if (restored !== undefined) {
-      chatRef.current = restored;
-      setChat(restored);
-      setActiveChatId(restored.id);
-    } else {
-      const created = {
-        id: crypto.randomUUID(),
-        title: "New chat",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        messages: [],
-      };
-      chatRef.current = created;
-      setChat(created);
-      upsertChat(created);
-      setChatList([created]);
-      setActiveChatId(created.id);
-    }
-
-    const stored = readStoredRun();
-    if (stored !== undefined) void followRun(stored);
-
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -217,7 +113,7 @@ export default function HomePage() {
         const body = (await response.json()) as { approvals?: unknown[] };
         if (!cancelled) setApprovalsWaiting(body.approvals?.length ?? 0);
       } catch {
-        // Advisory only; the Approvals page is authoritative.
+        // The banner is advisory; the Approvals page shows the authoritative list.
       }
     }
     void loadApprovals();
@@ -244,39 +140,46 @@ export default function HomePage() {
           setProgress({ steps, messageCount: snapshot.messages?.length ?? 0 });
         })
         .catch(() => undefined);
-    }, 2_500);
+    }, 3_000);
     return () => {
       window.clearInterval(tick);
       window.clearInterval(poll);
     };
   }, [pending]);
 
+  // Resume a request that was still running when the page was reloaded.
+  useEffect(() => {
+    const stored = readStoredRun();
+    if (stored !== undefined) void followRun(stored);
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   async function followRun(run: StoredRun) {
     conversationRef.current = run.runId;
-    const restoredChat = getChat(run.chatId);
-    if (restoredChat !== undefined) {
-      chatRef.current = restoredChat;
-      setChat(restoredChat);
-    }
     setPending(true);
     setStartedAt(run.startedAt);
     setNow(Date.now());
     setLastCommand(run.command);
-
     try {
       while (mountedRef.current) {
-        await new Promise((resolve) => window.setTimeout(resolve, 2_000));
-        const response = await fetch("/api/runs/" + encodeURIComponent(run.runId), { cache: "no-store" });
+        await new Promise((resolve) => window.setTimeout(resolve, 2_500));
+        const response = await fetch("/api/runs/" + encodeURIComponent(run.runId), {
+          cache: "no-store",
+        });
         if (response.status === 401) {
           window.location.assign("/login");
           return;
         }
         if (response.status === 404) {
-          setError("POLYON lost track of this request. Anything completed remains in the chat and Activity.");
+          setError(
+            "POLYON lost track of this request, probably because the server restarted. " +
+              "Anything the team finished is listed under Activity.",
+          );
           break;
         }
         if (!response.ok) continue;
-
         const body = (await response.json()) as {
           status: "running" | "succeeded" | "failed";
           mode: string;
@@ -285,37 +188,12 @@ export default function HomePage() {
           error?: string;
         };
         if (body.status === "running") continue;
-
-        const nextView = body.status === "succeeded"
-          ? toRunView(body.mode, { result: body.result })
-          : null;
-
         setRanMode({
           mode: body.mode,
           ...(body.modeReason === undefined ? {} : { reason: body.modeReason }),
         });
-
-        if (body.status === "failed") {
-          const message = body.error ?? "POLYON could not complete this request.";
-          setError(message);
-          appendMessage({
-            id: crypto.randomUUID(),
-            role: "assistant",
-            content: message,
-            createdAt: new Date().toISOString(),
-          });
-        } else {
-          setView(nextView);
-          const answer = nextView?.answer?.trim();
-          if (answer !== undefined && answer !== "") {
-            appendMessage({
-              id: crypto.randomUUID(),
-              role: "assistant",
-              content: normalizeAssistantText(answer),
-              createdAt: new Date().toISOString(),
-            });
-          }
-        }
+        if (body.status === "failed") setError(body.error ?? "POLYON could not run this request.");
+        else setView(toRunView(body.mode, { result: body.result }));
         break;
       }
     } catch {
@@ -334,25 +212,7 @@ export default function HomePage() {
     const trimmed = command.trim();
     if (pending || trimmed === "") return;
 
-    const currentChat = chatRef.current ?? makeNewChat();
-    const userMessage: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content: trimmed,
-      createdAt: new Date().toISOString(),
-    };
-    const history = currentChat.messages.map((message) => ({
-      role: message.role,
-      content: message.content,
-    }));
-    appendMessage(userMessage);
-
-    const run: StoredRun = {
-      runId: crypto.randomUUID(),
-      chatId: currentChat.id,
-      command: trimmed,
-      startedAt: Date.now(),
-    };
+    const run: StoredRun = { runId: crypto.randomUUID(), command: trimmed, startedAt: Date.now() };
     conversationRef.current = run.runId;
     setPending(true);
     setStartedAt(run.startedAt);
@@ -371,7 +231,6 @@ export default function HomePage() {
           mode,
           command: trimmed,
           conversationId: run.runId,
-          history: history.slice(-40),
           async: true,
           ...(mode === "DeepAnalysis" || mode === "Auto" ? { maxDebateRounds: 1 } : {}),
         }),
@@ -405,150 +264,283 @@ export default function HomePage() {
   }
 
   const elapsed = startedAt === null ? 0 : Math.max(0, Math.floor((now - startedAt) / 1000));
-  const messages = chat?.messages ?? [];
 
   return (
-    <div className="mx-auto flex max-w-[1050px] flex-col">
+    <div className="mx-auto max-w-[1180px]">
       {approvalsWaiting > 0 ? (
-        <Link href="/approvals" className="mb-5 flex items-center justify-between rounded-2xl border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-sm text-amber-100 transition hover:bg-amber-300/15">
-          <span>{approvalsWaiting === 1 ? "1 action is waiting for your approval." : approvalsWaiting + " actions are waiting for your approval."}</span>
-          <span>Review →</span>
+        <Link
+          href="/approvals"
+          className="flex items-center justify-between rounded-2xl border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-sm text-amber-100 transition hover:bg-amber-300/15 focus-visible:ring-2 focus-visible:ring-amber-200/60"
+        >
+          <span>
+            {approvalsWaiting === 1
+              ? "1 action is waiting for your approval."
+              : `${approvalsWaiting} actions are waiting for your approval.`}
+          </span>
+          <span aria-hidden="true">Review →</span>
         </Link>
       ) : null}
 
-      <header className="mb-5 flex items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="mb-1 text-[10px] font-bold uppercase tracking-[.18em] text-violet-300/70">Conversation</div>
-          <input
-            aria-label="Chat name"
-            value={chat?.title ?? "New chat"}
-            onChange={(event) => {
-              const current = chatRef.current;
-              if (current === null) return;
-              const next = { ...current, title: event.target.value, updatedAt: new Date().toISOString() };
-              chatRef.current = next;
-              setChat(next);
-            }}
-            onBlur={(event) => renameChat(event.target.value)}
-            className="w-full bg-transparent text-xl font-semibold tracking-[-.02em] text-white outline-none placeholder:text-slate-600"
-          />
-        </div>
-        <button type="button" onClick={() => makeNewChat()} className="shrink-0 rounded-xl border border-white/10 bg-white/[.035] px-3 py-2 text-xs font-medium text-slate-300 hover:bg-white/[.07]">
-          + New chat
-        </button>
-      </header>
+      <section className="mb-8">
+        <h1 className="text-3xl font-semibold tracking-[-.03em] text-white sm:text-4xl">
+          What are we solving?
+        </h1>
+        <p className="mt-2 text-sm text-slate-400">
+          Ask a question or describe a task. Your AI team works on it, and anything consequential
+          waits for your approval.
+        </p>
 
-      <section className="min-h-[420px]">
-        {messages.length === 0 ? (
-          <div className="flex min-h-[390px] items-center justify-center px-6 text-center">
-            <div className="max-w-xl">
-              <div className="mx-auto mb-5 grid size-14 place-items-center rounded-2xl border border-violet-300/15 bg-violet-300/[.06] text-xl text-violet-200">P</div>
-              <h1 className="text-3xl font-semibold tracking-[-.035em] text-white sm:text-4xl">What are we solving?</h1>
-              <p className="mt-3 text-sm leading-6 text-slate-400">Ask a question or describe a task. Your AI team works on it, and consequential actions wait for your approval.</p>
+        <div className="polyon-panel polyon-glow overflow-hidden rounded-[28px] mt-6"><form onSubmit={(event) => void submit(event)} className="relative p-4 sm:p-6">
+          <label htmlFor="command" className="sr-only">
+            Request for POLYON
+          </label>
+          <div className="relative rounded-2xl border border-white/[.06] bg-black/10 p-3 focus-within:border-violet-300/20 focus-within:ring-1 focus-within:ring-violet-300/20">
+            <textarea
+              id="command"
+              value={command}
+              onChange={(event) => setCommand(event.target.value)}
+              onKeyDown={onKeyDown}
+              disabled={pending}
+              rows={3}
+              placeholder="Describe the outcome you want…"
+              className="w-full resize-none bg-transparent px-1 py-1 text-[18px] leading-8 text-slate-100 outline-none placeholder:text-slate-600 disabled:opacity-60 sm:text-xl"
+            />
+            <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-white/[.06] pt-4">
+              <div
+                role="radiogroup"
+                aria-label="How much of the team to involve"
+                className="flex flex-wrap gap-1"
+              >
+                {DEPTHS.map((depth) => (
+                  <button
+                    key={depth.mode}
+                    type="button"
+                    role="radio"
+                    aria-checked={mode === depth.mode}
+                    title={depth.hint}
+                    disabled={pending}
+                    onClick={() => setMode(depth.mode)}
+                    className={
+                      "rounded-full px-3 py-1.5 text-xs transition focus-visible:ring-2 focus-visible:ring-violet-300/60 disabled:opacity-60 " +
+                      (mode === depth.mode
+                        ? "bg-violet-300/20 text-violet-100 ring-1 ring-violet-300/40"
+                        : "text-slate-300 hover:bg-white/5")
+                    }
+                  >
+                    {depth.label}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  aria-expanded={showAdvanced}
+                  disabled={pending}
+                  onClick={() => setShowAdvanced((value) => !value)}
+                  className="rounded-full px-3 py-1.5 text-xs text-slate-400 hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-violet-300/60"
+                >
+                  {ADVANCED.some((item) => item.mode === mode) ? MODE_NAMES[mode] : "More…"}
+                </button>
+              </div>
+              <button
+                type="submit"
+                disabled={pending || command.trim() === ""}
+                className="ml-auto rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-violet-50 focus-visible:ring-2 focus-visible:ring-violet-300/60 disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                {pending ? "Working…" : "Send"}
+              </button>
             </div>
-          </div>
-        ) : (
-          <div className="space-y-7 pb-5">
-            {messages.map((message) => (
-              <ChatBubble key={message.id} message={message} />
-            ))}
-            {pending ? (
-              <div className="flex items-start gap-3">
-                <div className="grid size-8 shrink-0 place-items-center rounded-xl border border-violet-300/15 bg-violet-300/[.06] text-xs font-bold text-violet-200">P</div>
-                <div className="min-w-0 flex-1">
-                  <div className="mb-2 text-[11px] font-semibold text-slate-500">POLYON</div>
-                  <div className="rounded-2xl border border-white/[.07] bg-white/[.025] px-4 py-3 text-sm text-slate-300">
-                    <span className="inline-flex items-center gap-2"><span className="size-1.5 animate-pulse rounded-full bg-violet-300" />Working{elapsed > 0 ? " · " + formatElapsed(elapsed) : ""}</span>
-                  </div>
-                  <div className="mt-2 text-xs text-slate-500">
-                    {(progress?.steps.length ?? 0) === 0 ? "Getting the team started." : collapseSteps(progress?.steps ?? []).join(" · ")}
-                  </div>
-                </div>
+            {showAdvanced ? (
+              <div className="mt-3 grid gap-1 border-t border-white/8 pt-3 sm:grid-cols-2">
+                {ADVANCED.map((item) => (
+                  <button
+                    key={item.mode}
+                    type="button"
+                    disabled={pending}
+                    onClick={() => {
+                      setMode(item.mode);
+                      setShowAdvanced(false);
+                    }}
+                    className="rounded-xl px-3 py-2 text-left text-xs text-slate-300 hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-violet-300/60"
+                  >
+                    {item.label}
+                  </button>
+                ))}
               </div>
             ) : null}
           </div>
-        )}
+          <p className="mt-2 px-2 text-xs text-slate-400">
+            {DEPTHS.find((depth) => depth.mode === mode)?.hint ??
+              "Advanced mode. Enter sends, Shift+Enter adds a new line."}
+          </p>
+        </form>
+        </div>
       </section>
 
-      {error !== null ? (
-        <div className="mb-4 rounded-2xl border border-rose-300/15 bg-rose-400/[.07] px-4 py-3 text-sm text-rose-100">
-          {error}
-        </div>
+      {pending ? (
+        <section
+          aria-live="polite"
+          className="rounded-3xl border border-violet-300/15 bg-violet-300/[0.04] p-5"
+        >
+          <div className="flex items-center gap-3">
+            <span
+              className="size-2.5 animate-pulse rounded-full bg-violet-300"
+              aria-hidden="true"
+            />
+            <h2 className="text-sm font-medium text-violet-100">POLYON is working…</h2>
+            <span className="ml-auto font-mono text-xs text-slate-400">
+              {formatElapsed(elapsed)}
+            </span>
+          </div>
+          <p className="mt-2 text-sm text-slate-300">“{lastCommand}”</p>
+          <ul className="mt-3 space-y-1 text-sm text-slate-300">
+            {(progress?.steps.length ?? 0) === 0 ? (
+              <li>Getting the team started.</li>
+            ) : (
+              collapseSteps(progress?.steps ?? []).map((step) => <li key={step}>✓ {step}</li>)
+            )}
+          </ul>
+          {elapsed > 60 ? (
+            <p className="mt-3 text-xs text-slate-400">
+              Team and deep requests make many model calls. On a local model this can take several
+              minutes; you can leave this page open.
+            </p>
+          ) : null}
+        </section>
       ) : null}
 
-      {view !== null ? <RunMeta view={view} ranMode={ranMode} command={lastCommand} /> : null}
+      {error !== null ? (
+        <p role="alert" className="rounded-2xl bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
+          {error}
+        </p>
+      ) : null}
 
-      <section className="sticky bottom-4 z-20 mt-3">
-        <form onSubmit={(event) => void submit(event)} className="polyon-panel polyon-glow rounded-[24px] p-3">
-          <label htmlFor="command" className="sr-only">Message POLYON</label>
-          <textarea
-            id="command"
-            value={command}
-            onChange={(event) => setCommand(event.target.value)}
-            onKeyDown={onKeyDown}
-            disabled={pending}
-            rows={2}
-            placeholder="Message POLYON…"
-            className="max-h-48 min-h-[52px] w-full resize-none bg-transparent px-2 py-2 text-[16px] leading-7 text-slate-100 outline-none placeholder:text-slate-600 disabled:opacity-60"
-          />
-          <div className="flex flex-wrap items-center gap-2 border-t border-white/[.06] px-1 pt-3">
-            <div role="radiogroup" aria-label="How much of the team to involve" className="flex flex-wrap gap-1">
-              {DEPTHS.map((depth) => (
-                <button key={depth.mode} type="button" role="radio" aria-checked={mode === depth.mode} title={depth.hint} disabled={pending} onClick={() => setMode(depth.mode)} className={"rounded-full px-3 py-1.5 text-xs transition " + (mode === depth.mode ? "bg-violet-300/20 text-violet-100 ring-1 ring-violet-300/40" : "text-slate-400 hover:bg-white/5 hover:text-slate-200")}>
-                  {depth.label}
-                </button>
-              ))}
-              <button type="button" aria-expanded={showAdvanced} disabled={pending} onClick={() => setShowAdvanced((value) => !value)} className="rounded-full px-3 py-1.5 text-xs text-slate-500 hover:bg-white/5 hover:text-slate-200">
-                More…
-              </button>
-            </div>
-            <button type="submit" disabled={pending || command.trim() === ""} className="ml-auto grid size-9 place-items-center rounded-xl bg-white text-sm font-bold text-slate-950 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-35" aria-label="Send">
-              ↑
-            </button>
-          </div>
-          {showAdvanced ? (
-            <div className="mt-3 grid gap-1 border-t border-white/[.06] pt-3 sm:grid-cols-2">
-              {ADVANCED.map((item) => (
-                <button key={item.mode} type="button" disabled={pending} onClick={() => { setMode(item.mode); setShowAdvanced(false); }} className="rounded-xl px-3 py-2 text-left text-xs text-slate-300 hover:bg-white/5">
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </form>
-        <p className="mt-2 px-2 text-[11px] text-slate-600">Enter to send · Shift+Enter for a new line · {DEPTHS.find((depth) => depth.mode === mode)?.hint}</p>
-      </section>
+      {view !== null ? <AnswerCard view={view} ranMode={ranMode} command={lastCommand} /> : null}
     </div>
   );
 }
 
-function ChatBubble({ message }: { message: ChatMessage }) {
-  const isUser = message.role === "user";
+function AnswerCard({
+  view,
+  ranMode,
+  command,
+}: {
+  view: RunView;
+  ranMode: { mode: string; reason?: string } | null;
+  command: string | null;
+}) {
+  const tone =
+    view.outcome === "failed"
+      ? "border-rose-300/20"
+      : view.outcome === "needs-approval"
+        ? "border-amber-300/25"
+        : "border-white/10";
+
   return (
-    <article className={isUser ? "flex justify-end" : "flex items-start gap-3"}>
-      {isUser ? null : <div className="grid size-8 shrink-0 place-items-center rounded-xl border border-violet-300/15 bg-violet-300/[.06] text-xs font-bold text-violet-200">P</div>}
-      <div className={isUser ? "max-w-[82%]" : "min-w-0 max-w-[900px] flex-1"}>
-        <div className={"mb-1.5 text-[11px] font-semibold " + (isUser ? "text-right text-slate-600" : "text-slate-500")}>{isUser ? "You" : "POLYON"}</div>
-        <div className={isUser ? "rounded-2xl rounded-br-md bg-white/[.08] px-4 py-3 text-[15px] leading-7 text-slate-100" : "text-[15px] leading-7 text-slate-200"}>
-          {isUser ? <p className="whitespace-pre-wrap">{message.content}</p> : <MarkdownContent content={message.content} />}
+    <article className={"polyon-panel mt-5 rounded-3xl p-5 sm:p-7 " + tone}>
+      <header>
+        <div className="text-xs text-slate-400">
+          {ranMode === null ? null : (MODE_NAMES[ranMode.mode] ?? ranMode.mode)}
+          {ranMode?.reason === undefined ? null : <span> · {ranMode.reason}</span>}
         </div>
-      </div>
+        {command === null ? null : <p className="mt-1 text-sm text-slate-400">“{command}”</p>}
+        <h2 className="mt-3 text-lg font-semibold text-white">{view.headline}</h2>
+      </header>
+
+      {view.answer === undefined ? null : (
+        <div className="mt-4 text-[15px] leading-7 whitespace-pre-wrap text-slate-100">
+          {view.answer}
+        </div>
+      )}
+
+      {view.approvalsWaiting > 0 ? (
+        <Link
+          href={view.missionId === undefined ? "/approvals" : "/missions/" + view.missionId}
+          className="mt-4 inline-flex rounded-full bg-amber-300/15 px-4 py-2 text-sm text-amber-100 ring-1 ring-amber-300/30 hover:bg-amber-300/20 focus-visible:ring-2"
+        >
+          Review what POLYON wants to do →
+        </Link>
+      ) : null}
+
+      {view.confirmed.length > 0 ? (
+        <CheckList title="What is confirmed" checks={view.confirmed} />
+      ) : null}
+      {view.uncertain.length > 0 ? (
+        <CheckList title="What is uncertain" checks={view.uncertain} />
+      ) : null}
+
+      {view.contributors.length > 0 ? (
+        <div className="mt-5">
+          <h3 className="text-xs font-medium text-slate-400">Worked on by</h3>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {uniqueBy(view.contributors, (contributor) => contributor.agentId).map(
+              (contributor) => (
+                <span
+                  key={contributor.agentId}
+                  className="rounded-full bg-white/5 px-2.5 py-1 text-xs text-slate-300"
+                >
+                  {contributor.role ?? agentLabel(contributor.agentId)}
+                </span>
+              ),
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {view.problems.length > 0 ? (
+        <details className="mt-5 rounded-2xl bg-white/[0.03] px-4 py-3 text-sm">
+          <summary className="cursor-pointer text-slate-300">
+            {view.problems.length === 1
+              ? "1 part of the team ran into a problem"
+              : `${view.problems.length} parts of the team ran into problems`}
+          </summary>
+          <ul className="mt-2 space-y-1 text-xs text-slate-400">
+            {[...new Set(view.problems)].map((problem) => (
+              <li key={problem}>{problem}</li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+
+      <footer className="mt-5 flex flex-wrap gap-3 text-xs">
+        {view.sourceCount > 0 ? (
+          <Link href="/evidence" className="text-violet-200 hover:underline">
+            View {view.sourceCount} {view.sourceCount === 1 ? "source" : "sources"}
+          </Link>
+        ) : null}
+        {view.conversationId === undefined ? null : (
+          <Link href="/activity" className="text-violet-200 hover:underline">
+            View how the team worked
+          </Link>
+        )}
+        {view.missionId === undefined ? null : (
+          <Link href={"/missions/" + view.missionId} className="text-violet-200 hover:underline">
+            Open mission
+          </Link>
+        )}
+      </footer>
     </article>
   );
 }
 
-function RunMeta({ view, ranMode, command }: { view: RunView; ranMode: { mode: string; reason?: string } | null; command: string | null }) {
+function CheckList({
+  title,
+  checks,
+}: {
+  title: string;
+  checks: readonly { claim: string; verdict: string; rationale: string }[];
+}) {
   return (
-    <div className="mb-4 rounded-2xl border border-white/[.06] bg-white/[.02] px-4 py-3 text-xs text-slate-500">
-      <span className="font-medium text-slate-300">{ranMode === null ? "POLYON" : MODE_NAMES[ranMode.mode] ?? ranMode.mode}</span>
-      {ranMode?.reason ? <span> · {ranMode.reason}</span> : null}
-      {command ? <span className="hidden sm:inline"> · completed</span> : null}
-      {view.approvalsWaiting > 0 ? (
-        <Link href={view.missionId === undefined ? "/approvals" : "/missions/" + view.missionId} className="ml-3 text-amber-200 hover:underline">Review approval →</Link>
-      ) : null}
-      {view.contributors.length > 0 ? (
-        <span className="ml-3">Worked on by {uniqueBy(view.contributors, (item) => item.agentId).map((item) => item.role ?? agentLabel(item.agentId)).join(", ")}</span>
-      ) : null}
+    <div className="mt-5">
+      <h3 className="text-xs font-medium text-slate-400">{title}</h3>
+      <ul className="mt-2 space-y-2">
+        {uniqueBy(checks, (check) => check.claim).map((check) => (
+          <li key={check.claim} className="rounded-2xl bg-white/[0.03] px-4 py-3 text-sm">
+            <p className="line-clamp-3 text-slate-200">{check.claim}</p>
+            {check.rationale === "" ? null : (
+              <p className="mt-1 text-xs text-slate-400">{check.rationale}</p>
+            )}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -559,7 +551,7 @@ function collapseSteps(steps: readonly string[]): string[] {
 
 function formatElapsed(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
-  return minutes === 0 ? seconds + "s" : minutes + "m " + String(seconds % 60).padStart(2, "0") + "s";
+  return minutes === 0 ? `${seconds}s` : `${minutes}m ${String(seconds % 60).padStart(2, "0")}s`;
 }
 
 function uniqueBy<T>(items: readonly T[], key: (item: T) => string): T[] {
