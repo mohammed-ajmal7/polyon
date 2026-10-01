@@ -47,13 +47,29 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const polyon = getPolyonComposition();
+  const actorId = "telegram-user:" + command.userId;
+  const completionEventId = `telegram:completion:${command.updateId}`;
+  const existingCompletion = polyon.stores.events.get(completionEventId);
+  const existingResponse = getTelegramCompletionResponse(existingCompletion);
+  if (existingResponse !== undefined) {
+    const reply = await sendTelegramReply(
+      polyon,
+      command.chatId,
+      actorId,
+      command.updateId,
+      existingResponse,
+    );
+    return reply.status === "SUCCEEDED"
+      ? Response.json({ ok: true, replayed: true }, { status: 200 })
+      : Response.json({ error: "Telegram reply was not delivered." }, { status: 502 });
+  }
+
   const agents = polyon.agents.list().filter((agent) => agent.status === "ACTIVE");
   const target = agents.find((agent) => agent.roleId === "action-agent") ?? agents[0];
   if (target === undefined) {
     return Response.json({ error: "No active POLYON agent is configured." }, { status: 503 });
   }
 
-  const actorId = "telegram-user:" + command.userId;
   let commandResult;
   try {
     commandResult = polyon.commandIngress.submit({
@@ -71,55 +87,113 @@ export async function POST(request: Request): Promise<Response> {
       error instanceof CommandIngressError &&
       (error.kind === "DUPLICATE_MESSAGE" || error.kind === "DUPLICATE_EVENT")
     ) {
-      // Telegram retries an update until it receives a 2xx response. Duplicate
-      // updates are already persisted, so acknowledge them without re-executing.
+      // The command was already accepted. If its terminal response was persisted,
+      // replay only the response; never execute the command a second time.
+      const duplicateResponse = getTelegramCompletionResponse(
+        polyon.stores.events.get(completionEventId),
+      );
+      if (duplicateResponse !== undefined) {
+        const reply = await sendTelegramReply(
+          polyon,
+          command.chatId,
+          actorId,
+          command.updateId,
+          duplicateResponse,
+        );
+        return reply.status === "SUCCEEDED"
+          ? Response.json({ ok: true, replayed: true }, { status: 200 })
+          : Response.json({ error: "Telegram reply was not delivered." }, { status: 502 });
+      }
       return Response.json({ ok: true, duplicate: true }, { status: 200 });
     }
     throw error;
   }
 
-  const execution = await polyon.conversationOrchestration.execute({
-    command: commandResult,
-    targets: [{ agentId: target.id, actorId: target.id }],
-    requiredCapabilityIds: [],
-    policy: getPolyonPolicy(),
-    actorId,
-    maxToolRounds: 8,
-    maxToolOutputBytes: 64 * 1024,
-  });
+  let responseText: string;
+  try {
+    const execution = await polyon.conversationOrchestration.execute({
+      command: commandResult,
+      targets: [{ agentId: target.id, actorId: target.id }],
+      requiredCapabilityIds: [],
+      policy: getPolyonPolicy(),
+      actorId,
+      maxToolRounds: 8,
+      maxToolOutputBytes: 64 * 1024,
+    });
 
-  const successfulResponse = execution.responses.find(
-    (item): item is (typeof execution.responses)[number] & {
-      result: Extract<(typeof item.result), { status: "SUCCEEDED" }>;
-    } => item.result.status === "SUCCEEDED",
-  );
-  const responseText =
-    successfulResponse?.result.response.content ??
-    (execution.status === "APPROVAL_REQUIRED"
-      ? "POLYON needs approval before it can complete that action. Please review it in the POLYON workspace."
-      : "POLYON could not complete that request.");
+    const successfulResponse = execution.responses.find(
+      (item): item is (typeof execution.responses)[number] & {
+        result: Extract<(typeof item.result), { status: "SUCCEEDED" }>;
+      } => item.result.status === "SUCCEEDED",
+    );
+    responseText =
+      successfulResponse?.result.response.content ??
+      (execution.status === "APPROVAL_REQUIRED"
+        ? "POLYON needs approval before it can complete that action. Please review it in the POLYON workspace."
+        : "POLYON could not complete that request.");
+  } catch {
+    responseText = "POLYON could not complete that request.";
+  }
 
   const boundedResponse = Array.from(responseText).slice(0, MAX_TELEGRAM_RESPONSE_CHARS).join("");
   const now = new Date().toISOString();
-  const reply = await polyon.integrationInvocation.invoke({
-    invocationId: `telegram:reply:${command.updateId}`,
-    integrationId: "telegram-primary",
-    operation: "SEND_MESSAGE",
-    input: { chatId: command.chatId, text: boundedResponse },
-    action: "EXTERNAL_COMMUNICATION",
-    riskLevel: "LOW",
-    policy: buildTelegramReplyPolicy(now),
-    decisionId: `telegram:reply-policy:${command.updateId}`,
-    approvalRequestId: `telegram:reply-approval:${command.updateId}`,
-    requestedBy: actorId,
-    requestedAt: now,
-    evaluatedAt: now,
+  polyon.stores.events.append({
+    id: completionEventId,
+    kind: "OTHER",
     actorId,
+    conversationId: commandResult.conversation.id,
+    occurredAt: now,
+    data: {
+      type: "TELEGRAM_RESPONSE_READY",
+      updateId: command.updateId,
+      chatId: command.chatId,
+      text: boundedResponse,
+    },
   });
 
+  const reply = await sendTelegramReply(
+    polyon,
+    command.chatId,
+    actorId,
+    command.updateId,
+    boundedResponse,
+  );
   if (reply.status !== "SUCCEEDED") {
     return Response.json({ error: "Telegram reply was not delivered." }, { status: 502 });
   }
 
   return Response.json({ ok: true }, { status: 200 });
+}
+
+function getTelegramCompletionResponse(
+  event: ReturnType<ReturnType<typeof getPolyonComposition>["stores"]["events"]["get"]>,
+): string | undefined {
+  if (event === undefined || event.kind !== "OTHER") return undefined;
+  if (event.data.type !== "TELEGRAM_RESPONSE_READY") return undefined;
+  return typeof event.data.text === "string" ? event.data.text : undefined;
+}
+
+async function sendTelegramReply(
+  polyon: ReturnType<typeof getPolyonComposition>,
+  chatId: number,
+  actorId: string,
+  updateId: number,
+  text: string,
+) {
+  const now = new Date().toISOString();
+  return polyon.integrationInvocation.invoke({
+    invocationId: `telegram:reply:${updateId}:${crypto.randomUUID()}`,
+    integrationId: "telegram-primary",
+    operation: "SEND_MESSAGE",
+    input: { chatId, text },
+    action: "EXTERNAL_COMMUNICATION",
+    riskLevel: "LOW",
+    policy: buildTelegramReplyPolicy(now),
+    decisionId: `telegram:reply-policy:${updateId}:${crypto.randomUUID()}`,
+    approvalRequestId: `telegram:reply-approval:${updateId}:${crypto.randomUUID()}`,
+    requestedBy: actorId,
+    requestedAt: now,
+    evaluatedAt: now,
+    actorId,
+  });
 }
