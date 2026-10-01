@@ -1,3 +1,4 @@
+import { CommandIngressError } from "@polyon/application";
 import { readBoundedText } from "@/server/bounded-body";
 import { executionEnabled, getPolyonComposition, getPolyonPolicy } from "@/server/polyon-server";
 import {
@@ -53,16 +54,29 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const actorId = "telegram-user:" + command.userId;
-  const commandResult = polyon.commandIngress.submit({
-    mode: "Direct",
-    command: command.text,
-    actorId,
-    conversationId: "telegram:chat:" + command.chatId,
-    messageId: `telegram:message:${command.updateId}`,
-    eventId: `telegram:event:${command.updateId}`,
-    participantIds: [actorId, target.id],
-    createdAt: new Date().toISOString(),
-  });
+  let commandResult;
+  try {
+    commandResult = polyon.commandIngress.submit({
+      mode: "Direct",
+      command: command.text,
+      actorId,
+      conversationId: "telegram:chat:" + command.chatId,
+      messageId: `telegram:message:${command.updateId}`,
+      eventId: `telegram:event:${command.updateId}`,
+      participantIds: [actorId, target.id],
+      createdAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    if (
+      error instanceof CommandIngressError &&
+      (error.kind === "DUPLICATE_MESSAGE" || error.kind === "DUPLICATE_EVENT")
+    ) {
+      // Telegram retries an update until it receives a 2xx response. Duplicate
+      // updates are already persisted, so acknowledge them without re-executing.
+      return Response.json({ ok: true, duplicate: true }, { status: 200 });
+    }
+    throw error;
+  }
 
   const execution = await polyon.conversationOrchestration.execute({
     command: commandResult,
