@@ -78,6 +78,7 @@ function restoreStore<TEntity extends { readonly id: string }>(
 }
 
 export class InMemoryDomainStores implements DomainStores, DomainUnitOfWork {
+  readonly rootDir = "";
   private transactionActive = false;
 
   readonly agentRuns: AgentRunStore = new InMemoryEntityStore<AgentRun>();
