@@ -873,3 +873,26 @@ describe("createPolyonComposition runtime tool loop", () => {
     }
   });
 });
+
+
+describe("createPolyonComposition storage backend", () => {
+  it("supports an in-memory backend without touching the filesystem", () => {
+    const composition = createPolyonComposition({
+      storageRoot: "/this/path/must/not/be-created",
+      storageBackend: "memory",
+    });
+
+    composition.stores.missions.save({
+      id: "mission:memory-test",
+      title: "Memory test",
+      objective: "Verify the memory storage backend.",
+      status: "WAITING",
+      actorId: "actor.test",
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    expect(composition.stores.rootDir).toBe("");
+    expect(composition.stores.missions.get("mission:memory-test")?.title).toBe("Memory test");
+  });
+});
