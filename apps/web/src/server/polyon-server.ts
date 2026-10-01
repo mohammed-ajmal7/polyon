@@ -463,16 +463,6 @@ function buildSecretResolver() {
         kind: "API_KEY",
         environmentVariable: "POLYON_TELEGRAM_BOT_TOKEN",
       },
-      "google-drive.primary": {
-        provider: "google",
-        kind: "OAUTH_ACCESS_TOKEN",
-        environmentVariable: "POLYON_GOOGLE_DRIVE_ACCESS_TOKEN",
-      },
-      "telegram.primary": {
-        provider: "telegram",
-        kind: "API_KEY",
-        environmentVariable: "POLYON_TELEGRAM_BOT_TOKEN",
-      },
     },
   });
 }
