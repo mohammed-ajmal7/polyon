@@ -3,6 +3,18 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 
+import { MarkdownContent } from "@/components/markdown-content";
+import {
+  getActiveChatId,
+  getChat,
+  normalizeAssistantText,
+  readChats,
+  setActiveChatId,
+  titleFromCommand,
+  upsertChat,
+  type ChatMessage,
+  type ChatRecord,
+} from "@/lib/chat-store";
 import { agentLabel, toRunView, type RunView } from "@/lib/run-result";
 
 type Depth = "Auto" | "Direct" | "Collaborative" | "DeepAnalysis";
@@ -101,8 +113,30 @@ export default function HomePage() {
   const [ranMode, setRanMode] = useState<{ mode: string; reason?: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [approvalsWaiting, setApprovalsWaiting] = useState(0);
+  const [chat, setChat] = useState<ChatRecord | null>(null);
+  const chatRef = useRef<ChatRecord | null>(null);
   const conversationRef = useRef<string | null>(null);
   const mountedRef = useRef(true);
+
+  function saveChat(next: ChatRecord) {
+    chatRef.current = next;
+    setChat(next);
+    upsertChat(next);
+  }
+
+  function appendChatMessage(message: ChatMessage) {
+    const current = chatRef.current;
+    if (current === null) return;
+    saveChat({
+      ...current,
+      title:
+        current.messages.length === 0 && message.role === "user"
+          ? titleFromCommand(message.content)
+          : current.title,
+      messages: [...current.messages, message],
+      updatedAt: message.createdAt,
+    });
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -264,6 +298,7 @@ export default function HomePage() {
   }
 
   const elapsed = startedAt === null ? 0 : Math.max(0, Math.floor((now - startedAt) / 1000));
+  const chatMessages = chat?.messages ?? [];
 
   return (
     <div className="mx-auto max-w-[1180px]">
@@ -280,6 +315,49 @@ export default function HomePage() {
           <span aria-hidden="true">Review →</span>
         </Link>
       ) : null}
+
+      <section className="mb-6">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] font-bold uppercase tracking-[.18em] text-violet-300/70">Conversation</div>
+            <input
+              aria-label="Chat name"
+              value={chat?.title ?? "New chat"}
+              onChange={(event) => {
+                const current = chatRef.current;
+                if (current === null) return;
+                const next = { ...current, title: event.target.value, updatedAt: new Date().toISOString() };
+                chatRef.current = next;
+                setChat(next);
+              }}
+              onBlur={() => {
+                const current = chatRef.current;
+                if (current !== null) upsertChat(current);
+              }}
+              className="mt-1 w-full bg-transparent text-lg font-semibold text-white outline-none placeholder:text-slate-600"
+            />
+          </div>
+          <button type="button" onClick={() => {
+            const nowIso = new Date().toISOString();
+            const next: ChatRecord = { id: crypto.randomUUID(), title: "New chat", createdAt: nowIso, updatedAt: nowIso, messages: [] };
+            saveChat(next);
+            setActiveChatId(next.id);
+            setCommand("");
+            setView(null);
+            setError(null);
+          }} className="rounded-xl border border-white/10 bg-white/[.035] px-3 py-2 text-xs text-slate-300 hover:bg-white/[.07]">
+            + New chat
+          </button>
+        </div>
+
+        {chatMessages.length > 0 ? (
+          <div className="space-y-6 pb-5">
+            {chatMessages.map((message) => (
+              <ChatMessageView key={message.id} message={message} />
+            ))}
+          </div>
+        ) : null}
+      </section>
 
       <section className="mb-8">
         <h1 className="text-3xl font-semibold tracking-[-.03em] text-white sm:text-4xl">
@@ -413,7 +491,7 @@ export default function HomePage() {
         </p>
       ) : null}
 
-      {view !== null ? <AnswerCard view={view} ranMode={ranMode} command={lastCommand} /> : null}
+      {chatMessages.length === 0 && view !== null ? <AnswerCard view={view} ranMode={ranMode} command={lastCommand} /> : null}
     </div>
   );
 }
@@ -521,7 +599,23 @@ function AnswerCard({
   );
 }
 
-function CheckList({
+\nfunction ChatMessageView({ message }: { message: ChatMessage }) {
+  const isUser = message.role === "user";
+  return (
+    <article className={isUser ? "flex justify-end" : "flex items-start gap-3"}>
+      {isUser ? null : (
+        <div className="grid size-8 shrink-0 place-items-center rounded-xl border border-violet-300/15 bg-violet-300/[.06] text-xs font-bold text-violet-200">P</div>
+      )}
+      <div className={isUser ? "max-w-[82%]" : "min-w-0 max-w-[900px] flex-1"}>
+        <div className={"mb-1.5 text-[11px] font-semibold " + (isUser ? "text-right text-slate-600" : "text-slate-500")}>{isUser ? "You" : "POLYON"}</div>
+        <div className={isUser ? "rounded-2xl rounded-br-md bg-white/[.08] px-4 py-3 text-[15px] leading-7 text-slate-100" : "text-[15px] leading-7 text-slate-200"}>
+          {isUser ? <p className="whitespace-pre-wrap">{message.content}</p> : <MarkdownContent content={message.content} />}
+        </div>
+      </div>
+    </article>
+  );
+}
+\nfunction CheckList({
   title,
   checks,
 }: {
