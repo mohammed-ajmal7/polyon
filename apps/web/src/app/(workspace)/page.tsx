@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 
-import { MarkdownContent } from "@/components/markdown-content";
 import {
   getActiveChatId,
   getChat,
@@ -577,7 +576,7 @@ function AnswerCard({
 
       {view.answer === undefined ? null : (
         <div className="mt-4">
-          <MarkdownContent content={view.answer} />
+          <div className="whitespace-pre-wrap text-slate-100">{view.answer}</div>
         </div>
       )}
 
@@ -662,7 +661,7 @@ function ChatMessageView({ message }: { message: ChatMessage }) {
       <div className={isUser ? "max-w-[82%]" : "min-w-0 max-w-[900px] flex-1"}>
         <div className={"mb-1.5 text-[11px] font-semibold " + (isUser ? "text-right text-slate-600" : "text-slate-500")}>{isUser ? "You" : "POLYON"}</div>
         <div className={isUser ? "rounded-2xl rounded-br-md bg-white/[.08] px-4 py-3 text-[15px] leading-7 text-slate-100" : "text-[15px] leading-7 text-slate-200"}>
-          {isUser ? <p className="whitespace-pre-wrap">{message.content}</p> : <MarkdownContent content={message.content} />}
+          {isUser ? <p className="whitespace-pre-wrap">{message.content}</p> : <div className="whitespace-pre-wrap">{message.content}</div>}
         </div>
       </div>
     </article>
