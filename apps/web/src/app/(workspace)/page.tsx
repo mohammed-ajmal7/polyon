@@ -266,7 +266,7 @@ export default function HomePage() {
   const elapsed = startedAt === null ? 0 : Math.max(0, Math.floor((now - startedAt) / 1000));
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6">
+    <div className="mx-auto max-w-[1180px]">
       {approvalsWaiting > 0 ? (
         <Link
           href="/approvals"
@@ -281,20 +281,20 @@ export default function HomePage() {
         </Link>
       ) : null}
 
-      <section className="pt-4 sm:pt-10">
-        <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-          What should POLYON handle?
+      <section className="mb-8">
+        <h1 className="text-3xl font-semibold tracking-[-.03em] text-white sm:text-4xl">
+          What are we solving?
         </h1>
         <p className="mt-2 text-sm text-slate-400">
           Ask a question or describe a task. Your AI team works on it, and anything consequential
           waits for your approval.
         </p>
 
-        <form onSubmit={(event) => void submit(event)} className="mt-6">
+        <div className="polyon-panel polyon-glow overflow-hidden rounded-[28px] mt-6"><form onSubmit={(event) => void submit(event)} className="relative p-4 sm:p-6">
           <label htmlFor="command" className="sr-only">
             Request for POLYON
           </label>
-          <div className="rounded-3xl border border-white/10 bg-[#0c1017] p-3 focus-within:ring-2 focus-within:ring-violet-300/40">
+          <div className="relative rounded-2xl border border-white/[.06] bg-black/10 p-3 focus-within:border-violet-300/20 focus-within:ring-1 focus-within:ring-violet-300/20">
             <textarea
               id="command"
               value={command}
@@ -302,10 +302,10 @@ export default function HomePage() {
               onKeyDown={onKeyDown}
               disabled={pending}
               rows={3}
-              placeholder="Ask or tell POLYON anything…"
-              className="w-full resize-none bg-transparent px-2 py-1 text-base leading-7 text-slate-100 outline-none placeholder:text-slate-500 disabled:opacity-60"
+              placeholder="Describe the outcome you want…"
+              className="w-full resize-none bg-transparent px-1 py-1 text-[18px] leading-8 text-slate-100 outline-none placeholder:text-slate-600 disabled:opacity-60 sm:text-xl"
             />
-            <div className="mt-2 flex flex-wrap items-center gap-2">
+            <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-white/[.06] pt-4">
               <div
                 role="radiogroup"
                 aria-label="How much of the team to involve"
@@ -343,7 +343,7 @@ export default function HomePage() {
               <button
                 type="submit"
                 disabled={pending || command.trim() === ""}
-                className="ml-auto rounded-full bg-slate-100 px-5 py-2 text-sm font-semibold text-slate-900 transition hover:bg-white focus-visible:ring-2 focus-visible:ring-violet-300/60 disabled:cursor-not-allowed disabled:opacity-40"
+                className="ml-auto rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-violet-50 focus-visible:ring-2 focus-visible:ring-violet-300/60 disabled:cursor-not-allowed disabled:opacity-35"
               >
                 {pending ? "Working…" : "Send"}
               </button>
@@ -434,7 +434,7 @@ function AnswerCard({
         : "border-white/10";
 
   return (
-    <article className={"rounded-3xl border bg-[#0c1017] p-5 sm:p-6 " + tone}>
+    <article className={"polyon-panel mt-5 rounded-3xl p-5 sm:p-7 " + tone}>
       <header>
         <div className="text-xs text-slate-400">
           {ranMode === null ? null : (MODE_NAMES[ranMode.mode] ?? ranMode.mode)}
