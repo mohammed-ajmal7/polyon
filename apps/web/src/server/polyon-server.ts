@@ -44,6 +44,11 @@ export function getPolyonComposition(): PolyonComposition {
 
 function buildOptions() {
   const model = buildConfiguredModelRegistrations();
+  const configuredDataDir = process.env.POLYON_DATA_DIR?.trim();
+  const storageRoot =
+    process.env.VERCEL === "1"
+      ? join("/tmp", "polyon-data")
+      : configuredDataDir || join(process.cwd(), ".polyon-data");
   const embedding = buildEmbeddingRegistration();
   const email = buildEmailRegistration();
   const secretResolver = email === undefined ? undefined : buildSecretResolver();
@@ -55,7 +60,10 @@ function buildOptions() {
   );
   const a2aPushNotificationAllowedOrigins = parseCsv(process.env.POLYON_A2A_PUSH_ALLOWED_ORIGINS);
   return {
-    storageRoot: process.env.POLYON_DATA_DIR?.trim() || join(process.cwd(), ".polyon-data"),
+    // Vercel function filesystems are not durable/shared. Keep the file-backed
+    // implementation available for local development, but only use /tmp in Vercel
+    // so serverless routes do not attempt to write into the immutable deployment.
+    storageRoot,
     ...(model === undefined
       ? {}
       : { agents: model.agents, models: model.models, providers: model.providers }),
