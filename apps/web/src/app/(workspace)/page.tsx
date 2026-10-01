@@ -139,6 +139,28 @@ export default function HomePage() {
   }
 
   useEffect(() => {
+    const chats = readChats();
+    const activeId = getActiveChatId();
+    const restored = (activeId === undefined ? undefined : getChat(activeId)) ?? chats[0];
+    if (restored !== undefined) {
+      chatRef.current = restored;
+      setChat(restored);
+      setActiveChatId(restored.id);
+    } else {
+      const nowIso = new Date().toISOString();
+      const created: ChatRecord = {
+        id: crypto.randomUUID(),
+        title: "New chat",
+        createdAt: nowIso,
+        updatedAt: nowIso,
+        messages: [],
+      };
+      saveChat(created);
+      setActiveChatId(created.id);
+    }
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     async function loadApprovals() {
       try {
@@ -192,6 +214,12 @@ export default function HomePage() {
 
   async function followRun(run: StoredRun) {
     conversationRef.current = run.runId;
+    appendChatMessage({
+      id: crypto.randomUUID(),
+      role: "user",
+      content: run.command,
+      createdAt: new Date().toISOString(),
+    });
     setPending(true);
     setStartedAt(run.startedAt);
     setNow(Date.now());
@@ -226,8 +254,28 @@ export default function HomePage() {
           mode: body.mode,
           ...(body.modeReason === undefined ? {} : { reason: body.modeReason }),
         });
-        if (body.status === "failed") setError(body.error ?? "POLYON could not run this request.");
-        else setView(toRunView(body.mode, { result: body.result }));
+        if (body.status === "failed") {
+          const message = body.error ?? "POLYON could not run this request.";
+          setError(message);
+          appendChatMessage({
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: message,
+            createdAt: new Date().toISOString(),
+          });
+        } else {
+          const nextView = toRunView(body.mode, { result: body.result });
+          setView(nextView);
+          const answer = nextView.answer?.trim();
+          appendChatMessage({
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: normalizeAssistantText(
+              answer === undefined || answer === "" ? nextView.headline : answer,
+            ),
+            createdAt: new Date().toISOString(),
+          });
+        }
         break;
       }
     } catch {
@@ -265,6 +313,10 @@ export default function HomePage() {
           mode,
           command: trimmed,
           conversationId: run.runId,
+          history: (chatRef.current?.messages ?? []).slice(-1_40).map((message) => ({
+            role: message.role,
+            content: message.content,
+          })),
           async: true,
           ...(mode === "DeepAnalysis" || mode === "Auto" ? { maxDebateRounds: 1 } : {}),
         }),
