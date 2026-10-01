@@ -45,11 +45,18 @@ describe("POLYON server configuration smoke", () => {
       process.env.POLYON_MODEL_ENDPOINT = "http://127.0.0.1:11434/v1/chat/completions";
       process.env.POLYON_MODEL_ID = "local-model";
       process.env.POLYON_MODEL_SUPPORTS_TOOLS = "true";
+      process.env.POLYON_GOOGLE_DRIVE_ACCESS_TOKEN = "drive-smoke-secret";
+      process.env.POLYON_TELEGRAM_BOT_TOKEN = "telegram-smoke-secret";
 
       const model = getPolyonComposition().models.get("local-model");
 
       expect(model?.supportsTools).toBe(true);
       expect(model?.capabilityIds).toContain("ai.tool-calling");
+      const composition = getPolyonComposition();
+      expect(composition.integrations.get("google-drive-primary")?.kind).toBe("GOOGLE_DRIVE");
+      expect(composition.integrations.get("telegram-primary")?.kind).toBe("TELEGRAM");
+      expect(JSON.stringify(composition.integrations.list())).not.toContain("drive-smoke-secret");
+      expect(JSON.stringify(composition.integrations.list())).not.toContain("telegram-smoke-secret");
     } finally {
       rmSync(dataDir, { recursive: true, force: true });
     }

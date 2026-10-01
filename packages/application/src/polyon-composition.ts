@@ -8,6 +8,7 @@ import type {
 } from "@polyon/contracts";
 import {
   EmailIntegrationAdapter,
+  GmailIntegrationAdapter,
   GoogleDriveIntegrationAdapter,
   TelegramIntegrationAdapter,
   InMemoryIntegrationAdapterRegistry,
@@ -133,6 +134,11 @@ export interface PolyonCompositionOptions {
   readonly semanticMemoryIndexJobUserId?: string;
   readonly integrations?: readonly IntegrationAdapter[];
   readonly secretResolver?: SecretResolver;
+  readonly gmailIntegrationId?: string;
+  readonly gmailSecretReference?: SecretReference;
+  readonly gmailMaxResponseBytes?: number;
+  readonly gmailDefaultMaxResults?: number;
+  readonly gmailMaxResults?: number;
   readonly googleDriveIntegrationId?: string;
   readonly googleDriveSecretReference?: SecretReference;
   readonly googleDriveMaxResponseBytes?: number;
@@ -338,6 +344,17 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
           },
         })
       : undefined;
+
+  if (options.secretResolver !== undefined && options.gmailIntegrationId !== undefined && options.gmailSecretReference !== undefined) {
+    integrations.register(new GmailIntegrationAdapter({
+      integrationId: options.gmailIntegrationId,
+      secretResolver: options.secretResolver,
+      secretReference: options.gmailSecretReference,
+      ...(options.gmailMaxResponseBytes === undefined ? {} : { maxResponseBytes: options.gmailMaxResponseBytes }),
+      ...(options.gmailDefaultMaxResults === undefined ? {} : { defaultMaxResults: options.gmailDefaultMaxResults }),
+      ...(options.gmailMaxResults === undefined ? {} : { maxResults: options.gmailMaxResults }),
+    }));
+  }
 
   if (
     options.secretResolver !== undefined &&

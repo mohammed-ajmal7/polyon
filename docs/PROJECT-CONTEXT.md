@@ -483,19 +483,18 @@ Add coding-agent adapters, isolated execution, Git operations, artifacts, and re
 
 ### Phase 9 — External integrations
 
-Status: in progress.
+Status: in progress; the bounded outbound adapters and web-server registration are implemented.
 
 Implemented:
 
 - Google Drive READ adapter (LIST_FILES, GET_METADATA);
 - Telegram bounded SEND_MESSAGE adapter;
-- Email SEND_EMAIL over SMTP, wired into the web server.
+- Email SEND_EMAIL over SMTP, wired into the web server;
+- Telegram inbound text webhook for allowlisted private chats, routed through Direct command ingress and governed Telegram replies.
 
 Remaining:
 
-- wire the Google Drive and Telegram adapters into the web server configuration (they exist in
-  `packages/integrations` but `apps/web/src/server/polyon-server.ts` does not register them);
-- Telegram inbound messages as a command channel;
+- Google Drive and Telegram adapters are registered by the web server when their server-side credentials are configured;
 - Gmail read/search (the specification's Gmail scope; only SMTP send exists);
 - production credential lifecycle beyond environment-backed secret references.
 

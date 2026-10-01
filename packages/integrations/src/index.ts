@@ -39,6 +39,21 @@ export {
 } from "./telegram-integration-adapter";
 
 export {
+  GmailIntegrationAdapter,
+  GmailIntegrationAdapterError,
+  type GmailIntegrationAdapterErrorKind,
+  type GmailIntegrationAdapterOptions,
+  type GmailOperation,
+  type GmailSearchInput,
+  type GmailSearchOutput,
+  type GmailGetMessageInput,
+  type GmailGetMessageOutput,
+  type GmailMessageHeader,
+  type GmailMessageSummary,
+  type GmailInvocationOutput,
+} from "./gmail-integration-adapter";
+
+export {
   GoogleDriveIntegrationAdapter,
   GoogleDriveIntegrationAdapterError,
   type GoogleDriveFileMetadata,
