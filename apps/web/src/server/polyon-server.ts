@@ -173,6 +173,27 @@ function buildEmbeddingRegistration() {
 
 function buildConfiguredModelRegistrations() {
   const profilesJson = process.env.POLYON_MODEL_PROFILES_JSON?.trim();
+  if (process.env.VERCEL === "1" && profilesJson === undefined) {
+    const endpoint = process.env.POLYON_MODEL_ENDPOINT?.trim();
+    const providerId = process.env.POLYON_PROVIDER_ID?.trim();
+    const endpointIsLocal =
+      endpoint !== undefined &&
+      /^(https?:\\/\\/)?(127\\.0\\.0\\.1|localhost)(?::\\d+)?(?:\\/|$)/iu.test(endpoint);
+    const providerIsLocal = providerId === undefined || providerId === "" || providerId === "ollama";
+
+    // Never let a cloud deployment try to reach the developer's laptop. If a Gemini
+    // key is configured, use Google's hosted OpenAI-compatible endpoint as the safe
+    // production fallback; otherwise expose no model rather than failing with ENOTFOUND.
+    if (endpointIsLocal && providerIsLocal) {
+      if (process.env.GEMINI_API_KEY?.trim() !== "") {
+        return buildModelRegistrations(
+          [buildVercelGeminiProfile()],
+          process.env,
+        );
+      }
+      return undefined;
+    }
+  }
   if (profilesJson !== undefined && profilesJson !== "") {
     return buildModelRegistrations(parseModelProfiles(profilesJson), process.env);
   }
@@ -282,6 +303,24 @@ function buildConfiguredModelRegistrations() {
     })),
     process.env,
   );
+}
+
+function buildVercelGeminiProfile(): ModelProfileConfig {
+  return {
+    agentId: "primary",
+    agentName: "Primary",
+    agentRole: "General operations",
+    agentDescription: "Server-configured POLYON production agent.",
+    modelId: process.env.POLYON_VERCEL_MODEL_ID?.trim() || "gemini-3.8-flash",
+    modelName: process.env.POLYON_VERCEL_MODEL_NAME?.trim() || "Gemini 3.8 Flash",
+    providerId: "gemini",
+    providerName: "Google Gemini",
+    endpoint: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+    apiKeyEnv: "GEMINI_API_KEY",
+    supportsTools: true,
+    privacyClass: "cloud",
+    costClass: "paid",
+  };
 }
 
 function buildEmailRegistration():
