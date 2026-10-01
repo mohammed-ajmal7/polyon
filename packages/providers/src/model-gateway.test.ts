@@ -196,6 +196,40 @@ describe("ModelGateway", () => {
     expect(aborted).toBe(true);
   });
 
+  it("retries transient provider failures by default with bounded backoff", async () => {
+    vi.useFakeTimers();
+
+    try {
+      let calls = 0;
+      const gateway = createGateway({
+        providerId: "provider-1",
+        async invoke() {
+          calls += 1;
+          if (calls < 3) {
+            throw new ProviderInvocationError(
+              "UNAVAILABLE",
+              "provider-1",
+              "model-1",
+              "temporary capacity failure",
+              true,
+            );
+          }
+          return { output: "ok" };
+        },
+      });
+
+      const pending = gateway.invoke("model-1", "hello");
+
+      await vi.advanceTimersByTimeAsync(500);
+      await vi.advanceTimersByTimeAsync(1_000);
+
+      await expect(pending).resolves.toEqual({ output: "ok" });
+      expect(calls).toBe(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("retries only retryable provider failures", async () => {
     let calls = 0;
     const gateway = createGateway({
