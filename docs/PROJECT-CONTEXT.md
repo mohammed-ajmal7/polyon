@@ -489,12 +489,12 @@ Implemented:
 
 - Google Drive READ adapter (LIST_FILES, GET_METADATA);
 - Telegram bounded SEND_MESSAGE adapter;
-- Email SEND_EMAIL over SMTP, wired into the web server.
+- Email SEND_EMAIL over SMTP, wired into the web server;
+- Telegram inbound text webhook for allowlisted private chats, routed through Direct command ingress and governed Telegram replies.
 
 Remaining:
 
 - Google Drive and Telegram adapters are registered by the web server when their server-side credentials are configured;
-- Telegram inbound messages as a command channel;
 - Gmail read/search (the specification's Gmail scope; only SMTP send exists);
 - production credential lifecycle beyond environment-backed secret references.
 
