@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -137,6 +137,45 @@ describe("ScopedGitWriteToolAdapter", () => {
     } finally {
       cleanup(root);
       cleanup(outside);
+    }
+  });
+
+  it("treats pathspec magic literally so staging stays inside a scoped subdirectory", async () => {
+    const root = createRepository();
+
+    try {
+      mkdirSync(join(root, "scoped"));
+      writeFileSync(join(root, "scoped", "inside.txt"), "inside");
+      writeFileSync(join(root, "outside.txt"), "outside");
+      const adapter = new ScopedGitWriteToolAdapter({
+        toolId: "git.write.scoped",
+        rootDir: join(root, "scoped"),
+      });
+
+      await expect(
+        adapter.invoke({
+          input: {
+            operation: "STAGE_PATHS",
+            paths: [":/"],
+          },
+        }),
+      ).rejects.toMatchObject({
+        kind: "COMMAND_FAILED",
+      });
+
+      await adapter.invoke({
+        input: {
+          operation: "STAGE_PATHS",
+          paths: ["."],
+        },
+      });
+
+      const staged = execFileSync("git", ["-C", root, "diff", "--cached", "--name-only"], {
+        encoding: "utf8",
+      });
+      expect(staged.trim()).toBe("scoped/inside.txt");
+    } finally {
+      cleanup(root);
     }
   });
 

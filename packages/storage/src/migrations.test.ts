@@ -34,6 +34,16 @@ describe("migrateDurableSnapshot", () => {
         };
       },
     },
+    {
+      fromVersion: 3,
+      toVersion: 4,
+      migrate(state) {
+        return {
+          ...state,
+          agentRuns: [],
+        };
+      },
+    },
   ];
 
   it("applies migrations sequentially to the requested version", () => {
@@ -161,5 +171,63 @@ describe("migrateDurableSnapshot", () => {
         "Durable migration 0 -> 0 does not lead toward supported version 1.",
       ),
     );
+  });
+});
+
+describe("job migration", () => {
+  it("adds the jobs collection when migrating from version 4 to 5", () => {
+    expect(
+      migrateDurableSnapshot({ version: 4, events: [], agentRuns: [] }, 5, [
+        {
+          fromVersion: 4,
+          toVersion: 5,
+          migrate(state) {
+            return {
+              ...state,
+              jobs: [],
+            };
+          },
+        },
+      ]),
+    ).toEqual({
+      value: {
+        version: 5,
+        events: [],
+        agentRuns: [],
+        jobs: [],
+      },
+      migrated: true,
+      fromVersion: 4,
+      toVersion: 5,
+    });
+  });
+});
+
+describe("agent run migration", () => {
+  it("adds the agentRuns collection when migrating from version 3 to 4", () => {
+    expect(
+      migrateDurableSnapshot({ version: 3, events: [], memoryEmbeddings: [] }, 4, [
+        {
+          fromVersion: 3,
+          toVersion: 4,
+          migrate(state) {
+            return {
+              ...state,
+              agentRuns: [],
+            };
+          },
+        },
+      ]),
+    ).toEqual({
+      value: {
+        version: 4,
+        events: [],
+        memoryEmbeddings: [],
+        agentRuns: [],
+      },
+      migrated: true,
+      fromVersion: 3,
+      toVersion: 4,
+    });
   });
 });

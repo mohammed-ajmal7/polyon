@@ -12,6 +12,8 @@ export {
   type ProviderAdapterRegistryErrorKind,
 } from "./provider-adapter-registry";
 
+export { ConcurrencyLimitedProviderAdapter } from "./concurrency-limited-provider-adapter";
+
 export {
   OpenAICompatibleTextModelAdapter,
   type OpenAICompatibleFetch,
@@ -56,3 +58,32 @@ export {
   type OpenAICompatibleEmbeddingFetchInit,
   type OpenAICompatibleEmbeddingResponse,
 } from "./openai-compatible-embedding-adapter";
+
+export {
+  createTextModelProviderAdapter,
+  getBuiltInProviderPreset,
+  resolveProviderApiKeyEnv,
+  resolveProviderEndpoint,
+  type BuiltInProviderId,
+  type BuiltInProviderPreset,
+  type TextModelProviderFactoryOptions,
+} from "./provider-presets";
+
+export {
+  UsageGovernor,
+  UsageGovernorError,
+  type ProviderUsageSnapshot,
+  type RunUsageSnapshot,
+  type UsageAuthorizationRequest,
+  type UsageBudget,
+  type UsageCostClass,
+  type UsageGovernorOptions,
+  type UsageInvocationContext,
+  type UsageGovernorErrorKind,
+  type UsageReservation,
+} from "./usage-governor";
+
+export type {
+  ModelInvocationTelemetryRecord,
+  ModelInvocationTelemetrySink,
+} from "./model-invocation-telemetry";

@@ -3,11 +3,13 @@ import { describe, expect, it } from "vitest";
 
 import { InMemoryAgentRegistry } from "./agent-registry";
 import { AgentGateway } from "./agent-gateway";
+import { ProviderHealthTracker } from "./provider-health";
 import { InMemoryModelRegistry } from "./model-registry";
 import { InMemoryProviderRegistry } from "./provider-registry";
 import {
   InMemoryProviderAdapterRegistry,
   ModelGateway,
+  ProviderInvocationError,
   type ModelProviderAdapter,
 } from "@polyon/providers";
 
@@ -62,6 +64,42 @@ function createGateway(adapter: ModelProviderAdapter) {
 }
 
 describe("AgentGateway", () => {
+  it("surfaces the original retryable error when no alternative provider exists", async () => {
+    const gateway = createGateway({
+      providerId: "provider-1",
+      async invoke() {
+        throw new ProviderInvocationError("TIMEOUT", "provider-1", "model-1", "slow", true);
+      },
+    });
+
+    await expect(
+      gateway.invoke({ agentId: "agent-1", requiredCapabilityIds: ["research"], input: "hi" }),
+    ).rejects.toMatchObject({ name: "ProviderInvocationError", kind: "TIMEOUT" });
+  });
+
+  it("keeps routing to a provider after a request-specific invalid request", async () => {
+    let calls = 0;
+    const gateway = createGateway({
+      providerId: "provider-1",
+      async invoke() {
+        calls += 1;
+        if (calls === 1) {
+          throw new ProviderInvocationError(
+            "INVALID_REQUEST",
+            "provider-1",
+            "model-1",
+            "context too long",
+          );
+        }
+        return { output: "ok" };
+      },
+    });
+    const request = { agentId: "agent-1", requiredCapabilityIds: ["research"], input: "hi" };
+
+    await expect(gateway.invoke(request)).rejects.toMatchObject({ kind: "INVALID_REQUEST" });
+    await expect(gateway.invoke(request)).resolves.toMatchObject({ output: "ok" });
+  });
+
   it("supports typed text model invocations through the agent boundary", async () => {
     const gateway = createGateway({
       providerId: "provider-1",
@@ -145,6 +183,52 @@ describe("AgentGateway", () => {
     expect(retries).toBe(2);
   });
 
+  it("propagates run and agent identity into the model usage context", async () => {
+    const agents = new InMemoryAgentRegistry();
+    const models = new InMemoryModelRegistry();
+    const providers = new InMemoryProviderRegistry();
+    const adapters = new InMemoryProviderAdapterRegistry();
+    const usageContexts: unknown[] = [];
+
+    agents.register(agent);
+    models.register(model);
+    providers.register(provider);
+    adapters.register({
+      providerId: "provider-1",
+      async invoke({ input }) {
+        return { output: input };
+      },
+    });
+
+    const modelGateway = new ModelGateway({ models, providers, adapters });
+    const originalInvoke = modelGateway.invoke.bind(modelGateway);
+    modelGateway.invoke = async (modelId, input, options = {}) => {
+      usageContexts.push(options.usageContext);
+      return originalInvoke(modelId, input, options);
+    };
+
+    const gateway = new AgentGateway({
+      agents,
+      models,
+      providers,
+      modelGateway,
+    });
+
+    await gateway.invoke({
+      agentId: "agent-1",
+      runId: "run-1",
+      requiredCapabilityIds: ["research"],
+      input: "hello",
+    });
+
+    expect(usageContexts).toEqual([
+      {
+        runId: "run-1",
+        agentId: "agent-1",
+      },
+    ]);
+  });
+
   it("routes an agent invocation through model and provider boundaries", async () => {
     const gateway = createGateway({
       providerId: "provider-1",
@@ -166,5 +250,97 @@ describe("AgentGateway", () => {
       source: "PREFERRED",
       output: "model-1:hello",
     });
+  });
+
+  it("records provider failure and reroutes to a healthy fallback provider", async () => {
+    const agents = new InMemoryAgentRegistry();
+    const models = new InMemoryModelRegistry();
+    const providers = new InMemoryProviderRegistry();
+    const adapters = new InMemoryProviderAdapterRegistry();
+
+    agents.register({
+      ...agent,
+      preferredModelId: "model-preferred",
+      fallbackModelIds: ["model-fallback"],
+    });
+
+    models.register({
+      ...model,
+      id: "model-preferred",
+      providerId: "provider-primary",
+    });
+    models.register({
+      ...model,
+      id: "model-fallback",
+      providerId: "provider-fallback",
+    });
+
+    providers.register({
+      id: "provider-primary",
+      name: "Primary",
+      kind: "HOSTED_MODEL",
+      enabled: true,
+    });
+    providers.register({
+      id: "provider-fallback",
+      name: "Fallback",
+      kind: "LOCAL_MODEL",
+      enabled: true,
+    });
+
+    let primaryCalls = 0;
+    let fallbackCalls = 0;
+
+    adapters.register({
+      providerId: "provider-primary",
+      async invoke() {
+        primaryCalls += 1;
+        throw new ProviderInvocationError(
+          "UNAVAILABLE",
+          "provider-primary",
+          "model-preferred",
+          "primary unavailable",
+          true,
+        );
+      },
+    });
+    adapters.register({
+      providerId: "provider-fallback",
+      async invoke() {
+        fallbackCalls += 1;
+        return { output: "fallback success" };
+      },
+    });
+
+    const providerHealth = new ProviderHealthTracker();
+    const gateway = new AgentGateway({
+      agents,
+      models,
+      providers,
+      modelGateway: new ModelGateway({ models, providers, adapters }),
+      providerHealth,
+    });
+
+    await expect(
+      gateway.invoke({
+        agentId: "agent-1",
+        requiredCapabilityIds: ["research"],
+        input: "hello",
+      }),
+    ).resolves.toMatchObject({
+      modelId: "model-fallback",
+      providerId: "provider-fallback",
+      source: "FALLBACK",
+      output: "fallback success",
+    });
+
+    expect(primaryCalls).toBe(1);
+    expect(fallbackCalls).toBe(1);
+    expect(providerHealth.get("provider-primary")).toMatchObject({
+      status: "degraded",
+      consecutiveFailures: 1,
+      lastFailureKind: "UNAVAILABLE",
+    });
+    expect(providerHealth.get("provider-fallback").status).toBe("healthy");
   });
 });

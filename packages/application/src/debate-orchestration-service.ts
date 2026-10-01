@@ -6,12 +6,28 @@ import type {
   TextModelRequest,
 } from "@polyon/contracts";
 import { advanceDebatePhase, createDebate, decideDebate, startDebate } from "@polyon/core";
-import type { DebateStore, DomainUnitOfWork, EventStore } from "@polyon/storage";
+import type {
+  DebateStore,
+  DomainStoreTransactionContext,
+  DomainUnitOfWork,
+  EventStore,
+} from "@polyon/storage";
 
-import type { AgentGateway } from "@polyon/agents";
+import { buildAgentRolePrompt, type AgentGateway, type AgentRegistry } from "@polyon/agents";
+
+import { fitRecentBlocksToBudget } from "./context-budget";
 
 const MAX_PROMPT_CONTEXT = 48_000;
 const MAX_CONTRIBUTION_LENGTH = 100_000;
+
+/** Canonical order of debate phases within a round, as advanced by @polyon/core. */
+const DEBATE_PHASE_ORDER: readonly Debate["phase"][] = [
+  "PROPOSAL",
+  "CRITICISM",
+  "EVIDENCE",
+  "REBUTTAL",
+  "ADJUDICATION",
+];
 
 export interface CreateDebateInput {
   readonly id: string;
@@ -24,11 +40,13 @@ export interface CreateDebateInput {
 
 export interface RunDebateInput {
   readonly debateId: string;
+  readonly runId?: string;
   readonly requiredCapabilityIds: readonly string[];
   readonly adjudicatorAgentId: AgentId;
   readonly now: () => string;
   readonly modelOptions?: import("@polyon/providers").ModelInvocationOptions;
   readonly signal?: AbortSignal;
+  readonly context?: string;
 }
 
 export interface DebateRunResult {
@@ -48,16 +66,17 @@ export class DebateOrchestrationService {
     private readonly debates: DebateStore,
     private readonly events: EventStore,
     private readonly unitOfWork?: DomainUnitOfWork,
+    private readonly agents?: AgentRegistry,
   ) {}
 
   create(input: CreateDebateInput): Debate {
     const debate = createDebate(input);
-    const operation = () => {
-      if (this.debates.get(debate.id) !== undefined) {
+    const operation = (stores: Pick<DomainStoreTransactionContext, "debates" | "events">) => {
+      if (stores.debates.get(debate.id) !== undefined) {
         throw new Error(`Debate already exists: ${debate.id}.`);
       }
-      this.debates.save(debate);
-      this.events.append(
+      stores.debates.save(debate);
+      stores.events.append(
         this.debateEvent("DEBATE_STATUS_CHANGED", debate, debate.createdAt, {
           from: "NONE",
           to: "DRAFT",
@@ -65,7 +84,9 @@ export class DebateOrchestrationService {
       );
       return debate;
     };
-    return this.unitOfWork === undefined ? operation() : this.unitOfWork.transaction(operation);
+    return this.unitOfWork === undefined
+      ? operation({ debates: this.debates, events: this.events })
+      : this.unitOfWork.transaction(operation);
   }
 
   async run(input: RunDebateInput): Promise<DebateRunResult> {
@@ -76,7 +97,7 @@ export class DebateOrchestrationService {
       throw new Error("Adjudicator must be one of the debate participants.");
     }
 
-    const persistedContributions = this.loadContributions(debate.id);
+    const persistedContributions = this.loadContributions(debate);
     const contributions: DebateRunResult["contributions"][number][] = [...persistedContributions];
 
     if (debate.status === "DECIDED") {
@@ -132,10 +153,15 @@ export class DebateOrchestrationService {
     return { debate: decided, decision, contributions };
   }
 
-  private loadContributions(debateId: string): DebateRunResult["contributions"] {
+  private loadContributions(debate: Debate): DebateRunResult["contributions"] {
+    const participantIndex = (agentId: string) => {
+      const index = debate.participantAgentIds.indexOf(agentId);
+      return index === -1 ? debate.participantAgentIds.length : index;
+    };
+
     return this.events
       .list()
-      .filter((event) => event.kind === "DEBATE_CONTRIBUTION" && event.data.debateId === debateId)
+      .filter((event) => event.kind === "DEBATE_CONTRIBUTION" && event.data.debateId === debate.id)
       .map((event) => ({
         agentId: String(event.data.agentId),
         round: Number(event.data.round),
@@ -144,7 +170,10 @@ export class DebateOrchestrationService {
       }))
       .sort(
         (a, b) =>
-          a.round - b.round || a.phase.localeCompare(b.phase) || a.agentId.localeCompare(b.agentId),
+          a.round - b.round ||
+          DEBATE_PHASE_ORDER.indexOf(a.phase) - DEBATE_PHASE_ORDER.indexOf(b.phase) ||
+          participantIndex(a.agentId) - participantIndex(b.agentId) ||
+          a.agentId.localeCompare(b.agentId),
       );
   }
 
@@ -162,17 +191,22 @@ export class DebateOrchestrationService {
           role: "SYSTEM",
           content:
             "You are a bounded debate participant in POLYON. Follow the phase role, " +
-            "stay evidence-focused, and do not take external actions.",
+            "stay evidence-focused, and do not take external actions.\n" +
+            buildAgentRolePrompt(this.agents?.get(agentId), "analysis"),
         },
         {
           role: "USER",
-          content: `Objective: ${debate.objective}\nRound: ${debate.currentRound}\nPhase: ${debate.phase}\nRole: ${role}\n\nPrior contributions:\n${context}`,
+          content:
+            `Objective: ${debate.objective}\nRound: ${debate.currentRound}\n` +
+            `Phase: ${debate.phase}\nRole: ${role}\n\nPrior contributions:\n${context}` +
+            (input.context === undefined ? "" : `\n\nShared analysis context:\n${input.context}`),
         },
       ],
     };
 
     const response = await this.agentGateway.invokeText({
       agentId,
+      runId: input.runId,
       requiredCapabilityIds: input.requiredCapabilityIds,
       request,
       modelOptions: input.modelOptions,
@@ -198,19 +232,25 @@ export class DebateOrchestrationService {
         {
           role: "SYSTEM",
           content:
-            "You are the adjudicator for a finite POLYON debate. Evaluate arguments and evidence, " +
+            "You are the adjudicator for a finite POLYON debate. " +
+            "Evaluate arguments and evidence, " +
             "identify uncertainty and conflicts, and produce a concise decision rationale. " +
-            "Do not claim external verification you did not receive.",
+            "Do not claim external verification you did not receive.\n" +
+            buildAgentRolePrompt(this.agents?.get(adjudicatorAgentId), "judge"),
         },
         {
           role: "USER",
-          content: `Objective: ${debate.objective}\nDebate transcript:\n${context}\n\nReturn a reasoned adjudication.`,
+          content:
+            `Objective: ${debate.objective}\nDebate transcript:\n${context}` +
+            (input.context === undefined ? "" : `\n\nShared analysis context:\n${input.context}`) +
+            "\n\nReturn a reasoned adjudication.",
         },
       ],
     };
 
     const response = await this.agentGateway.invokeText({
       agentId: adjudicatorAgentId,
+      runId: input.runId,
       requiredCapabilityIds: input.requiredCapabilityIds,
       request,
       modelOptions: input.modelOptions,
@@ -219,9 +259,9 @@ export class DebateOrchestrationService {
   }
 
   private persistStatus(debate: Debate, now: string, from: Debate["status"]): void {
-    const operation = () => {
-      this.debates.save(debate);
-      this.events.append(
+    const operation = (stores: Pick<DomainStoreTransactionContext, "debates" | "events">) => {
+      stores.debates.save(debate);
+      stores.events.append(
         this.debateEvent("DEBATE_STATUS_CHANGED", debate, now, {
           from,
           to: debate.status,
@@ -230,8 +270,11 @@ export class DebateOrchestrationService {
         }),
       );
     };
-    if (this.unitOfWork === undefined) operation();
-    else this.unitOfWork.transaction(operation);
+    if (this.unitOfWork === undefined) {
+      operation({ debates: this.debates, events: this.events });
+    } else {
+      this.unitOfWork.transaction(operation);
+    }
   }
 
   private persistContribution(
@@ -239,7 +282,9 @@ export class DebateOrchestrationService {
     contribution: DebateRunResult["contributions"][number],
   ): void {
     const event: DomainEvent = {
-      id: `DEBATE_CONTRIBUTION:${debate.id}:r${contribution.round}:${contribution.phase}:${contribution.agentId}`,
+      id:
+        `DEBATE_CONTRIBUTION:${debate.id}:r${contribution.round}:${contribution.phase}:` +
+        contribution.agentId,
       kind: "DEBATE_CONTRIBUTION",
       data: {
         debateId: debate.id,
@@ -254,16 +299,19 @@ export class DebateOrchestrationService {
   }
 
   private persistDecision(debate: Debate, now: string, decision: string): void {
-    const operation = () => {
-      this.debates.save(debate);
-      this.events.append(
+    const operation = (stores: Pick<DomainStoreTransactionContext, "debates" | "events">) => {
+      stores.debates.save(debate);
+      stores.events.append(
         this.debateEvent("DEBATE_DECIDED", debate, now, {
           decision,
         }),
       );
     };
-    if (this.unitOfWork === undefined) operation();
-    else this.unitOfWork.transaction(operation);
+    if (this.unitOfWork === undefined) {
+      operation({ debates: this.debates, events: this.events });
+    } else {
+      this.unitOfWork.transaction(operation);
+    }
   }
 
   private debateEvent(
@@ -286,6 +334,22 @@ export class DebateOrchestrationService {
   }
 }
 
+function promptStageForDebatePhase(
+  phase: Debate["phase"],
+): "analysis" | "critique" | "fact-check" | "judge" {
+  switch (phase) {
+    case "PROPOSAL":
+    case "REBUTTAL":
+      return "analysis";
+    case "CRITICISM":
+      return "critique";
+    case "EVIDENCE":
+      return "fact-check";
+    case "ADJUDICATION":
+      return "judge";
+  }
+}
+
 function phaseInstruction(phase: Debate["phase"]): string {
   switch (phase) {
     case "PROPOSAL":
@@ -304,13 +368,9 @@ function phaseInstruction(phase: Debate["phase"]): string {
 function formatContributions(
   contributions: readonly DebateRunResult["contributions"][number][],
 ): string {
-  const lines: string[] = [];
-  let total = 0;
-  for (const item of contributions) {
-    const line = `[${item.round}/${item.phase}/${item.agentId}] ${item.content}`;
-    if (total + line.length > MAX_PROMPT_CONTEXT) break;
-    lines.push(line);
-    total += line.length + 1;
-  }
-  return lines.join("\n");
+  return fitRecentBlocksToBudget(
+    contributions.map((item) => `[${item.round}/${item.phase}/${item.agentId}] ${item.content}`),
+    MAX_PROMPT_CONTEXT,
+    "\n",
+  );
 }

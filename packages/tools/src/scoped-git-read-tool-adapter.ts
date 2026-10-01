@@ -42,11 +42,12 @@ export interface ScopedGitReadToolAdapterOptions {
   readonly environmentKeys?: readonly string[];
 }
 
+// "-- ." limits each operation to the scoped root when it is a repository subdirectory.
 const OPERATION_ARGS: Readonly<Record<ScopedGitReadOperation, readonly string[]>> = {
-  STATUS: ["status", "--short", "--branch"],
-  DIFF: ["diff", "--no-ext-diff", "--no-color"],
-  LOG: ["log", "--oneline", "-20"],
-  SHOW: ["show", "--stat", "--oneline", "HEAD"],
+  STATUS: ["--literal-pathspecs", "status", "--short", "--branch", "--", "."],
+  DIFF: ["--literal-pathspecs", "diff", "--no-ext-diff", "--no-color", "--", "."],
+  LOG: ["--literal-pathspecs", "log", "--oneline", "-20", "--", "."],
+  SHOW: ["--literal-pathspecs", "show", "--stat", "--oneline", "HEAD", "--", "."],
 };
 
 export class ScopedGitReadToolAdapter implements ToolAdapter<

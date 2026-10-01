@@ -12,6 +12,10 @@ import { createStateContext } from "./state-store";
 import type { DomainStores } from "./domain-stores";
 import type { EventStore } from "./event-store";
 
+export type CommittedEventListener = (
+  event: import("@polyon/contracts").DomainEvent,
+) => void | Promise<void>;
+
 export interface DurableDomainStores extends DomainStores, DomainUnitOfWork {
   readonly events: EventStore;
   readonly rootDir: string;
@@ -24,7 +28,7 @@ export class FileDomainStores implements DurableDomainStores {
   private readonly state: ReturnType<FileDomainDatabase["snapshot"]>;
   private revision: string;
   private readonly context: DomainStoreTransactionContext;
-  private activeContext: DomainStoreTransactionContext | undefined;
+  private readonly committedEventListeners = new Set<CommittedEventListener>();
 
   constructor(readonly rootDir: string) {
     this.database = new FileDomainDatabase(join(rootDir, "domain-state.json"));
@@ -32,70 +36,89 @@ export class FileDomainStores implements DurableDomainStores {
     this.state = snapshot.state;
     this.revision = snapshot.revision;
     this.context = createStateContext(this.state, (nextState) => {
-      const nextRevision = this.database.replaceIfRevision(nextState, this.revision);
-      Object.assign(this.state, nextState);
-      this.revision = nextRevision;
+      if (this.transactionActive) {
+        throw new DomainTransactionError();
+      }
+
+      this.persistAndPublish(nextState);
     });
   }
 
+  get agentRuns() {
+    return this.context.agentRuns;
+  }
+
+  get jobs() {
+    return this.context.jobs;
+  }
+
   get approvals() {
-    return (this.activeContext ?? this.context).approvals;
+    return this.context.approvals;
   }
 
   get debates() {
-    return (this.activeContext ?? this.context).debates;
+    return this.context.debates;
   }
 
   get evidence() {
-    return (this.activeContext ?? this.context).evidence;
+    return this.context.evidence;
   }
 
   get memory() {
-    return (this.activeContext ?? this.context).memory;
+    return this.context.memory;
   }
 
   get memoryEmbeddings() {
-    return (this.activeContext ?? this.context).memoryEmbeddings;
+    return this.context.memoryEmbeddings;
   }
 
   get sources() {
-    return (this.activeContext ?? this.context).sources;
+    return this.context.sources;
   }
 
   get artifacts() {
-    return (this.activeContext ?? this.context).artifacts;
+    return this.context.artifacts;
   }
 
   get conversations() {
-    return (this.activeContext ?? this.context).conversations;
+    return this.context.conversations;
   }
 
   get executions() {
-    return (this.activeContext ?? this.context).executions;
+    return this.context.executions;
   }
 
   get messages() {
-    return (this.activeContext ?? this.context).messages;
+    return this.context.messages;
   }
 
   get missions() {
-    return (this.activeContext ?? this.context).missions;
+    return this.context.missions;
   }
 
   get missionPlanProposals() {
-    return (this.activeContext ?? this.context).missionPlanProposals;
+    return this.context.missionPlanProposals;
   }
 
   get policyDecisions() {
-    return (this.activeContext ?? this.context).policyDecisions;
+    return this.context.policyDecisions;
   }
 
   get tasks() {
-    return (this.activeContext ?? this.context).tasks;
+    return this.context.tasks;
+  }
+
+  get a2aPushNotificationConfigs() {
+    return this.context.a2aPushNotificationConfigs;
   }
 
   get events() {
-    return (this.activeContext ?? this.context).events;
+    return this.context.events;
+  }
+
+  subscribeCommittedEvents(listener: CommittedEventListener): () => void {
+    this.committedEventListeners.add(listener);
+    return () => this.committedEventListeners.delete(listener);
   }
 
   transaction<T>(work: (context: DomainStoreTransactionContext) => T): T {
@@ -109,17 +132,37 @@ export class FileDomainStores implements DurableDomainStores {
       const snapshot = this.database.snapshotWithRevision();
       const stagedState = snapshot.state;
       const stagedContext = createStateContext(stagedState);
-      this.activeContext = stagedContext;
       const result = work(stagedContext);
 
       const nextRevision = this.database.replaceIfRevision(stagedState, snapshot.revision);
+      const previousEventIds = new Set(this.state.events.map((event) => event.id));
       Object.assign(this.state, stagedState);
       this.revision = nextRevision;
+      this.publishCommittedEvents(stagedState.events, previousEventIds);
 
       return result;
     } finally {
-      this.activeContext = undefined;
       this.transactionActive = false;
+    }
+  }
+
+  private persistAndPublish(nextState: ReturnType<FileDomainDatabase["snapshot"]>): void {
+    const previousEventIds = new Set(this.state.events.map((event) => event.id));
+    const nextRevision = this.database.replaceIfRevision(nextState, this.revision);
+    Object.assign(this.state, nextState);
+    this.revision = nextRevision;
+    this.publishCommittedEvents(nextState.events, previousEventIds);
+  }
+
+  private publishCommittedEvents(
+    events: readonly import("@polyon/contracts").DomainEvent[],
+    previousEventIds: ReadonlySet<string>,
+  ): void {
+    for (const event of events) {
+      if (previousEventIds.has(event.id)) continue;
+      for (const listener of this.committedEventListeners) {
+        void listener(event);
+      }
     }
   }
 }

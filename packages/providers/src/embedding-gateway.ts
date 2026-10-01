@@ -8,11 +8,14 @@ import type {
 
 import type { EmbeddingAdapterRegistry } from "./embedding-adapter";
 import { normalizeProviderInvocationError } from "./provider-errors";
+import type { UsageGovernor } from "./usage-governor";
 
 export interface EmbeddingGatewayDependencies {
   readonly models: { get(modelId: ModelId): Model | undefined };
   readonly providers: { get(providerId: Provider["id"]): Provider | undefined };
   readonly adapters: EmbeddingAdapterRegistry;
+  /** Applies zero-cost mode and request budgets to embedding calls, as for text models. */
+  readonly usageGovernor?: UsageGovernor;
 }
 
 export class EmbeddingGateway {
@@ -50,11 +53,28 @@ export class EmbeddingGateway {
       throw new EmbeddingGatewayError("PROVIDER_ADAPTER_NOT_FOUND", modelId);
     }
 
+    const costClass =
+      model.costClass ??
+      (provider.kind === "LOCAL_MODEL" ? ("free" as const) : ("unknown" as const));
+    const estimatedTokens = Math.ceil(
+      input.input.reduce((total, value) => total + value.length, 0) / 4,
+    );
+
     let attempt = 0;
     while (true) {
+      // Every attempt, including retries, is a billable provider request.
+      const reservation = this.dependencies.usageGovernor?.authorize({
+        providerId: provider.id,
+        modelId,
+        estimatedTokens,
+        context: { costClass },
+      });
       try {
-        return (await adapter.embed({ modelId, input, signal: options.signal })).output;
+        const output = (await adapter.embed({ modelId, input, signal: options.signal })).output;
+        reservation?.complete();
+        return output;
       } catch (error) {
+        reservation?.complete();
         const normalized = normalizeProviderInvocationError(error, provider.id, modelId);
         if (!normalized.retryable || attempt >= retries) throw normalized;
         attempt += 1;

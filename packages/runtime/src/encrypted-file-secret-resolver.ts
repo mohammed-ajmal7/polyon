@@ -19,6 +19,7 @@ const STORE_VERSION = 1;
 const ALGORITHM = "aes-256-gcm";
 const IV_BYTES = 12;
 const KEY_BYTES = 32;
+const SECRET_ID_PATTERN = /^[A-Za-z0-9._:-]{1,200}$/;
 
 interface StoredSecret {
   readonly provider: string;
@@ -217,11 +218,19 @@ function validateReference(reference: SecretReference): void {
       "Secret reference must contain an id and provider.",
     );
   }
+
+  // Match the id rule load() enforces, so a stored id cannot make the store unreadable.
+  if (!SECRET_ID_PATTERN.test(reference.id)) {
+    throw new SecretResolverError(
+      "INVALID_REFERENCE",
+      "Secret reference id must be 1-200 letters, digits, '.', '_', ':' or '-'.",
+    );
+  }
 }
 
 function validateStoredSecret(id: string, stored: StoredSecret): void {
   if (
-    !/^[A-Za-z0-9._:-]{1,200}$/.test(id) ||
+    !SECRET_ID_PATTERN.test(id) ||
     stored === null ||
     typeof stored !== "object" ||
     typeof stored.provider !== "string" ||

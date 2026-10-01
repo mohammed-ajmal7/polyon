@@ -13,6 +13,8 @@ export async function GET(request: Request): Promise<Response> {
     agents: { list: () => polyon.agents.list() },
     commandIngress: polyon.commandIngress,
     conversationOrchestration: polyon.conversationOrchestration,
+    executions: polyon.stores.executions,
+    runtime: polyon.runtime,
     tasks: polyon.stores.tasks,
     policy: {
       id: "a2a-card",
@@ -26,6 +28,9 @@ export async function GET(request: Request): Promise<Response> {
       updatedAt: new Date().toISOString(),
     },
     actorId: "a2a-client",
+    ...(polyon.a2aPushNotifications === undefined
+      ? {}
+      : { pushNotifications: polyon.a2aPushNotifications }),
   });
 
   return Response.json(service.agentCard(getPolyonBaseUrl(request)));

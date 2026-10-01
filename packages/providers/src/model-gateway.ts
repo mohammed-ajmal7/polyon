@@ -13,6 +13,13 @@ import type {
 } from "./provider-adapter";
 import { normalizeProviderInvocationError, ProviderInvocationError } from "./provider-errors";
 import type { ProviderAdapterRegistry } from "./provider-adapter-registry";
+import {
+  UsageGovernor,
+  type UsageCostClass,
+  type UsageInvocationContext,
+  type UsageReservation,
+} from "./usage-governor";
+import type { ModelInvocationTelemetrySink } from "./model-invocation-telemetry";
 
 export type ModelGatewayErrorKind =
   | "MODEL_NOT_FOUND"
@@ -26,6 +33,8 @@ export interface ModelInvocationOptions {
   readonly timeoutMs?: number;
   readonly signal?: AbortSignal;
   readonly retries?: number;
+  readonly usageContext?: UsageInvocationContext;
+  readonly estimatedTokens?: number;
 }
 
 export class ModelGatewayError extends Error {
@@ -52,6 +61,8 @@ export interface ModelGatewayDependencies {
   readonly models: ModelCatalog;
   readonly providers: ProviderCatalog;
   readonly adapters: ProviderAdapterRegistry;
+  readonly usageGovernor?: UsageGovernor;
+  readonly telemetry?: ModelInvocationTelemetrySink;
 }
 
 export class ModelGateway {
@@ -76,7 +87,16 @@ export class ModelGateway {
       );
     }
 
-    return this.invoke<TextModelRequest, TextModelResponse>(modelId, request, options);
+    return this.invoke<TextModelRequest, TextModelResponse>(
+      modelId,
+      request,
+      options.estimatedTokens === undefined
+        ? {
+            ...options,
+            estimatedTokens: estimateTextModelTokens(request),
+          }
+        : options,
+    );
   }
 
   invoke<TInput = unknown, TOutput = unknown>(
@@ -136,24 +156,93 @@ export class ModelGateway {
       throw new RangeError("Model invocation retries must be a non-negative integer.");
     }
 
-    return this.invokeWithRetry<TInput, TOutput>(adapter, provider.id, modelId, input, options);
+    const reservation = this.authorizeUsage(provider, model, modelId, options);
+
+    return this.invokeWithRetry<TInput, TOutput>(
+      adapter,
+      provider,
+      model,
+      modelId,
+      input,
+      options,
+      reservation,
+    );
+  }
+
+  private authorizeUsage(
+    provider: Provider,
+    model: Model,
+    modelId: ModelId,
+    options: ModelInvocationOptions,
+  ): UsageReservation | undefined {
+    return this.dependencies.usageGovernor?.authorize({
+      providerId: provider.id,
+      modelId,
+      estimatedTokens: options.estimatedTokens,
+      context: {
+        ...options.usageContext,
+        costClass: options.usageContext?.costClass ?? effectiveCostClass(model, provider),
+      },
+    });
   }
 
   private async invokeWithRetry<TInput, TOutput>(
     adapter: ModelProviderAdapter,
-    providerId: string,
+    provider: Provider,
+    model: Model,
     modelId: ModelId,
     input: TInput,
     options: ModelInvocationOptions,
+    initialReservation: UsageReservation | undefined,
   ): Promise<ProviderInvocationResult<TOutput>> {
     let attempt = 0;
     const maxRetries = options.retries ?? 0;
+    let reservation = initialReservation;
 
     while (true) {
+      // Each retry is a new provider request and must be authorized against the budget.
+      // Usage governor errors propagate as-is; they are not provider failures.
+      if (attempt > 0) {
+        reservation = this.authorizeUsage(provider, model, modelId, options);
+      }
+
+      const startedAt = Date.now();
+
       try {
-        return await this.invokeOnce<TInput, TOutput>(adapter, modelId, input, options);
+        const result = await this.invokeOnce<TInput, TOutput>(adapter, modelId, input, options);
+        const actualTokens = extractUsageTokens(result);
+        reservation?.complete(actualTokens);
+        await this.recordTelemetry({
+          providerId: provider.id,
+          modelId,
+          runId: options.usageContext?.runId,
+          agentId: options.usageContext?.agentId,
+          attempt,
+          status: "SUCCEEDED",
+          estimatedTokens: options.estimatedTokens,
+          actualTokens,
+          latencyMs: Math.max(0, Date.now() - startedAt),
+          costClass: options.usageContext?.costClass ?? effectiveCostClass(model, provider),
+          recordedAt: new Date().toISOString(),
+        });
+        return result;
       } catch (error) {
-        const normalized = normalizeProviderInvocationError(error, providerId, modelId);
+        reservation?.complete();
+        const normalized = normalizeProviderInvocationError(error, provider.id, modelId);
+
+        await this.recordTelemetry({
+          providerId: provider.id,
+          modelId,
+          runId: options.usageContext?.runId,
+          agentId: options.usageContext?.agentId,
+          attempt,
+          status: "FAILED",
+          estimatedTokens: options.estimatedTokens,
+          latencyMs: Math.max(0, Date.now() - startedAt),
+          costClass: options.usageContext?.costClass ?? effectiveCostClass(model, provider),
+          errorKind: normalized.kind,
+          recordedAt: new Date().toISOString(),
+        });
 
         if (!normalized.retryable || attempt >= maxRetries) {
           throw normalized;
@@ -161,6 +250,16 @@ export class ModelGateway {
 
         attempt += 1;
       }
+    }
+  }
+
+  private async recordTelemetry(
+    record: import("./model-invocation-telemetry").ModelInvocationTelemetryRecord,
+  ): Promise<void> {
+    try {
+      await this.dependencies.telemetry?.record(record);
+    } catch {
+      // Telemetry is observational and must not change model invocation semantics.
     }
   }
 
@@ -263,4 +362,38 @@ export class ModelGateway {
       removeAbortListener?.();
     }
   }
+}
+
+function estimateTextModelTokens(request: TextModelRequest): number {
+  const serializedLength = JSON.stringify(request).length;
+  const inputEstimate = Math.ceil(serializedLength / 4);
+  return inputEstimate + (request.maxOutputTokens ?? 0);
+}
+
+function extractUsageTokens<TOutput>(
+  result: ProviderInvocationResult<TOutput>,
+): number | undefined {
+  const output = result.output;
+
+  if (
+    typeof output === "object" &&
+    output !== null &&
+    "usage" in output &&
+    typeof output.usage === "object" &&
+    output.usage !== null &&
+    "totalTokens" in output.usage &&
+    typeof output.usage.totalTokens === "number"
+  ) {
+    return output.usage.totalTokens;
+  }
+
+  return undefined;
+}
+
+function effectiveCostClass(model: Model, provider: Provider): UsageCostClass {
+  if (model.costClass !== undefined) {
+    return model.costClass;
+  }
+
+  return provider.kind === "LOCAL_MODEL" ? "free" : "unknown";
 }

@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import { DurableBackupService } from "./durable-backup-service";
 import { FileDomainDatabase } from "./file-database";
+import { CURRENT_DURABLE_DOMAIN_VERSION } from "./migrations";
 
 describe("DurableBackupService", () => {
   it("backs up and restores the durable database atomically", () => {
@@ -18,11 +19,13 @@ describe("DurableBackupService", () => {
       db.replace(db.snapshot());
 
       service.backup(backupPath);
-      expect(readFileSync(backupPath, "utf8")).toContain('"version":3');
+      expect(readFileSync(backupPath, "utf8")).toContain(
+        `"version":${CURRENT_DURABLE_DOMAIN_VERSION}`,
+      );
 
-      const reopened = new FileDomainDatabase(dbPath);
       service.restore(backupPath);
-      expect(reopened.snapshot().version).toBe(3);
+      const reopened = new FileDomainDatabase(dbPath);
+      expect(reopened.snapshot().version).toBe(CURRENT_DURABLE_DOMAIN_VERSION);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

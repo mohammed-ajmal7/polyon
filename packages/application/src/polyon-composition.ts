@@ -20,9 +20,14 @@ import {
   InMemoryAgentRegistry,
   InMemoryModelRegistry,
   InMemoryProviderRegistry,
+  planAgentTeam,
+  ProviderHealthTracker,
 } from "@polyon/agents";
 import {
   ArtifactCatalogService,
+  A2APushNotificationService,
+  createDurableA2APushNotificationStore,
+  createA2AWebhookSender,
   SemanticMemoryService,
   createSemanticMemoryIndexer,
   ExactNormalizedSemanticVectorIndex,
@@ -30,6 +35,8 @@ import {
   CommandIngressService,
   CodingAgentService,
   ConversationAgentOrchestrationService,
+  CollectiveOrchestrationService,
+  DeepAnalysisOrchestrationService,
   IntegrationCatalogService,
   IntegrationInvocationService,
   LocalArtifactContentService,
@@ -37,6 +44,9 @@ import {
   ExecutionDispatchService,
   ExecutionResultService,
   AgentToolOrchestrationService,
+  AgentMessageService,
+  AgentRunService,
+  FactCheckService,
   MemoryService,
   MissionPlanningService,
   MissionCreationService,
@@ -44,11 +54,16 @@ import {
   MissionPlanService,
   MissionPlanOrchestrationService,
   MissionWorkflowService,
+  ResearchOrchestrationService,
   ResearchService,
   ResearchSynthesisService,
   CreativeJobService,
   type CreativeAdapter,
+  InMemoryMcpSubscriptionBus,
+  McpSubscriptionEventPublisher,
   type ResearchRetriever,
+  type ResearchFabricProvider,
+  ResearchFabric,
   DebateOrchestrationService,
   ExecutionRetryService,
   MissionExecutionService,
@@ -65,18 +80,25 @@ import {
   InMemoryEmbeddingAdapterRegistry,
   InMemoryProviderAdapterRegistry,
   ModelGateway,
+  UsageGovernor,
   type EmbeddingProviderAdapter,
+  type ModelInvocationTelemetryRecord,
   type ModelProviderAdapter,
 } from "@polyon/providers";
 import { FileDomainStores } from "@polyon/storage";
 import {
   createExecutionRuntime,
+  createJobRuntime,
+  JobService,
   ModelExecutionRunner,
   type ExecutionRunOutcome,
   type ExecutionRuntime,
   type ExecutionRuntimeCompletionHandler,
   type ExecutionRuntimeWait,
   type ExecutionWorkerClock,
+  type JobHandlers,
+  type JobRuntime,
+  type JobRuntimeWait,
 } from "@polyon/runtime";
 import {
   createInMemoryBuiltinToolRegistries,
@@ -101,12 +123,14 @@ export interface PolyonCompositionOptions {
   readonly agents?: readonly Agent[];
   readonly models?: readonly Model[];
   readonly providers?: readonly PolyonProviderRegistration[];
+  readonly usageGovernor?: UsageGovernor;
   readonly embeddingProvider?: PolyonEmbeddingProviderRegistration;
   readonly semanticMemoryIndexingEnabled?: boolean;
   readonly semanticMemoryIndexIntervalMs?: number;
   readonly semanticMemoryIndexBatchSize?: number;
   readonly semanticMemoryIndexMaxEntries?: number;
   readonly semanticMemoryIndexAllowedScopes?: readonly MemoryScope[];
+  readonly semanticMemoryIndexJobUserId?: string;
   readonly integrations?: readonly IntegrationAdapter[];
   readonly secretResolver?: SecretResolver;
   readonly googleDriveIntegrationId?: string;
@@ -125,6 +149,7 @@ export interface PolyonCompositionOptions {
   readonly emailSmtpUsername?: string;
   readonly emailTransport?: EmailTransport;
   readonly researchRetriever?: ResearchRetriever;
+  readonly researchFabricProviders?: readonly ResearchFabricProvider[];
   readonly creativeAdapter?: CreativeAdapter;
   readonly filesystemRoot?: string;
   readonly filesystemReadMaxBytes?: number;
@@ -182,12 +207,24 @@ export interface PolyonCompositionOptions {
   readonly wait?: ExecutionRuntimeWait;
   readonly onError?: (error: unknown) => void;
   readonly onExecutionCompleted?: ExecutionRuntimeCompletionHandler;
+  readonly a2aPushNotificationAllowedOrigins?: readonly string[];
   readonly onReadyTasks?: ReadyTaskHandler;
+  readonly jobHandlers?: JobHandlers;
+  readonly jobPollIntervalMs?: number;
+  readonly jobMaxConcurrency?: number;
+  readonly jobRetryBackoffInitialMs?: number;
+  readonly jobRetryBackoffMaxMs?: number;
+  readonly jobWait?: JobRuntimeWait;
+  readonly onJobError?: (error: unknown) => void;
+  readonly onJobCompleted?: (job: import("@polyon/contracts").Job) => void | Promise<void>;
 }
 
 export interface PolyonComposition {
   readonly commandIngress: CommandIngressService;
   readonly conversationOrchestration: ConversationAgentOrchestrationService;
+  readonly collectiveOrchestration: CollectiveOrchestrationService;
+  readonly deepAnalysisOrchestration: DeepAnalysisOrchestrationService;
+  readonly researchOrchestration?: ResearchOrchestrationService;
   readonly missionExecutionOrchestration: MissionExecutionOrchestrationService;
   readonly missionPlanOrchestration: MissionPlanOrchestrationService;
   readonly missionWorkflow: MissionWorkflowService;
@@ -199,12 +236,14 @@ export interface PolyonComposition {
   readonly models: InMemoryModelRegistry;
   readonly providers: InMemoryProviderRegistry;
   readonly providerAdapters: InMemoryProviderAdapterRegistry;
+  readonly usageGovernor?: UsageGovernor;
   readonly embeddingAdapters: InMemoryEmbeddingAdapterRegistry;
   readonly integrations: InMemoryIntegrationAdapterRegistry;
   readonly secretResolver?: SecretResolver;
   readonly modelGateway: ModelGateway;
   readonly embeddingGateway?: EmbeddingGateway;
   readonly agentGateway: AgentGateway;
+  readonly providerHealth: ProviderHealthTracker;
   readonly tools: ToolRegistry;
   readonly toolAdapters: ToolAdapterRegistry;
   readonly executionDispatch: ExecutionDispatchService;
@@ -214,6 +253,8 @@ export interface PolyonComposition {
   readonly executionApproval: ExecutionApprovalService;
   readonly executionRetry: ExecutionRetryService;
   readonly toolInvocation: ToolInvocationService;
+  readonly agentMessages: AgentMessageService;
+  readonly agentRuns: AgentRunService;
   readonly integrationInvocation: IntegrationInvocationService;
   readonly integrationCatalog: IntegrationCatalogService;
   readonly artifactCatalog: ArtifactCatalogService;
@@ -221,13 +262,20 @@ export interface PolyonComposition {
   readonly agentToolOrchestration: AgentToolOrchestrationService;
   readonly codingAgent: CodingAgentService;
   readonly memory: MemoryService;
+  readonly factCheck: FactCheckService;
   readonly semanticMemory?: SemanticMemoryService;
   readonly semanticMemoryIndexer?: SemanticMemoryIndexer;
   readonly research?: ResearchService;
+  readonly researchFabric: ResearchFabric;
   readonly researchSynthesis: ResearchSynthesisService;
   readonly creative?: CreativeJobService;
   readonly debates: DebateOrchestrationService;
   readonly runtime: ExecutionRuntime;
+  readonly jobService: JobService;
+  readonly jobRuntime: JobRuntime;
+  readonly mcpSubscriptionBus: InMemoryMcpSubscriptionBus;
+  readonly mcpSubscriptionPublisher: McpSubscriptionEventPublisher;
+  readonly a2aPushNotifications?: A2APushNotificationService;
 }
 
 class SystemClock implements ExecutionWorkerClock {
@@ -238,12 +286,58 @@ class SystemClock implements ExecutionWorkerClock {
 
 export function createPolyonComposition(options: PolyonCompositionOptions): PolyonComposition {
   const stores = new FileDomainStores(options.storageRoot);
+  const jobService = new JobService({
+    jobs: stores.jobs,
+    events: stores.events,
+    unitOfWork: stores,
+  });
+  const mcpSubscriptionBus = new InMemoryMcpSubscriptionBus();
+  const mcpSubscriptionPublisher = new McpSubscriptionEventPublisher(mcpSubscriptionBus);
   const agents = new InMemoryAgentRegistry();
   const models = new InMemoryModelRegistry();
   const providers = new InMemoryProviderRegistry();
   const providerAdapters = new InMemoryProviderAdapterRegistry();
   const embeddingAdapters = new InMemoryEmbeddingAdapterRegistry();
   const integrations = new InMemoryIntegrationAdapterRegistry();
+  const a2aPushNotifications =
+    options.a2aPushNotificationAllowedOrigins !== undefined &&
+    options.a2aPushNotificationAllowedOrigins.length > 0
+      ? new A2APushNotificationService({
+          store: createDurableA2APushNotificationStore(stores.a2aPushNotificationConfigs),
+          ownerId: "a2a-client",
+          sender: createA2AWebhookSender({
+            allowedOrigins: options.a2aPushNotificationAllowedOrigins,
+          }),
+          validateTask: (taskId) => {
+            const task = stores.tasks.get(taskId);
+            return (
+              task !== undefined &&
+              stores.executions
+                .list()
+                .some(
+                  (execution) => execution.taskId === taskId && execution.actorId === "a2a-client",
+                )
+            );
+          },
+          onDeliveryOutcome: (outcome) => {
+            stores.events.append({
+              id: `A2A_PUSH_DELIVERY:${crypto.randomUUID()}`,
+              kind:
+                outcome.status === "SUCCEEDED"
+                  ? "A2A_PUSH_DELIVERY_SUCCEEDED"
+                  : "A2A_PUSH_DELIVERY_FAILED",
+              actorId: "a2a-client",
+              taskId: outcome.taskId,
+              occurredAt: new Date().toISOString(),
+              data: {
+                configId: outcome.configId,
+                attempts: outcome.attempts,
+                ...(outcome.error === undefined ? {} : { error: outcome.error }),
+              },
+            });
+          },
+        })
+      : undefined;
 
   if (
     options.secretResolver !== undefined &&
@@ -329,12 +423,64 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     integrations.register(integration);
   }
 
-  const modelGateway = new ModelGateway({ models, providers, adapters: providerAdapters });
+  const providerHealth = new ProviderHealthTracker();
+
+  const modelGateway = new ModelGateway({
+    models,
+    providers,
+    adapters: providerAdapters,
+    ...(options.usageGovernor === undefined ? {} : { usageGovernor: options.usageGovernor }),
+    telemetry: {
+      record: (record: ModelInvocationTelemetryRecord) => {
+        stores.events.append({
+          id:
+            "MODEL_INVOCATION_RECORDED:" +
+            record.providerId +
+            ":" +
+            record.modelId +
+            ":" +
+            (record.runId ?? "no-run") +
+            ":" +
+            (record.agentId ?? "no-agent") +
+            ":" +
+            record.attempt +
+            ":" +
+            record.recordedAt,
+          kind: "MODEL_INVOCATION_RECORDED",
+          agentRunId: record.runId,
+          occurredAt: record.recordedAt,
+          data: {
+            providerId: record.providerId,
+            modelId: record.modelId,
+            agentId: record.agentId,
+            attempt: record.attempt,
+            status: record.status,
+            estimatedTokens: record.estimatedTokens,
+            actualTokens: record.actualTokens,
+            latencyMs: record.latencyMs,
+            costClass: record.costClass,
+            errorKind: record.errorKind,
+          },
+        });
+      },
+    },
+  });
   const embeddingGateway =
     options.embeddingProvider === undefined
       ? undefined
-      : new EmbeddingGateway({ models, providers, adapters: embeddingAdapters });
-  const agentGateway = new AgentGateway({ agents, models, providers, modelGateway });
+      : new EmbeddingGateway({
+          models,
+          providers,
+          adapters: embeddingAdapters,
+          ...(options.usageGovernor === undefined ? {} : { usageGovernor: options.usageGovernor }),
+        });
+  const agentGateway = new AgentGateway({
+    agents,
+    models,
+    providers,
+    modelGateway,
+    providerHealth,
+  });
 
   const commandIngress = new CommandIngressService({
     conversations: stores.conversations,
@@ -344,10 +490,26 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   });
 
   const memory = new MemoryService(stores.memory, stores.events, stores);
+  const factCheck = new FactCheckService({
+    agents,
+    agentGateway,
+    evidence: stores.evidence,
+    sources: stores.sources,
+    events: stores.events,
+    unitOfWork: stores,
+  });
+  const semanticVectorIndex =
+    embeddingGateway === undefined ? undefined : new ExactNormalizedSemanticVectorIndex();
   const semanticMemory =
     embeddingGateway === undefined
       ? undefined
-      : new SemanticMemoryService(stores.memory, stores.memoryEmbeddings, embeddingGateway, stores);
+      : new SemanticMemoryService(
+          stores.memory,
+          stores.memoryEmbeddings,
+          embeddingGateway,
+          stores,
+          semanticVectorIndex,
+        );
   const semanticMemoryIndexer =
     semanticMemory === undefined ||
     embeddingGateway === undefined ||
@@ -365,13 +527,21 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
             ? {}
             : { maxEntries: options.semanticMemoryIndexMaxEntries }),
           allowedScopes: options.semanticMemoryIndexAllowedScopes,
+          jobBridge: jobService,
+          jobUserId: options.semanticMemoryIndexJobUserId,
         });
   const debates = new DebateOrchestrationService(
     agentGateway,
     stores.debates,
     stores.events,
     stores,
+    agents,
   );
+  const researchFabric = new ResearchFabric();
+  for (const provider of options.researchFabricProviders ?? []) {
+    researchFabric.register(provider);
+  }
+
   const research =
     options.researchRetriever === undefined
       ? undefined
@@ -487,6 +657,18 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     await externalHandler?.(outcome);
   };
 
+  if (a2aPushNotifications !== undefined) {
+    stores.subscribeCommittedEvents((event) => {
+      if (event.kind !== "TASK_STATUS_CHANGED" || event.taskId === undefined) {
+        return;
+      }
+      const task = stores.tasks.get(event.taskId);
+      if (task !== undefined) {
+        void a2aPushNotifications.notifyTask(task);
+      }
+    });
+  }
+
   const artifactCatalog = new ArtifactCatalogService({
     artifacts: stores.artifacts,
   });
@@ -515,6 +697,21 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   });
 
   const integrationCatalog = new IntegrationCatalogService(integrations);
+
+  const agentMessages = new AgentMessageService({
+    conversations: stores.conversations,
+    messages: stores.messages,
+    events: stores.events,
+    unitOfWork: stores,
+  });
+
+  const agentRuns = new AgentRunService({
+    agentRuns: stores.agentRuns,
+    messages: stores.messages,
+    events: stores.events,
+    conversations: stores.conversations,
+    unitOfWork: stores,
+  });
 
   const integrationInvocation = new IntegrationInvocationService({
     integrations,
@@ -556,11 +753,12 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
       ...(options.toolPolicy === undefined
         ? {}
         : {
-            resumeApprovedToolContinuation: async (executionId) => {
+            resumeApprovedToolContinuation: async (executionId, signal) => {
               const result = await agentToolOrchestration.resumeApprovedExecution(
                 executionId,
                 options.toolPolicy!,
                 options.maxToolOutputBytes,
+                signal,
               );
               if (result.status === "NO_CONTINUATION") {
                 return { status: "NO_CONTINUATION" as const };
@@ -576,12 +774,14 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
                         : ("FAILED" as const),
                 ...(result.status === "SUCCEEDED"
                   ? { output: result.response.content }
-                  : { error: "Approved tool continuation failed." }),
+                  : result.status === "APPROVAL_REQUIRED"
+                    ? { error: "Execution paused for required tool approval." }
+                    : { error: result.error }),
               };
             },
             toolDefinitions: agentToolOrchestration.modelToolDefinitions(),
             toolOrchestrator: {
-              continueFromResponse: async ({ execution, request, response }) => {
+              continueFromResponse: async ({ execution, request, response, signal }) => {
                 if (execution.agentId === undefined) {
                   return {
                     status: "FAILED" as const,
@@ -602,6 +802,7 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
                     executionId: execution.id,
                     maxToolRounds: options.maxToolRounds,
                     maxToolOutputBytes: options.maxToolOutputBytes,
+                    signal,
                   },
                   request,
                   response,
@@ -640,6 +841,45 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     onError: options.onError,
     onExecutionCompleted: publishExecutionCompletion,
     unitOfWork: stores,
+  });
+
+  const jobHandlers: JobHandlers | undefined =
+    semanticMemoryIndexer === undefined
+      ? options.jobHandlers
+      : {
+          ...(options.jobHandlers ?? {}),
+          scheduled: async (context) => {
+            if (semanticMemoryIndexer.isDurableJob(context.job)) {
+              return semanticMemoryIndexer.runDurableJob(context);
+            }
+
+            if (options.jobHandlers?.scheduled !== undefined) {
+              return options.jobHandlers.scheduled(context);
+            }
+
+            throw new Error(`No handler is registered for scheduled job: ${context.job.id}.`);
+          },
+        };
+
+  const jobRuntime = createJobRuntime({
+    jobs: jobService,
+    ...(jobHandlers === undefined ? {} : { handlers: jobHandlers }),
+    clock: options.clock ?? new SystemClock(),
+    ...(options.jobPollIntervalMs === undefined
+      ? {}
+      : { pollIntervalMs: options.jobPollIntervalMs }),
+    ...(options.jobMaxConcurrency === undefined
+      ? {}
+      : { maxConcurrency: options.jobMaxConcurrency }),
+    ...(options.jobRetryBackoffInitialMs === undefined
+      ? {}
+      : { retryBackoffInitialMs: options.jobRetryBackoffInitialMs }),
+    ...(options.jobRetryBackoffMaxMs === undefined
+      ? {}
+      : { retryBackoffMaxMs: options.jobRetryBackoffMaxMs }),
+    ...(options.jobWait === undefined ? {} : { wait: options.jobWait }),
+    ...(options.onJobError === undefined ? {} : { onError: options.onJobError }),
+    ...(options.onJobCompleted === undefined ? {} : { onJobCompleted: options.onJobCompleted }),
   });
 
   const executionDispatch = new ExecutionDispatchService({
@@ -741,6 +981,47 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     stores,
   );
 
+  const collectiveOrchestration = new CollectiveOrchestrationService({
+    agents,
+    agentGateway,
+    conversations: stores.conversations,
+    messages: stores.messages,
+    events: stores.events,
+    ...(research === undefined ? {} : { research }),
+    factCheck,
+    agentRuns,
+    teamPlanner: (request) =>
+      planAgentTeam(request, {
+        agents,
+        models,
+        providers,
+      }),
+    unitOfWork: stores,
+  });
+
+  const deepAnalysisOrchestration = new DeepAnalysisOrchestrationService({
+    collective: collectiveOrchestration,
+    debates,
+    agents,
+    conversations: stores.conversations,
+    messages: stores.messages,
+    events: stores.events,
+    unitOfWork: stores,
+  });
+
+  const researchOrchestration =
+    research === undefined
+      ? undefined
+      : new ResearchOrchestrationService({
+          agents,
+          agentGateway,
+          research,
+          conversations: stores.conversations,
+          messages: stores.messages,
+          events: stores.events,
+          unitOfWork: stores,
+        });
+
   const missionExecutionOrchestration = new MissionExecutionOrchestrationService(
     new MissionCreationService({
       conversations: stores.conversations,
@@ -770,6 +1051,11 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
   return {
     commandIngress,
     conversationOrchestration,
+    agentMessages,
+    agentRuns,
+    collectiveOrchestration,
+    deepAnalysisOrchestration,
+    ...(researchOrchestration === undefined ? {} : { researchOrchestration }),
     missionExecutionOrchestration,
     missionPlanOrchestration,
     missionWorkflow,
@@ -781,12 +1067,14 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     models,
     providers,
     providerAdapters,
+    ...(options.usageGovernor === undefined ? {} : { usageGovernor: options.usageGovernor }),
     embeddingAdapters,
     integrations,
     ...(options.secretResolver === undefined ? {} : { secretResolver: options.secretResolver }),
     modelGateway,
     ...(embeddingGateway === undefined ? {} : { embeddingGateway }),
     agentGateway,
+    providerHealth,
     tools: builtinTools.tools,
     toolAdapters: builtinTools.adapters,
     executionDispatch,
@@ -803,12 +1091,19 @@ export function createPolyonComposition(options: PolyonCompositionOptions): Poly
     agentToolOrchestration,
     codingAgent,
     memory,
+    factCheck,
     ...(semanticMemory === undefined ? {} : { semanticMemory }),
     ...(semanticMemoryIndexer === undefined ? {} : { semanticMemoryIndexer }),
     ...(research === undefined ? {} : { research }),
+    researchFabric,
     researchSynthesis,
     ...(creative === undefined ? {} : { creative }),
     debates,
     runtime,
+    jobService,
+    jobRuntime,
+    mcpSubscriptionBus,
+    mcpSubscriptionPublisher,
+    ...(a2aPushNotifications === undefined ? {} : { a2aPushNotifications }),
   };
 }

@@ -10,6 +10,7 @@ export async function GET(): Promise<Response> {
   return Response.json({
     status: "ok",
     runtime: polyon.runtime.health,
+    jobRuntime: polyon.jobRuntime.health,
     counts: {
       agents: polyon.agents.list().length,
       models: polyon.models.list().length,
@@ -18,6 +19,7 @@ export async function GET(): Promise<Response> {
       pendingApprovals: polyon.stores.approvals.list().filter((item) => item.status === "PENDING")
         .length,
       executions: polyon.stores.executions.list().length,
+      jobs: polyon.stores.jobs.list().length,
     },
   });
 }

@@ -25,7 +25,10 @@ export interface ModelExecutionRunnerDependencies {
   readonly systemPrompt?: string;
   readonly toolDefinitions?: readonly ModelToolDefinition[];
   readonly toolOrchestrator?: ModelExecutionToolOrchestrator;
-  readonly resumeApprovedToolContinuation?: (executionId: string) => Promise<{
+  readonly resumeApprovedToolContinuation?: (
+    executionId: string,
+    signal?: AbortSignal,
+  ) => Promise<{
     readonly status: "NO_CONTINUATION" | "SUCCEEDED" | "FAILED" | "PAUSED" | "REJECTED";
     readonly output?: string;
     readonly error?: string;
@@ -53,7 +56,10 @@ export class ModelExecutionRunner implements ExecutionRunner {
     }
 
     if (this.dependencies.resumeApprovedToolContinuation !== undefined) {
-      const resumed = await this.dependencies.resumeApprovedToolContinuation(execution.id);
+      const resumed = await this.dependencies.resumeApprovedToolContinuation(
+        execution.id,
+        context?.signal,
+      );
       if (resumed.status === "NO_CONTINUATION") {
         // Normal first-run execution.
       } else if (resumed.status !== "SUCCEEDED") {

@@ -1,6 +1,6 @@
 # POLYON Production Readiness
 
-POLYON's foundational controlled operating loop is implemented on `feature/core-architecture`.
+POLYON's foundational controlled operating loop is implemented. The active development/integration line is `develop`; `feature/core-architecture` is retained as the historical architecture baseline.
 
 Current capabilities:
 
@@ -9,10 +9,13 @@ Current capabilities:
 - provider-independent model routing and OpenAI-compatible text execution;
 - governed filesystem, terminal, Git, artifact, Google Drive, Telegram, and SMTP Email tooling;
 - durable memory/source/evidence, bounded research, synthesis, and privacy-aware context assembly;
+- bounded Fact Checker application service over explicit claims and supplied evidence, with deterministic verdict validation and audit trace; Collective/Deep Analysis can opt into the stage with an explicit Fact Checker agent.
 - bounded coding-agent process execution;
 - authenticated web APIs and live AI HQ;
-- baseline MCP 2026-07-28 and A2A 1.0 HTTP interoperability;
-- Docker/Compose deployment with CI verification.
+- MCP 2026-07-28 HTTP interoperability with subscriptions/listen plus A2A 1.0 HTTP interoperability with streaming task subscriptions and opt-in push notifications;
+- automatic semantic indexing with explicit scope allowlisting and durable restart-safe recovery behavior;
+- an exact normalized local semantic vector index behind a replaceable boundary, with model/dimension candidate bucketing for lower traversal cost;
+- Docker/Compose deployment with local manual verification.
 
 ## Safety defaults
 
@@ -24,16 +27,17 @@ Current capabilities:
 
 ## Remaining production-depth work
 
-1. Automatic durable indexing/reindex recovery and a replaceable vector acceleration strategy are implemented: semantic indexing can run on startup, and the default exact local vector index caches normalized vectors while preserving an adapter boundary for ANN/pgvector implementations.
-2. Advanced MCP/A2A features such as streaming, push, subscriptions, and broader spec coverage.
-3. Multi-user/enterprise identity and tenancy, outside the personal deployment scope.
-4. Production-scale coverage is expanded with deterministic 10k-memory retrieval and 250-item durable restart tests; sustained load testing, profiling, and broader adversarial E2E coverage remain.
-5. Deployment automation for a specific infrastructure target beyond self-hosted Docker/Compose.
+1. Advanced MCP/A2A features and broader specification coverage. MCP initialization notifications, bounded `tools/list` pagination, and `subscriptions/listen` are implemented; A2A 1.0 streaming message delivery, bounded task subscriptions, push configuration, durable storage, task-event dispatch, bounded retries, and delivery outcome auditing are implemented. Remaining work is broader protocol specification coverage.
+2. Multi-user/enterprise identity and tenancy, outside the personal deployment scope.
+3. Sustained load testing, profiling, and broader adversarial E2E coverage beyond the current deterministic production-scale suite.
+4. Deployment automation for a specific infrastructure target beyond self-hosted Docker/Compose.
+
+These items do not block the basic self-hosted release workflow when the documented safety defaults and manual release checklist are satisfied. They remain explicit depth work rather than reasons to claim unsupported protocol or deployment coverage.
 
 Do not fake provider/protocol support to close these items. Keep adapters replaceable.
 
 ## Verification
 
-CI performs frozen-lockfile install, typecheck, full tests, lint, formatting, production build, Docker image build, and Compose validation.
+Release verification is performed locally with `bash scripts/verify-release.sh`, followed by the operational smoke checks in `docs/RELEASE-CHECKLIST.md`.
 
-Always verify the exact current commit before calling the branch green.
+Always verify the exact current commit before calling the release candidate verified.

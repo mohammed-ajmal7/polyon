@@ -1,3 +1,4 @@
+import type { AgentId } from "../agent/ids";
 import type { ActorId } from "../actor/ids";
 import type { ConversationId, MessageId } from "./ids";
 
@@ -13,6 +14,9 @@ export type MessageKind =
   | "ERROR"
   | "OTHER";
 
+export type AgentMessageType =
+  "finding" | "challenge" | "response" | "evidence" | "question" | "decision";
+
 export interface Message {
   readonly id: MessageId;
   readonly conversationId: ConversationId;
@@ -22,6 +26,12 @@ export interface Message {
   readonly kind: MessageKind;
 
   readonly content: string;
+
+  readonly runId?: string;
+  readonly fromAgentId?: AgentId;
+  readonly toAgentId?: AgentId;
+  readonly agentMessageType?: AgentMessageType;
+  readonly payload?: unknown;
 
   readonly createdAt: string;
 }

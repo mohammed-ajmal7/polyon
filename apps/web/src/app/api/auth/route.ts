@@ -1,5 +1,6 @@
 import { isAuthenticated, issueSession, clearSession } from "@/server/auth";
 import { isSameOrigin } from "@/server/polyon-server";
+import { readBoundedText } from "@/server/bounded-body";
 
 export const runtime = "nodejs";
 const MAX_AUTH_REQUEST_BYTES = 8_192;
@@ -18,15 +19,25 @@ export async function POST(request: Request): Promise<Response> {
       { status: 403 },
     );
   }
-  const raw = await request.text();
-  if (new TextEncoder().encode(raw).byteLength > MAX_AUTH_REQUEST_BYTES) {
+  const raw = await readBoundedText(request, MAX_AUTH_REQUEST_BYTES);
+  if (raw === undefined) {
     return Response.json(
       { error: "Authentication request exceeds the 8192-byte limit." },
       { status: 413 },
     );
   }
-  const input = (JSON.parse(raw) as Record<string, unknown>) ?? {};
-  const token = typeof input.token === "string" ? input.token : "";
+  let input: unknown;
+  try {
+    input = JSON.parse(raw);
+  } catch {
+    return Response.json({ error: "Invalid JSON payload." }, { status: 400 });
+  }
+  const token =
+    typeof input === "object" &&
+    input !== null &&
+    typeof (input as Record<string, unknown>).token === "string"
+      ? ((input as Record<string, unknown>).token as string)
+      : "";
   if (!(await issueSession(token))) {
     return Response.json({ error: "Invalid POLYON API token." }, { status: 401 });
   }

@@ -1,4 +1,6 @@
 import type {
+  AgentRun,
+  Job,
   ApprovalRequest,
   Artifact,
   Debate,
@@ -14,6 +16,7 @@ import type {
   MissionPlanProposal,
   PolicyDecision,
   Task,
+  A2APushNotificationConfig,
 } from "@polyon/contracts";
 
 import type { EntityStore } from "./entity-store";
@@ -142,6 +145,8 @@ export function createStateContext(
   const getState = () => state;
 
   return {
+    agentRuns: new StateEntityStore<AgentRun>(getState, persist, "agentRuns"),
+    jobs: new StateEntityStore<Job>(getState, persist, "jobs"),
     approvals: new StateEntityStore<ApprovalRequest>(getState, persist, "approvals"),
     debates: new StateEntityStore<Debate>(getState, persist, "debates"),
     evidence: new StateEntityStore<Evidence>(getState, persist, "evidence"),
@@ -160,6 +165,11 @@ export function createStateContext(
     ),
     policyDecisions: new StateEntityStore<PolicyDecision>(getState, persist, "policyDecisions"),
     tasks: new StateEntityStore<Task>(getState, persist, "tasks"),
+    a2aPushNotificationConfigs: new StateEntityStore<A2APushNotificationConfig>(
+      getState,
+      persist,
+      "a2aPushNotificationConfigs",
+    ),
     events: new StateEventStore(getState, persist),
   };
 }

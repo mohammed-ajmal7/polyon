@@ -6,11 +6,13 @@ import {
   ModelGateway,
   ModelGatewayError,
   ProviderInvocationError,
+  UsageGovernor,
   type ModelCatalog,
   type ProviderCatalog,
 } from ".";
 import { vi } from "vitest";
 import type { ModelProviderAdapter } from "./provider-adapter";
+import type { ModelInvocationTelemetryRecord } from "./model-invocation-telemetry";
 
 const model: Model = {
   id: "model-1",
@@ -360,6 +362,267 @@ describe("ModelGateway", () => {
         kind: "PROVIDER_ADAPTER_NOT_FOUND",
       }),
     );
+  });
+
+  it("blocks hosted model calls in zero-cost mode unless explicitly classified as free", () => {
+    const { models, providers } = createCatalogs();
+    const adapters = new InMemoryProviderAdapterRegistry();
+    adapters.register({
+      providerId: "provider-1",
+      async invoke() {
+        return { output: "should not run" };
+      },
+    });
+
+    const gateway = new ModelGateway({
+      models,
+      providers,
+      adapters,
+      usageGovernor: new UsageGovernor({ costMode: "zero" }),
+    });
+
+    expect(() => gateway.invoke("model-1", "hello")).toThrowError(
+      expect.objectContaining({
+        kind: "PAID_MODEL_BLOCKED",
+      }),
+    );
+  });
+
+  it("allows an explicitly free hosted model in zero-cost mode", async () => {
+    const adapters = new InMemoryProviderAdapterRegistry();
+    adapters.register({
+      providerId: "provider-1",
+      async invoke() {
+        return {
+          output: {
+            content: "free hosted response",
+            usage: { totalTokens: 4 },
+          },
+        };
+      },
+    });
+
+    const models: ModelCatalog = {
+      get: (id) =>
+        id === "model-1"
+          ? {
+              id: "model-1",
+              providerId: "provider-1",
+              name: "Free Hosted Model",
+              kind: "TEXT",
+              capabilityIds: [],
+              costClass: "free",
+              enabled: true,
+            }
+          : undefined,
+    };
+    const providers: ProviderCatalog = {
+      get: (id) =>
+        id === "provider-1"
+          ? {
+              id: "provider-1",
+              name: "Hosted Provider",
+              kind: "HOSTED_MODEL",
+              enabled: true,
+            }
+          : undefined,
+    };
+
+    const gateway = new ModelGateway({
+      models,
+      providers,
+      adapters,
+      usageGovernor: new UsageGovernor({ costMode: "zero" }),
+    });
+
+    await expect(
+      gateway.invokeText("model-1", {
+        messages: [{ role: "USER", content: "hello" }],
+      }),
+    ).resolves.toMatchObject({
+      output: { content: "free hosted response" },
+    });
+  });
+
+  it("records actual token usage and enforces per-run token budgets", async () => {
+    const adapters = new InMemoryProviderAdapterRegistry();
+    adapters.register({
+      providerId: "provider-1",
+      async invoke() {
+        return {
+          output: {
+            content: "ok",
+            usage: { totalTokens: 12 },
+          },
+        };
+      },
+    });
+
+    const governor = new UsageGovernor({
+      budgets: [{ providerId: "provider-1", maxTokensPerRun: 20 }],
+    });
+    const { models, providers } = createCatalogs();
+    const gateway = new ModelGateway({
+      models,
+      providers,
+      adapters,
+      usageGovernor: governor,
+    });
+
+    await gateway.invoke("model-1", "hello", {
+      estimatedTokens: 18,
+      usageContext: {
+        runId: "run-1",
+        agentId: "agent-1",
+        costClass: "free",
+      },
+    });
+
+    expect(governor.runSnapshot("run-1", "provider-1")).toMatchObject({
+      tokens: 12,
+      agents: 1,
+    });
+
+    expect(() =>
+      gateway.invoke("model-1", "hello", {
+        estimatedTokens: 9,
+        usageContext: {
+          runId: "run-1",
+          agentId: "agent-1",
+          costClass: "free",
+        },
+      }),
+    ).toThrowError(expect.objectContaining({ kind: "RUN_TOKEN_LIMIT" }));
+  });
+
+  it("counts retry attempts against provider request limits", async () => {
+    let calls = 0;
+    const adapters = new InMemoryProviderAdapterRegistry();
+    adapters.register({
+      providerId: "provider-1",
+      async invoke() {
+        calls += 1;
+        throw new ProviderInvocationError(
+          "UNAVAILABLE",
+          "provider-1",
+          "model-1",
+          "temporary failure",
+          true,
+        );
+      },
+    });
+
+    const gateway = new ModelGateway({
+      ...createCatalogs(),
+      adapters,
+      usageGovernor: new UsageGovernor({
+        budgets: [{ providerId: "provider-1", dailyRequestLimit: 1 }],
+      }),
+    });
+
+    await expect(
+      gateway.invoke("model-1", "hello", {
+        retries: 1,
+        usageContext: { costClass: "free" },
+      }),
+    ).rejects.toMatchObject({ kind: "DAILY_REQUEST_LIMIT" });
+    expect(calls).toBe(1);
+  });
+
+  it("emits telemetry with run identity, latency, and token usage", async () => {
+    const telemetry = {
+      record: vi.fn(async (_record: ModelInvocationTelemetryRecord): Promise<void> => undefined),
+    };
+    const adapters = new InMemoryProviderAdapterRegistry();
+    adapters.register({
+      providerId: "provider-1",
+      async invoke() {
+        return {
+          output: {
+            content: "ok",
+            usage: { totalTokens: 7 },
+          },
+        };
+      },
+    });
+
+    const gateway = new ModelGateway({
+      ...createCatalogs(),
+      adapters,
+      telemetry,
+    });
+
+    await gateway.invoke("model-1", "hello", {
+      estimatedTokens: 11,
+      usageContext: {
+        runId: "run-1",
+        agentId: "agent-1",
+        costClass: "free",
+      },
+    });
+
+    expect(telemetry.record).toHaveBeenCalledOnce();
+    expect(telemetry.record.mock.calls[0]?.[0] as unknown).toEqual(
+      expect.objectContaining({
+        providerId: "provider-1",
+        modelId: "model-1",
+        runId: "run-1",
+        agentId: "agent-1",
+        attempt: 0,
+        status: "SUCCEEDED",
+        estimatedTokens: 11,
+        actualTokens: 7,
+        costClass: "free",
+      }),
+    );
+  });
+
+  it("records a separate failed attempt before a retry", async () => {
+    let calls = 0;
+    const telemetry = {
+      record: vi.fn(async (_record: ModelInvocationTelemetryRecord): Promise<void> => undefined),
+    };
+    const adapters = new InMemoryProviderAdapterRegistry();
+    adapters.register({
+      providerId: "provider-1",
+      async invoke() {
+        calls += 1;
+        if (calls === 1) {
+          throw new ProviderInvocationError(
+            "UNAVAILABLE",
+            "provider-1",
+            "model-1",
+            "temporary",
+            true,
+          );
+        }
+        return { output: "ok" };
+      },
+    });
+
+    const gateway = new ModelGateway({
+      ...createCatalogs(),
+      adapters,
+      telemetry,
+    });
+
+    await gateway.invoke("model-1", "hello", {
+      retries: 1,
+      usageContext: { runId: "run-2", agentId: "agent-2", costClass: "free" },
+    });
+
+    expect(telemetry.record).toHaveBeenCalledTimes(2);
+    expect(telemetry.record.mock.calls.map((call) => call[0] as unknown)).toEqual([
+      expect.objectContaining({
+        status: "FAILED",
+        attempt: 0,
+        errorKind: "UNAVAILABLE",
+      }),
+      expect.objectContaining({
+        status: "SUCCEEDED",
+        attempt: 1,
+      }),
+    ]);
   });
 
   it("exposes immutable registry state through gateway dependencies", () => {

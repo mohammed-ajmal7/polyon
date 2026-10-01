@@ -55,7 +55,8 @@ function appendRecoveryEvent(
     | "PENDING_TOOL_APPROVAL_RESTART"
     | "RESUMABLE_INTEGRATION_CONTINUATION_RESTART"
     | "PENDING_INTEGRATION_APPROVAL_RESTART"
-    | "NON_IDEMPOTENT_INTEGRATION_RECONCILIATION",
+    | "NON_IDEMPOTENT_INTEGRATION_RECONCILIATION"
+    | "INTERRUPTED_EXECUTION_RESTART",
 ): void {
   const execution = executions.get(executionId);
 
@@ -125,7 +126,9 @@ export class InMemoryExecutionWorker implements ExecutionWorker {
                 ? "PENDING_INTEGRATION_APPROVAL_RESTART"
                 : recovery.kind === "NON_IDEMPOTENT_INTEGRATION_RECONCILIATION"
                   ? "NON_IDEMPOTENT_INTEGRATION_RECONCILIATION"
-                  : "PROCESS_STARTUP",
+                  : recovery.kind === "INTERRUPTED_EXECUTION_FAILED"
+                    ? "INTERRUPTED_EXECUTION_RESTART"
+                    : "PROCESS_STARTUP",
       );
     }
 
@@ -144,7 +147,7 @@ export class InMemoryExecutionWorker implements ExecutionWorker {
     try {
       return await this.dependencies.coordinator.runNextWithResult(
         this.dependencies.clock.now(),
-        this.dependencies.clock.now(),
+        () => this.dependencies.clock.now(),
         context,
       );
     } catch (error) {

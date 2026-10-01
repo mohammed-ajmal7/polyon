@@ -7,9 +7,14 @@ import type {
   TextModelResponse,
 } from "@polyon/contracts";
 
-import { ModelGateway, type ModelInvocationOptions } from "@polyon/providers";
+import {
+  ModelGateway,
+  ProviderInvocationError,
+  type ModelInvocationOptions,
+} from "@polyon/providers";
 
-import { resolveAgentModel, type AgentModelResolution } from "./agent-model-routing";
+import { routeAgentModel, type ModelRoutingRequest, type ProviderHealth } from "./model-routing";
+import { ProviderHealthTracker } from "./provider-health";
 import type { AgentRegistry } from "./agent-registry";
 import type { ModelRegistry } from "./model-registry";
 import type { ProviderRegistry } from "./provider-registry";
@@ -19,90 +24,182 @@ export interface AgentGatewayDependencies {
   readonly models: ModelRegistry;
   readonly providers: ProviderRegistry;
   readonly modelGateway: ModelGateway;
+  readonly providerHealth?: ProviderHealthTracker;
+}
+
+export interface AgentGatewayRoutingOptions {
+  readonly privacyClass?: "local" | "cloud";
+  readonly allowPaidModels?: boolean;
+  readonly minimumContextWindow?: number;
+  readonly requireTools?: boolean;
 }
 
 export interface AgentGatewayInvocationInput<TInput = unknown> {
   readonly agentId: AgentId;
+  readonly runId?: string;
   readonly requiredCapabilityIds: readonly CapabilityId[];
+  readonly requiredModelCapabilityIds?: readonly CapabilityId[];
   readonly input: TInput;
   readonly modelOptions?: ModelInvocationOptions;
+  readonly routing?: AgentGatewayRoutingOptions;
 }
 
 export interface AgentGatewayInvocationResult<TOutput = unknown> {
   readonly agentId: AgentId;
   readonly modelId: ModelId;
   readonly providerId: ProviderId;
-  readonly source: AgentModelResolution["source"];
+  readonly source: "PREFERRED" | "FALLBACK";
   readonly output: TOutput;
 }
 
 export interface AgentGatewayTextInvocationInput {
   readonly agentId: AgentId;
+  readonly runId?: string;
   readonly requiredCapabilityIds: readonly CapabilityId[];
+  readonly requiredModelCapabilityIds?: readonly CapabilityId[];
   readonly request: TextModelRequest;
   readonly modelOptions?: ModelInvocationOptions;
+  readonly routing?: AgentGatewayRoutingOptions;
 }
 
 export class AgentGateway {
-  constructor(private readonly dependencies: AgentGatewayDependencies) {}
+  private readonly providerHealth: ProviderHealthTracker;
+
+  constructor(private readonly dependencies: AgentGatewayDependencies) {
+    this.providerHealth = dependencies.providerHealth ?? new ProviderHealthTracker();
+  }
+
+  healthSnapshot(): Readonly<Record<ProviderId, ProviderHealth>> {
+    return this.providerHealth.snapshot();
+  }
 
   async invokeText(
     input: AgentGatewayTextInvocationInput,
   ): Promise<AgentGatewayInvocationResult<TextModelResponse>> {
-    const resolution = resolveAgentModel(
-      {
-        agentId: input.agentId,
-        requiredCapabilityIds: input.requiredCapabilityIds,
-      },
-      {
-        agents: this.dependencies.agents,
-        models: this.dependencies.models,
-        providers: this.dependencies.providers,
-      },
+    return this.invokeWithFailover(
+      input.agentId,
+      input.requiredCapabilityIds,
+      input.requiredModelCapabilityIds,
+      input.runId,
+      input.routing,
+      (modelId, usageContext) =>
+        this.dependencies.modelGateway.invokeText(modelId, input.request, {
+          ...input.modelOptions,
+          ...(usageContext === undefined
+            ? {}
+            : {
+                usageContext: {
+                  ...input.modelOptions?.usageContext,
+                  ...usageContext,
+                },
+              }),
+        }),
     );
-
-    const result = await this.dependencies.modelGateway.invokeText(
-      resolution.model.id,
-      input.request,
-      input.modelOptions,
-    );
-
-    return {
-      agentId: resolution.agent.id,
-      modelId: resolution.model.id,
-      providerId: resolution.provider.id,
-      source: resolution.source,
-      output: result.output,
-    };
   }
 
   async invoke<TInput = unknown, TOutput = unknown>(
     input: AgentGatewayInvocationInput<TInput>,
   ): Promise<AgentGatewayInvocationResult<TOutput>> {
-    const resolution = resolveAgentModel(
-      {
-        agentId: input.agentId,
-        requiredCapabilityIds: input.requiredCapabilityIds,
-      },
-      {
+    return this.invokeWithFailover(
+      input.agentId,
+      input.requiredCapabilityIds,
+      input.requiredModelCapabilityIds,
+      input.runId,
+      input.routing,
+      (modelId, usageContext) =>
+        this.dependencies.modelGateway.invoke<TInput, TOutput>(modelId, input.input, {
+          ...input.modelOptions,
+          ...(usageContext === undefined
+            ? {}
+            : {
+                usageContext: {
+                  ...input.modelOptions?.usageContext,
+                  ...usageContext,
+                },
+              }),
+        }),
+    );
+  }
+
+  private async invokeWithFailover<TOutput>(
+    agentId: AgentId,
+    requiredCapabilityIds: readonly CapabilityId[],
+    requiredModelCapabilityIds: readonly CapabilityId[] | undefined,
+    runId: string | undefined,
+    routingOptions: AgentGatewayRoutingOptions | undefined,
+    invokeModel: (
+      modelId: ModelId,
+      usageContext?: { readonly runId?: string; readonly agentId?: AgentId },
+    ) => Promise<{ output: TOutput }>,
+  ): Promise<AgentGatewayInvocationResult<TOutput>> {
+    let failedProviderId: ProviderId | undefined;
+    let lastError: ProviderInvocationError | undefined;
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const request: ModelRoutingRequest = {
+        agentId,
+        requiredCapabilityIds,
+        ...(requiredModelCapabilityIds === undefined ? {} : { requiredModelCapabilityIds }),
+        ...(routingOptions?.privacyClass === undefined
+          ? {}
+          : { privacyClass: routingOptions.privacyClass }),
+        ...(routingOptions?.allowPaidModels === undefined
+          ? {}
+          : { allowPaidModels: routingOptions.allowPaidModels }),
+        ...(routingOptions?.minimumContextWindow === undefined
+          ? {}
+          : { minimumContextWindow: routingOptions.minimumContextWindow }),
+        ...(routingOptions?.requireTools === undefined
+          ? {}
+          : { requireTools: routingOptions.requireTools }),
+        providerHealth: this.providerHealth.snapshot(),
+      };
+
+      const route = routeAgentModel(request, {
         agents: this.dependencies.agents,
         models: this.dependencies.models,
         providers: this.dependencies.providers,
-      },
-    );
+      });
 
-    const result = await this.dependencies.modelGateway.invoke<TInput, TOutput>(
-      resolution.model.id,
-      input.input,
-      input.modelOptions,
-    );
+      if (failedProviderId !== undefined && route.provider.id === failedProviderId) {
+        // No alternative provider is available; surface the original failure and its kind.
+        throw (
+          lastError ??
+          new Error(
+            `Provider failover did not select an alternative provider for agent: ${agentId}.`,
+          )
+        );
+      }
 
-    return {
-      agentId: resolution.agent.id,
-      modelId: resolution.model.id,
-      providerId: resolution.provider.id,
-      source: resolution.source,
-      output: result.output,
-    };
+      try {
+        const result = await invokeModel(route.model.id, {
+          ...(runId === undefined ? {} : { runId }),
+          agentId,
+        });
+        this.providerHealth.recordSuccess(route.provider.id);
+
+        return {
+          agentId: route.agent.id,
+          modelId: route.model.id,
+          providerId: route.provider.id,
+          source: route.source,
+          output: result.output,
+        };
+      } catch (error) {
+        if (!(error instanceof ProviderInvocationError)) {
+          throw error;
+        }
+
+        this.providerHealth.recordFailure(error.providerId, error.kind);
+        failedProviderId = error.providerId;
+        lastError = error;
+
+        if (!error.retryable || attempt === 1) {
+          throw error;
+        }
+      }
+    }
+
+    throw new Error(`Model invocation failed after provider failover for agent: ${agentId}.`);
   }
 }

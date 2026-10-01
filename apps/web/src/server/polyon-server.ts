@@ -1,24 +1,27 @@
 import { join } from "node:path";
 
-import type { Agent, Model, Policy, Provider, SecretReference } from "@polyon/contracts";
+import type { Model, Policy, Provider, SecretReference } from "@polyon/contracts";
 import {
   BoundedHttpClient,
   EnvironmentSecretResolver,
   SmtpTransport,
   type EmailTransport,
 } from "@polyon/integrations";
-import {
-  OpenAICompatibleEmbeddingAdapter,
-  OpenAICompatibleTextModelAdapter,
-} from "@polyon/providers";
+import { OpenAICompatibleEmbeddingAdapter, UsageGovernor } from "@polyon/providers";
 import { EncryptedFileSecretResolver, NodeSmtpConnectionFactory } from "@polyon/runtime";
 import {
+  BoundedHttpBrowserProvider,
   BoundedWebResearchRetriever,
   ConfiguredHttpCreativeAdapter,
   ConfiguredHttpResearchProvider,
   createPolyonComposition,
   type PolyonComposition,
 } from "@polyon/application";
+import {
+  buildModelRegistrations,
+  parseModelProfiles,
+  type ModelProfileConfig,
+} from "./model-fleet-config";
 
 const globalState = globalThis as typeof globalThis & { __polyonComposition?: PolyonComposition };
 
@@ -31,6 +34,7 @@ export function getPolyonComposition(): PolyonComposition {
   if (globalState.__polyonComposition !== undefined) return globalState.__polyonComposition;
   const composition = createPolyonComposition(buildOptions());
   if (process.env.POLYON_RUNTIME_AUTOSTART !== "false") composition.runtime.start();
+  if (process.env.POLYON_JOB_RUNTIME_AUTOSTART !== "false") composition.jobRuntime.start();
   if (process.env.POLYON_SEMANTIC_INDEXING_AUTOSTART !== "false") {
     composition.semanticMemoryIndexer?.start();
   }
@@ -39,26 +43,38 @@ export function getPolyonComposition(): PolyonComposition {
 }
 
 function buildOptions() {
-  const model = buildModelRegistration();
+  const model = buildConfiguredModelRegistrations();
   const embedding = buildEmbeddingRegistration();
   const email = buildEmailRegistration();
   const secretResolver = email === undefined ? undefined : buildSecretResolver();
-  const researchRetriever = buildResearchRetriever();
+  const research = buildResearchRetriever();
   const creativeAdapter = buildCreativeAdapter();
+  const usageGovernor = buildUsageGovernor();
   const semanticMemoryIndexAllowedScopes = parseMemoryScopes(
     process.env.POLYON_SEMANTIC_INDEX_ALLOWED_SCOPES,
   );
+  const a2aPushNotificationAllowedOrigins = parseCsv(process.env.POLYON_A2A_PUSH_ALLOWED_ORIGINS);
   return {
     storageRoot: process.env.POLYON_DATA_DIR?.trim() || join(process.cwd(), ".polyon-data"),
     ...(model === undefined
       ? {}
-      : { agents: [model.agent], models: [model.model], providers: [model.registration] }),
+      : { agents: model.agents, models: model.models, providers: model.providers }),
     ...(embedding === undefined ? {} : { embeddingProvider: embedding }),
     ...(secretResolver === undefined ? {} : { secretResolver }),
-    ...(researchRetriever === undefined ? {} : { researchRetriever }),
+    ...(research === undefined
+      ? {}
+      : {
+          researchRetriever: research.retriever,
+          researchFabricProviders: research.providers,
+        }),
     ...(creativeAdapter === undefined ? {} : { creativeAdapter }),
+    usageGovernor,
     semanticMemoryIndexAllowedScopes,
     semanticMemoryIndexingEnabled: semanticMemoryIndexAllowedScopes.length > 0,
+    semanticMemoryIndexJobUserId: getPolyonActorId(),
+    ...(a2aPushNotificationAllowedOrigins.length === 0
+      ? {}
+      : { a2aPushNotificationAllowedOrigins }),
     ...(email === undefined
       ? {}
       : {
@@ -103,48 +119,117 @@ function buildEmbeddingRegistration() {
   return { provider, model, adapter };
 }
 
-function buildModelRegistration() {
+function buildConfiguredModelRegistrations() {
+  const profilesJson = process.env.POLYON_MODEL_PROFILES_JSON?.trim();
+  if (profilesJson !== undefined && profilesJson !== "") {
+    return buildModelRegistrations(parseModelProfiles(profilesJson), process.env);
+  }
+
   const endpoint = process.env.POLYON_MODEL_ENDPOINT?.trim();
   const modelId = process.env.POLYON_MODEL_ID?.trim();
   if (endpoint === undefined || endpoint === "" || modelId === undefined || modelId === "")
     return undefined;
+
   const providerId = process.env.POLYON_PROVIDER_ID?.trim() || "configured-model-provider";
-  const agentId = process.env.POLYON_AGENT_ID?.trim() || "primary";
-  const now = new Date().toISOString();
-  const provider: Provider = {
-    id: providerId,
-    name: process.env.POLYON_PROVIDER_NAME?.trim() || "Configured model provider",
-    kind: "HOSTED_MODEL",
-    enabled: true,
-  };
-  const model: Model = {
-    id: modelId,
+  const baseAgentId = process.env.POLYON_AGENT_ID?.trim() || "primary";
+  const profile: ModelProfileConfig = {
+    agentId: baseAgentId,
+    agentName: process.env.POLYON_AGENT_NAME?.trim() || "Primary",
+    agentRole: process.env.POLYON_AGENT_ROLE?.trim() || "General operations",
+    agentDescription: "Server-configured POLYON agent.",
+    modelId,
+    modelName: process.env.POLYON_MODEL_NAME?.trim() || modelId,
     providerId,
-    name: process.env.POLYON_MODEL_NAME?.trim() || modelId,
-    kind: "TEXT",
-    capabilityIds: [],
-    enabled: true,
-  };
-  const agent: Agent = {
-    id: agentId,
-    name: process.env.POLYON_AGENT_NAME?.trim() || "Primary",
-    role: process.env.POLYON_AGENT_ROLE?.trim() || "General operations",
-    description: "Server-configured POLYON agent.",
-    status: "ACTIVE",
-    capabilityIds: [],
-    preferredModelId: modelId,
-    fallbackModelIds: [],
-    createdAt: now,
-    updatedAt: now,
-  };
-  const adapter = new OpenAICompatibleTextModelAdapter({
-    providerId,
+    providerName: process.env.POLYON_PROVIDER_NAME?.trim() || "Configured model provider",
     endpoint,
-    ...(process.env.POLYON_MODEL_API_KEY === undefined
+    apiKeyEnv: "POLYON_MODEL_API_KEY",
+    ...(process.env.POLYON_MODEL_SUPPORTS_TOOLS === undefined ||
+    process.env.POLYON_MODEL_SUPPORTS_TOOLS.trim() === ""
       ? {}
-      : { apiKey: process.env.POLYON_MODEL_API_KEY }),
-  });
-  return { agent, model, registration: { provider, adapter } };
+      : { supportsTools: readBoolean(process.env.POLYON_MODEL_SUPPORTS_TOOLS.trim(), false) }),
+  };
+
+  if ((process.env.POLYON_COLLECTIVE_PRESET?.trim() || "default").toLowerCase() !== "default") {
+    return buildModelRegistrations([profile], process.env);
+  }
+
+  const roles = [
+    {
+      id: "planner",
+      roleId: "planner" as const,
+      name: "Planner",
+      role: "Planner",
+      description: "Breaks user goals into bounded, executable plans.",
+    },
+    {
+      id: "researcher",
+      roleId: "researcher" as const,
+      name: "Researcher",
+      role: "Researcher",
+      description: "Finds relevant facts, sources, context, and information gaps.",
+    },
+    {
+      id: "analyst",
+      roleId: "analyst" as const,
+      name: "Analyst",
+      role: "Analyst",
+      description: "Compares evidence, explanations, patterns, and implications.",
+    },
+    {
+      id: "specialist",
+      roleId: "specialist" as const,
+      name: "Specialist",
+      role: "Specialist",
+      description: "Applies focused domain expertise to a bounded problem.",
+    },
+    {
+      id: "critic",
+      roleId: "critic" as const,
+      name: "Critic",
+      role: "Critic",
+      description: "Challenges weak reasoning, edge cases, and overconfident conclusions.",
+    },
+    {
+      id: "fact-checker",
+      roleId: "fact-checker" as const,
+      name: "Fact Checker",
+      role: "Fact Checker",
+      description: "Tests claims against supplied evidence and identifies verification gaps.",
+    },
+    {
+      id: "judge",
+      roleId: "judge" as const,
+      name: "Judge",
+      role: "Judge",
+      description: "Adjudicates bounded disagreements and records uncertainty.",
+    },
+    {
+      id: "synthesizer",
+      roleId: "synthesizer" as const,
+      name: "Synthesizer",
+      role: "Synthesizer",
+      description: "Combines independent findings into a transparent final response.",
+    },
+    {
+      id: "action-agent",
+      roleId: "action-agent" as const,
+      name: "Action Agent",
+      role: "Action Agent",
+      description: "Executes approved actions through governed tools and integrations.",
+    },
+  ];
+
+  return buildModelRegistrations(
+    roles.map((role) => ({
+      ...profile,
+      agentId: baseAgentId + "-" + role.id,
+      agentRoleId: role.roleId,
+      agentName: role.name,
+      agentRole: role.role,
+      agentDescription: role.description,
+    })),
+    process.env,
+  );
 }
 
 function buildEmailRegistration():
@@ -173,7 +258,12 @@ function buildEmailRegistration():
   return { username, secretReference, transport };
 }
 
-function buildResearchRetriever() {
+function buildResearchRetriever():
+  | {
+      retriever: BoundedWebResearchRetriever;
+      providers: readonly [ConfiguredHttpResearchProvider, BoundedHttpBrowserProvider];
+    }
+  | undefined {
   const endpoint = process.env.POLYON_RESEARCH_SEARCH_ENDPOINT?.trim();
   const allowedHosts = (process.env.POLYON_RESEARCH_ALLOWED_HOSTS ?? "")
     .split(",")
@@ -201,10 +291,21 @@ function buildResearchRetriever() {
     maxRequestBytes: 16_384,
   });
 
-  const provider = new ConfiguredHttpResearchProvider({ endpoint, http });
-  return new BoundedWebResearchRetriever(provider, http, {
+  const searchProvider = new ConfiguredHttpResearchProvider({
+    endpoint,
+    http,
+  });
+  const browserProvider = new BoundedHttpBrowserProvider(http, {
+    maxResponseBytes: 100_000,
+  });
+  const retriever = new BoundedWebResearchRetriever(searchProvider, http, {
     maxContentBytes: 100_000,
   });
+
+  return {
+    retriever,
+    providers: [searchProvider, browserProvider],
+  };
 }
 
 function buildCreativeAdapter() {
@@ -375,12 +476,145 @@ export function isSameOrigin(request: Request): boolean {
   }
 }
 
+/**
+ * Protocol endpoints accept both bearer-token clients and the browser session cookie.
+ * A cookie-authenticated request must be same-origin JSON, otherwise another local page
+ * could ride the session cookie (SameSite does not separate localhost ports).
+ */
+export function isUntrustedBrowserProtocolRequest(request: Request): boolean {
+  if (request.headers.get("authorization")?.startsWith("Bearer ") === true) return false;
+  const contentType = request.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase();
+  return !isSameOrigin(request) || contentType !== "application/json";
+}
+
 export function getPolyonBaseUrl(request?: Request): string {
   const configured = process.env.POLYON_PUBLIC_BASE_URL?.trim();
   if (configured !== undefined && configured !== "") return configured.replace(/\/$/u, "");
   if (request !== undefined) {
+    // Behind Docker or a proxy, request.url carries the bind address (for example 0.0.0.0),
+    // which clients cannot reach; the Host / X-Forwarded-* headers carry the public origin.
     const url = new URL(request.url);
+    const host =
+      firstHeaderValue(request.headers.get("x-forwarded-host")) ??
+      firstHeaderValue(request.headers.get("host")) ??
+      url.host;
+    const protocol =
+      firstHeaderValue(request.headers.get("x-forwarded-proto")) ?? url.protocol.replace(/:$/u, "");
+    if (
+      /^[a-z0-9.-]+(?::\d+)?$|^\[[0-9a-f:]+\](?::\d+)?$/iu.test(host) &&
+      /^https?$/u.test(protocol)
+    ) {
+      return `${protocol}://${host}`;
+    }
     return url.origin;
   }
   return "http://localhost:3000";
+}
+
+function firstHeaderValue(value: string | null): string | undefined {
+  const first = value?.split(",")[0]?.trim();
+  return first === undefined || first === "" ? undefined : first;
+}
+
+function buildUsageGovernor(): UsageGovernor {
+  const rawCostMode = process.env.POLYON_COST_MODE?.trim().toLowerCase();
+  const costMode = rawCostMode === "zero" ? "zero" : "configured";
+
+  return new UsageGovernor({
+    costMode,
+    budgets: parseUsageBudgets(process.env.POLYON_USAGE_BUDGETS_JSON),
+  });
+}
+
+function parseUsageBudgets(value: string | undefined) {
+  if (value === undefined || value.trim() === "") return [];
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch (error) {
+    throw new Error(
+      `POLYON_USAGE_BUDGETS_JSON must contain valid JSON: ${
+        error instanceof Error ? error.message : "invalid JSON"
+      }.`,
+      { cause: error },
+    );
+  }
+
+  if (!Array.isArray(parsed)) {
+    throw new Error("POLYON_USAGE_BUDGETS_JSON must contain an array.");
+  }
+
+  return parsed.map((item, index) => {
+    if (item === null || typeof item !== "object" || Array.isArray(item)) {
+      throw new Error(`Usage budget at index ${index} must be an object.`);
+    }
+
+    const record = item as Record<string, unknown>;
+    const providerId = requiredUsageBudgetString(record.providerId, "providerId", index);
+
+    return {
+      providerId,
+      ...(optionalUsageLimit(record.dailyRequestLimit, "dailyRequestLimit", index) === undefined
+        ? {}
+        : {
+            dailyRequestLimit: optionalUsageLimit(
+              record.dailyRequestLimit,
+              "dailyRequestLimit",
+              index,
+            ),
+          }),
+      ...(optionalUsageLimit(record.monthlyRequestLimit, "monthlyRequestLimit", index) === undefined
+        ? {}
+        : {
+            monthlyRequestLimit: optionalUsageLimit(
+              record.monthlyRequestLimit,
+              "monthlyRequestLimit",
+              index,
+            ),
+          }),
+      ...(optionalUsageLimit(record.maxTokensPerRun, "maxTokensPerRun", index) === undefined
+        ? {}
+        : {
+            maxTokensPerRun: optionalUsageLimit(record.maxTokensPerRun, "maxTokensPerRun", index),
+          }),
+      ...(optionalUsageLimit(record.maxAgentsPerRun, "maxAgentsPerRun", index) === undefined
+        ? {}
+        : {
+            maxAgentsPerRun: optionalUsageLimit(record.maxAgentsPerRun, "maxAgentsPerRun", index),
+          }),
+      ...(optionalUsageLimit(record.maxDebateRounds, "maxDebateRounds", index) === undefined
+        ? {}
+        : {
+            maxDebateRounds: optionalUsageLimit(record.maxDebateRounds, "maxDebateRounds", index),
+          }),
+    };
+  });
+}
+
+function requiredUsageBudgetString(value: unknown, field: string, index: number): string {
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new Error(`Usage budget at index ${index} requires a non-empty ${field}.`);
+  }
+  return value.trim();
+}
+
+function optionalUsageLimit(value: unknown, field: string, index: number): number | undefined {
+  if (value === undefined) return undefined;
+  if (!Number.isInteger(value) || (value as number) < 0) {
+    throw new Error(`Usage budget ${field} at index ${index} must be a non-negative integer.`);
+  }
+  return value as number;
+}
+
+function parseCsv(value: string | undefined): string[] {
+  if (value === undefined || value.trim() === "") return [];
+  return [
+    ...new Set(
+      value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ];
 }

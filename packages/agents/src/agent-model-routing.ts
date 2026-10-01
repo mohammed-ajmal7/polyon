@@ -1,5 +1,6 @@
 import type { Agent, AgentId, CapabilityId, Model, Provider } from "@polyon/contracts";
 
+import { ModelRoutingError, routeAgentModel, type ModelRoutingRequest } from "./model-routing";
 import type { AgentRegistry } from "./agent-registry";
 import type { ModelRegistry } from "./model-registry";
 import type { ProviderRegistry } from "./provider-registry";
@@ -7,6 +8,7 @@ import type { ProviderRegistry } from "./provider-registry";
 export interface ResolveAgentModelInput {
   readonly agentId: AgentId;
   readonly requiredCapabilityIds: readonly CapabilityId[];
+  readonly requiredModelCapabilityIds?: readonly CapabilityId[];
 }
 
 export interface AgentModelResolution {
@@ -31,31 +33,6 @@ export class AgentModelRoutingError extends Error {
   }
 }
 
-function hasCapabilities(
-  availableCapabilityIds: readonly CapabilityId[],
-  requiredCapabilityIds: readonly CapabilityId[],
-): boolean {
-  return requiredCapabilityIds.every((required) => availableCapabilityIds.includes(required));
-}
-
-function candidateModelIds(
-  agent: Agent,
-): readonly { id: string; source: "PREFERRED" | "FALLBACK" }[] {
-  const candidates: { id: string; source: "PREFERRED" | "FALLBACK" }[] = [];
-
-  if (agent.preferredModelId !== undefined) {
-    candidates.push({ id: agent.preferredModelId, source: "PREFERRED" });
-  }
-
-  for (const modelId of agent.fallbackModelIds) {
-    if (!candidates.some((candidate) => candidate.id === modelId)) {
-      candidates.push({ id: modelId, source: "FALLBACK" });
-    }
-  }
-
-  return candidates;
-}
-
 export function resolveAgentModel(
   input: ResolveAgentModelInput,
   registries: {
@@ -64,64 +41,26 @@ export function resolveAgentModel(
     readonly providers: ProviderRegistry;
   },
 ): AgentModelResolution {
-  const agent = registries.agents.get(input.agentId);
+  const request: ModelRoutingRequest = {
+    agentId: input.agentId,
+    requiredCapabilityIds: input.requiredCapabilityIds,
+    requiredModelCapabilityIds: input.requiredModelCapabilityIds ?? input.requiredCapabilityIds,
+  };
 
-  if (agent === undefined) {
-    throw new AgentModelRoutingError(
-      "AGENT_NOT_FOUND",
-      input.agentId,
-      `Agent not found: ${input.agentId}.`,
-    );
-  }
-
-  if (agent.status !== "ACTIVE") {
-    throw new AgentModelRoutingError(
-      "AGENT_NOT_ACTIVE",
-      input.agentId,
-      `Agent is not active: ${input.agentId}.`,
-    );
-  }
-
-  if (!hasCapabilities(agent.capabilityIds, input.requiredCapabilityIds)) {
-    throw new AgentModelRoutingError(
-      "AGENT_MISSING_CAPABILITY",
-      input.agentId,
-      `Agent does not provide all required capabilities: ${input.requiredCapabilityIds.join(", ")}.`,
-    );
-  }
-
-  for (const candidate of candidateModelIds(agent)) {
-    const model = registries.models.get(candidate.id);
-
-    if (model === undefined) {
-      continue;
-    }
-
-    if (!model.enabled) {
-      continue;
-    }
-
-    if (!hasCapabilities(model.capabilityIds, input.requiredCapabilityIds)) {
-      continue;
-    }
-
-    const provider = registries.providers.get(model.providerId);
-
-    if (provider === undefined || !provider.enabled) {
-      continue;
-    }
+  try {
+    const result = routeAgentModel(request, registries);
 
     return {
-      agent,
-      model,
-      provider,
-      source: candidate.source,
+      agent: result.agent,
+      model: result.model,
+      provider: result.provider,
+      source: result.source,
     };
-  }
+  } catch (error) {
+    if (error instanceof ModelRoutingError) {
+      throw new AgentModelRoutingError(error.kind, input.agentId, error.message);
+    }
 
-  throw new AgentModelRoutingError(
-    "NO_COMPATIBLE_MODEL",
-    input.agentId,
-    `No compatible enabled model is available for agent: ${input.agentId}.`,
-  );
+    throw error;
+  }
 }

@@ -168,16 +168,56 @@ export {
 } from "./research-service";
 
 export {
+  ResearchOrchestrationService,
+  type ExecuteResearchInput,
+  type ResearchExecutionResult,
+  type ResearchExecutionStatus,
+  type ResearchFailure,
+  type ResearchFinding,
+  type ResearchOrchestrationDependencies,
+  type ResearchTarget,
+} from "./research-orchestration-service";
+
+export {
   BoundedWebResearchRetriever,
   type ResearchSearchResult,
   type BoundedWebResearchRetrieverOptions,
 } from "./bounded-web-research-retriever";
+
+export {
+  BoundedHttpBrowserProvider,
+  type BoundedHttpBrowserProviderOptions,
+} from "./bounded-http-browser-provider";
+
+export {
+  ResearchFabric,
+  ResearchFabricError,
+  type AcademicProvider,
+  type BrowseResult,
+  type BrowserProvider,
+  type CrawlerProvider,
+  type CrawlResult,
+  type PublicDataProvider,
+  type PublicDataResult,
+  type ResearchFabricErrorKind,
+  type ResearchFabricProvider,
+  type SearchProvider,
+  type SearchResult,
+} from "./research-fabric";
 export {
   DebateOrchestrationService,
   type CreateDebateInput,
   type RunDebateInput,
   type DebateRunResult,
 } from "./debate-orchestration-service";
+
+export {
+  DeepAnalysisOrchestrationService,
+  type DeepAnalysisExecutionResult,
+  type DeepAnalysisExecutionStatus,
+  type ExecuteDeepAnalysisInput,
+  type DeepAnalysisOrchestrationDependencies,
+} from "./deep-analysis-orchestration-service";
 
 export { registerKnowledgeTools } from "./knowledge-tools";
 
@@ -194,6 +234,17 @@ export {
   type CodingAgentInput,
 } from "./coding-agent-service";
 export { TraceQueryService, type TraceQuery, type TraceEvent } from "./trace-query-service";
+
+export {
+  CollectiveOrchestrationService,
+  type CollectiveContribution,
+  type CollectiveFailure,
+  type CollectiveExecutionResult,
+  type CollectiveExecutionStatus,
+  type CollectiveOrchestrationDependencies,
+  type CollectiveTarget,
+  type ExecuteCollectiveInput,
+} from "./collective-orchestration-service";
 
 export {
   ConversationAgentOrchestrationService,
@@ -262,9 +313,13 @@ export {
 
 export {
   McpServerService,
+  type McpJsonRpcNotification,
   type McpJsonRpcRequest,
   type McpJsonRpcResponse,
+  type McpRequestHeaders,
   type McpServerDependencies,
+  type McpServerOptions,
+  type McpStreamFrame,
 } from "./mcp-server-service";
 
 export {
@@ -272,7 +327,22 @@ export {
   type A2AJsonRpcRequest,
   type A2AJsonRpcResponse,
   type A2AServerDependencies,
+  type A2ARequestHeaders,
+  type A2AServerOptions,
+  type A2AStreamWait,
 } from "./a2a-server-service";
+
+export {
+  A2APushNotificationService,
+  InMemoryA2APushNotificationStore,
+  createA2AWebhookSender,
+  createDurableA2APushNotificationStore,
+  type A2ATaskPushNotificationConfig,
+  A2APushNotificationDeliveryError,
+  type A2APushNotificationAuthentication,
+  type A2APushNotificationSender,
+  type A2APushNotificationStore,
+} from "./a2a-push-notification-service";
 
 export { registerCreativeTools } from "./creative-tools";
 
@@ -286,6 +356,8 @@ export {
   createSemanticMemoryIndexer,
   type SemanticMemoryIndexer,
   type SemanticMemoryIndexerHealth,
+  type SemanticMemoryIndexJobBridge,
+  type SemanticMemoryIndexJobContext,
   type SemanticMemoryIndexerOptions,
 } from "./semantic-memory-indexer";
 
@@ -294,3 +366,49 @@ export {
   type SemanticVectorIndex,
   type SemanticVectorSearchHit,
 } from "./semantic-vector-index";
+
+export {
+  AgentMessageService,
+  type AgentMessageServiceDependencies,
+  type SendAgentMessageInput,
+} from "./agent-message-service";
+
+export {
+  AgentRunService,
+  type AgentRunServiceDependencies,
+  type CompleteAgentRunInput,
+  type CreateAgentRunInput,
+  type FailAgentRunInput,
+} from "./agent-run-service";
+
+export {
+  assessEvidenceQuality,
+  rankEvidenceQuality,
+  type AssessEvidenceInput,
+  type EvidenceQualityAssessment,
+  type EvidenceQualityBand,
+} from "./evidence-quality-service";
+
+export {
+  FactCheckService,
+  type ExecuteFactCheckInput,
+  type FactCheckClaim,
+  type FactCheckResult,
+  type FactCheckServiceDependencies,
+  type FactCheckVerdict,
+} from "./fact-check-service";
+
+export {
+  parseStructuredFinding,
+  type ParseStructuredFindingInput,
+} from "./structured-finding-parser";
+
+export {
+  InMemoryMcpSubscriptionBus,
+  McpSubscriptionEventPublisher,
+  type McpSubscriptionHandle,
+  type McpSubscriptionPublisher,
+} from "./mcp-subscription-bus";
+export type { McpSubscriptionFilter, McpSubscriptionNotification } from "./mcp-subscription-types";
+
+export { classifyTaskMode, type TaskModeClassification } from "./task-mode-classifier";

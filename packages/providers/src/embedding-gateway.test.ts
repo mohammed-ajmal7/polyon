@@ -2,7 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Model, Provider } from "@polyon/contracts";
 
-import { EmbeddingGateway, EmbeddingGatewayError, InMemoryEmbeddingAdapterRegistry } from "./index";
+import {
+  EmbeddingGateway,
+  EmbeddingGatewayError,
+  InMemoryEmbeddingAdapterRegistry,
+  UsageGovernor,
+} from "./index";
 
 describe("EmbeddingGateway", () => {
   const model: Model = {
@@ -68,5 +73,37 @@ describe("EmbeddingGateway", () => {
     await expect(
       validGateway.embed(model.id, { input: Array.from({ length: 33 }, () => "x") }),
     ).rejects.toThrow("between 1 and 32");
+  });
+
+  it("applies zero-cost mode and request budgets to embedding calls", async () => {
+    const adapters = new InMemoryEmbeddingAdapterRegistry();
+    const embed = vi.fn(async () => ({ output: { vectors: [[1, 0]] } }));
+    adapters.register({ providerId: "provider-1", embed });
+    const catalog = {
+      models: { get: (id: string) => (id === model.id ? model : undefined) },
+      providers: { get: (id: string) => (id === provider.id ? provider : undefined) },
+      adapters,
+    };
+
+    const zeroCost = new EmbeddingGateway({
+      ...catalog,
+      usageGovernor: new UsageGovernor({ costMode: "zero" }),
+    });
+    await expect(zeroCost.embed(model.id, { input: ["hello"] })).rejects.toMatchObject({
+      kind: "PAID_MODEL_BLOCKED",
+    });
+    expect(embed).not.toHaveBeenCalled();
+
+    const limited = new EmbeddingGateway({
+      ...catalog,
+      usageGovernor: new UsageGovernor({
+        budgets: [{ providerId: "provider-1", dailyRequestLimit: 1 }],
+      }),
+    });
+    await limited.embed(model.id, { input: ["hello"] });
+    await expect(limited.embed(model.id, { input: ["again"] })).rejects.toMatchObject({
+      kind: "DAILY_REQUEST_LIMIT",
+    });
+    expect(embed).toHaveBeenCalledTimes(1);
   });
 });

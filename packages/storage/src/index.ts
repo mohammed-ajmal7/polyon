@@ -8,6 +8,8 @@ export {
 
 export {
   InMemoryDomainStores,
+  type AgentRunStore,
+  type JobStore,
   type ApprovalRequestStore,
   type DebateStore,
   type EvidenceStore,
@@ -23,6 +25,7 @@ export {
   type MissionPlanProposalStore,
   type PolicyDecisionStore,
   type TaskStore,
+  type A2APushNotificationConfigStore,
 } from "./domain-stores";
 
 export { FileDomainStores, type DurableDomainStores } from "./file-domain-stores";

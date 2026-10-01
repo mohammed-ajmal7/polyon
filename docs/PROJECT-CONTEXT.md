@@ -107,6 +107,10 @@ User -> Request -> Agent B
 
 Results remain separately attributable.
 
+### Collaborative
+
+Collaborative mode is the first multi-agent collective workflow. POLYON sends a request to a bounded team of active agents in parallel, preserves each attributable contribution, and asks a designated synthesis agent to compare the findings into one transparent response. Contributor failures are recorded without discarding successful work. The workflow is intentionally non-acting: consequential tool and integration work remains behind the existing policy and approval paths.
+
 ### Debate
 
 A finite structured process:
@@ -257,7 +261,7 @@ A concrete bounded filesystem-read tool, an opt-in scoped terminal execution too
 
 Implemented application-level foundations include:
 
-- Direct/Broadcast/Debate/Mission command ingress;
+- Direct/Broadcast/Collaborative/Research/Debate/Deep Analysis/Mission command ingress;
 - conversation creation/validation;
 - participant validation;
 - message persistence;
@@ -267,16 +271,20 @@ Implemented application-level foundations include:
 
 ### Debate domain
 
-A bounded debate domain has been started, including:
+The debate domain and bounded multi-agent debate runtime are implemented, including:
 
 - debate creation;
 - phase transitions;
 - final-round validation;
 - adjudication-state validation;
 - cancellation;
-- decision handling.
+- decision handling;
+- bounded multi-agent proposal, criticism, evidence, rebuttal, and adjudication runtime;
+- durable contribution and decision traces;
+- restart-safe persisted debate recovery;
+- deep-analysis orchestration combining collective analysis and bounded debate.
 
-This is a domain foundation, not yet the complete multi-agent debate runtime.
+The debate runtime operates behind the provider-independent agent gateway and durable storage boundaries.
 
 ### Quality infrastructure
 
@@ -288,7 +296,7 @@ The repository contains:
 - Vitest;
 - ESLint;
 - Prettier;
-- CI workflow/quality gates;
+- local manual verification/quality gates;
 - architecture documentation;
 - agent instructions.
 
@@ -306,17 +314,18 @@ Implemented:
 - bounded coding-agent process and coding tool profile;
 - Google Drive, Telegram, Email/SMTP integrations;
 - durable memory/source/evidence, bounded web research, synthesis, privacy-aware context assembly, and governed memory writes;
+- bounded Fact Checker application service over explicit claims and supplied evidence, with deterministic verdict validation and audit trace; Collective/Deep Analysis can opt into the stage with an explicit Fact Checker agent.
 - configurable creative HTTP adapter exposed through governed creative tooling;
 - authenticated browser APIs, login/logout, approval inbox, trace, memory/evidence/source/artifact APIs;
 - MCP HTTP baseline with current stateless routing-header validation and tools/discovery/call support;
-- A2A HTTP baseline with agent card, SendMessage, GetTask, ListTasks;
+- A2A 1.0 HTTP interoperability with streaming message delivery, bounded task subscriptions, agent card, SendMessage, GetTask, ListTasks, CancelTask, and opt-in push notification configuration/delivery;
 - Docker/Compose deployment, liveness healthcheck, root Docker context exclusions, and CI image/Compose validation;
 - adversarial, recovery, and volume sanity coverage across application/runtime/storage/security paths.
 
 Remaining depth:
 
-- provider-independent embedding routing and bounded persisted semantic memory search are implemented; automatic indexing/reindex recovery and vector-scale optimization remain.
-- advanced MCP/A2A protocol capabilities;
+- provider-independent embedding routing, bounded persisted semantic memory search, durable automatic indexing/reindex scheduling, and the exact vector-index scale boundary are implemented.
+- advanced MCP/A2A protocol capabilities beyond the implemented streaming/push interoperability baseline;
 - optional enterprise/multi-user auth;
 - production-scale performance and broader E2E testing;
 - deployment automation for a specific infrastructure target.
@@ -455,7 +464,7 @@ Build the research department with evidence-first output and traceability.
 
 ### Phase 7 — Debate runtime
 
-Connect the bounded debate domain to actual multi-agent execution:
+Status: implemented as a bounded multi-agent runtime. The integrated Deep Analysis flow now combines collective analysis, bounded challenge, finite debate, and adjudication:
 
 - participant selection;
 - proposal;
@@ -465,7 +474,8 @@ Connect the bounded debate domain to actual multi-agent execution:
 - adjudication;
 - finite termination;
 - decision artifact;
-- user approval for consequential decisions.
+- durable contribution/decision trace;
+- restart-safe recovery.
 
 ### Phase 8 — Coding agents and sandboxed execution
 
@@ -477,12 +487,16 @@ Status: in progress.
 
 Implemented:
 
-- Google Drive READ adapter;
-- Telegram bounded SEND_MESSAGE adapter.
+- Google Drive READ adapter (LIST_FILES, GET_METADATA);
+- Telegram bounded SEND_MESSAGE adapter;
+- Email SEND_EMAIL over SMTP, wired into the web server.
 
 Remaining:
 
-- Email;
+- wire the Google Drive and Telegram adapters into the web server configuration (they exist in
+  `packages/integrations` but `apps/web/src/server/polyon-server.ts` does not register them);
+- Telegram inbound messages as a command channel;
+- Gmail read/search (the specification's Gmail scope; only SMTP send exists);
 - production credential lifecycle beyond environment-backed secret references.
 
 Build authentication and secret storage without exposing credentials to the browser.
@@ -493,7 +507,9 @@ Add context assembly, long-term memory, evidence retrieval, and privacy-aware kn
 
 ### Phase 11 — AI HQ web interface
 
-Build the finished Next.js product around the stable application APIs.
+Status: implemented for the first release candidate.
+
+The current workspace includes Command, Missions, Executions, Approvals, Agents, Memory, Research, Evidence, Artifacts, Activity, and Settings views around the stable application APIs. Further UX refinement can continue after the release candidate.
 
 ### Phase 12 — Observability, security, evals, hardening
 
@@ -559,7 +575,7 @@ Use this when opening a new chat:
 >
 > First read `AGENTS.md`, `docs/PROJECT-CONTEXT.md`, and `docs/architecture/001-system-architecture.md`.
 >
-> The GitHub repository is `mohammed-ajmal7/polyon`, branch `feature/core-architecture`.
+> The GitHub repository is `mohammed-ajmal7/polyon`, with `develop` as the active integration branch.
 >
 > Treat the repository and these documents as the source of truth, not the previous chat transcript.
 >
@@ -598,9 +614,9 @@ The system must remain understandable, testable, replaceable, private by default
 
 ## Current project status note
 
-The repository is actively under development on `feature/core-architecture`.
+The repository is actively developed on `develop`; `feature/core-architecture` is retained as the historical architecture baseline.
 
-The codebase currently includes the Phase 3 durable-storage foundation and the beginning of Phase 4 real-intelligence execution work. In particular, durable file-backed storage, transactional application write paths, restart-safe execution queue recovery, result replay idempotency, formal snapshot migrations, optimistic concurrency protection, provider invocation reliability controls, a concrete OpenAI-compatible text-model adapter, and a model-backed execution runner have been implemented.
+The codebase now contains durable persistence, governed execution, provider-independent model routing, multi-agent collective orchestration, bounded debate/deep-analysis runtime, tools/integrations, research/evidence, semantic memory, interoperability baselines, and the AI HQ web workspace needed for the first self-hosted release candidate. The remaining pre-release work is primarily deployment validation, real-configuration startup smoke testing, backup/restore verification, and release branching.
 
 The exact implementation state must always be re-read from the repository before continuing. Do not rely on this paragraph as a substitute for inspecting the current code, tests, and git history.
 

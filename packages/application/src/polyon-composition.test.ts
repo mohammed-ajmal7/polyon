@@ -159,6 +159,9 @@ describe("createPolyonComposition", () => {
       expect(composition.models.get(model.id)?.providerId).toBe("provider.test");
       expect(composition.providers.get("provider.test")?.enabled).toBe(true);
       expect(composition.runtime.status).toBe("STOPPED");
+      expect(composition.jobRuntime.status).toBe("STOPPED");
+      expect(composition.jobService).toBeDefined();
+      expect(composition.stores.jobs.list()).toEqual([]);
       expect(composition.toolInvocation).toBeDefined();
       expect(composition.artifactCatalog).toBeDefined();
       expect(composition.localArtifactContent).toBeDefined();
@@ -267,6 +270,52 @@ describe("createPolyonComposition", () => {
     }
   });
 
+  it("uses the exact semantic vector index for configured embedding search", async () => {
+    const root = mkdtempSync(join(tmpdir(), "polyon-composition-vector-index-"));
+
+    try {
+      const composition = createPolyonComposition({
+        storageRoot: root,
+        embeddingProvider: embeddingRegistration(),
+      });
+
+      const memoryA: import("@polyon/contracts").MemoryEntry = {
+        id: "memory.vector.a",
+        kind: "FACT",
+        scope: "PROJECT",
+        text: "alpha",
+        tags: [],
+        createdAt: now,
+        updatedAt: now,
+      };
+      const memoryB: import("@polyon/contracts").MemoryEntry = {
+        id: "memory.vector.b",
+        kind: "FACT",
+        scope: "PROJECT",
+        text: "beta",
+        tags: [],
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      composition.stores.memory.save(memoryA);
+      composition.stores.memory.save(memoryB);
+
+      await composition.semanticMemory!.index(memoryA, "embedding-model.test", now);
+      await composition.semanticMemory!.index(memoryB, "embedding-model.test", now);
+
+      const result = await composition.semanticMemory!.search({
+        query: "alpha",
+        modelId: "embedding-model.test",
+        limit: 2,
+      });
+
+      expect(result.map((item) => item.memory.id)).toEqual(["memory.vector.a", "memory.vector.b"]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("wires an optional embedding provider to durable semantic memory", async () => {
     const root = mkdtempSync(join(tmpdir(), "polyon-composition-embedding-"));
 
@@ -320,6 +369,48 @@ describe("createPolyonComposition", () => {
       });
 
       expect(enabled.semanticMemoryIndexer).toBeDefined();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("routes automatic semantic indexing through the durable job runtime", async () => {
+    const root = mkdtempSync(join(tmpdir(), "polyon-composition-semantic-job-"));
+
+    try {
+      const composition = createPolyonComposition({
+        storageRoot: root,
+        embeddingProvider: embeddingRegistration(),
+        semanticMemoryIndexingEnabled: true,
+        semanticMemoryIndexAllowedScopes: ["PROJECT"],
+        semanticMemoryIndexJobUserId: "actor.test",
+        semanticMemoryIndexIntervalMs: 1_000,
+        jobPollIntervalMs: 1,
+        // Yield a macrotask so the runtime loop cannot starve vi.waitFor's timers.
+        jobWait: () => new Promise<void>((resolve) => setImmediate(resolve)),
+      });
+
+      composition.semanticMemoryIndexer!.start();
+      const scheduled = composition.stores.jobs.list().find((job) => job.kind === "scheduled");
+      expect(scheduled).toMatchObject({
+        userId: "actor.test",
+        status: "queued",
+        payload: {
+          scheduler: "semantic-memory-index",
+          modelId: "embedding-model.test",
+          allowedScopes: ["PROJECT"],
+        },
+      });
+
+      composition.jobRuntime.start();
+      await vi.waitFor(() => {
+        expect(composition.stores.jobs.get(scheduled!.id)?.status).toBe("completed");
+      });
+
+      expect(composition.semanticMemoryIndexer!.health.indexedCount).toBe(0);
+      expect(composition.semanticMemoryIndexer!.health.running).toBe(true);
+      composition.jobRuntime.stop();
+      composition.semanticMemoryIndexer!.stop();
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -540,7 +631,14 @@ describe("createPolyonComposition", () => {
         storageRoot: root,
         filesystemRoot: workspace,
         providers: [{ provider, adapter }],
-        models: [{ ...model, id: "model.tool-loop", providerId: provider.id }],
+        models: [
+          {
+            ...model,
+            id: "model.tool-loop",
+            providerId: provider.id,
+            capabilityIds: [...model.capabilityIds, "ai.tool-calling"],
+          },
+        ],
         agents: [{ ...agent, id: "agent.tool-loop", preferredModelId: "model.tool-loop" }],
         toolPolicy: policy,
         maxToolRounds: 3,
@@ -580,6 +678,197 @@ describe("createPolyonComposition", () => {
         ]),
       );
     } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("registers provider-neutral research fabric capabilities through composition", () => {
+    const root = mkdtempSync(join(tmpdir(), "polyon-composition-research-fabric-"));
+
+    try {
+      const searchProvider: import("./research-fabric").SearchProvider = {
+        kind: "search",
+        id: "search.test",
+        async search() {
+          return [];
+        },
+      };
+      const browserProvider: import("./research-fabric").BrowserProvider = {
+        kind: "browser",
+        id: "browser.test",
+        async fetch(locator) {
+          return {
+            locator,
+            content: "",
+            retrievedAt: now,
+          };
+        },
+      };
+
+      const composition = createPolyonComposition({
+        storageRoot: root,
+        researchFabricProviders: [searchProvider, browserProvider],
+      });
+
+      expect(composition.researchFabric.listSearchProviders().map((item) => item.id)).toEqual([
+        "search.test",
+      ]);
+      expect(composition.researchFabric.listBrowserProviders().map((item) => item.id)).toEqual([
+        "browser.test",
+      ]);
+      expect(composition.researchFabric.listCrawlerProviders()).toEqual([]);
+      expect(composition.researchFabric.listPublicDataProviders()).toEqual([]);
+      expect(composition.researchFabric.listAcademicProviders()).toEqual([]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("createPolyonComposition runtime tool loop", () => {
+  const toolModel: Model = {
+    ...model,
+    id: "model.runtime-tools",
+    providerId: "provider.runtime-tools",
+    capabilityIds: [...model.capabilityIds, "ai.tool-calling"],
+  };
+  const toolAgent: Agent = {
+    ...agent,
+    id: "agent.runtime-tools",
+    preferredModelId: toolModel.id,
+  };
+  const executionId = "execution:task.test:1";
+
+  function readCall(id: string, path: string) {
+    return {
+      content: "",
+      finishReason: "TOOL_CALL",
+      toolCalls: [{ id, toolId: BUILTIN_TOOL_IDS.filesystemRead, input: { path, maxBytes: 1024 } }],
+    };
+  }
+
+  function bootWithTools(
+    root: string,
+    invoke: PolyonProviderRegistration["adapter"]["invoke"],
+    toolPolicy: Policy,
+  ) {
+    const workspace = join(root, "workspace");
+    mkdirSync(workspace, { recursive: true });
+    writeFileSync(join(workspace, "notes.txt"), "runtime tool content", "utf8");
+
+    const composition = createPolyonComposition({
+      storageRoot: root,
+      filesystemRoot: workspace,
+      providers: [
+        {
+          provider: {
+            id: toolModel.providerId,
+            name: "Runtime tools provider",
+            kind: "HOSTED_MODEL",
+            enabled: true,
+          },
+          adapter: { providerId: toolModel.providerId, invoke },
+        },
+      ],
+      models: [toolModel],
+      agents: [toolAgent],
+      toolPolicy,
+      toolRequiredCapabilityIds: ["text.generate"],
+      pollIntervalMs: 5,
+    });
+
+    composition.stores.tasks.save(task);
+    const dispatched = composition.missionExecution.dispatchReadyTasks({
+      mission,
+      tasks: [task],
+      actorId: "actor.test",
+      agentId: toolAgent.id,
+      requiredCapabilityIds: ["text.generate"],
+      policy,
+      requestedBy: "actor.test",
+      now,
+      riskLevel: "LOW",
+      identities,
+    });
+    expect(dispatched.dispatched).toHaveLength(1);
+
+    return composition;
+  }
+
+  function toolInvocationIds(composition: ReturnType<typeof createPolyonComposition>) {
+    return composition.stores.events
+      .listByExecution(executionId)
+      .filter((event) => event.kind === "TOOL_INVOKED")
+      .map((event) => (event.data as { invocationId: string }).invocationId);
+  }
+
+  it("stops the agent tool loop once the runtime cancels the execution", async () => {
+    const root = mkdtempSync(join(tmpdir(), "polyon-tool-cancel-"));
+    let calls = 0;
+    let composition: ReturnType<typeof createPolyonComposition> | undefined;
+
+    try {
+      composition = bootWithTools(
+        root,
+        async () => {
+          calls += 1;
+          if (calls === 1) return { output: readCall("call-1", "notes.txt") };
+          if (calls === 2) {
+            composition!.runtime.cancel(executionId);
+            return { output: readCall("call-2", "notes.txt") };
+          }
+          return { output: { content: "should not be reached", finishReason: "STOP" } };
+        },
+        policy,
+      );
+
+      composition.runtime.start();
+      await vi.waitFor(() => {
+        expect(calls).toBeGreaterThanOrEqual(2);
+        expect(composition!.runtime.activeExecutionCount).toBe(0);
+      });
+
+      expect(composition.stores.executions.get(executionId)?.status).toBe("CANCELLED");
+      expect(calls).toBe(2);
+      expect(toolInvocationIds(composition)).not.toContain("tool-call:call-2");
+    } finally {
+      composition?.runtime.stop();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("surfaces the real error when an approved tool continuation fails", async () => {
+    const root = mkdtempSync(join(tmpdir(), "polyon-tool-resume-error-"));
+    let composition: ReturnType<typeof createPolyonComposition> | undefined;
+
+    try {
+      composition = bootWithTools(
+        root,
+        async () => ({ output: readCall("call-1", "missing.txt") }),
+        { ...policy, defaultEffect: "REQUIRE_APPROVAL" },
+      );
+
+      composition.runtime.start();
+      await vi.waitFor(() => {
+        expect(composition!.stores.executions.get(executionId)?.status).toBe("PAUSED");
+      });
+
+      await composition.agentToolOrchestration.resolveToolApproval({
+        approvalId: "approval:tool-call:call-1",
+        status: "APPROVED",
+        resolvedAt: "2026-09-27T12:01:00.000Z",
+        resolvedBy: "actor.test",
+      });
+
+      await vi.waitFor(() => {
+        expect(composition!.stores.executions.get(executionId)?.status).toBe("FAILED");
+      });
+
+      const error = composition.stores.executions.get(executionId)?.error ?? "";
+      expect(error).not.toBe("Approved tool continuation failed.");
+      expect(error).toContain("missing.txt");
+    } finally {
+      composition?.runtime.stop();
       rmSync(root, { recursive: true, force: true });
     }
   });

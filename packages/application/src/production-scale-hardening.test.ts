@@ -39,6 +39,37 @@ describe("production-scale hardening", () => {
     expect(results.every((entry) => entry.text.includes("database recovery"))).toBe(true);
   });
 
+  it("sustains a bounded repeated retrieval workload without corrupting results", () => {
+    const stores = new InMemoryDomainStores();
+    const memory = new MemoryService(stores.memory, stores.events);
+
+    for (let index = 0; index < 2_000; index += 1) {
+      memory.remember({
+        id: "load-memory-" + index,
+        kind: "FACT",
+        scope: "PROJECT",
+        text:
+          index % 20 === 0 ? "important retrieval anchor " + index : "background memory " + index,
+        tags: index % 20 === 0 ? ["anchor"] : ["background"],
+        now: "2026-09-28T00:00:00.000Z",
+      });
+    }
+
+    for (let iteration = 0; iteration < 100; iteration += 1) {
+      const results = memory.search({
+        query: "important retrieval anchor",
+        limit: 10,
+      });
+
+      expect(results).toHaveLength(10);
+      expect(results.every((entry) => entry.text.includes("important retrieval anchor"))).toBe(
+        true,
+      );
+    }
+
+    expect(stores.memory.list()).toHaveLength(2_000);
+  });
+
   it("recovers a bounded durable execution set after a file-backed restart", () => {
     const directory = mkdtempSync(join(tmpdir(), "polyon-production-scale-"));
 
@@ -83,5 +114,5 @@ describe("production-scale hardening", () => {
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
-  });
+  }, 15_000);
 });

@@ -1,8 +1,8 @@
 {
   "name": "polyon",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "private": true,
-  "description": "",
+  "description": "Personal AI Operations Network — a governed personal AI workspace.",
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
@@ -13,8 +13,8 @@
     "format:check": "prettier . --check"
   },
   "keywords": [],
-  "author": "",
-  "license": "UNLICENSED",
+  "author": "Mohammed Ajmal",
+  "license": "MIT",
   "devEngines": {
     "packageManager": {
       "name": "pnpm",

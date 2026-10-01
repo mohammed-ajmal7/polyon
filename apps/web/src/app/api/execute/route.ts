@@ -1,7 +1,8 @@
 import { isAuthenticated } from "@/server/auth";
 import { randomUUID } from "node:crypto";
 
-import type { CommandMode } from "@polyon/application";
+import { classifyTaskMode, type CommandMode } from "@polyon/application";
+import type { BuiltInAgentRoleId } from "@polyon/contracts";
 
 import {
   getPolyonActorId,
@@ -9,6 +10,8 @@ import {
   getPolyonPolicy,
   isSameOrigin,
 } from "@/server/polyon-server";
+import { readBoundedText } from "@/server/bounded-body";
+import { BackgroundRunLimitError, startBackgroundRun } from "@/server/run-registry";
 
 export const runtime = "nodejs";
 
@@ -28,8 +31,8 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
 
-    const raw = await request.text();
-    if (new TextEncoder().encode(raw).byteLength > MAX_REQUEST_BYTES) {
+    const raw = await readBoundedText(request, MAX_REQUEST_BYTES);
+    if (raw === undefined) {
       return Response.json(
         { error: "Execution request exceeds the 65536-byte limit." },
         { status: 413 },
@@ -37,11 +40,11 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     const input = JSON.parse(raw) as Record<string, unknown>;
-    const mode = parseMode(input.mode);
     const command = parseString(input.command, 50_000, "command");
     const polyon = getPolyonComposition();
+    const { mode, modeReason } = resolveMode(input.mode, command, polyon);
     const actorId = getPolyonActorId();
-    const targets = resolveTargets(input.agentIds, polyon);
+    const targets = resolveTargets(input.agentIds, mode, polyon);
     const participantIds = [actorId, ...targets.map((target) => target.actorId)];
 
     const commandResult = polyon.commandIngress.submit({
@@ -58,86 +61,229 @@ export async function POST(request: Request): Promise<Response> {
     const policy = getPolyonPolicy();
     const requiredCapabilityIds = parseStringArray(input.requiredCapabilityIds, 20);
     const first = targets[0];
-    if (first === undefined) throw new Error("At least one agent is required.");
+    if (first === undefined) throw new ExecuteRequestError("At least one agent is required.");
 
-    if (mode === "Direct" || mode === "Broadcast") {
-      const result = await polyon.conversationOrchestration.execute({
-        command: commandResult,
-        targets: mode === "Direct" ? [first] : targets,
+    if (mode === "Research" && polyon.researchOrchestration === undefined) {
+      throw new Error(
+        "Research is not configured. Set POLYON_RESEARCH_SEARCH_ENDPOINT and allowed hosts.",
+      );
+    }
+
+    const work = async (): Promise<unknown> => {
+      if (mode === "Direct" || mode === "Broadcast") {
+        return polyon.conversationOrchestration.execute({
+          command: commandResult,
+          targets: mode === "Direct" ? [first] : targets,
+          requiredCapabilityIds,
+          policy,
+          actorId,
+          maxToolRounds: parsePositiveInteger(input.maxToolRounds, 8, 100),
+          maxToolOutputBytes: parsePositiveInteger(
+            input.maxToolOutputBytes,
+            64 * 1024,
+            2 * 1024 * 1024,
+          ),
+        });
+      }
+
+      if (mode === "Collaborative") {
+        return polyon.collectiveOrchestration.execute({
+          command: commandResult,
+          targets,
+          requiredCapabilityIds,
+          actorId,
+          synthesizerAgentId: parseOptionalString(input.synthesizerAgentId),
+          maxParticipants: parsePositiveInteger(input.maxParticipants, 8, 8),
+        });
+      }
+
+      if (mode === "Research") {
+        return polyon.researchOrchestration!.execute({
+          command: commandResult,
+          targets,
+          requiredCapabilityIds,
+          actorId,
+          synthesizerAgentId: parseOptionalString(input.synthesizerAgentId),
+          maxParticipants: parsePositiveInteger(input.maxParticipants, 8, 8),
+          sourceLimit: parsePositiveInteger(input.researchSourceLimit, 5, 20),
+        });
+      }
+
+      if (mode === "DeepAnalysis") {
+        const factCheckerAgentId =
+          parseOptionalString(input.factCheckerAgentId) ?? agentIdForRole(polyon, "fact-checker");
+        return polyon.deepAnalysisOrchestration.execute({
+          command: commandResult,
+          targets,
+          requiredCapabilityIds,
+          actorId,
+          synthesizerAgentId: parseOptionalString(input.synthesizerAgentId),
+          ...(factCheckerAgentId === undefined ? {} : { factCheckerAgentId }),
+          maxParticipants: parsePositiveInteger(input.maxParticipants, 8, 8),
+          maxChallengeRounds: parseOptionalInteger(input.maxChallengeRounds, 1, 2),
+          maxDebateRounds: parsePositiveInteger(input.maxDebateRounds, 2, 4),
+        });
+      }
+
+      if (mode === "Debate") {
+        const debate = polyon.debates.create({
+          id: parseOptionalString(input.debateId) ?? randomUUID(),
+          objective: command,
+          participantAgentIds: targets.map((target) => target.agentId),
+          maxParticipants: Math.min(targets.length, 8),
+          maxRounds: parsePositiveInteger(input.maxRounds, 2, 6),
+          createdAt: new Date().toISOString(),
+        });
+        return polyon.debates.run({
+          debateId: debate.id,
+          requiredCapabilityIds,
+          adjudicatorAgentId: first.agentId,
+          now: () => new Date().toISOString(),
+        });
+      }
+
+      const now = new Date().toISOString();
+      return polyon.missionWorkflow.execute({
+        missionId: parseOptionalString(input.missionId) ?? randomUUID(),
+        conversationId: commandResult.conversation.id,
+        objective: command,
+        actorId,
+        planningAgentId: first.agentId,
+        executionAgentId: first.agentId,
         requiredCapabilityIds,
         policy,
-        actorId,
-        maxToolRounds: parsePositiveInteger(input.maxToolRounds, 8, 100),
-        maxToolOutputBytes: parsePositiveInteger(
-          input.maxToolOutputBytes,
-          64 * 1024,
-          2 * 1024 * 1024,
-        ),
+        riskLevel: parseRiskLevel(input.riskLevel),
+        proposalId: parseOptionalString(input.proposalId) ?? randomUUID(),
+        decisionId: parseOptionalString(input.decisionId) ?? randomUUID(),
+        approvalRequestId: parseOptionalString(input.approvalRequestId) ?? randomUUID(),
+        createdAt: now,
+        planningAt: now,
+        identities: {
+          executionId: (taskId, attempt) => `execution-${taskId}-${attempt}`,
+          policyDecisionId: (taskId, executionId) => `decision-${taskId}-${executionId}`,
+          approvalRequestId: (taskId, executionId) => `approval-${taskId}-${executionId}`,
+        },
       });
-      return Response.json({ mode, result }, { status: 201 });
+    };
+
+    if (input.async === true) {
+      // Long team and deep runs continue in the background; the client polls /api/runs/:id.
+      const run = startBackgroundRun(
+        {
+          runId: commandResult.conversation.id,
+          mode,
+          ...(modeReason === undefined ? {} : { modeReason }),
+        },
+        work,
+      );
+      return Response.json(
+        { runId: run.runId, conversationId: run.runId, mode, modeReason, status: run.status },
+        { status: 202 },
+      );
     }
 
-    if (mode === "Debate") {
-      const debate = polyon.debates.create({
-        id: parseOptionalString(input.debateId) ?? randomUUID(),
-        objective: command,
-        participantAgentIds: targets.map((target) => target.agentId),
-        maxParticipants: Math.min(targets.length, 8),
-        maxRounds: parsePositiveInteger(input.maxRounds, 2, 6),
-        createdAt: new Date().toISOString(),
-      });
-      const result = await polyon.debates.run({
-        debateId: debate.id,
-        requiredCapabilityIds,
-        adjudicatorAgentId: first.agentId,
-        now: () => new Date().toISOString(),
-      });
-      return Response.json({ mode, result }, { status: 201 });
-    }
-
-    const now = new Date().toISOString();
-    const result = await polyon.missionWorkflow.execute({
-      missionId: parseOptionalString(input.missionId) ?? randomUUID(),
-      conversationId: commandResult.conversation.id,
-      objective: command,
-      actorId,
-      planningAgentId: first.agentId,
-      executionAgentId: first.agentId,
-      requiredCapabilityIds,
-      policy,
-      riskLevel: parseRiskLevel(input.riskLevel),
-      proposalId: parseOptionalString(input.proposalId) ?? randomUUID(),
-      decisionId: parseOptionalString(input.decisionId) ?? randomUUID(),
-      approvalRequestId: parseOptionalString(input.approvalRequestId) ?? randomUUID(),
-      createdAt: now,
-      planningAt: now,
-      identities: {
-        executionId: (taskId, attempt) => `execution-${taskId}-${attempt}`,
-        policyDecisionId: (taskId, executionId) => `decision-${taskId}-${executionId}`,
-        approvalRequestId: (taskId, executionId) => `approval-${taskId}-${executionId}`,
-      },
-    });
-
-    return Response.json({ mode, result }, { status: 201 });
+    const result = await work();
+    return Response.json({ mode, modeReason, result }, { status: 201 });
   } catch (error) {
+    if (error instanceof BackgroundRunLimitError) {
+      return Response.json({ error: error.message }, { status: 429 });
+    }
+    if (error instanceof ExecuteRequestError || error instanceof SyntaxError) {
+      return Response.json({ error: error.message }, { status: 400 });
+    }
+    const message = error instanceof Error ? error.message : "Execution request failed.";
     return Response.json(
-      { error: error instanceof Error ? error.message : "Execution request failed." },
-      { status: 400 },
+      { error: message },
+      { status: message.startsWith("Research is not configured") ? 503 : 500 },
     );
   }
 }
 
+/** A malformed or out-of-bounds request; everything else is a server-side failure. */
+class ExecuteRequestError extends Error {}
+
+const DEFAULT_TEAM_ROLES: Partial<Record<CommandMode, readonly BuiltInAgentRoleId[]>> = {
+  Direct: ["action-agent", "synthesizer"],
+  Broadcast: ["researcher", "analyst", "specialist"],
+  Collaborative: ["researcher", "analyst", "specialist", "critic", "synthesizer"],
+  Research: ["researcher", "analyst", "synthesizer"],
+  DeepAnalysis: ["researcher", "analyst", "critic", "judge"],
+  Debate: ["analyst", "critic", "judge"],
+  Mission: ["planner"],
+};
+
+function agentIdForRole(
+  polyon: ReturnType<typeof getPolyonComposition>,
+  roleId: BuiltInAgentRoleId,
+): string | undefined {
+  return polyon.agents.list().find((agent) => agent.status === "ACTIVE" && agent.roleId === roleId)
+    ?.id;
+}
+
+/** Picks the default team by agent role; falls back to registration order without roles. */
+function defaultAgentIds(
+  mode: CommandMode,
+  polyon: ReturnType<typeof getPolyonComposition>,
+): readonly string[] {
+  const roles = DEFAULT_TEAM_ROLES[mode] ?? [];
+  const byRole = roles
+    .map((roleId) => agentIdForRole(polyon, roleId))
+    .filter((id): id is string => id !== undefined);
+  const single = mode === "Direct" || mode === "Mission";
+  if (single ? byRole.length >= 1 : byRole.length >= 2) return single ? byRole.slice(0, 1) : byRole;
+
+  const active = polyon.agents
+    .list()
+    .filter((agent) => agent.status === "ACTIVE")
+    .map((agent) => agent.id);
+  return single ? active.slice(0, 1) : active.slice(0, 8);
+}
+
+/**
+ * "Auto" (the default) lets POLYON decide how much of the team a request needs, so the user
+ * does not have to choose an orchestration mode.
+ */
+function resolveMode(
+  value: unknown,
+  command: string,
+  polyon: ReturnType<typeof getPolyonComposition>,
+): { mode: CommandMode; modeReason?: string } {
+  if (value !== undefined && value !== "Auto") return { mode: parseMode(value) };
+
+  const classification = classifyTaskMode(command);
+  if (classification.mode === "simple")
+    return { mode: "Direct", modeReason: classification.reason };
+  if (classification.mode === "research") {
+    return polyon.researchOrchestration === undefined
+      ? {
+          mode: "Collaborative",
+          modeReason:
+            classification.reason + " Web research is not configured, so the team answers.",
+        }
+      : { mode: "Research", modeReason: classification.reason };
+  }
+  return { mode: "DeepAnalysis", modeReason: classification.reason };
+}
+
 function parseMode(value: unknown): CommandMode {
-  if (value === "Direct" || value === "Broadcast" || value === "Debate" || value === "Mission")
+  if (
+    value === "Direct" ||
+    value === "Broadcast" ||
+    value === "Collaborative" ||
+    value === "Research" ||
+    value === "DeepAnalysis" ||
+    value === "Debate" ||
+    value === "Mission"
+  )
     return value;
-  throw new Error("Invalid command mode.");
+  throw new ExecuteRequestError("Invalid command mode.");
 }
 
 function parseString(value: unknown, maxLength: number, field: string): string {
   if (typeof value !== "string" || value.trim() === "")
-    throw new Error(field + " must be a non-empty string.");
+    throw new ExecuteRequestError(field + " must be a non-empty string.");
   if (Array.from(value).length > maxLength)
-    throw new Error(field + " exceeds its " + maxLength + "-character limit.");
+    throw new ExecuteRequestError(field + " exceeds its " + maxLength + "-character limit.");
   return value.trim();
 }
 
@@ -149,34 +295,47 @@ function parsePositiveInteger(value: unknown, fallback: number, max: number): nu
   if (value === undefined) return fallback;
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0 || parsed > max)
-    throw new Error("Integer parameter is outside its allowed bounds.");
+    throw new ExecuteRequestError("Integer parameter is outside its allowed bounds.");
+  return parsed;
+}
+
+function parseOptionalInteger(value: unknown, fallback: number, max: number): number {
+  if (value === undefined) return fallback;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > max)
+    throw new ExecuteRequestError("Integer parameter is outside its allowed bounds.");
   return parsed;
 }
 
 function parseStringArray(value: unknown, max: number): readonly string[] {
   if (value === undefined) return [];
   if (!Array.isArray(value) || value.length > max)
-    throw new Error("String array exceeds its allowed bound.");
+    throw new ExecuteRequestError("String array exceeds its allowed bound.");
   return value.map((item) => parseString(item, 200, "array item"));
 }
 
-function resolveTargets(value: unknown, polyon: ReturnType<typeof getPolyonComposition>) {
-  const ids =
-    value === undefined
-      ? [polyon.agents.list()[0]?.id].filter((id): id is string => id !== undefined)
-      : Array.isArray(value)
-        ? value.map((id) => parseString(id, 200, "agentId"))
-        : (() => {
-            throw new Error("agentIds must be an array.");
-          })();
+function resolveTargets(
+  value: unknown,
+  mode: CommandMode,
+  polyon: ReturnType<typeof getPolyonComposition>,
+) {
+  let ids: readonly string[];
+
+  if (value === undefined) {
+    ids = defaultAgentIds(mode, polyon);
+  } else if (Array.isArray(value)) {
+    ids = value.map((id) => parseString(id, 200, "agentId"));
+  } else {
+    throw new ExecuteRequestError("agentIds must be an array.");
+  }
 
   if (ids.length === 0 || ids.length > 8)
-    throw new Error("agentIds must contain between 1 and 8 agents.");
+    throw new ExecuteRequestError("agentIds must contain between 1 and 8 agents.");
   const unique = [...new Set(ids)];
   return unique.map((agentId) => {
     const agent = polyon.agents.get(agentId);
     if (agent === undefined || agent.status !== "ACTIVE")
-      throw new Error("Requested agent is not active: " + agentId + ".");
+      throw new ExecuteRequestError("Requested agent is not active: " + agentId + ".");
     return { agentId, actorId: agentId };
   });
 }
@@ -184,5 +343,5 @@ function resolveTargets(value: unknown, polyon: ReturnType<typeof getPolyonCompo
 function parseRiskLevel(value: unknown): "LOW" | "MEDIUM" | "HIGH" {
   if (value === undefined || value === "LOW") return "LOW";
   if (value === "MEDIUM" || value === "HIGH") return value;
-  throw new Error("riskLevel must be LOW, MEDIUM, or HIGH.");
+  throw new ExecuteRequestError("riskLevel must be LOW, MEDIUM, or HIGH.");
 }

@@ -200,53 +200,72 @@ describe("FileDomainStores", () => {
     }
   });
 
-  it("routes normal store getters through the active transaction context", () => {
+  it("rejects a public direct write during a transaction", () => {
     const directory = mkdtempSync(join(tmpdir(), "polyon-domain-context-"));
 
     try {
       const stores = new FileDomainStores(directory);
 
-      stores.transaction(() => {
-        stores.missions.save({
-          id: "mission-context-1",
-          objective: "Use active transaction context.",
-          constraints: [],
-          status: "DRAFT",
-          taskIds: [],
-          createdAt: "2026-09-28T00:00:00.000Z",
-          updatedAt: "2026-09-28T00:00:00.000Z",
-        });
-        stores.events.append({
-          id: "event-context-1",
-          kind: "MISSION_CREATED",
-          missionId: "mission-context-1",
-          occurredAt: "2026-09-28T00:00:00.000Z",
-          data: {},
-        });
-      });
-
-      const reopened = new FileDomainStores(directory);
-      expect(reopened.missions.get("mission-context-1")).toBeDefined();
-      expect(reopened.events.get("event-context-1")).toBeDefined();
-
       expect(() =>
-        stores.transaction(() => {
-          stores.missions.save({
-            id: "mission-context-rollback",
-            objective: "Must roll back.",
+        stores.transaction(({ missions }) => {
+          missions.save({
+            id: "mission-staged",
+            objective: "Staged transaction write.",
             constraints: [],
             status: "DRAFT",
             taskIds: [],
             createdAt: "2026-09-28T00:00:00.000Z",
             updatedAt: "2026-09-28T00:00:00.000Z",
           });
-          throw new Error("rollback");
-        }),
-      ).toThrow("rollback");
 
-      expect(
-        new FileDomainStores(directory).missions.get("mission-context-rollback"),
-      ).toBeUndefined();
+          stores.missions.save({
+            id: "mission-direct",
+            objective: "Must not bypass transaction.",
+            constraints: [],
+            status: "DRAFT",
+            taskIds: [],
+            createdAt: "2026-09-28T00:00:00.000Z",
+            updatedAt: "2026-09-28T00:00:00.000Z",
+          });
+        }),
+      ).toThrow("A storage transaction is already in progress.");
+
+      const reopened = new FileDomainStores(directory);
+      expect(reopened.missions.get("mission-staged")).toBeUndefined();
+      expect(reopened.missions.get("mission-direct")).toBeUndefined();
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("commits writes from the transaction callback once", () => {
+    const directory = mkdtempSync(join(tmpdir(), "polyon-domain-context-"));
+
+    try {
+      const stores = new FileDomainStores(directory);
+
+      stores.transaction(({ missions, events }) => {
+        missions.save({
+          id: "mission-transaction-once",
+          objective: "Write through the staged context.",
+          constraints: [],
+          status: "DRAFT",
+          taskIds: [],
+          createdAt: "2026-09-28T00:00:00.000Z",
+          updatedAt: "2026-09-28T00:00:00.000Z",
+        });
+        events.append({
+          id: "event-transaction-once",
+          kind: "MISSION_CREATED",
+          missionId: "mission-transaction-once",
+          occurredAt: "2026-09-28T00:00:00.000Z",
+          data: {},
+        });
+      });
+
+      const reopened = new FileDomainStores(directory);
+      expect(reopened.missions.get("mission-transaction-once")).toBeDefined();
+      expect(reopened.events.get("event-transaction-once")).toBeDefined();
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
@@ -316,6 +335,62 @@ describe("FileDomainStores", () => {
 
       expect(new FileDomainStores(directory).missions.get("mission-1")).toBeUndefined();
       expect(new FileDomainStores(directory).events.get("event-1")).toBeUndefined();
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("publishes newly committed domain events after transactions", () => {
+    const directory = mkdtempSync(join(tmpdir(), "polyon-events-"));
+
+    try {
+      const stores = new FileDomainStores(directory);
+      const events = [
+        {
+          id: "event-1",
+          kind: "TASK_STATUS_CHANGED" as const,
+          taskId: "task-1",
+          occurredAt: "2026-09-29T10:00:00.000Z",
+          data: { from: "PENDING", to: "RUNNING" },
+        },
+      ];
+      const received: string[] = [];
+      stores.subscribeCommittedEvents((event) => {
+        received.push(event.id);
+      });
+
+      stores.transaction((context) => {
+        for (const event of events) context.events.append(event);
+      });
+
+      expect(received).toEqual(["event-1"]);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("persists A2A push notification configurations across restart", () => {
+    const directory = mkdtempSync(join(tmpdir(), "polyon-a2a-push-"));
+
+    try {
+      const first = new FileDomainStores(directory);
+      first.a2aPushNotificationConfigs.save({
+        id: "a2a-push:durable-1",
+        ownerId: "actor-1",
+        taskId: "task-1",
+        url: "https://client.example.test/a2a/push",
+        token: "token-1",
+      });
+
+      const reopened = new FileDomainStores(directory);
+
+      expect(reopened.a2aPushNotificationConfigs.get("a2a-push:durable-1")).toEqual({
+        id: "a2a-push:durable-1",
+        ownerId: "actor-1",
+        taskId: "task-1",
+        url: "https://client.example.test/a2a/push",
+        token: "token-1",
+      });
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

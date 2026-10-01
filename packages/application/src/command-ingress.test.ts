@@ -172,6 +172,25 @@ describe("CommandIngressService", () => {
     );
   });
 
+  it("creates a research conversation kind", () => {
+    const { stores, service } = dependencies();
+
+    const result = service.submit({
+      mode: "Research",
+      command: "Research this question.",
+      actorId: "user-1",
+      conversationId: "conversation-research",
+      messageId: "message-research",
+      eventId: "event-research",
+      participantIds: ["user-1", "researcher"],
+      createdAt,
+    });
+
+    expect(result.conversation.kind).toBe("RESEARCH");
+    expect(result.event.data.mode).toBe("RESEARCH");
+    expect(stores.conversations.get("conversation-research")).toEqual(result.conversation);
+  });
+
   it("rejects a mode that does not match the conversation kind", () => {
     const { stores, service } = dependencies();
 

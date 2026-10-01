@@ -1,6 +1,7 @@
 import type { SourceKind } from "@polyon/contracts";
 import { BoundedHttpClient, type BoundedHttpClientError } from "@polyon/integrations";
 
+import { BoundedHttpBrowserProvider } from "./bounded-http-browser-provider";
 import type { ResearchRetriever, ResearchSourceCandidate } from "./research-service";
 
 export interface ResearchSearchResult {
@@ -37,38 +38,42 @@ export class BoundedWebResearchRetriever implements ResearchRetriever {
     options: { readonly limit: number; readonly signal?: AbortSignal },
   ): Promise<readonly ResearchSourceCandidate[]> {
     const results = await this.searchProvider.search(query, options);
+    const browser = new BoundedHttpBrowserProvider(this.http, {
+      maxResponseBytes: this.maxContentBytes,
+    });
     const candidates: ResearchSourceCandidate[] = [];
+    const failures: unknown[] = [];
 
     for (const result of results.slice(0, options.limit)) {
       if (options.signal?.aborted) {
         throw new Error("Research retrieval was cancelled.");
       }
 
-      const response = await this.http.request(
-        {
-          url: result.locator,
-          method: "GET",
+      let page: Awaited<ReturnType<BoundedHttpBrowserProvider["fetch"]>>;
+      try {
+        page = await browser.fetch(result.locator, {
           signal: options.signal,
-        },
-        { maxResponseBytes: this.maxContentBytes },
-      );
-
-      if (response.status < 200 || response.status >= 300) {
-        throw new Error(`Research source returned HTTP ${response.status}.`);
+          maxCharacters: this.maxContentBytes,
+        });
+      } catch (error) {
+        // One unreachable or disallowed page must not discard the other sources.
+        if (options.signal?.aborted) throw error;
+        failures.push(error);
+        continue;
       }
-
-      const contentType = response.headers["content-type"] ?? "";
-      const content = new TextDecoder().decode(response.body);
 
       candidates.push({
         title: result.title,
         locator: result.locator,
         kind: result.kind ?? "WEB",
-        content,
-        context: contentType === "" ? undefined : `content-type: ${contentType}`,
-        retrievedAt: new Date().toISOString(),
+        content: page.content,
+        context: page.contentType === undefined ? undefined : `content-type: ${page.contentType}`,
+        retrievedAt: page.retrievedAt,
       });
     }
+
+    // Fail closed only when no source could be read at all.
+    if (candidates.length === 0 && failures.length > 0) throw failures[0];
 
     return candidates;
   }

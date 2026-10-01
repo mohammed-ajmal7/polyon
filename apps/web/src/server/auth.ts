@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
 import { cookies } from "next/headers";
 
@@ -6,10 +6,13 @@ const COOKIE_NAME = "polyon_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 12;
 
 export async function isAuthenticated(): Promise<boolean> {
+  // Read request cookies before any configuration check so that pages guarded by this
+  // function always render per request. Returning early made Next.js prerender them at
+  // build time, when no token is configured, which served them without authentication.
+  const store = await cookies();
   const expected = process.env.POLYON_API_TOKEN?.trim();
   if (expected === undefined || expected === "") return true;
 
-  const store = await cookies();
   const session = store.get(COOKIE_NAME)?.value;
   return session === undefined ? false : verifySession(session, expected);
 }
@@ -36,9 +39,9 @@ export async function issueSession(token: string): Promise<boolean> {
 }
 
 function safeEqual(left: string, right: string): boolean {
-  const a = Buffer.from(left);
-  const b = Buffer.from(right);
-  if (a.length !== b.length) return false;
+  // Compare fixed-length digests so the comparison time does not reveal the secret length.
+  const a = Buffer.from(createHash("sha256").update(left).digest("hex"));
+  const b = Buffer.from(createHash("sha256").update(right).digest("hex"));
   return timingSafeEqual(a, b);
 }
 

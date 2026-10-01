@@ -67,26 +67,198 @@ describe("MissionPlanningService", () => {
     ).toBeDefined();
   });
 
-  it("rejects cyclic plans before persistence", async () => {
+  it("repairs one invalid model-generated graph before persistence", async () => {
     const stores = new InMemoryDomainStores();
+    const invokeText = vi
+      .fn()
+      .mockResolvedValueOnce({
+        agentId: "planner",
+        modelId: "model",
+        providerId: "provider",
+        source: "preferred" as const,
+        output: {
+          content: JSON.stringify({
+            rationale: "invalid dependency",
+            tasks: [
+              {
+                id: "research",
+                kind: "RESEARCH",
+                title: "Research constraints",
+                description: "Gather the relevant constraints.",
+                dependsOn: ["missing"],
+              },
+            ],
+          }),
+        },
+      })
+      .mockResolvedValueOnce({
+        agentId: "planner",
+        modelId: "model",
+        providerId: "provider",
+        source: "preferred" as const,
+        output: {
+          content: JSON.stringify({
+            rationale: "fixed dependency graph",
+            tasks: [
+              {
+                id: "research",
+                kind: "RESEARCH",
+                title: "Research constraints",
+                description: "Gather the relevant constraints.",
+                dependsOn: [],
+              },
+              {
+                id: "validate",
+                kind: "VALIDATION",
+                title: "Validate",
+                description: "Validate the result.",
+                dependsOn: ["research"],
+              },
+            ],
+          }),
+        },
+      });
+
     const service = new MissionPlanningService(
-      {
-        invokeText: vi.fn(async () => ({
-          agentId: "planner",
-          modelId: "model",
-          providerId: "provider",
-          source: "preferred" as const,
-          output: {
-            content: JSON.stringify({
-              rationale: "cycle",
-              tasks: [
-                { id: "a", kind: "OTHER", title: "A", description: "A", dependsOn: ["b"] },
-                { id: "b", kind: "OTHER", title: "B", description: "B", dependsOn: ["a"] },
-              ],
-            }),
-          },
-        })),
-      } as never,
+      { invokeText } as never,
+      stores.tasks,
+      stores.events,
+      stores,
+    );
+
+    const result = await service.generate({
+      mission: {
+        id: "mission-repair",
+        objective: "Validate a bounded plan.",
+        constraints: [],
+        status: "PLANNING",
+        taskIds: [],
+        createdAt: "2026-09-28T00:00:00.000Z",
+        updatedAt: "2026-09-28T00:00:00.000Z",
+      },
+      planningAgentId: "planner",
+      requiredCapabilityIds: [],
+      now: "2026-09-28T00:00:00.000Z",
+    });
+
+    expect(invokeText).toHaveBeenCalledTimes(2);
+    expect(result.tasks.map((task) => task.id)).toEqual([
+      "mission-repair:task:research",
+      "mission-repair:task:validate",
+    ]);
+    expect(stores.tasks.list()).toHaveLength(2);
+  });
+
+  it("repairs a plan that exceeds the dependency bound before persistence", async () => {
+    const stores = new InMemoryDomainStores();
+    const tooManyDependencies = Array.from({ length: 11 }, (_, index) => `dependency-${index + 1}`);
+    const invokeText = vi
+      .fn()
+      .mockResolvedValueOnce({
+        agentId: "planner",
+        modelId: "model",
+        providerId: "provider",
+        source: "preferred" as const,
+        output: {
+          content: JSON.stringify({
+            rationale: "too many dependencies",
+            tasks: [
+              {
+                id: "step_analyze_obj",
+                kind: "ANALYSIS",
+                title: "Analyze",
+                description: "Analyze the objective.",
+                dependsOn: tooManyDependencies,
+              },
+            ],
+          }),
+        },
+      })
+      .mockResolvedValueOnce({
+        agentId: "planner",
+        modelId: "model",
+        providerId: "provider",
+        source: "preferred" as const,
+        output: {
+          content: JSON.stringify({
+            rationale: "bounded dependency graph",
+            tasks: [
+              {
+                id: "step_analyze_obj",
+                kind: "ANALYSIS",
+                title: "Analyze",
+                description: "Analyze the objective.",
+                dependsOn: [],
+              },
+            ],
+          }),
+        },
+      });
+
+    const service = new MissionPlanningService(
+      { invokeText } as never,
+      stores.tasks,
+      stores.events,
+      stores,
+    );
+
+    const result = await service.generate({
+      mission: {
+        id: "mission-dependency-bound",
+        objective: "Validate dependency bounds.",
+        constraints: [],
+        status: "PLANNING",
+        taskIds: [],
+        createdAt: "2026-09-28T00:00:00.000Z",
+        updatedAt: "2026-09-28T00:00:00.000Z",
+      },
+      planningAgentId: "planner",
+      requiredCapabilityIds: [],
+      now: "2026-09-28T00:00:00.000Z",
+    });
+
+    expect(invokeText).toHaveBeenCalledTimes(2);
+    expect(result.tasks[0]?.dependsOn).toEqual([]);
+    expect(stores.tasks.list()).toHaveLength(1);
+  });
+
+  it("rejects cyclic plans after the bounded repair attempt", async () => {
+    const stores = new InMemoryDomainStores();
+    const invokeText = vi
+      .fn()
+      .mockResolvedValueOnce({
+        agentId: "planner",
+        modelId: "model",
+        providerId: "provider",
+        source: "preferred" as const,
+        output: {
+          content: JSON.stringify({
+            rationale: "cycle",
+            tasks: [
+              { id: "a", kind: "OTHER", title: "A", description: "A", dependsOn: ["b"] },
+              { id: "b", kind: "OTHER", title: "B", description: "B", dependsOn: ["a"] },
+            ],
+          }),
+        },
+      })
+      .mockResolvedValueOnce({
+        agentId: "planner",
+        modelId: "model",
+        providerId: "provider",
+        source: "preferred" as const,
+        output: {
+          content: JSON.stringify({
+            rationale: "still invalid",
+            tasks: [
+              { id: "a", kind: "OTHER", title: "A", description: "A", dependsOn: ["b"] },
+              { id: "b", kind: "OTHER", title: "B", description: "B", dependsOn: ["a"] },
+            ],
+          }),
+        },
+      });
+
+    const service = new MissionPlanningService(
+      { invokeText } as never,
       stores.tasks,
       stores.events,
       stores,
@@ -109,6 +281,81 @@ describe("MissionPlanningService", () => {
       }),
     ).rejects.toThrow("deterministic task-graph validation");
 
+    expect(invokeText).toHaveBeenCalledTimes(2);
     expect(stores.tasks.list()).toHaveLength(0);
+  });
+
+  const planningMission = {
+    id: "mission-3",
+    objective: "Test planner output parsing.",
+    constraints: [],
+    status: "PLANNING" as const,
+    taskIds: [],
+    createdAt: "2026-09-28T00:00:00.000Z",
+    updatedAt: "2026-09-28T00:00:00.000Z",
+  };
+
+  function plannerReply(content: string) {
+    return {
+      agentId: "planner",
+      modelId: "model",
+      providerId: "provider",
+      source: "preferred" as const,
+      output: { content },
+    };
+  }
+
+  it("accepts planner JSON wrapped in a markdown code fence", async () => {
+    const stores = new InMemoryDomainStores();
+    const plan = {
+      rationale: "One step.",
+      tasks: [{ id: "only", kind: "OTHER", title: "Only", description: "Do it.", dependsOn: [] }],
+    };
+    const invokeText = vi
+      .fn()
+      .mockResolvedValue(plannerReply("```json\n" + JSON.stringify(plan, null, 2) + "\n```"));
+    const service = new MissionPlanningService(
+      { invokeText } as never,
+      stores.tasks,
+      stores.events,
+      stores,
+    );
+
+    const result = await service.generate({
+      mission: planningMission,
+      planningAgentId: "planner",
+      requiredCapabilityIds: [],
+      now: "2026-09-28T00:00:00.000Z",
+    });
+
+    expect(result.tasks.map((task) => task.id)).toEqual(["mission-3:task:only"]);
+    expect(invokeText).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports unparseable planner output as invalid JSON, not a duplicate task id", async () => {
+    const stores = new InMemoryDomainStores();
+    const invokeText = vi.fn().mockResolvedValue(plannerReply("I could not produce a plan."));
+    const service = new MissionPlanningService(
+      { invokeText } as never,
+      stores.tasks,
+      stores.events,
+      stores,
+    );
+
+    const error = await service
+      .generate({
+        mission: planningMission,
+        planningAgentId: "planner",
+        requiredCapabilityIds: [],
+        now: "2026-09-28T00:00:00.000Z",
+      })
+      .catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toContain("valid JSON");
+    expect((error as { errors?: unknown }).errors).toBeUndefined();
+    const repairRequest = JSON.parse(invokeText.mock.calls[1]?.[0].request.messages[1].content);
+    expect(repairRequest.validationError).toContain("valid JSON");
+    expect(JSON.stringify(repairRequest.validationErrors)).not.toContain("DUPLICATE_TASK_ID");
   });
 });

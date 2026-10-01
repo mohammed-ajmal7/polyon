@@ -5,6 +5,7 @@ export interface TraceQuery {
   readonly missionId?: string;
   readonly taskId?: string;
   readonly executionId?: string;
+  readonly agentRunId?: string;
   readonly conversationId?: string;
   readonly limit?: number;
 }
@@ -17,6 +18,7 @@ export interface TraceEvent {
   readonly missionId?: string;
   readonly taskId?: string;
   readonly executionId?: string;
+  readonly agentRunId?: string;
   readonly conversationId?: string;
   readonly data: Readonly<Record<string, unknown>>;
 }
@@ -35,6 +37,7 @@ export class TraceQueryService {
       .filter((event) => query.missionId === undefined || event.missionId === query.missionId)
       .filter((event) => query.taskId === undefined || event.taskId === query.taskId)
       .filter((event) => query.executionId === undefined || event.executionId === query.executionId)
+      .filter((event) => query.agentRunId === undefined || event.agentRunId === query.agentRunId)
       .filter(
         (event) =>
           query.conversationId === undefined || event.conversationId === query.conversationId,
@@ -52,6 +55,7 @@ export class TraceQueryService {
         missionId: event.missionId,
         taskId: event.taskId,
         executionId: event.executionId,
+        agentRunId: event.agentRunId,
         conversationId: event.conversationId,
         data: redactTraceData(event.data),
       }));

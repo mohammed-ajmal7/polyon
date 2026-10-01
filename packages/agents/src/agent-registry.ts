@@ -25,6 +25,7 @@ function cloneAgent(agent: Agent): Agent {
     ...agent,
     capabilityIds: [...agent.capabilityIds],
     fallbackModelIds: [...agent.fallbackModelIds],
+    ...(agent.allowedToolIds === undefined ? {} : { allowedToolIds: [...agent.allowedToolIds] }),
   };
 }
 

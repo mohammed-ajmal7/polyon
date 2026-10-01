@@ -1,6 +1,6 @@
 /// <reference path="./node-runtime.d.ts" />
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -11,6 +11,7 @@ import { CURRENT_DURABLE_DOMAIN_VERSION } from "./migrations";
 function legacySnapshot(version: number): Record<string, unknown> {
   return {
     version,
+    agentRuns: [],
     approvals: [],
     artifacts: [],
     conversations: [],
@@ -39,11 +40,14 @@ describe("FileDomainDatabase migrations", () => {
           migrate(state) {
             return {
               ...state,
+              agentRuns: [],
               debates: [],
               evidence: [],
               memory: [],
               memoryEmbeddings: [],
               sources: [],
+              jobs: [],
+              a2aPushNotificationConfigs: [],
               migrated: true,
             };
           },
@@ -61,6 +65,50 @@ describe("FileDomainDatabase migrations", () => {
       });
     } finally {
       rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("migrates version 5 snapshots with an empty A2A push configuration collection", () => {
+    const directory = mkdtempSync(join(tmpdir(), "polyon-database-"));
+    const filePath = join(directory, "domain-state.json");
+
+    try {
+      const snapshot = legacySnapshot(5);
+      snapshot.debates = [];
+      snapshot.evidence = [];
+      snapshot.memory = [];
+      snapshot.memoryEmbeddings = [];
+      snapshot.sources = [];
+      snapshot.jobs = [];
+      snapshot.agentRuns = [];
+      writeFileSync(filePath, JSON.stringify(snapshot), "utf8");
+
+      const database = new FileDomainDatabase(filePath);
+
+      expect(database.snapshot()).toMatchObject({
+        version: CURRENT_DURABLE_DOMAIN_VERSION,
+        a2aPushNotificationConfigs: [],
+      });
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("creates the parent directory before the first durable write", () => {
+    const root = mkdtempSync(join(tmpdir(), "polyon-database-"));
+    const filePath = join(root, "nested", "domain-state.json");
+
+    try {
+      const database = new FileDomainDatabase(filePath);
+
+      expect(existsSync(join(root, "nested"))).toBe(false);
+
+      database.replace(database.snapshot());
+
+      expect(existsSync(filePath)).toBe(true);
+      expect(existsSync(`${filePath}.lock`)).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
     }
   });
 

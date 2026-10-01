@@ -1,13 +1,21 @@
 import type { AgentId, DomainEvent, Mission, Task, TaskKind } from "@polyon/contracts";
 import { validateTaskGraph } from "@polyon/core";
-import type { AgentGateway } from "@polyon/agents";
-import type { DomainUnitOfWork, EventStore, TaskStore } from "@polyon/storage";
+import { buildAgentRolePrompt, type AgentGateway } from "@polyon/agents";
+import type {
+  DomainStoreTransactionContext,
+  DomainUnitOfWork,
+  EventStore,
+  TaskStore,
+} from "@polyon/storage";
+
+import { extractJsonObject } from "./structured-finding-parser";
 
 const MAX_TASKS = 20;
 const MAX_TITLE = 300;
 const MAX_DESCRIPTION = 10_000;
 const MAX_DEPENDENCIES = 10;
 const MAX_RATIONALE = 10_000;
+const MAX_VALIDATION_REPAIR_ATTEMPTS = 1;
 
 export interface GeneratedTaskSpec {
   readonly id: string;
@@ -42,7 +50,7 @@ export class MissionPlanningService {
   async generate(input: GenerateMissionPlanInput): Promise<GeneratedMissionPlan> {
     validateMission(input.mission);
 
-    const response = await this.agentGateway.invokeText({
+    const initialResponse = await this.agentGateway.invokeText({
       agentId: input.planningAgentId,
       requiredCapabilityIds: input.requiredCapabilityIds,
       request: {
@@ -50,10 +58,14 @@ export class MissionPlanningService {
           {
             role: "SYSTEM",
             content:
-              "You are POLYON's planning agent. Return ONLY valid JSON with this shape: " +
+              "You are POLYON's planning agent. Return ONLY valid JSON with this exact shape: " +
               '{"rationale":"string","tasks":[{"id":"string","kind":"RESEARCH|ANALYSIS|CODING|CREATIVE|VALIDATION|OTHER","title":"string","description":"string","dependsOn":["task-id"]}]}. ' +
-              "Create a finite task graph for the mission. Never invent capabilities, tools, credentials, or external actions. " +
-              "Keep dependencies acyclic and use only task IDs declared in the same response.",
+              "Create a finite task graph for the mission. Every dependsOn value MUST exactly match an id declared in the same tasks array. " +
+              "Use only the local task ids from that response, never mission-prefixed ids. " +
+              "Keep dependencies acyclic. Use an empty dependsOn array when a dependency is not necessary. Never invent capabilities, tools, credentials, or external actions. " +
+              "Each task id must be unique and each dependency must appear at most once.\n" +
+              "Before returning, mentally verify: all dependency ids exist, no task depends on itself, and the graph has no cycle.\n" +
+              buildAgentRolePrompt(undefined, "planning", "planner"),
           },
           {
             role: "USER",
@@ -68,22 +80,69 @@ export class MissionPlanningService {
       },
     });
 
-    const proposal = parseGeneratedPlan(response.output.content);
-    const generatedTasks = proposal.tasks.map((task) => ({
-      id: missionTaskId(input.mission.id, task.id),
-      missionId: input.mission.id,
-      kind: task.kind,
-      title: task.title,
-      description: task.description,
-      status: "PENDING" as const,
-      dependsOn: task.dependsOn.map((dependencyId) =>
-        missionTaskId(input.mission.id, dependencyId),
-      ),
-      createdAt: input.now,
-      updatedAt: input.now,
-    }));
+    let proposal: ReturnType<typeof parseGeneratedPlan> | undefined;
+    let generatedTasks: Task[] | undefined;
+    let validation: ReturnType<typeof validateTaskGraph> | undefined;
+    let lastPlanningError: Error | undefined;
+    let response = initialResponse;
 
-    const validation = validateTaskGraph(generatedTasks);
+    for (let attempt = 0; attempt <= MAX_VALIDATION_REPAIR_ATTEMPTS; attempt += 1) {
+      try {
+        proposal = parseGeneratedPlan(response.output.content);
+        generatedTasks = buildGeneratedTasks(input, proposal.tasks);
+        validation = validateTaskGraph(generatedTasks);
+
+        if (validation.valid) {
+          break;
+        }
+
+        lastPlanningError = new MissionPlanningValidationError(validation.errors);
+      } catch (error) {
+        lastPlanningError =
+          error instanceof Error ? error : new Error("Generated mission plan was invalid.");
+      }
+
+      if (attempt >= MAX_VALIDATION_REPAIR_ATTEMPTS) {
+        break;
+      }
+
+      response = await this.agentGateway.invokeText({
+        agentId: input.planningAgentId,
+        requiredCapabilityIds: input.requiredCapabilityIds,
+        request: {
+          messages: [
+            {
+              role: "SYSTEM",
+              content:
+                "You are repairing a POLYON mission plan. Return ONLY valid JSON with this exact shape: " +
+                '{"rationale":"string","tasks":[{"id":"string","kind":"RESEARCH|ANALYSIS|CODING|CREATIVE|VALIDATION|OTHER","title":"string","description":"string","dependsOn":["task-id"]}]}. ' +
+                "Correct every reported plan-validation error. Every dependsOn value MUST exactly match an id in the same response. " +
+                `Never exceed ${MAX_DEPENDENCIES} dependencies on any task. Never use mission-prefixed ids, task titles, or invented ids as dependencies. ` +
+                "Keep the graph acyclic; use [] when a dependency is not necessary. " +
+                `Keep task count between 1 and ${MAX_TASKS}, preserve the mission intent, and do not invent capabilities, tools, credentials, or external actions. `,
+            },
+            {
+              role: "USER",
+              content: JSON.stringify({
+                missionId: input.mission.id,
+                objective: input.mission.objective,
+                constraints: input.mission.constraints,
+                maxTasks: MAX_TASKS,
+                maxDependenciesPerTask: MAX_DEPENDENCIES,
+                previousPlan: proposal ?? null,
+                validationError: lastPlanningError?.message ?? "Unknown plan validation failure.",
+                validationErrors: validation?.errors ?? [],
+              }),
+            },
+          ],
+        },
+      });
+    }
+
+    if (proposal === undefined || generatedTasks === undefined || validation === undefined) {
+      throw lastPlanningError ?? new Error("Generated mission plan was invalid.");
+    }
+
     if (!validation.valid) {
       throw new MissionPlanningValidationError(validation.errors);
     }
@@ -100,18 +159,21 @@ export class MissionPlanningService {
       },
     };
 
-    const operation = () => {
+    const operation = (stores: Pick<DomainStoreTransactionContext, "tasks" | "events">) => {
       for (const task of generatedTasks) {
-        if (this.tasks.get(task.id) !== undefined) {
+        if (stores.tasks.get(task.id) !== undefined) {
           throw new Error(`Generated task already exists: ${task.id}.`);
         }
-        this.tasks.save(task);
+        stores.tasks.save(task);
       }
-      this.events.append(event);
+      stores.events.append(event);
     };
 
-    if (this.unitOfWork === undefined) operation();
-    else this.unitOfWork.transaction(operation);
+    if (this.unitOfWork === undefined) {
+      operation({ tasks: this.tasks, events: this.events });
+    } else {
+      this.unitOfWork.transaction(operation);
+    }
 
     return {
       rationale: proposal.rationale,
@@ -129,6 +191,23 @@ export class MissionPlanningValidationError extends Error {
     this.name = "MissionPlanningValidationError";
     this.errors = errors;
   }
+}
+
+function buildGeneratedTasks(
+  input: GenerateMissionPlanInput,
+  tasks: readonly GeneratedTaskSpec[],
+): Task[] {
+  return tasks.map((task) => ({
+    id: missionTaskId(input.mission.id, task.id),
+    missionId: input.mission.id,
+    kind: task.kind,
+    title: task.title,
+    description: task.description,
+    status: "PENDING" as const,
+    dependsOn: task.dependsOn.map((dependencyId) => missionTaskId(input.mission.id, dependencyId)),
+    createdAt: input.now,
+    updatedAt: input.now,
+  }));
 }
 
 function validateMission(mission: Mission): void {
@@ -150,16 +229,10 @@ function parseGeneratedPlan(content: string): {
   readonly rationale: string;
   readonly tasks: readonly GeneratedTaskSpec[];
 } {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(content);
-  } catch {
-    throw new MissionPlanningValidationError([
-      { kind: "DUPLICATE_TASK_ID", taskId: "INVALID_JSON" },
-    ]);
-  }
-  if (!isRecord(parsed)) {
-    throw new Error("Planning model must return a JSON object.");
+  // Tolerates ```json fences and surrounding prose like the other model-output parsers.
+  const parsed = extractJsonObject(content);
+  if (parsed === undefined) {
+    throw new Error("Planning model must return a valid JSON object.");
   }
 
   const rationale = readBoundedString(parsed.rationale, MAX_RATIONALE, "rationale");

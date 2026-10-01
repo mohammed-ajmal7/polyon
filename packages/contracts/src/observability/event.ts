@@ -1,6 +1,6 @@
 import type { ActorId } from "../actor/ids";
 import type { ConversationId } from "../communication/ids";
-import type { ExecutionId, MissionId, TaskId } from "../work/ids";
+import type { AgentRunId, ExecutionId, MissionId, TaskId } from "../work/ids";
 import type { EventId } from "./ids";
 
 export type EventKind =
@@ -13,6 +13,9 @@ export type EventKind =
   | "APPROVAL_REQUESTED"
   | "APPROVAL_RESOLVED"
   | "EXECUTION_CREATED"
+  | "MODEL_INVOCATION_RECORDED"
+  | "AGENT_RUN_CREATED"
+  | "AGENT_RUN_STATUS_CHANGED"
   | "EXECUTION_ROUTED"
   | "EXECUTION_RECOVERED"
   | "EXECUTION_STATUS_CHANGED"
@@ -20,15 +23,33 @@ export type EventKind =
   | "INTEGRATION_INVOKED"
   | "TOOL_INVOKED"
   | "MESSAGE_CREATED"
+  | "AGENT_MESSAGE_CREATED"
+  | "JOB_CREATED"
+  | "JOB_STATUS_CHANGED"
+  | "JOB_RECOVERED"
+  | "COLLECTIVE_STARTED"
+  | "COLLECTIVE_CONTRIBUTION"
+  | "COLLECTIVE_CHALLENGE"
+  | "COLLECTIVE_SYNTHESIZED"
+  | "RESEARCH_STARTED"
+  | "RESEARCH_FINDING"
+  | "RESEARCH_COMPLETED"
+  | "DEEP_ANALYSIS_STARTED"
+  | "DEEP_ANALYSIS_COMPLETED"
   | "MEMORY_RECORDED"
   | "SOURCE_RETRIEVED"
   | "EVIDENCE_CAPTURED"
+  | "FACT_CHECK_STARTED"
+  | "FACT_CHECK_RESULT"
+  | "FACT_CHECK_COMPLETED"
   | "RESEARCH_SYNTHESIZED"
   | "MISSION_PLAN_GENERATED"
   | "DEBATE_STATUS_CHANGED"
   | "DEBATE_CONTRIBUTION"
   | "DEBATE_DECIDED"
   | "ERROR"
+  | "A2A_PUSH_DELIVERY_SUCCEEDED"
+  | "A2A_PUSH_DELIVERY_FAILED"
   | "OTHER";
 
 export interface DomainEvent {
@@ -40,6 +61,7 @@ export interface DomainEvent {
   readonly missionId?: MissionId;
   readonly taskId?: TaskId;
   readonly executionId?: ExecutionId;
+  readonly agentRunId?: AgentRunId;
 
   readonly traceId?: string;
   readonly causedByEventId?: EventId;

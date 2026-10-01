@@ -56,7 +56,7 @@ describe("ResearchSynthesisService", () => {
       },
     ];
     expect(firstCall[0].request.messages[1]?.content).toContain(
-      "[evidence:evidence-1 source:source-1 Source 1]",
+      "[evidence:evidence-1 source:source-1 Source 1 quality:",
     );
     expect(result.memory.kind).toBe("SUMMARY");
     expect(stores.memory.get("research-summary-1")).toEqual(result.memory);

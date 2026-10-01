@@ -280,6 +280,36 @@ describe("recoverQueuedExecutions", () => {
     expect(stores.tasks.get("task-1")?.status).toBe("PAUSED");
   });
 
+  it("fails an interrupted running execution that has no approval continuation", () => {
+    const stores = new InMemoryDomainStores();
+    const queue = new InMemoryExecutionQueue();
+
+    stores.tasks.save({ ...approvedTask, status: "RUNNING" });
+    stores.executions.save({
+      ...queued("execution-1"),
+      status: "RUNNING",
+      taskId: "task-1",
+      startedAt: "2026-09-27T01:01:00.000Z",
+    });
+
+    expect(
+      recoverExecutions(
+        stores.executions,
+        queue,
+        stores.approvals,
+        stores.tasks,
+        "2026-09-27T01:05:00.000Z",
+      ),
+    ).toEqual([{ executionId: "execution-1", kind: "INTERRUPTED_EXECUTION_FAILED" }]);
+
+    const execution = stores.executions.get("execution-1");
+    expect(execution?.status).toBe("FAILED");
+    expect(execution?.completedAt).toBe("2026-09-27T01:05:00.000Z");
+    expect(execution?.error).toBe("Execution was interrupted by a restart before it finished.");
+    expect(stores.tasks.get("task-1")?.status).toBe("FAILED");
+    expect(queue.size()).toBe(0);
+  });
+
   it("does not duplicate executions already present in the queue", () => {
     const stores = new InMemoryDomainStores();
     const queue = new InMemoryExecutionQueue();

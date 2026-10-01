@@ -41,4 +41,26 @@ describe("ExactNormalizedSemanticVectorIndex", () => {
 
     expect(index.search("model", [1, 1]).map((hit) => hit.embedding.id)).toEqual(["valid"]);
   });
+  it("isolates searches by model and vector dimensions", () => {
+    const index = new ExactNormalizedSemanticVectorIndex();
+    index.rebuild([
+      embedding("model-a-2d", "model-a", [1, 0]),
+      embedding("model-a-3d", "model-a", [1, 0, 0]),
+      embedding("model-b-2d", "model-b", [1, 0]),
+    ]);
+
+    expect(index.search("model-a", [1, 0]).map((hit) => hit.embedding.id)).toEqual(["model-a-2d"]);
+  });
+
+  it("keeps bucket membership correct across replacement and removal", () => {
+    const index = new ExactNormalizedSemanticVectorIndex();
+    index.upsert(embedding("a", "model", [1, 0]));
+    index.upsert(embedding("a", "model", [1, 0, 0]));
+
+    expect(index.search("model", [1, 0])).toEqual([]);
+    expect(index.search("model", [1, 0, 0]).map((hit) => hit.embedding.id)).toEqual(["a"]);
+
+    index.remove("a");
+    expect(index.search("model", [1, 0, 0])).toEqual([]);
+  });
 });

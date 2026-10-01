@@ -77,3 +77,9 @@ Thumbs.db
 # ==========================
 .github/workflows/*.yml
 .github/workflows/*.yaml
+
+
+# ==========================
+# Human-authored implementation directive
+# ==========================
+docs/POLYON-MASTER-IMPLEMENTATION-INSTRUCTIONS.md

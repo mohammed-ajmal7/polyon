@@ -56,7 +56,41 @@ describe("BoundedWebResearchRetriever", () => {
     );
 
     await expect(retriever.search("query", { limit: 1 })).rejects.toThrow(
-      "Research source returned HTTP 503.",
+      "Browser source returned HTTP 503.",
     );
+  });
+
+  it("skips a failing source and keeps the others", async () => {
+    const retriever = new BoundedWebResearchRetriever(
+      {
+        search: vi.fn(async () => [
+          { title: "Broken", locator: "https://example.com/broken" },
+          { title: "Good", locator: "https://example.com/good" },
+        ]),
+      },
+      {
+        request: vi.fn(async (input: { url: string }) =>
+          input.url.endsWith("/broken")
+            ? {
+                url: input.url,
+                status: 503,
+                statusText: "Down",
+                headers: {},
+                body: new Uint8Array(),
+              }
+            : {
+                url: input.url,
+                status: 200,
+                statusText: "OK",
+                headers: { "content-type": "text/plain" },
+                body: new TextEncoder().encode("good content"),
+              },
+        ),
+      } as never,
+    );
+
+    const result = await retriever.search("query", { limit: 2 });
+
+    expect(result).toEqual([expect.objectContaining({ title: "Good", content: "good content" })]);
   });
 });

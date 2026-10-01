@@ -70,7 +70,7 @@ export class OpenAICompatibleEmbeddingAdapter implements EmbeddingProviderAdapte
       body: JSON.stringify({ model: modelId, input: input.input }),
       signal,
     });
-    const payload = await response.json();
+    const payload: unknown = await response.json().catch(() => undefined);
     if (!response.ok) {
       const message =
         typeof payload === "object" &&

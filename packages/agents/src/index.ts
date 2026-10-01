@@ -39,3 +39,29 @@ export {
   type AgentGatewayInvocationResult,
   type AgentGatewayTextInvocationInput,
 } from "./agent-gateway";
+
+export {
+  ModelRoutingError,
+  routeAgentModel,
+  type ModelRoutingErrorKind,
+  type ModelRoutingRequest,
+  type ProviderHealth,
+  type RoutedAgentModel,
+} from "./model-routing";
+
+export {
+  AgentTeamPlannerError,
+  planAgentTeam,
+  type AgentTeamMember,
+  type AgentTeamPlan,
+  type AgentTeamPlannerErrorKind,
+  type AgentTeamPlanningRequest,
+} from "./agent-team-planner";
+
+export {
+  ProviderHealthTracker,
+  type ProviderHealthSnapshot,
+  type ProviderHealthTrackerOptions,
+} from "./provider-health";
+
+export { buildAgentRolePrompt, type AgentPromptStage } from "./role-prompts";

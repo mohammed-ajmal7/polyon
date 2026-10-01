@@ -50,4 +50,47 @@ describe("MissionWorkflowService", () => {
     expect(result.status).toBe("PLAN_APPROVAL_REQUIRED");
     expect(graph.executeReadyTasks).not.toHaveBeenCalled();
   });
+
+  it("moves the mission out of PLANNING when planning fails, then rethrows", async () => {
+    const transition = vi.fn();
+    const service = new MissionWorkflowService(
+      {
+        create: vi.fn(() => ({ mission: { id: "m2" }, conversation: {}, event: { id: "e2" } })),
+      } as never,
+      { transition } as never,
+      {
+        plan: vi.fn(async () => {
+          throw new Error("planner returned invalid JSON");
+        }),
+      } as never,
+      { executeReadyTasks: vi.fn() } as never,
+    );
+
+    await expect(
+      service.execute({
+        missionId: "m2",
+        conversationId: "c2",
+        objective: "do",
+        actorId: "u1",
+        planningAgentId: "a1",
+        requiredCapabilityIds: [],
+        policy: {} as never,
+        riskLevel: "LOW",
+        proposalId: "p2",
+        decisionId: "d2",
+        approvalRequestId: "ap2",
+        createdAt: "2026-09-28T00:00:00.000Z",
+        planningAt: "2026-09-28T00:00:01.000Z",
+        identities: {
+          executionId: (t, a) => t + a,
+          policyDecisionId: (t, e) => t + e,
+          approvalRequestId: (t, e) => t + e,
+        },
+      }),
+    ).rejects.toThrow("planner returned invalid JSON");
+
+    expect(transition).toHaveBeenLastCalledWith(
+      expect.objectContaining({ missionId: "m2", to: "WAITING" }),
+    );
+  });
 });

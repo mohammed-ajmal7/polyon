@@ -10,8 +10,10 @@ export type {
   CapabilityId,
   CapabilityKind,
   Model,
+  ModelCostClass,
   ModelId,
   ModelKind,
+  ModelPrivacyClass,
   ModelMessage,
   ModelMessageRole,
   ModelToolCall,
@@ -25,6 +27,16 @@ export type {
   TextModelUsage,
   EmbeddingRequest,
   EmbeddingResponse,
+  AiCapabilityDefinition,
+  AiCapabilityId,
+  BuiltInAgentRoleDefinition,
+  BuiltInAgentRoleId,
+} from "./agent/index";
+export {
+  AI_CAPABILITY_DEFINITIONS,
+  BUILT_IN_AGENT_ROLES,
+  getBuiltInAgentRole,
+  isAiCapabilityId,
 } from "./agent/index";
 
 export type { DomainEvent, EventId, EventKind } from "./observability/index";
@@ -54,12 +66,23 @@ export type {
   Evidence,
   EvidenceId,
   EvidenceKind,
+  Finding,
+  FindingDisposition,
+  FindingEvidenceRef,
   Source,
   SourceId,
   SourceKind,
 } from "./evidence/index";
 
 export type {
+  AgentRun,
+  AgentRunId,
+  AgentRunMode,
+  AgentRunStatus,
+  Job,
+  JobId,
+  JobKind,
+  JobStatus,
   Execution,
   ExecutionId,
   ExecutionStatus,
@@ -77,6 +100,7 @@ export type {
   ConversationId,
   ConversationKind,
   ConversationStatus,
+  AgentMessageType,
   Message,
   MessageId,
   MessageKind,
@@ -105,3 +129,8 @@ export type {
 export { validateInteroperabilityEnvelope } from "./interoperability/index";
 
 export { JsonInteroperabilityAdapter } from "./interoperability/index";
+
+export type {
+  A2APushNotificationAuthentication,
+  A2APushNotificationConfig,
+} from "./a2a/push-notification";

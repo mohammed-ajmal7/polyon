@@ -1,56 +1,49 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import Home from "../app/page";
+import HomePage from "../app/(workspace)/page";
 
-const overview = {
-  actorId: "local-user",
-  agents: [
-    {
-      id: "agent-1",
-      name: "Primary",
-      role: "General operations",
-      status: "ACTIVE",
-      preferredModelId: "model-1",
-    },
-  ],
-  approvals: [],
-  counts: {
-    executions: 0,
-    queued: 0,
-    active: 0,
-    memories: 0,
-    sources: 0,
-    evidence: 0,
-    debates: 0,
-    artifacts: 0,
-    events: 0,
-  },
-  activity: [],
-};
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}
 
-describe("POLYON AI HQ", () => {
+describe("POLYON home", () => {
+  let approvals: unknown[] = [];
+
   beforeEach(() => {
+    approvals = [];
     vi.stubGlobal(
       "fetch",
       vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
         const url =
           typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-        if (url.endsWith("/api/overview")) {
-          return new Response(JSON.stringify(overview), {
-            status: 200,
-            headers: { "content-type": "application/json" },
-          });
-        }
-
+        if (url.endsWith("/api/approvals")) return json({ approvals });
         if (url.endsWith("/api/execute") && init?.method === "POST") {
-          return new Response(JSON.stringify({ result: { status: "QUEUED" } }), {
-            status: 201,
-            headers: { "content-type": "application/json" },
+          const body = JSON.parse(typeof init.body === "string" ? init.body : "{}") as {
+            conversationId?: string;
+          };
+          return json({ runId: body.conversationId, status: "running", mode: "Direct" }, 202);
+        }
+        if (url.includes("/api/runs/")) {
+          return json({
+            status: "succeeded",
+            mode: "Direct",
+            modeReason: "The request can be answered directly.",
+            result: {
+              status: "SUCCEEDED",
+              responses: [
+                {
+                  agentId: "primary-action-agent",
+                  result: { status: "SUCCEEDED", response: { content: "Hello from POLYON." } },
+                },
+              ],
+            },
           });
         }
-
-        return new Response("{}", { status: 200 });
+        return json({});
       }),
     );
   });
@@ -59,72 +52,50 @@ describe("POLYON AI HQ", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders the live command center", async () => {
-    const { unmount } = render(<Home />);
+  it("offers one simple input with automatic depth selected", () => {
+    const { unmount } = render(<HomePage />);
 
-    expect(screen.getByText("One command. Many intelligences.")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "What should POLYON do?" })).toBeInTheDocument();
-
-    await waitFor(() => {
-      expect(screen.getAllByText("Primary").length).toBeGreaterThan(0);
-    });
+    expect(screen.getByRole("heading", { name: "What should POLYON handle?" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Request for POLYON")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Auto" })).toHaveAttribute("aria-checked", "true");
     unmount();
   });
 
-  it("switches interaction modes", () => {
-    const { unmount } = render(<Home />);
+  it("sends the request with Auto mode and shows the answer", async () => {
+    const { unmount } = render(<HomePage />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Debate" }));
-
-    expect(
-      screen.getByText("Run a bounded proposal, criticism, evidence and adjudication flow."),
-    ).toBeInTheDocument();
-    unmount();
-  });
-
-  it("submits commands through the governed execution endpoint", async () => {
-    const { unmount } = render(<Home />);
-    const input = screen.getByPlaceholderText("Give POLYON a command...");
-
-    fireEvent.change(input, {
-      target: { value: "Review the execution architecture." },
+    fireEvent.change(screen.getByLabelText("Request for POLYON"), {
+      target: { value: "Hi team, how are you?" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Submit command" }));
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
 
-    await waitFor(() => {
-      expect(screen.getByText("Last governed submission: QUEUED")).toBeInTheDocument();
-    });
-
-    expect(fetch).toHaveBeenCalledWith(
-      "/api/execute",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({
-          mode: "Mission",
-          command: "Review the execution architecture.",
-        }),
-      }),
+    await waitFor(
+      () => {
+        expect(screen.getByText("Hello from POLYON.")).toBeInTheDocument();
+      },
+      { timeout: 6_000 },
     );
+    expect(screen.getByText("Here is what POLYON found.")).toBeInTheDocument();
+
+    const executeCall = vi
+      .mocked(fetch)
+      .mock.calls.find(([url]) => typeof url === "string" && url.endsWith("/api/execute"));
+    const requestBody = executeCall?.[1]?.body;
+    const body = JSON.parse(typeof requestBody === "string" ? requestBody : "{}") as Record<
+      string,
+      unknown
+    >;
+    expect(body).toMatchObject({ mode: "Auto", command: "Hi team, how are you?", async: true });
+    expect(body.conversationId).toEqual(expect.any(String));
     unmount();
   });
 
-  it("shows the authentication gate when the server requires login", async () => {
-    const fetchMock = vi.fn((input: RequestInfo | URL) => {
-      const url =
-        typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-      if (url.endsWith("/api/overview")) {
-        return new Response(JSON.stringify({ error: "Authentication required." }), {
-          status: 401,
-        });
-      }
-      return new Response("{}", { status: 200 });
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const { unmount } = render(<Home />);
+  it("points to waiting approvals", async () => {
+    approvals = [{ id: "approval-1" }];
+    const { unmount } = render(<HomePage />);
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Authentication required" })).toBeInTheDocument();
+      expect(screen.getByText("1 action is waiting for your approval.")).toBeInTheDocument();
     });
     unmount();
   });

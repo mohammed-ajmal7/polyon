@@ -144,14 +144,22 @@ export class ScopedGitWriteToolAdapter implements ToolAdapter<
   }
 }
 
+// Paths are validated lexically, so Git must not reinterpret them as pathspec magic
+// such as ":/" (repository top), which would reach outside the scoped root.
 function buildArgs(input: ScopedGitWriteToolInput): readonly string[] {
   switch (input.operation) {
     case "CREATE_BRANCH":
       return ["branch", "--", input.branchName!];
     case "STAGE_PATHS":
-      return ["add", "--", ...input.paths!.map(normalizeRelativePath)];
+      return ["--literal-pathspecs", "add", "--", ...input.paths!.map(normalizeRelativePath)];
     case "UNSTAGE_PATHS":
-      return ["restore", "--staged", "--", ...input.paths!.map(normalizeRelativePath)];
+      return [
+        "--literal-pathspecs",
+        "restore",
+        "--staged",
+        "--",
+        ...input.paths!.map(normalizeRelativePath),
+      ];
   }
 }
 

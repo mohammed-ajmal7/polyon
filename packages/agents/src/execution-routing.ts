@@ -13,6 +13,7 @@ export interface BindExecutionRoutingInput {
   readonly execution: Execution;
   readonly agentId: AgentId;
   readonly requiredCapabilityIds: readonly CapabilityId[];
+  readonly requiredModelCapabilityIds?: readonly CapabilityId[];
   readonly boundAt: string;
 }
 
@@ -36,6 +37,7 @@ export function bindExecutionRouting(
   const resolveInput: ResolveAgentModelInput = {
     agentId: input.agentId,
     requiredCapabilityIds: input.requiredCapabilityIds,
+    requiredModelCapabilityIds: input.requiredModelCapabilityIds ?? input.requiredCapabilityIds,
   };
 
   const resolution = resolveAgentModel(resolveInput, registries);
