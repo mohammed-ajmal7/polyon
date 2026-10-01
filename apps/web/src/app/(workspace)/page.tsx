@@ -1,9 +1,5 @@
-import dynamic from "next/dynamic";
-
-const CommandPageClient = dynamic(() => import("./command-page-client"), {
-  ssr: false,
-});
+import CommandPageClientWrapper from "./command-page-client-wrapper";
 
 export default function CommandPage() {
-  return <CommandPageClient />;
+  return <CommandPageClientWrapper />;
 }
