@@ -2,7 +2,7 @@ import { isAuthenticated } from "@/server/auth";
 import { randomUUID } from "node:crypto";
 
 import { classifyTaskMode, type CommandMode } from "@polyon/application";
-import type { BuiltInAgentRoleId, ModelMessage } from "@polyon/contracts";
+import type { BuiltInAgentRoleId } from "@polyon/contracts";
 
 import {
   getPolyonActorId,
@@ -46,8 +46,6 @@ export async function POST(request: Request): Promise<Response> {
     const actorId = getPolyonActorId();
     const targets = resolveTargets(input.agentIds, mode, polyon);
     const participantIds = [actorId, ...targets.map((target) => target.actorId)];
-
-    const chatHistory = parseChatHistory(input.history);
 
     const commandResult = polyon.commandIngress.submit({
       mode,
@@ -307,36 +305,6 @@ function parseOptionalInteger(value: unknown, fallback: number, max: number): nu
   if (!Number.isInteger(parsed) || parsed < 0 || parsed > max)
     throw new ExecuteRequestError("Integer parameter is outside its allowed bounds.");
   return parsed;
-}
-
-function parseChatHistory(value: unknown): readonly ModelMessage[] {
-  if (value === undefined) return [];
-  if (!Array.isArray(value) || value.length > 40) {
-    throw new ExecuteRequestError("Chat history exceeds its 40-message limit.");
-  }
-
-  let totalCharacters = 0;
-  const messages: ModelMessage[] = [];
-  for (const item of value) {
-    if (item === null || typeof item !== "object") {
-      throw new ExecuteRequestError("Chat history contains an invalid message.");
-    }
-    const record = item as Record<string, unknown>;
-    const role = record.role === "user" ? "USER" : record.role === "assistant" ? "ASSISTANT" : undefined;
-    const content = typeof record.content === "string" ? record.content.trim() : "";
-    if (role === undefined || content === "") {
-      throw new ExecuteRequestError("Chat history contains an invalid message.");
-    }
-    if (Array.from(content).length > 20_000) {
-      throw new ExecuteRequestError("A chat history message exceeds the 20000-character limit.");
-    }
-    totalCharacters += Array.from(content).length;
-    if (totalCharacters > 120_000) {
-      throw new ExecuteRequestError("Chat history exceeds the 120000-character limit.");
-    }
-    messages.push({ role, content });
-  }
-  return messages;
 }
 
 function parseStringArray(value: unknown, max: number): readonly string[] {
