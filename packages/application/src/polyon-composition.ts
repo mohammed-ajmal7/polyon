@@ -85,7 +85,11 @@ import {
   type ModelInvocationTelemetryRecord,
   type ModelProviderAdapter,
 } from "@polyon/providers";
-import { FileDomainStores } from "@polyon/storage";
+import {
+  FileDomainStores,
+  InMemoryDomainStores,
+  type DurableDomainStores,
+} from "@polyon/storage";
 import {
   createExecutionRuntime,
   createJobRuntime,
@@ -120,6 +124,7 @@ export interface PolyonEmbeddingProviderRegistration {
 
 export interface PolyonCompositionOptions {
   readonly storageRoot: string;
+  readonly storageBackend?: "file" | "memory";
   readonly agents?: readonly Agent[];
   readonly models?: readonly Model[];
   readonly providers?: readonly PolyonProviderRegistration[];
@@ -231,7 +236,7 @@ export interface PolyonComposition {
   readonly missionGraphExecution: MissionGraphExecutionService;
   readonly missionLifecycle: MissionLifecycleService;
   readonly missionPlan: MissionPlanService;
-  readonly stores: FileDomainStores;
+  readonly stores: DurableDomainStores;
   readonly agents: InMemoryAgentRegistry;
   readonly models: InMemoryModelRegistry;
   readonly providers: InMemoryProviderRegistry;
@@ -285,7 +290,10 @@ class SystemClock implements ExecutionWorkerClock {
 }
 
 export function createPolyonComposition(options: PolyonCompositionOptions): PolyonComposition {
-  const stores = new FileDomainStores(options.storageRoot);
+  const stores =
+    options.storageBackend === "memory"
+      ? new InMemoryDomainStores()
+      : new FileDomainStores(options.storageRoot);
   const jobService = new JobService({
     jobs: stores.jobs,
     events: stores.events,
