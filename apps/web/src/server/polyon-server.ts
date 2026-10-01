@@ -56,6 +56,11 @@ function buildOptions() {
   const a2aPushNotificationAllowedOrigins = parseCsv(process.env.POLYON_A2A_PUSH_ALLOWED_ORIGINS);
   return {
     storageRoot: process.env.POLYON_DATA_DIR?.trim() || join(process.cwd(), ".polyon-data"),
+    storageBackend:
+      process.env.POLYON_STORAGE_BACKEND?.trim() === "memory" ||
+      (process.env.POLYON_STORAGE_BACKEND === undefined && process.env.VERCEL === "1")
+        ? "memory"
+        : "file",
     ...(model === undefined
       ? {}
       : { agents: model.agents, models: model.models, providers: model.providers }),
