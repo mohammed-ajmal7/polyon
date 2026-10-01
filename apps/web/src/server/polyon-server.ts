@@ -329,8 +329,21 @@ function buildVercelGeminiProfile(): ModelProfileConfig {
     apiKeyEnv: "GEMINI_API_KEY",
     supportsTools: true,
     privacyClass: "cloud",
-    costClass: "paid",
+    costClass: resolveVercelGeminiCostClass(),
   };
+}
+
+function resolveVercelGeminiCostClass(): "free" | "paid" {
+  const configured = process.env.POLYON_VERCEL_MODEL_COST_CLASS?.trim().toLowerCase();
+  if (configured === "free" || configured === "paid") return configured;
+  if (configured !== undefined && configured !== "") {
+    throw new Error("POLYON_VERCEL_MODEL_COST_CLASS must be free or paid.");
+  }
+
+  // In zero-cost mode, the production fallback is intended for a Gemini API
+  // project that remains on Google's Free Tier. An explicit paid value can
+  // still opt the deployment out of that assumption.
+  return process.env.POLYON_COST_MODE?.trim().toLowerCase() === "zero" ? "free" : "paid";
 }
 
 function buildEmailRegistration():
