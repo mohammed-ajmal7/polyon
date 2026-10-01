@@ -576,8 +576,8 @@ function AnswerCard({
       </header>
 
       {view.answer === undefined ? null : (
-        <div className="mt-4 text-[15px] leading-7 whitespace-pre-wrap text-slate-100">
-          {view.answer}
+        <div className="mt-4">
+          <MarkdownContent content={view.answer} />
         </div>
       )}
 
