@@ -173,28 +173,16 @@ function buildEmbeddingRegistration() {
 
 function buildConfiguredModelRegistrations() {
   const profilesJson = process.env.POLYON_MODEL_PROFILES_JSON?.trim();
-  if (process.env.VERCEL === "1" && profilesJson === undefined) {
-    const endpoint = process.env.POLYON_MODEL_ENDPOINT?.trim();
-    const providerId = process.env.POLYON_PROVIDER_ID?.trim();
-    const endpointIsLocal = endpoint !== undefined && isLoopbackEndpoint(endpoint);
-    const providerIsLocal =
-      providerId === undefined ||
-      providerId === "" ||
-      providerId.toLowerCase() === "ollama";
 
-    // Never let a cloud deployment try to reach the developer's laptop. If a Gemini
-    // key is configured, use Google's hosted OpenAI-compatible endpoint as the safe
-    // production fallback; otherwise expose no model rather than failing with ENOTFOUND.
-    if (providerIsLocal && (endpointIsLocal || providerId?.toLowerCase() === "ollama")) {
-      if (process.env.GEMINI_API_KEY?.trim() !== "") {
-        return buildModelRegistrations(
-          [buildVercelGeminiProfile()],
-          process.env,
-        );
-      }
-      return undefined;
-    }
+  // Vercel must never inherit a local/Ollama roster from the developer environment.
+  // A configured profile can otherwise bypass the hosted Gemini safety fallback and
+  // leave the production agent with no reachable model. Prefer the hosted Gemini
+  // profile whenever Vercel has a Gemini key; this also makes production independent
+  // of local model settings.
+  if (process.env.VERCEL === "1" && process.env.GEMINI_API_KEY?.trim() !== "") {
+    return buildModelRegistrations([buildVercelGeminiProfile()], process.env);
   }
+
   if (profilesJson !== undefined && profilesJson !== "") {
     return buildModelRegistrations(parseModelProfiles(profilesJson), process.env);
   }
