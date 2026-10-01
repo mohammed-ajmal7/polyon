@@ -176,9 +176,7 @@ function buildConfiguredModelRegistrations() {
   if (process.env.VERCEL === "1" && profilesJson === undefined) {
     const endpoint = process.env.POLYON_MODEL_ENDPOINT?.trim();
     const providerId = process.env.POLYON_PROVIDER_ID?.trim();
-    const endpointIsLocal =
-      endpoint !== undefined &&
-      /^(https?:\\/\\/)?(127\\.0\\.0\\.1|localhost)(?::\\d+)?(?:\\/|$)/iu.test(endpoint);
+    const endpointIsLocal = endpoint !== undefined && isLoopbackEndpoint(endpoint);
     const providerIsLocal = providerId === undefined || providerId === "" || providerId === "ollama";
 
     // Never let a cloud deployment try to reach the developer's laptop. If a Gemini
@@ -303,6 +301,15 @@ function buildConfiguredModelRegistrations() {
     })),
     process.env,
   );
+}
+
+function isLoopbackEndpoint(endpoint: string): boolean {
+  try {
+    const hostname = new URL(endpoint).hostname.toLowerCase();
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  } catch {
+    return false;
+  }
 }
 
 function buildVercelGeminiProfile(): ModelProfileConfig {
