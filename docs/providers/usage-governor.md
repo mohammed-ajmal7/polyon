@@ -19,6 +19,8 @@ A model invocation is authorized before the provider adapter is called. Each ret
 
 `zero` permits only explicitly free usage. Local-model providers are treated as free when no more specific model cost classification exists. Hosted models without an explicit free classification are blocked instead of being assumed free.
 
+For the Vercel production Gemini fallback, the model cost classification can be explicitly set to free or paid. If it is unset, the fallback is classified as free only when zero-cost mode is enabled, because the intended zero-cost deployment uses a Gemini API project on Google's Free Tier. Google ties billing status to the project rather than the API key, so this is an operator declaration rather than a remote billing-status check. If the Gemini project is linked to paid billing, classify it as paid; zero-cost mode will then block it.
+
 ## Configuration
 
 The web server reads:
