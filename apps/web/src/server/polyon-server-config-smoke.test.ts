@@ -125,6 +125,32 @@ describe("POLYON server configuration smoke", () => {
     }
   });
 
+  it("registers configured Drive and Telegram integrations without exposing their secrets", () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "polyon-server-integrations-"));
+    const driveToken = "drive-token-that-must-not-enter-domain-data";
+    const telegramToken = "telegram-token-that-must-not-enter-domain-data";
+
+    try {
+      process.env.POLYON_DATA_DIR = dataDir;
+      process.env.POLYON_RUNTIME_AUTOSTART = "false";
+      process.env.POLYON_SEMANTIC_INDEXING_AUTOSTART = "false";
+      process.env.POLYON_GOOGLE_DRIVE_ACCESS_TOKEN = driveToken;
+      process.env.POLYON_TELEGRAM_BOT_TOKEN = telegramToken;
+
+      const composition = getPolyonComposition();
+      const integrations = composition.integrations.list();
+
+      expect(integrations.map((integration) => integration.id)).toEqual([
+        "google-drive-primary",
+        "telegram-primary",
+      ]);
+      expect(JSON.stringify(integrations)).not.toContain(driveToken);
+      expect(JSON.stringify(integrations)).not.toContain(telegramToken);
+    } finally {
+      rmSync(dataDir, { recursive: true, force: true });
+    }
+  });
+
   it("only lets bearer clients or same-origin JSON browsers call protocol endpoints", () => {
     const request = (headers: Record<string, string>) =>
       new Request("http://localhost:3000/api/mcp", {
