@@ -21,7 +21,7 @@ export interface ConversationAgentTarget {
 export interface ExecuteConversationInput {
   readonly command: CommandIngressResult;
   readonly targets: readonly ConversationAgentTarget[];
-  readonly request?: Omit<TextModelRequest, "messages">;
+  readonly request?: Omit<TextModelRequest, "messages"> & {\n    readonly messages?: TextModelRequest["messages"];\n  };
   readonly requiredCapabilityIds: readonly string[];
   readonly policy: import("@polyon/contracts").Policy;
   readonly actorId: ActorId;
