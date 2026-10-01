@@ -13,6 +13,8 @@ It supports:
 
 A model invocation is authorized before the provider adapter is called. Each retry attempt is authorized separately, so retries cannot bypass request budgets. A reservation holds the conservative token estimate while the provider call is running; returned model usage reconciles the reservation after success.
 
+Model invocations retry transient provider failures twice by default with bounded exponential backoff (500 ms, then 1 s). This is intended to absorb temporary hosted-model capacity/availability responses such as HTTP 5xx without bypassing usage budgets. Callers can explicitly set the retry count to zero when a workflow requires fail-fast behavior.
+
 ## Cost modes
 
 `configured` records and enforces configured budgets but does not block a model solely because its cost class is paid or unknown.
