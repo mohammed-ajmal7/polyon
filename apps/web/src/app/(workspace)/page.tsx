@@ -651,7 +651,8 @@ function AnswerCard({
   );
 }
 
-\nfunction ChatMessageView({ message }: { message: ChatMessage }) {
+
+function ChatMessageView({ message }: { message: ChatMessage }) {
   const isUser = message.role === "user";
   return (
     <article className={isUser ? "flex justify-end" : "flex items-start gap-3"}>
@@ -667,7 +668,8 @@ function AnswerCard({
     </article>
   );
 }
-\nfunction CheckList({
+
+function CheckList({
   title,
   checks,
 }: {
