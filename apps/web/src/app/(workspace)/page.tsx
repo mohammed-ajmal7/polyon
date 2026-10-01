@@ -66,7 +66,7 @@ interface StoredRun {
   readonly startedAt: number;
 }
 
-const RUN_STORAGE_KEY = "polyon.activeRun.v2";
+let localIdSequence = 0;\n\nfunction createLocalId(): string {\n  localIdSequence += 1;\n  return "chat-" + Date.now().toString(36) + "-" + localIdSequence.toString(36);\n}\n\nconst RUN_STORAGE_KEY = "polyon.activeRun.v2";
 
 function readStoredRun(): StoredRun | undefined {
   try {
@@ -127,7 +127,7 @@ export default function HomePage() {
   function makeNewChat(): ChatRecord {
     const nowIso = new Date().toISOString();
     const next: ChatRecord = {
-      id: crypto.randomUUID(),
+      id: createLocalId(),
       title: "New chat",
       createdAt: nowIso,
       updatedAt: nowIso,
@@ -187,7 +187,7 @@ export default function HomePage() {
       setActiveChatId(restored.id);
     } else {
       const created = {
-        id: crypto.randomUUID(),
+        id: createLocalId(),
         title: "New chat",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -299,7 +299,7 @@ export default function HomePage() {
           const message = body.error ?? "POLYON could not complete this request.";
           setError(message);
           appendMessage({
-            id: crypto.randomUUID(),
+            id: createLocalId(),
             role: "assistant",
             content: message,
             createdAt: new Date().toISOString(),
@@ -309,7 +309,7 @@ export default function HomePage() {
           const answer = nextView?.answer?.trim();
           if (answer !== undefined && answer !== "") {
             appendMessage({
-              id: crypto.randomUUID(),
+              id: createLocalId(),
               role: "assistant",
               content: normalizeAssistantText(answer),
               createdAt: new Date().toISOString(),
@@ -336,7 +336,7 @@ export default function HomePage() {
 
     const currentChat = chatRef.current ?? makeNewChat();
     const userMessage: ChatMessage = {
-      id: crypto.randomUUID(),
+      id: createLocalId(),
       role: "user",
       content: trimmed,
       createdAt: new Date().toISOString(),
@@ -348,7 +348,7 @@ export default function HomePage() {
     appendMessage(userMessage);
 
     const run: StoredRun = {
-      runId: crypto.randomUUID(),
+      runId: createLocalId(),
       chatId: currentChat.id,
       command: trimmed,
       startedAt: Date.now(),
