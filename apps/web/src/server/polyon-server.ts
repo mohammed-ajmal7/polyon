@@ -51,7 +51,12 @@ function buildOptions() {
       : configuredDataDir || join(process.cwd(), ".polyon-data");
   const embedding = buildEmbeddingRegistration();
   const email = buildEmailRegistration();
-  const secretResolver = email === undefined ? undefined : buildSecretResolver();
+  const googleDrive = buildGoogleDriveRegistration();
+  const telegram = buildTelegramRegistration();
+  const secretResolver =
+    email === undefined && googleDrive === undefined && telegram === undefined
+      ? undefined
+      : buildSecretResolver();
   const research = buildResearchRetriever();
   const creativeAdapter = buildCreativeAdapter();
   const usageGovernor = buildUsageGovernor();
@@ -80,6 +85,18 @@ function buildOptions() {
     ...(a2aPushNotificationAllowedOrigins.length === 0
       ? {}
       : { a2aPushNotificationAllowedOrigins }),
+    ...(googleDrive === undefined
+      ? {}
+      : {
+          googleDriveIntegrationId: "google-drive-primary",
+          googleDriveSecretReference: googleDrive.secretReference,
+        }),
+    ...(telegram === undefined
+      ? {}
+      : {
+          telegramIntegrationId: "telegram-primary",
+          telegramSecretReference: telegram.secretReference,
+        }),
     ...(email === undefined
       ? {}
       : {
@@ -88,6 +105,36 @@ function buildOptions() {
           emailSmtpUsername: email.username,
           emailTransport: email.transport,
         }),
+  };
+}
+
+function buildGoogleDriveRegistration():
+  | { secretReference: SecretReference }
+  | undefined {
+  const accessToken = process.env.POLYON_GOOGLE_DRIVE_ACCESS_TOKEN?.trim();
+  if (accessToken === undefined || accessToken === "") return undefined;
+
+  return {
+    secretReference: {
+      id: "google-drive.primary",
+      kind: "OAUTH_ACCESS_TOKEN",
+      provider: "google",
+    },
+  };
+}
+
+function buildTelegramRegistration():
+  | { secretReference: SecretReference }
+  | undefined {
+  const botToken = process.env.POLYON_TELEGRAM_BOT_TOKEN?.trim();
+  if (botToken === undefined || botToken === "") return undefined;
+
+  return {
+    secretReference: {
+      id: "telegram.primary",
+      kind: "API_KEY",
+      provider: "telegram",
+    },
   };
 }
 
@@ -404,6 +451,16 @@ function buildSecretResolver() {
         provider: "email",
         kind: "SMTP_CREDENTIAL",
         environmentVariable: "POLYON_SMTP_PASSWORD",
+      },
+      "google-drive.primary": {
+        provider: "google",
+        kind: "OAUTH_ACCESS_TOKEN",
+        environmentVariable: "POLYON_GOOGLE_DRIVE_ACCESS_TOKEN",
+      },
+      "telegram.primary": {
+        provider: "telegram",
+        kind: "API_KEY",
+        environmentVariable: "POLYON_TELEGRAM_BOT_TOKEN",
       },
     },
   });
