@@ -47,7 +47,9 @@ export async function POST(request: Request): Promise<Response> {
     const targets = resolveTargets(input.agentIds, mode, polyon);
     const participantIds = [actorId, ...targets.map((target) => target.actorId)];
 
-    const chatHistory = parseChatHistory(input.history);\n\n    const commandResult = polyon.commandIngress.submit({
+    const chatHistory = parseChatHistory(input.history);
+
+    const commandResult = polyon.commandIngress.submit({
       mode,
       command,
       actorId,
@@ -307,7 +309,37 @@ function parseOptionalInteger(value: unknown, fallback: number, max: number): nu
   return parsed;
 }
 
-function parseChatHistory(value: unknown): readonly ModelMessage[] {\n  if (value === undefined) return [];\n  if (!Array.isArray(value) || value.length > 40) {\n    throw new ExecuteRequestError("Chat history exceeds its 40-message limit.");\n  }\n\n  let totalCharacters = 0;\n  const messages: ModelMessage[] = [];\n  for (const item of value) {\n    if (item === null || typeof item !== "object") {\n      throw new ExecuteRequestError("Chat history contains an invalid message.");\n    }\n    const record = item as Record<string, unknown>;\n    const role = record.role === "user" ? "USER" : record.role === "assistant" ? "ASSISTANT" : undefined;\n    const content = typeof record.content === "string" ? record.content.trim() : "";\n    if (role === undefined || content === "") {\n      throw new ExecuteRequestError("Chat history contains an invalid message.");\n    }\n    if (Array.from(content).length > 20_000) {\n      throw new ExecuteRequestError("A chat history message exceeds the 20000-character limit.");\n    }\n    totalCharacters += Array.from(content).length;\n    if (totalCharacters > 120_000) {\n      throw new ExecuteRequestError("Chat history exceeds the 120000-character limit.");\n    }\n    messages.push({ role, content });\n  }\n  return messages;\n}\n\nfunction parseStringArray(value: unknown, max: number): readonly string[] {
+function parseChatHistory(value: unknown): readonly ModelMessage[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > 40) {
+    throw new ExecuteRequestError("Chat history exceeds its 40-message limit.");
+  }
+
+  let totalCharacters = 0;
+  const messages: ModelMessage[] = [];
+  for (const item of value) {
+    if (item === null || typeof item !== "object") {
+      throw new ExecuteRequestError("Chat history contains an invalid message.");
+    }
+    const record = item as Record<string, unknown>;
+    const role = record.role === "user" ? "USER" : record.role === "assistant" ? "ASSISTANT" : undefined;
+    const content = typeof record.content === "string" ? record.content.trim() : "";
+    if (role === undefined || content === "") {
+      throw new ExecuteRequestError("Chat history contains an invalid message.");
+    }
+    if (Array.from(content).length > 20_000) {
+      throw new ExecuteRequestError("A chat history message exceeds the 20000-character limit.");
+    }
+    totalCharacters += Array.from(content).length;
+    if (totalCharacters > 120_000) {
+      throw new ExecuteRequestError("Chat history exceeds the 120000-character limit.");
+    }
+    messages.push({ role, content });
+  }
+  return messages;
+}
+
+function parseStringArray(value: unknown, max: number): readonly string[] {
   if (value === undefined) return [];
   if (!Array.isArray(value) || value.length > max)
     throw new ExecuteRequestError("String array exceeds its allowed bound.");
