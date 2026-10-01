@@ -372,6 +372,7 @@ export default function HomePage() {
               "Advanced mode. Enter sends, Shift+Enter adds a new line."}
           </p>
         </form>
+        </div>
       </section>
 
       {pending ? (
