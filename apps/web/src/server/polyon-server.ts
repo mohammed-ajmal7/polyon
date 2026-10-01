@@ -177,12 +177,15 @@ function buildConfiguredModelRegistrations() {
     const endpoint = process.env.POLYON_MODEL_ENDPOINT?.trim();
     const providerId = process.env.POLYON_PROVIDER_ID?.trim();
     const endpointIsLocal = endpoint !== undefined && isLoopbackEndpoint(endpoint);
-    const providerIsLocal = providerId === undefined || providerId === "" || providerId === "ollama";
+    const providerIsLocal =
+      providerId === undefined ||
+      providerId === "" ||
+      providerId.toLowerCase() === "ollama";
 
     // Never let a cloud deployment try to reach the developer's laptop. If a Gemini
     // key is configured, use Google's hosted OpenAI-compatible endpoint as the safe
     // production fallback; otherwise expose no model rather than failing with ENOTFOUND.
-    if (endpointIsLocal && providerIsLocal) {
+    if (providerIsLocal && (endpointIsLocal || providerId?.toLowerCase() === "ollama")) {
       if (process.env.GEMINI_API_KEY?.trim() !== "") {
         return buildModelRegistrations(
           [buildVercelGeminiProfile()],
