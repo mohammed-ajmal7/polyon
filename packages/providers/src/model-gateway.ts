@@ -196,7 +196,10 @@ export class ModelGateway {
     initialReservation: UsageReservation | undefined,
   ): Promise<ProviderInvocationResult<TOutput>> {
     let attempt = 0;
-    const maxRetries = options.retries ?? 0;
+    // Hosted providers can return transient 5xx responses during capacity spikes.
+    // Retry twice by default with bounded exponential backoff; callers can still
+    // explicitly set retries to 0 to disable this behavior.
+    const maxRetries = options.retries ?? 2;
     let reservation = initialReservation;
 
     while (true) {
@@ -204,6 +207,7 @@ export class ModelGateway {
       // Usage governor errors propagate as-is; they are not provider failures.
       if (attempt > 0) {
         reservation = this.authorizeUsage(provider, model, modelId, options);
+        await retryBackoff(attempt);
       }
 
       const startedAt = Date.now();
@@ -396,4 +400,9 @@ function effectiveCostClass(model: Model, provider: Provider): UsageCostClass {
   }
 
   return provider.kind === "LOCAL_MODEL" ? "free" : "unknown";
+}
+
+async function retryBackoff(attempt: number): Promise<void> {
+  const delayMs = Math.min(2_000, 500 * 2 ** (attempt - 1));
+  await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
 }
