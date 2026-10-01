@@ -46,10 +46,12 @@ function buildOptions() {
   const model = buildConfiguredModelRegistrations();
   const embedding = buildEmbeddingRegistration();
   const email = buildEmailRegistration();
-  const googleDrive = buildGoogleDriveRegistration();
+  const google = buildGoogleRegistration();
+  const googleDrive = google?.drive;
+  const gmail = google?.gmail;
   const telegram = buildTelegramRegistration();
   const secretResolver =
-    email === undefined && googleDrive === undefined && telegram === undefined
+    email === undefined && googleDrive === undefined && gmail === undefined && telegram === undefined
       ? undefined
       : buildSecretResolver();
   const research = buildResearchRetriever();
@@ -86,6 +88,7 @@ function buildOptions() {
     ...(a2aPushNotificationAllowedOrigins.length === 0
       ? {}
       : { a2aPushNotificationAllowedOrigins }),
+    ...(gmail === undefined ? {} : { gmailIntegrationId: "gmail-primary", gmailSecretReference: gmail.secretReference }),
     ...(googleDrive === undefined
       ? {}
       : {
@@ -109,21 +112,17 @@ function buildOptions() {
   };
 }
 
-function buildGoogleDriveRegistration():
-  | { secretReference: SecretReference }
+function buildGoogleRegistration():
+  | { drive?: { secretReference: SecretReference }; gmail?: { secretReference: SecretReference } }
   | undefined {
-  const accessToken = process.env.POLYON_GOOGLE_DRIVE_ACCESS_TOKEN?.trim();
-  if (accessToken === undefined || accessToken === "") return undefined;
-
+  const driveToken = process.env.POLYON_GOOGLE_DRIVE_ACCESS_TOKEN?.trim();
+  const gmailToken = process.env.POLYON_GMAIL_ACCESS_TOKEN?.trim();
+  if ((!driveToken || driveToken === "") && (!gmailToken || gmailToken === "")) return undefined;
   return {
-    secretReference: {
-      id: "google-drive.primary",
-      kind: "OAUTH_ACCESS_TOKEN",
-      provider: "google",
-    },
+    ...(driveToken ? { drive: { secretReference: { id: "google-drive.primary", kind: "OAUTH_ACCESS_TOKEN", provider: "google" } } } : {}),
+    ...(gmailToken ? { gmail: { secretReference: { id: "google-gmail.primary", kind: "OAUTH_ACCESS_TOKEN", provider: "google" } } } : {}),
   };
 }
-
 function buildTelegramRegistration():
   | { secretReference: SecretReference }
   | undefined {
@@ -457,6 +456,9 @@ function buildSecretResolver() {
         provider: "google",
         kind: "OAUTH_ACCESS_TOKEN",
         environmentVariable: "POLYON_GOOGLE_DRIVE_ACCESS_TOKEN",
+      },
+      "google-gmail.primary": {
+        provider: "google", kind: "OAUTH_ACCESS_TOKEN", environmentVariable: "POLYON_GMAIL_ACCESS_TOKEN",
       },
       "telegram.primary": {
         provider: "telegram",
