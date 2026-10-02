@@ -15,8 +15,15 @@ import {
   BackgroundRunLimitError,
   createPersistentBackgroundRun,
   startBackgroundRun,
-  updatePersistentBackgroundRun,
 } from "@/server/run-registry";
+import {
+  DEFAULT_TEAM_ROLES,
+  agentIdForRole,
+  executePolyonTask,
+  type ExecuteTaskInput,
+} from "@/server/execute-task";
+import { start } from "workflow/api";
+import { polyonExecutionWorkflow } from "@/workflows/polyon-execution";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -53,134 +60,48 @@ export async function POST(request: Request): Promise<Response> {
     const targets = resolveTargets(input.agentIds, mode, polyon);
     const participantIds = [actorId, ...targets.map((target) => target.actorId)];
 
-    const commandResult = polyon.commandIngress.submit({
+    const conversationId = parseOptionalString(input.conversationId) ?? randomUUID();
+    const messageId = parseOptionalString(input.messageId) ?? randomUUID();
+    const eventId = parseOptionalString(input.eventId) ?? randomUUID();
+
+    const taskInput: ExecuteTaskInput = {
+      runId: conversationId,
       mode,
+      ...(modeReason === undefined ? {} : { modeReason }),
       command,
-      actorId,
-      conversationId: parseOptionalString(input.conversationId) ?? randomUUID(),
-      messageId: parseOptionalString(input.messageId) ?? randomUUID(),
-      eventId: parseOptionalString(input.eventId) ?? randomUUID(),
-      participantIds: [...new Set(participantIds)],
-      createdAt: new Date().toISOString(),
-    });
-
-    const policy = getPolyonPolicy();
-    const requiredCapabilityIds = parseStringArray(input.requiredCapabilityIds, 20);
-    const first = targets[0];
-    if (first === undefined) throw new ExecuteRequestError("At least one agent is required.");
-
-    if (mode === "Research" && polyon.researchOrchestration === undefined) {
-      throw new Error(
-        "Research is not configured. Set POLYON_RESEARCH_SEARCH_ENDPOINT and allowed hosts.",
-      );
-    }
-
-    const work = async (): Promise<unknown> => {
-      if (mode === "Direct" || mode === "Broadcast") {
-        return polyon.conversationOrchestration.execute({
-          command: commandResult,
-          targets: mode === "Direct" ? [first] : targets,
-          requiredCapabilityIds,
-          policy,
-          actorId,
-          maxToolRounds: parsePositiveInteger(input.maxToolRounds, 8, 100),
-          maxToolOutputBytes: parsePositiveInteger(
-            input.maxToolOutputBytes,
-            64 * 1024,
-            2 * 1024 * 1024,
-          ),
-        });
-      }
-
-      if (mode === "Collaborative") {
-        return polyon.collectiveOrchestration.execute({
-          command: commandResult,
-          targets,
-          requiredCapabilityIds,
-          actorId,
-          synthesizerAgentId: parseOptionalString(input.synthesizerAgentId),
-          maxParticipants: parsePositiveInteger(input.maxParticipants, 8, 8),
-        });
-      }
-
-      if (mode === "Research") {
-        return polyon.researchOrchestration!.execute({
-          command: commandResult,
-          targets,
-          requiredCapabilityIds,
-          actorId,
-          synthesizerAgentId: parseOptionalString(input.synthesizerAgentId),
-          maxParticipants: parsePositiveInteger(input.maxParticipants, 8, 8),
-          sourceLimit: parsePositiveInteger(input.researchSourceLimit, 5, 20),
-        });
-      }
-
-      if (mode === "DeepAnalysis") {
-        const factCheckerAgentId =
-          parseOptionalString(input.factCheckerAgentId) ?? agentIdForRole(polyon, "fact-checker");
-        return polyon.deepAnalysisOrchestration.execute({
-          command: commandResult,
-          targets,
-          requiredCapabilityIds,
-          actorId,
-          synthesizerAgentId: parseOptionalString(input.synthesizerAgentId),
-          ...(factCheckerAgentId === undefined ? {} : { factCheckerAgentId }),
-          maxParticipants: parsePositiveInteger(input.maxParticipants, 8, 8),
-          maxChallengeRounds: parseOptionalInteger(input.maxChallengeRounds, 1, 2),
-          maxDebateRounds: parsePositiveInteger(input.maxDebateRounds, 2, 4),
-        });
-      }
-
-      if (mode === "Debate") {
-        const debate = polyon.debates.create({
-          id: parseOptionalString(input.debateId) ?? randomUUID(),
-          objective: command,
-          participantAgentIds: targets.map((target) => target.agentId),
-          maxParticipants: Math.min(targets.length, 8),
-          maxRounds: parsePositiveInteger(input.maxRounds, 2, 6),
-          createdAt: new Date().toISOString(),
-        });
-        return polyon.debates.run({
-          debateId: debate.id,
-          requiredCapabilityIds,
-          adjudicatorAgentId: first.agentId,
-          now: () => new Date().toISOString(),
-        });
-      }
-
-      const now = new Date().toISOString();
-      return polyon.missionWorkflow.execute({
-        missionId: parseOptionalString(input.missionId) ?? randomUUID(),
-        conversationId: commandResult.conversation.id,
-        objective: command,
-        actorId,
-        planningAgentId: first.agentId,
-        executionAgentId: first.agentId,
-        requiredCapabilityIds,
-        policy,
-        riskLevel: parseRiskLevel(input.riskLevel),
-        proposalId: parseOptionalString(input.proposalId) ?? randomUUID(),
-        decisionId: parseOptionalString(input.decisionId) ?? randomUUID(),
-        approvalRequestId: parseOptionalString(input.approvalRequestId) ?? randomUUID(),
-        createdAt: now,
-        planningAt: now,
-        identities: {
-          executionId: (taskId, attempt) => `execution-${taskId}-${attempt}`,
-          policyDecisionId: (taskId, executionId) => `decision-${taskId}-${executionId}`,
-          approvalRequestId: (taskId, executionId) => `approval-${taskId}-${executionId}`,
-        },
-      });
+      messageId,
+      eventId,
+      requiredCapabilityIds,
+      agentIds: targets.map((target) => target.agentId),
+      maxToolRounds: parsePositiveInteger(input.maxToolRounds, 8, 100),
+      maxToolOutputBytes: parsePositiveInteger(
+        input.maxToolOutputBytes,
+        64 * 1024,
+        2 * 1024 * 1024,
+      ),
+      synthesizerAgentId: parseOptionalString(input.synthesizerAgentId),
+      maxParticipants: parsePositiveInteger(input.maxParticipants, 8, 8),
+      researchSourceLimit: parsePositiveInteger(input.researchSourceLimit, 5, 20),
+      factCheckerAgentId: parseOptionalString(input.factCheckerAgentId),
+      maxChallengeRounds: parseOptionalInteger(input.maxChallengeRounds, 1, 2),
+      maxDebateRounds: parsePositiveInteger(input.maxDebateRounds, 2, 4),
+      debateId: parseOptionalString(input.debateId),
+      maxRounds: parsePositiveInteger(input.maxRounds, 2, 6),
+      missionId: parseOptionalString(input.missionId),
+      riskLevel: parseRiskLevel(input.riskLevel),
+      proposalId: parseOptionalString(input.proposalId),
+      decisionId: parseOptionalString(input.decisionId),
+      approvalRequestId: parseOptionalString(input.approvalRequestId),
     };
 
     if (input.async === true && process.env.VERCEL !== "1") {
-      // Local/self-hosted runtimes can keep the in-memory background registry alive.
       const run = startBackgroundRun(
         {
-          runId: commandResult.conversation.id,
+          runId: conversationId,
           mode,
           ...(modeReason === undefined ? {} : { modeReason }),
         },
-        work,
+        () => executePolyonTask(taskInput),
       );
       return Response.json(
         { runId: run.runId, conversationId: run.runId, mode, modeReason, status: run.status },
@@ -189,41 +110,37 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     if (input.async === true && process.env.VERCEL === "1") {
-      // Vercel Functions are request-scoped, so persist the run before doing any work.
-      // The browser can then poll the durable record even after a reload or instance change.
+      // Queue the durable workflow and return immediately. The workflow owns execution and
+      // persists terminal state, so no Vercel request needs to stay alive for the model calls.
       const run = await createPersistentBackgroundRun({
-        runId: commandResult.conversation.id,
+        runId: conversationId,
         mode,
         ...(modeReason === undefined ? {} : { modeReason }),
         startedAt: new Date().toISOString(),
       });
 
       try {
-        const result = await work();
-        await updatePersistentBackgroundRun({
-          ...run,
-          status: "succeeded",
-          finishedAt: new Date().toISOString(),
-          result,
-        });
-        return Response.json({ mode, modeReason, result }, { status: 201 });
+        const workflowRun = await start(polyonExecutionWorkflow, [taskInput]);
+        return Response.json(
+          {
+            runId: run.runId,
+            workflowRunId: workflowRun.runId,
+            conversationId: run.runId,
+            mode,
+            modeReason,
+            status: run.status,
+          },
+          { status: 202 },
+        );
       } catch (error) {
-        const message = error instanceof Error ? error.message : "The request failed.";
-        try {
-          await updatePersistentBackgroundRun({
-            ...run,
-            status: "failed",
-            finishedAt: new Date().toISOString(),
-            error: message,
-          });
-        } catch {
-          // Preserve the original execution error if the durable status write also fails.
-        }
+        const message =
+          error instanceof Error ? error.message : "The durable workflow could not be started.";
+        await updatePersistentRunFailure(run, message);
         throw error;
       }
     }
 
-    const result = await work();
+    const result = await executePolyonTask(taskInput);
     return Response.json({ mode, modeReason, result }, { status: 201 });
   } catch (error) {
     if (error instanceof BackgroundRunLimitError) {
@@ -242,24 +159,6 @@ export async function POST(request: Request): Promise<Response> {
 
 /** A malformed or out-of-bounds request; everything else is a server-side failure. */
 class ExecuteRequestError extends Error {}
-
-const DEFAULT_TEAM_ROLES: Partial<Record<CommandMode, readonly BuiltInAgentRoleId[]>> = {
-  Direct: ["action-agent", "synthesizer"],
-  Broadcast: ["researcher", "analyst", "specialist"],
-  Collaborative: ["researcher", "analyst", "specialist", "critic", "synthesizer"],
-  Research: ["researcher", "analyst", "synthesizer"],
-  DeepAnalysis: ["researcher", "analyst", "critic", "judge"],
-  Debate: ["analyst", "critic", "judge"],
-  Mission: ["planner"],
-};
-
-function agentIdForRole(
-  polyon: ReturnType<typeof getPolyonComposition>,
-  roleId: BuiltInAgentRoleId,
-): string | undefined {
-  return polyon.agents.list().find((agent) => agent.status === "ACTIVE" && agent.roleId === roleId)
-    ?.id;
-}
 
 /** Picks the default team by agent role; falls back to registration order without roles. */
 function defaultAgentIds(
@@ -379,6 +278,23 @@ function resolveTargets(
       throw new ExecuteRequestError("Requested agent is not active: " + agentId + ".");
     return { agentId, actorId: agentId };
   });
+}
+
+async function updatePersistentRunFailure(
+  run: Awaited<ReturnType<typeof createPersistentBackgroundRun>>,
+  message: string,
+): Promise<void> {
+  const { updatePersistentBackgroundRun } = await import("@/server/run-registry");
+  try {
+    await updatePersistentBackgroundRun({
+      ...run,
+      status: "failed",
+      finishedAt: new Date().toISOString(),
+      error: message,
+    });
+  } catch {
+    // Preserve the workflow-start error if the status write also fails.
+  }
 }
 
 function parseRiskLevel(value: unknown): "LOW" | "MEDIUM" | "HIGH" {
