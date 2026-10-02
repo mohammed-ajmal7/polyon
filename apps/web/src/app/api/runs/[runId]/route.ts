@@ -17,7 +17,10 @@ export async function GET(
     return Response.json({ error: "Invalid run id." }, { status: 400 });
   }
 
-  const run =\n    process.env.VERCEL === "1"\n      ? await getPersistentBackgroundRun(id)\n      : getBackgroundRun(id);
+  const run =
+    process.env.VERCEL === "1"
+      ? await getPersistentBackgroundRun(id)
+      : getBackgroundRun(id);
   if (run === undefined) {
     return Response.json(
       { error: "This run is not known to the server. It may have been lost in a restart." },
