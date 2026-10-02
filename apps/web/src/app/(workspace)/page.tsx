@@ -224,6 +224,10 @@ export default function HomePage() {
     setLastCommand(trimmed);
 
     try {
+      // Persist the run id before the network request starts. On Vercel the server records
+      // the same id durably, so a browser reload can resume polling while the request runs.
+      storeRun(run);
+
       const response = await fetch("/api/execute", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -235,7 +239,12 @@ export default function HomePage() {
           ...(mode === "DeepAnalysis" || mode === "Auto" ? { maxDebateRounds: 1 } : {}),
         }),
       });
-      const body = (await response.json().catch(() => ({}))) as { error?: string };
+      const body = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        mode?: string;
+        modeReason?: string;
+        result?: unknown;
+      };
       if (response.status === 401) {
         window.location.assign("/login");
         return;
@@ -247,7 +256,23 @@ export default function HomePage() {
         return;
       }
       setCommand("");
-      storeRun(run);
+
+      // Vercel executes the request in the foreground because serverless instance memory
+      // cannot be relied on for the in-memory background run registry. Render the completed
+      // result directly when the route returns 201; local/self-hosted runtimes keep using
+      // the resumable 202 + /api/runs/:id flow.
+      if (response.status === 201 && body.mode !== undefined) {
+        setRanMode({
+          mode: body.mode,
+          ...(body.modeReason === undefined ? {} : { reason: body.modeReason }),
+        });
+        setView(toRunView(body.mode, { result: body.result }));
+        setPending(false);
+        conversationRef.current = null;
+        storeRun(undefined);
+        return;
+      }
+
       await followRun(run);
     } catch {
       setError("POLYON is not reachable. Check that it is running.");
