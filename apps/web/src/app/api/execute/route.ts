@@ -5,9 +5,7 @@ import { classifyTaskMode, type CommandMode } from "@polyon/application";
 import type { BuiltInAgentRoleId } from "@polyon/contracts";
 
 import {
-  getPolyonActorId,
   getPolyonComposition,
-  getPolyonPolicy,
   isSameOrigin,
 } from "@/server/polyon-server";
 import { readBoundedText } from "@/server/bounded-body";
@@ -57,9 +55,8 @@ export async function POST(request: Request): Promise<Response> {
     const command = parseString(input.command, 50_000, "command");
     const polyon = getPolyonComposition();
     const { mode, modeReason } = resolveMode(input.mode, command, polyon);
-    const actorId = getPolyonActorId();
     const targets = resolveTargets(input.agentIds, mode, polyon);
-    const participantIds = [actorId, ...targets.map((target) => target.actorId)];
+    const requiredCapabilityIds = parseStringArray(input.requiredCapabilityIds, 16);
 
     const conversationId = parseOptionalString(input.conversationId) ?? randomUUID();
     const messageId = parseOptionalString(input.messageId) ?? randomUUID();
