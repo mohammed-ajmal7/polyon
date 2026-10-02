@@ -205,7 +205,7 @@ function sealPayload(value: unknown): string {
   }
 
   const iv = randomBytes(12);
-  const key = Buffer.from(createHash("sha256").update(secret).digest("base64"), "base64");
+  const key = Buffer.from(createHash("sha256").update(secret).digest("hex"), "hex");
   const cipher = createCipheriv("aes-256-gcm", key, iv);
   const ciphertext = Buffer.concat([cipher.update(JSON.stringify(value), "utf8"), Buffer.from(cipher.final("base64"), "base64")]);
   const tag = cipher.getAuthTag();
@@ -231,7 +231,7 @@ function openPayload(value: string): unknown | undefined {
       return undefined;
     }
 
-    const key = createHash("sha256").update(secret).digest();
+    const key = Buffer.from(createHash("sha256").update(secret).digest("hex"), "hex");
     const decipher = createDecipheriv(
       "aes-256-gcm",
       key,
