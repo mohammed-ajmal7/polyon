@@ -6,3 +6,4 @@ allowBuilds:
   unrs-resolver: true
   sharp: false
   esbuild: true
+  "@swc/core": true
