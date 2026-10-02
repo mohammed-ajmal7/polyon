@@ -207,7 +207,7 @@ function sealPayload(value: unknown): string {
   const iv = randomBytes(12);
   const key = createHash("sha256").update(secret).digest();
   const cipher = createCipheriv("aes-256-gcm", key, iv);
-  const ciphertext = Buffer.concat([cipher.update(JSON.stringify(value), "utf8"), cipher.final()]);
+  const ciphertext = Buffer.concat([cipher.update(JSON.stringify(value), "utf8"), Buffer.from(cipher.final("base64"), "base64")]);
   const tag = cipher.getAuthTag();
   return [
     "v1",
