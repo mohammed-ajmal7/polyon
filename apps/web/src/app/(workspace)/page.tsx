@@ -235,7 +235,12 @@ export default function HomePage() {
           ...(mode === "DeepAnalysis" || mode === "Auto" ? { maxDebateRounds: 1 } : {}),
         }),
       });
-      const body = (await response.json().catch(() => ({}))) as { error?: string };
+      const body = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        mode?: string;
+        modeReason?: string;
+        result?: unknown;
+      };
       if (response.status === 401) {
         window.location.assign("/login");
         return;
@@ -247,6 +252,23 @@ export default function HomePage() {
         return;
       }
       setCommand("");
+
+      // Vercel executes the request in the foreground because serverless instance memory
+      // cannot be relied on for the in-memory background run registry. Render the completed
+      // result directly when the route returns 201; local/self-hosted runtimes keep using
+      // the resumable 202 + /api/runs/:id flow.
+      if (response.status === 201 && body.mode !== undefined) {
+        setRanMode({
+          mode: body.mode,
+          ...(body.modeReason === undefined ? {} : { reason: body.modeReason }),
+        });
+        setView(toRunView(body.mode, { result: body.result }));
+        setPending(false);
+        conversationRef.current = null;
+        storeRun(undefined);
+        return;
+      }
+
       storeRun(run);
       await followRun(run);
     } catch {
