@@ -5,8 +5,7 @@
       "*": false,
       "main": true,
       "develop": true,
-      "release/*": true,
-      "fix/vercel-durable-workflow": true
+      "release/*": true
     }
   },
   "installCommand": "pnpm install --no-frozen-lockfile",
