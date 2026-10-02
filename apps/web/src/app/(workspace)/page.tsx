@@ -224,6 +224,10 @@ export default function HomePage() {
     setLastCommand(trimmed);
 
     try {
+      // Persist the run id before the network request starts. On Vercel the server records
+      // the same id durably, so a browser reload can resume polling while the request runs.
+      storeRun(run);
+
       const response = await fetch("/api/execute", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -269,7 +273,6 @@ export default function HomePage() {
         return;
       }
 
-      storeRun(run);
       await followRun(run);
     } catch {
       setError("POLYON is not reachable. Check that it is running.");
