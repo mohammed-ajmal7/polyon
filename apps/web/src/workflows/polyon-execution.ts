@@ -1,5 +1,5 @@
 import {
-  createPersistentBackgroundRun,
+  getPersistentBackgroundRun,
   updatePersistentBackgroundRun,
 } from "@/server/run-registry";
 import { executePolyonTask, type ExecuteTaskInput } from "@/server/execute-task";
@@ -13,6 +13,9 @@ export async function polyonExecutionWorkflow(input: ExecuteTaskInput): Promise<
 async function executePolyonExecutionStep(input: ExecuteTaskInput): Promise<unknown> {
   "use step";
 
+  const existing = await getPersistentBackgroundRun(input.runId);
+  const startedAt = existing?.startedAt ?? new Date().toISOString();
+
   try {
     const result = await executePolyonTask(input);
 
@@ -20,7 +23,7 @@ async function executePolyonExecutionStep(input: ExecuteTaskInput): Promise<unkn
       runId: input.runId,
       mode: input.mode,
       ...(input.modeReason === undefined ? {} : { modeReason: input.modeReason }),
-      startedAt: new Date().toISOString(),
+      startedAt,
       status: "succeeded",
       finishedAt: new Date().toISOString(),
       result,
@@ -31,9 +34,11 @@ async function executePolyonExecutionStep(input: ExecuteTaskInput): Promise<unkn
     const message = error instanceof Error ? error.message : "The request failed.";
 
     try {
-      const existing = await getExistingRun(input);
       await updatePersistentBackgroundRun({
-        ...existing,
+        runId: input.runId,
+        mode: input.mode,
+        ...(input.modeReason === undefined ? {} : { modeReason: input.modeReason }),
+        startedAt,
         status: "failed",
         finishedAt: new Date().toISOString(),
         error: message,
@@ -46,16 +51,3 @@ async function executePolyonExecutionStep(input: ExecuteTaskInput): Promise<unkn
   }
 }
 
-async function getExistingRun(input: ExecuteTaskInput) {
-  const { getPersistentBackgroundRun } = await import("@/server/run-registry");
-  const existing = await getPersistentBackgroundRun(input.runId);
-  if (existing !== undefined) return existing;
-
-  return {
-    runId: input.runId,
-    mode: input.mode,
-    ...(input.modeReason === undefined ? {} : { modeReason: input.modeReason }),
-    startedAt: new Date().toISOString(),
-    status: "running" as const,
-  };
-}
