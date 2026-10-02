@@ -174,8 +174,7 @@ export default function HomePage() {
         }
         if (response.status === 404) {
           setError(
-            "POLYON lost track of this request, probably because the server restarted. " +
-              "Anything the team finished is listed under Activity.",
+            "POLYON could not find this request in durable run state. Anything already recorded is listed under Activity.",
           );
           break;
         }
@@ -257,10 +256,8 @@ export default function HomePage() {
       }
       setCommand("");
 
-      // Vercel executes the request in the foreground because serverless instance memory
-      // cannot be relied on for the in-memory background run registry. Render the completed
-      // result directly when the route returns 201; local/self-hosted runtimes keep using
-      // the resumable 202 + /api/runs/:id flow.
+      // Async execution is durable on Vercel through Workflow + Supabase run state.
+      // Local/self-hosted runtimes keep using the resumable 202 + /api/runs/:id flow.
       if (response.status === 201 && body.mode !== undefined) {
         setRanMode({
           mode: body.mode,
