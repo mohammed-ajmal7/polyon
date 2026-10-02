@@ -14,6 +14,7 @@ import { readBoundedText } from "@/server/bounded-body";
 import { BackgroundRunLimitError, startBackgroundRun } from "@/server/run-registry";
 
 export const runtime = "nodejs";
+export const maxDuration = 300;
 
 const MAX_REQUEST_BYTES = 65_536;
 
@@ -166,8 +167,8 @@ export async function POST(request: Request): Promise<Response> {
       });
     };
 
-    if (input.async === true) {
-      // Long team and deep runs continue in the background; the client polls /api/runs/:id.
+    if (input.async === true && process.env.VERCEL !== "1") {
+      // Local/self-hosted runtimes can keep the in-memory background registry alive.
       const run = startBackgroundRun(
         {
           runId: commandResult.conversation.id,
