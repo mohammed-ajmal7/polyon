@@ -60,7 +60,7 @@ begin
     trim(p_run_id), p_status, p_mode, p_mode_reason,
     coalesce(p_started_at, now()), p_finished_at, p_payload, p_error, now()
   )
-  on conflict (run_id) do update set
+  on conflict on constraint polyon_background_runs_pkey do update set
     status = excluded.status,
     mode = excluded.mode,
     mode_reason = excluded.mode_reason,
