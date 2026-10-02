@@ -11,7 +11,12 @@ import {
   isSameOrigin,
 } from "@/server/polyon-server";
 import { readBoundedText } from "@/server/bounded-body";
-import { BackgroundRunLimitError, startBackgroundRun } from "@/server/run-registry";
+import {
+  BackgroundRunLimitError,
+  createPersistentBackgroundRun,
+  startBackgroundRun,
+  updatePersistentBackgroundRun,
+} from "@/server/run-registry";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -181,6 +186,41 @@ export async function POST(request: Request): Promise<Response> {
         { runId: run.runId, conversationId: run.runId, mode, modeReason, status: run.status },
         { status: 202 },
       );
+    }
+
+    if (input.async === true && process.env.VERCEL === "1") {
+      // Vercel Functions are request-scoped, so persist the run before doing any work.
+      // The browser can then poll the durable record even after a reload or instance change.
+      const run = await createPersistentBackgroundRun({
+        runId: commandResult.conversation.id,
+        mode,
+        ...(modeReason === undefined ? {} : { modeReason }),
+        startedAt: new Date().toISOString(),
+      });
+
+      try {
+        const result = await work();
+        await updatePersistentBackgroundRun({
+          ...run,
+          status: "succeeded",
+          finishedAt: new Date().toISOString(),
+          result,
+        });
+        return Response.json({ mode, modeReason, result }, { status: 201 });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "The request failed.";
+        try {
+          await updatePersistentBackgroundRun({
+            ...run,
+            status: "failed",
+            finishedAt: new Date().toISOString(),
+            error: message,
+          });
+        } catch {
+          // Preserve the original execution error if the durable status write also fails.
+        }
+        throw error;
+      }
     }
 
     const result = await work();
