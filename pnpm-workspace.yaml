@@ -5,3 +5,12 @@ packages:
 allowBuilds:
   unrs-resolver: true
   sharp: false
+  esbuild: true
+  "@swc/core": true
+  "@parcel/watcher": false
+  "@tailwindcss/oxide": false
+  better-sqlite3: false
+  cbor-extract: false
+  cpu-features: false
+  protobufjs: false
+  ssh2: false

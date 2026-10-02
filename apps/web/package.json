@@ -19,7 +19,8 @@
     "react-dom": "19.2.8",
     "@polyon/integrations": "workspace:*",
     "@polyon/providers": "workspace:*",
-    "@polyon/runtime": "workspace:*"
+    "@polyon/runtime": "workspace:*",
+    "workflow": "5.0.1"
   },
   "devDependencies": {
     "@eslint-react/eslint-plugin": "5.19.1",
