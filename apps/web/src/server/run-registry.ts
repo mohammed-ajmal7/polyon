@@ -6,8 +6,6 @@
  * browser reload or a different serverless instance can still observe the run.
  */
 
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
-
 export type BackgroundRunStatus = "running" | "succeeded" | "failed";
 
 export interface BackgroundRun {
@@ -128,7 +126,7 @@ export async function updatePersistentBackgroundRun(
     p_mode_reason: run.modeReason ?? null,
     p_started_at: run.startedAt,
     p_finished_at: run.finishedAt ?? null,
-    p_payload: run.result === undefined ? null : sealPayload(run.result),
+    p_payload: run.result === undefined ? null : await sealPayload(run.result),
     p_error: run.error ?? null,
   });
   return run;
@@ -143,7 +141,7 @@ export async function getPersistentBackgroundRun(
 
   const result = row.payload === null || row.payload === undefined
     ? undefined
-    : openPayload(String(row.payload));
+    : await openPayload(String(row.payload));
 
   return {
     runId: String(row.run_id),
@@ -198,54 +196,84 @@ async function callRunState(functionName: "polyon_run_get" | "polyon_run_upsert"
   return (await response.json()) as unknown;
 }
 
-function sealPayload(value: unknown): string {
+async function sealPayload(value: unknown): Promise<string> {
   const secret = process.env.POLYON_API_TOKEN?.trim();
   if (secret === undefined || secret === "") {
-    return `plain.${Buffer.from(JSON.stringify(value), "utf8").toString("base64url")}`;
+    return `plain.${toBase64(JSON.stringify(value))}`;
   }
 
-  const iv = randomBytes(12);
-  const key = createHash("sha256").update(secret).digest();
-  const cipher = createCipheriv("aes-256-gcm", key, iv);
-  const ciphertext = Buffer.concat([cipher.update(JSON.stringify(value), "utf8"), cipher.final()]);
-  const tag = cipher.getAuthTag();
+  const iv = globalThis.crypto.getRandomValues(new Uint8Array(12));
+  const key = await derivePayloadKey(secret);
+  const ciphertext = new Uint8Array(
+    await globalThis.crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      key,
+      new TextEncoder().encode(JSON.stringify(value)),
+    ),
+  );
+
   return [
     "v1",
-    iv.toString("base64url"),
-    tag.toString("base64url"),
-    ciphertext.toString("base64url"),
+    toBase64Bytes(iv),
+    toBase64Bytes(ciphertext),
   ].join(".");
 }
 
-function openPayload(value: string): unknown | undefined {
+async function openPayload(value: string): Promise<unknown | undefined> {
   try {
     if (value.startsWith("plain.")) {
-      return JSON.parse(Buffer.from(value.slice("plain.".length), "base64url").toString("utf8"));
+      return JSON.parse(fromBase64(value.slice("plain.".length)));
     }
 
     const secret = process.env.POLYON_API_TOKEN?.trim();
     if (secret === undefined || secret === "") return undefined;
 
-    const [version, ivText, tagText, ciphertextText] = value.split(".");
-    if (version !== "v1" || ivText === undefined || tagText === undefined || ciphertextText === undefined) {
-      return undefined;
-    }
+    const [version, ivText, ciphertextText] = value.split(".");
+    if (version !== "v1" || ivText === undefined || ciphertextText === undefined) return undefined;
 
-    const key = createHash("sha256").update(secret).digest();
-    const decipher = createDecipheriv(
-      "aes-256-gcm",
+    const key = await derivePayloadKey(secret);
+    const plaintext = await globalThis.crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: fromBase64Bytes(ivText) },
       key,
-      Buffer.from(ivText, "base64url"),
+      fromBase64Bytes(ciphertextText),
     );
-    decipher.setAuthTag(Buffer.from(tagText, "base64url"));
-    const plaintext = Buffer.concat([
-      decipher.update(Buffer.from(ciphertextText, "base64url")),
-      decipher.final(),
-    ]).toString("utf8");
-    return JSON.parse(plaintext) as unknown;
+    return JSON.parse(new TextDecoder().decode(plaintext)) as unknown;
   } catch {
     return undefined;
   }
+}
+
+async function derivePayloadKey(secret: string): Promise<CryptoKey> {
+  const digest = await globalThis.crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(secret),
+  );
+  return globalThis.crypto.subtle.importKey(
+    "raw",
+    digest,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"],
+  );
+}
+
+function toBase64(value: string): string {
+  return toBase64Bytes(new TextEncoder().encode(value));
+}
+
+function toBase64Bytes(value: Uint8Array): string {
+  let binary = "";
+  for (const byte of value) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
+function fromBase64(value: string): string {
+  return new TextDecoder().decode(fromBase64Bytes(value));
+}
+
+function fromBase64Bytes(value: string): Uint8Array {
+  const binary = atob(value);
+  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
