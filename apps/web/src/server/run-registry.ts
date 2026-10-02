@@ -240,7 +240,7 @@ function openPayload(value: string): unknown | undefined {
     decipher.setAuthTag(Buffer.from(tagText, "base64url"));
     const plaintext = Buffer.concat([
       decipher.update(Buffer.from(ciphertextText, "base64url")),
-      decipher.final(),
+      Buffer.from(decipher.final("base64"), "base64"),
     ]).toString("utf8");
     return JSON.parse(plaintext) as unknown;
   } catch {
