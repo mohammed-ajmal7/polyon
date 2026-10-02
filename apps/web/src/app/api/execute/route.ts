@@ -15,6 +15,7 @@ import {
   BackgroundRunLimitError,
   createPersistentBackgroundRun,
   startBackgroundRun,
+  updatePersistentBackgroundRun,
 } from "@/server/run-registry";
 import {
   DEFAULT_TEAM_ROLES,
@@ -284,7 +285,6 @@ async function updatePersistentRunFailure(
   run: Awaited<ReturnType<typeof createPersistentBackgroundRun>>,
   message: string,
 ): Promise<void> {
-  const { updatePersistentBackgroundRun } = await import("@/server/run-registry");
   try {
     await updatePersistentBackgroundRun({
       ...run,
