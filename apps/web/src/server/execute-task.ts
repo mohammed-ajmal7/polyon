@@ -62,10 +62,8 @@ export async function executePolyonTask(input: ExecuteTaskInput): Promise<unknow
     );
   }
 
-  let result: unknown;
-
   if (input.mode === "Direct" || input.mode === "Broadcast") {
-    result = await polyon.conversationOrchestration.execute({
+    return polyon.conversationOrchestration.execute({
       command: commandResult,
       targets: input.mode === "Direct" ? [first] : targets,
       requiredCapabilityIds: input.requiredCapabilityIds,
@@ -74,8 +72,10 @@ export async function executePolyonTask(input: ExecuteTaskInput): Promise<unknow
       maxToolRounds: input.maxToolRounds,
       maxToolOutputBytes: input.maxToolOutputBytes,
     });
-  } else if (input.mode === "Collaborative") {
-    result = await polyon.collectiveOrchestration.execute({
+  }
+
+  if (input.mode === "Collaborative") {
+    return polyon.collectiveOrchestration.execute({
       command: commandResult,
       targets,
       requiredCapabilityIds: input.requiredCapabilityIds,
@@ -83,8 +83,10 @@ export async function executePolyonTask(input: ExecuteTaskInput): Promise<unknow
       synthesizerAgentId: input.synthesizerAgentId,
       maxParticipants: input.maxParticipants,
     });
-  } else if (input.mode === "Research") {
-    result = await polyon.researchOrchestration!.execute({
+  }
+
+  if (input.mode === "Research") {
+    return polyon.researchOrchestration!.execute({
       command: commandResult,
       targets,
       requiredCapabilityIds: input.requiredCapabilityIds,
@@ -93,11 +95,13 @@ export async function executePolyonTask(input: ExecuteTaskInput): Promise<unknow
       maxParticipants: input.maxParticipants,
       sourceLimit: input.researchSourceLimit,
     });
-  } else if (input.mode === "DeepAnalysis") {
+  }
+
+  if (input.mode === "DeepAnalysis") {
     const factCheckerAgentId =
       input.factCheckerAgentId ?? agentIdForRole(polyon, "fact-checker");
 
-    result = await polyon.deepAnalysisOrchestration.execute({
+    return polyon.deepAnalysisOrchestration.execute({
       command: commandResult,
       targets,
       requiredCapabilityIds: input.requiredCapabilityIds,
@@ -108,7 +112,9 @@ export async function executePolyonTask(input: ExecuteTaskInput): Promise<unknow
       maxChallengeRounds: input.maxChallengeRounds,
       maxDebateRounds: input.maxDebateRounds,
     });
-  } else if (input.mode === "Debate") {
+  }
+
+  if (input.mode === "Debate") {
     const debate = polyon.debates.create({
       id: input.debateId ?? randomUUID(),
       objective: input.command,
@@ -118,38 +124,36 @@ export async function executePolyonTask(input: ExecuteTaskInput): Promise<unknow
       createdAt: new Date().toISOString(),
     });
 
-    result = await polyon.debates.run({
+    return polyon.debates.run({
       debateId: debate.id,
       requiredCapabilityIds: input.requiredCapabilityIds,
       adjudicatorAgentId: first.agentId,
       now: () => new Date().toISOString(),
     });
-  } else {
-    const now = new Date().toISOString();
-    result = await polyon.missionWorkflow.execute({
-      missionId: input.missionId ?? randomUUID(),
-      conversationId: commandResult.conversation.id,
-      objective: input.command,
-      actorId,
-      planningAgentId: first.agentId,
-      executionAgentId: first.agentId,
-      requiredCapabilityIds: input.requiredCapabilityIds,
-      policy,
-      riskLevel: input.riskLevel,
-      proposalId: input.proposalId ?? randomUUID(),
-      decisionId: input.decisionId ?? randomUUID(),
-      approvalRequestId: input.approvalRequestId ?? randomUUID(),
-      createdAt: now,
-      planningAt: now,
-      identities: {
-        executionId: (taskId, attempt) => `execution-${taskId}-${attempt}`,
-        policyDecisionId: (taskId, executionId) => `decision-${taskId}-${executionId}`,
-        approvalRequestId: (taskId, executionId) => `approval-${taskId}-${executionId}`,
-      },
-    });
   }
 
-  return result;
+  const now = new Date().toISOString();
+  return polyon.missionWorkflow.execute({
+    missionId: input.missionId ?? randomUUID(),
+    conversationId: commandResult.conversation.id,
+    objective: input.command,
+    actorId,
+    planningAgentId: first.agentId,
+    executionAgentId: first.agentId,
+    requiredCapabilityIds: input.requiredCapabilityIds,
+    policy,
+    riskLevel: input.riskLevel,
+    proposalId: input.proposalId ?? randomUUID(),
+    decisionId: input.decisionId ?? randomUUID(),
+    approvalRequestId: input.approvalRequestId ?? randomUUID(),
+    createdAt: now,
+    planningAt: now,
+    identities: {
+      executionId: (taskId, attempt) => `execution-${taskId}-${attempt}`,
+      policyDecisionId: (taskId, executionId) => `decision-${taskId}-${executionId}`,
+      approvalRequestId: (taskId, executionId) => `approval-${taskId}-${executionId}`,
+    },
+  });
 }
 
 const DEFAULT_TEAM_ROLES: Partial<Record<CommandMode, readonly BuiltInAgentRoleId[]>> = {
