@@ -1,7 +1,7 @@
 import { ConversationQueryService } from "@polyon/application";
 
 import { isAuthenticated } from "@/server/auth";
-import { getPolyonComposition } from "@/server/polyon-server";\nimport { getDurableConversationHistory } from "@/server/chat-history";
+import { getPolyonComposition } from "@/server/polyon-server";
 
 export const runtime = "nodejs";
 
@@ -20,17 +20,6 @@ export async function GET(
     return Response.json({ error: "Invalid conversation id." }, { status: 400 });
   }
 
-  if (process.env.VERCEL === "1") {
-    const history = await getDurableConversationHistory(id);
-    if (history === undefined) {
-      return Response.json({ error: "Conversation not found." }, { status: 404 });
-    }
-    return Response.json(
-      { conversation: history, messages: history.messages, events: [] },
-      { headers: { "cache-control": "no-store" } },
-    );
-  }
-
   const stores = getPolyonComposition().stores;
   const snapshot = new ConversationQueryService({
     conversations: stores.conversations,
@@ -42,5 +31,5 @@ export async function GET(
     return Response.json({ error: "Conversation not found." }, { status: 404 });
   }
 
-  return Response.json(snapshot, { headers: { "cache-control": "no-store" } });
+  return Response.json(snapshot);
 }
