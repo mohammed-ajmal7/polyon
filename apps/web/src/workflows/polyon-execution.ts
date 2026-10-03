@@ -22,6 +22,7 @@ async function executePolyonExecutionStep(input: ExecuteTaskInput): Promise<unkn
     await updatePersistentBackgroundRun({
       runId: input.runId,
       mode: input.mode,
+      command: input.command,
       ...(input.modeReason === undefined ? {} : { modeReason: input.modeReason }),
       startedAt,
       status: "succeeded",
