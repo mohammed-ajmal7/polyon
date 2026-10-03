@@ -38,20 +38,6 @@ const MODE_NAMES: Record<string, string> = {
   Mission: "Mission",
 };
 
-const STEP_LABELS: Record<string, string> = {
-  COLLECTIVE_STARTED: "Team assembled",
-  RESEARCH_STARTED: "Researching sources",
-  RESEARCH_FINDING: "A finding came in",
-  COLLECTIVE_CONTRIBUTION: "A specialist shared findings",
-  COLLECTIVE_CHALLENGE: "Specialists are challenging each other",
-  FACT_CHECK_STARTED: "Checking the important claims",
-  FACT_CHECK_RESULT: "A claim was checked",
-  DEBATE_CONTRIBUTION: "The team is debating",
-  COLLECTIVE_SYNTHESIZED: "Writing the answer",
-  RESEARCH_SYNTHESIZED: "Writing the answer",
-  DEEP_ANALYSIS_COMPLETED: "Finishing up",
-};
-
 interface StoredRun {
   readonly runId: string;
   readonly conversationId: string;
@@ -319,8 +305,6 @@ export default function HomePage() {
     setConversationId(stableConversationId);
     setChat(optimisticChat);
     setLastCommand(trimmed);
-    setView(null);
-    setRanMode(null);
     setError(null);
     setProgress(null);
     setPending(true);
