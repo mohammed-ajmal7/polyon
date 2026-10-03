@@ -1,0 +1,30 @@
+name: Production smoke check
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  production-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Wait for Vercel production deployment
+        run: |
+          for i in {1..36}; do
+            code="$(curl -sS -o /dev/null -w '%{http_code}' https://polyon.vercel.app/ || true)"
+            echo "attempt $i: HTTP $code"
+            if [[ "$code" == "200" || "$code" == "301" || "$code" == "302" || "$code" == "307" || "$code" == "308" ]]; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Production endpoint did not become healthy in time."
+          exit 1
+
+      - name: Verify login surface
+        run: |
+          code="$(curl -sS -o /dev/null -w '%{http_code}' https://polyon.vercel.app/login)"
+          echo "login HTTP $code"
+          [[ "$code" == "200" ]]
