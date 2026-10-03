@@ -21,6 +21,7 @@ import {
   executePolyonTask,
   type ExecuteTaskInput,
 } from "@/server/execute-task";
+import { persistConversationHistory } from "@/server/chat-history";
 import { start } from "workflow/api";
 import { polyonExecutionWorkflow } from "@/workflows/polyon-execution";
 
@@ -139,6 +140,11 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     const result = await executePolyonTask(taskInput);
+    try {
+      await persistConversationHistory(conversationId);
+    } catch {
+      // History persistence is best-effort and must not fail a successful execution.
+    }
     return Response.json({ mode, modeReason, result }, { status: 201 });
   } catch (error) {
     if (error instanceof BackgroundRunLimitError) {
