@@ -17,6 +17,7 @@ export interface BackgroundRun {
   readonly startedAt: string;
   readonly status: BackgroundRunStatus;
   readonly finishedAt?: string;
+  readonly command?: string;
   readonly result?: unknown;
   readonly error?: string;
 }
@@ -128,7 +129,7 @@ export async function updatePersistentBackgroundRun(
     p_mode_reason: run.modeReason ?? null,
     p_started_at: run.startedAt,
     p_finished_at: run.finishedAt ?? null,
-    p_payload: run.result === undefined ? null : sealPayload(run.result),
+    p_payload: run.result === undefined ? null : sealPayload({ command: run.command, result: run.result }),
     p_error: run.error ?? null,
   });
   return run;
@@ -156,7 +157,9 @@ export async function getPersistentBackgroundRun(
     ...(row.finished_at === null || row.finished_at === undefined
       ? {}
       : { finishedAt: String(row.finished_at) }),
-    ...(result === undefined ? {} : { result }),
+    ...(result !== undefined && isRecord(result) && typeof result.command === "string"
+      ? { command: result.command, ...(result.result === undefined ? {} : { result: result.result }) }
+      : result === undefined ? {} : { result }),
     ...(row.error === null || row.error === undefined ? {} : { error: String(row.error) }),
   };
 }
@@ -176,6 +179,48 @@ function evictFinished(runs: Map<string, BackgroundRun>): void {
 /** Test helper: forget every tracked run. */
 export function resetBackgroundRuns(): void {
   state().runs.clear();
+}
+
+export async function listPersistentBackgroundRuns(limit = 50): Promise<BackgroundRun[]> {
+  const rows = await callRunStateList("polyon_run_list", { p_limit: limit });
+  if (!Array.isArray(rows)) return [];
+  return rows.flatMap((row) => {
+    if (!isRecord(row)) return [];
+    const result = row.payload == null ? undefined : openPayload(String(row.payload));
+    const base: BackgroundRun = {
+      runId: String(row.run_id),
+      mode: String(row.mode),
+      ...(row.mode_reason == null ? {} : { modeReason: String(row.mode_reason) }),
+      startedAt: String(row.started_at),
+      status: row.status === "succeeded" || row.status === "failed" ? row.status : "running",
+      ...(row.finished_at == null ? {} : { finishedAt: String(row.finished_at) }),
+      ...(row.error == null ? {} : { error: String(row.error) }),
+    };
+    if (isRecord(result) && typeof result.command === "string") {
+      return [{ ...base, command: result.command, ...(result.result === undefined ? {} : { result: result.result }) }];
+    }
+    return [{ ...base, ...(result === undefined ? {} : { result }) }];
+  });
+}
+
+async function callRunStateList(functionName: "polyon_run_list", body: Record<string, unknown>) {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${functionName}`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(body),
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    throw new Error(
+      `Durable run history unavailable (${response.status})${message === "" ? "." : `: ${message.slice(0, 300)}`}`,
+    );
+  }
+  return (await response.json()) as unknown;
 }
 
 async function callRunState(functionName: "polyon_run_get" | "polyon_run_upsert", body: Record<string, unknown>) {
