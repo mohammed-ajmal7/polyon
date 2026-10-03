@@ -203,8 +203,15 @@ export default function HomePage() {
 
   useEffect(() => {
     mountedRef.current = true;
+    const storedRun = readStoredRun();
     const initialId = readCurrentConversationId();
-    if (initialId !== undefined) void loadConversation(initialId);
+    if (storedRun !== undefined) {
+      storeCurrentConversationId(storedRun.conversationId);
+      setConversationId(storedRun.conversationId);
+      void loadConversation(storedRun.conversationId).finally(() => void followRun(storedRun));
+    } else if (initialId !== undefined) {
+      void loadConversation(initialId);
+    }
 
     const handleOpen = (event: Event) => {
       const id = (event as CustomEvent<string>).detail;
