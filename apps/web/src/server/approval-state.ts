@@ -119,9 +119,12 @@ function sealPayload(value: unknown): string {
     return `plain.${Buffer.from(JSON.stringify(value), "utf8").toString("base64url")}`;
   }
   const iv = randomBytes(12);
-  const key = createHash("sha256").update(secret).digest();
+  const key = Buffer.from(createHash("sha256").update(secret).digest("hex"), "hex");
   const cipher = createCipheriv("aes-256-gcm", key, iv);
-  const ciphertext = Buffer.concat([cipher.update(JSON.stringify(value), "utf8"), cipher.final()]);
+  const ciphertext = Buffer.concat([
+    cipher.update(JSON.stringify(value), "utf8"),
+    Buffer.from(cipher.final("base64"), "base64"),
+  ]);
   const tag = cipher.getAuthTag();
   return ["v1", iv.toString("base64url"), tag.toString("base64url"), ciphertext.toString("base64url")].join(".");
 }
@@ -135,13 +138,13 @@ function openPayload(value: string): unknown | undefined {
     if (!secret) return undefined;
     const [version, iv, tag, ciphertext] = value.split(".");
     if (version !== "v1" || !iv || !tag || !ciphertext) return undefined;
-    const key = createHash("sha256").update(secret).digest();
+    const key = Buffer.from(createHash("sha256").update(secret).digest("hex"), "hex");
     const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(iv, "base64url"));
     decipher.setAuthTag(Buffer.from(tag, "base64url"));
     return JSON.parse(
       Buffer.concat([
         decipher.update(Buffer.from(ciphertext, "base64url")),
-        decipher.final(),
+        Buffer.from(decipher.final("base64"), "base64"),
       ]).toString("utf8"),
     ) as unknown;
   } catch {
