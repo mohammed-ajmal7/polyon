@@ -6,7 +6,6 @@ import type { ReactNode } from "react";
 
 const items=[
  {href:"/",label:"Command",icon:"⌘",section:"Operate"},
- {href:"/history",label:"Chat History",icon:"◷",section:"Operate"},
  {href:"/missions",label:"Missions",icon:"◇",section:"Operate"},
  {href:"/approvals",label:"Approvals",icon:"✓",section:"Govern"},
  {href:"/executions",label:"Executions",icon:"▤",section:"Govern"},
