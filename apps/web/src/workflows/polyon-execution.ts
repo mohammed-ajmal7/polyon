@@ -3,7 +3,6 @@ import {
   updatePersistentBackgroundRun,
 } from "@/server/run-registry";
 import { executePolyonTask, type ExecuteTaskInput } from "@/server/execute-task";
-import { persistConversationHistory } from "@/server/chat-history";
 
 export async function polyonExecutionWorkflow(input: ExecuteTaskInput): Promise<unknown> {
   "use workflow";
@@ -19,12 +18,6 @@ async function executePolyonExecutionStep(input: ExecuteTaskInput): Promise<unkn
 
   try {
     const result = await executePolyonTask(input);
-
-    try {
-      await persistConversationHistory(input.runId);
-    } catch {
-      // History persistence is best-effort and must not fail the execution.
-    }
 
     await updatePersistentBackgroundRun({
       runId: input.runId,
