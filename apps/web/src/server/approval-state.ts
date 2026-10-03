@@ -15,6 +15,7 @@ interface ApprovalCheckpoint {
   readonly task?: unknown;
   readonly mission?: unknown;
   readonly proposal?: unknown;
+  readonly tasks?: readonly unknown[];
 }
 
 export async function persistApprovalCheckpoint(
@@ -35,6 +36,19 @@ export async function persistApprovalCheckpoint(
     ...(approval.proposalId === undefined
       ? {}
       : { proposal: composition.stores.missionPlanProposals.get(approval.proposalId) }),
+    ...(approval.proposalId === undefined
+      ? {}
+      : {
+          tasks: (() => {
+            const proposal = composition.stores.missionPlanProposals.get(approval.proposalId!);
+            return proposal === undefined
+              ? []
+              : proposal.taskIds.flatMap((taskId) => {
+                  const task = composition.stores.tasks.get(taskId);
+                  return task === undefined ? [] : [task];
+                });
+        })(),
+        }),
   };
 
   await callRpc("polyon_approval_checkpoint_upsert", {
