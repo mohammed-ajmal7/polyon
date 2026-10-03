@@ -14,6 +14,7 @@ const items=[
  {href:"/memory",label:"Memory",icon:"▣",section:"Knowledge"},
  {href:"/evidence",label:"Evidence",icon:"◫",section:"Knowledge"},
  {href:"/artifacts",label:"Artifacts",icon:"□",section:"Knowledge"},
+ {href:"/history",label:"History",icon:"◷",section:"Observe"},
  {href:"/activity",label:"Activity",icon:"⌁",section:"Observe"},
  {href:"/settings",label:"Settings",icon:"⚙",section:"System"},
 ];
