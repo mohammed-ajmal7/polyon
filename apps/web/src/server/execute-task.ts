@@ -10,7 +10,10 @@ import {
 } from "@/server/polyon-server";
 
 export interface ExecuteTaskInput {
+  /** Unique execution id. A conversation can contain many execution runs. */
   readonly runId: string;
+  /** Stable chat id shared by every turn in the same conversation. */
+  readonly conversationId: string;
   readonly mode: CommandMode;
   readonly modeReason?: string;
   readonly command: string;
