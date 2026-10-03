@@ -1,5 +1,3 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
-
 import type { Message } from "@polyon/contracts";
 
 import { getPolyonComposition } from "@/server/polyon-server";
@@ -61,7 +59,7 @@ export async function persistConversationHistory(conversationId: string): Promis
 
   await callChatHistory("polyon_chat_history_upsert", {
     p_conversation_id: conversation.id,
-    p_payload: sealPayload(history),
+    p_payload: await sealPayload(history),
     p_created_at: conversation.createdAt,
     p_updated_at: conversation.updatedAt,
   });
@@ -73,14 +71,18 @@ export async function getDurableConversationHistory(
   const rows = await callChatHistory("polyon_chat_history_get", { p_conversation_id: conversationId });
   const row = Array.isArray(rows) ? rows[0] : undefined;
   if (!isRecord(row) || typeof row.payload !== "string") return undefined;
-  return openPayload(row.payload);
+  return await openPayload(row.payload);
 }
 
 export async function listDurableConversationHistory(limit = 50): Promise<readonly ChatHistoryConversation[]> {
   const rows = await callChatHistory("polyon_chat_history_list", { p_limit: limit });
   if (!Array.isArray(rows)) return [];
-  return rows
-    .map((row) => (isRecord(row) && typeof row.payload === "string" ? openPayload(row.payload) : undefined))
+  const decoded = await Promise.all(
+    rows.map((row) =>
+      isRecord(row) && typeof row.payload === "string" ? openPayload(row.payload) : Promise.resolve(undefined),
+    ),
+  );
+  return decoded
     .filter((value): value is ChatHistoryConversation => value !== undefined)
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
@@ -125,39 +127,77 @@ async function callChatHistory(
   return (await response.json()) as unknown;
 }
 
-function sealPayload(value: unknown): string {
+async function sealPayload(value: unknown): Promise<string> {
   const secret = process.env.POLYON_API_TOKEN?.trim();
   if (secret === undefined || secret === "") {
-    return "plain." + Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
+    return "plain." + encodeBase64Url(JSON.stringify(value));
   }
-  const iv = randomBytes(12);
-  const key = Buffer.from(createHash("sha256").update(secret).digest("hex"), "hex");
-  const cipher = createCipheriv("aes-256-gcm", key, iv);
-  const ciphertext = Buffer.concat([cipher.update(JSON.stringify(value), "utf8"), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  return ["v1", iv.toString("base64url"), tag.toString("base64url"), ciphertext.toString("base64url")].join(".");
+
+  const iv = cryptoRandomBytes(12);
+  const key = await deriveKey(secret);
+  const ciphertext = new Uint8Array(
+    await globalThis.crypto.subtle.encrypt(
+      { name: "AES-GCM", iv, tagLength: 128 },
+      key,
+      new TextEncoder().encode(JSON.stringify(value)),
+    ),
+  );
+
+  return ["v1", encodeBase64Url(iv), encodeBase64Url(ciphertext)].join(".");
 }
 
-function openPayload(value: string): ChatHistoryConversation | undefined {
+async function openPayload(value: string): Promise<ChatHistoryConversation | undefined> {
   try {
     if (value.startsWith("plain.")) {
-      return JSON.parse(Buffer.from(value.slice(6), "base64url").toString("utf8")) as ChatHistoryConversation;
+      return JSON.parse(decodeBase64Url(value.slice(6))) as ChatHistoryConversation;
     }
+
     const secret = process.env.POLYON_API_TOKEN?.trim();
     if (secret === undefined || secret === "") return undefined;
-    const [version, ivText, tagText, ciphertextText] = value.split(".");
-    if (version !== "v1" || ivText === undefined || tagText === undefined || ciphertextText === undefined) return undefined;
-    const key = Buffer.from(createHash("sha256").update(secret).digest("hex"), "hex");
-    const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(ivText, "base64url"));
-    decipher.setAuthTag(Buffer.from(tagText, "base64url"));
-    const plaintext = Buffer.concat([
-      decipher.update(Buffer.from(ciphertextText, "base64url")),
-      decipher.final(),
-    ]).toString("utf8");
-    return JSON.parse(plaintext) as ChatHistoryConversation;
+
+    const [version, ivText, ciphertextText] = value.split(".");
+    if (version !== "v1" || ivText === undefined || ciphertextText === undefined) return undefined;
+
+    const key = await deriveKey(secret);
+    const plaintext = await globalThis.crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: decodeBase64Url(ivText), tagLength: 128 },
+      key,
+      decodeBase64Url(ciphertextText),
+    );
+
+    return JSON.parse(new TextDecoder().decode(plaintext)) as ChatHistoryConversation;
   } catch {
     return undefined;
   }
+}
+
+async function deriveKey(secret: string): Promise<CryptoKey> {
+  const digest = await globalThis.crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(secret),
+  );
+  return globalThis.crypto.subtle.importKey(
+    "raw",
+    digest,
+    { name: "AES-GCM" },
+    false,
+    ["encrypt", "decrypt"],
+  );
+}
+
+function cryptoRandomBytes(size: number): Uint8Array {
+  const bytes = new Uint8Array(size);
+  globalThis.crypto.getRandomValues(bytes);
+  return bytes;
+}
+
+function encodeBase64Url(bytes: Uint8Array | string): string {
+  const input = typeof bytes === "string" ? new TextEncoder().encode(bytes) : bytes;
+  return Buffer.from(input).toString("base64url");
+}
+
+function decodeBase64Url(value: string): Uint8Array {
+  return new Uint8Array(Buffer.from(value, "base64url"));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
