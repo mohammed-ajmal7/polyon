@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
 const items=[
@@ -20,66 +19,7 @@ const items=[
  {href:"/settings",label:"Settings",icon:"⚙",section:"System"},
 ];
 
-export type RecentConversation = {
-  readonly runId: string;
-  readonly command?: string;
-  readonly mode: string;
-  readonly status: string;
-  readonly finishedAt?: string;
-  readonly startedAt: string;
-};
-
-function RecentChats() {
-  const [chats, setChats] = useState<readonly RecentConversation[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      try {
-        const response = await fetch("/api/conversations?limit=6", { cache: "no-store" });
-        if (!response.ok) return;
-        const body = (await response.json()) as { conversations?: RecentConversation[] };
-        if (!cancelled) setChats(body.conversations ?? []);
-      } catch {
-        // Recent chats are supplementary; the dedicated History page remains authoritative.
-      }
-    }
-
-    void load();
-    const interval = window.setInterval(() => void load(), 15_000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-    };
-  }, []);
-
-  if (chats.length === 0) return null;
-
-  return (
-    <section className="mb-4 px-1">
-      <div className="polyon-kicker mb-2 px-2">RECENT CHATS</div>
-      <div className="space-y-0.5">
-        {chats.slice(0, 5).map((chat) => (
-          <Link
-            key={chat.runId}
-            href={"/?conversation=" + encodeURIComponent(chat.runId)}
-            prefetch={false}
-            title={chat.command ?? "POLYON request"}
-            className="block rounded-xl px-3 py-2 text-[11px] text-slate-500 transition hover:bg-white/[.035] hover:text-slate-200"
-          >
-            <div className="truncate">{chat.command ?? "POLYON request"}</div>
-            <div className="mt-0.5 text-[9px] text-slate-700">
-              {chat.mode} · {chat.status}
-            </div>
-          </Link>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function WorkspaceNav({children}:{children:ReactNode}){
+export function WorkspaceNav({children}:{children:ReactNode}){
  const pathname=usePathname();const router=useRouter();const groups=[...new Set(items.map(i=>i.section))];
  return <div className="min-h-screen bg-[#05070b] text-slate-100">
   <div className="pointer-events-none fixed inset-0 polyon-grid opacity-70"/>
@@ -88,7 +28,6 @@ function WorkspaceNav({children}:{children:ReactNode}){
     <Link href="/" className="flex items-center gap-3 px-2"><BrandMark/><div><div className="flex items-center gap-2"><span className="text-[15px] font-bold tracking-[.2em] text-white">POLYON</span><span className="rounded-full border border-violet-300/20 bg-violet-300/10 px-1.5 py-0.5 text-[8px] font-semibold text-violet-200">HQ</span></div><div className="mt-0.5 text-[10px] text-slate-500">Many intelligences. One command.</div></div></Link>
     <div className="mt-6 rounded-2xl border border-emerald-300/10 bg-emerald-300/[.035] p-3.5"><div className="flex items-center gap-2"><span className="polyon-dot size-2 rounded-full bg-emerald-300 text-emerald-300"/><span className="text-xs font-medium text-emerald-100">Human control active</span><span className="ml-auto text-[9px] font-semibold tracking-wider text-emerald-300/60">LIVE</span></div><p className="mt-2 text-[11px] leading-4 text-slate-500">Policy, approvals and execution gates protect consequential actions.</p></div>
     <nav className="mt-6 flex-1 overflow-y-auto pr-1">{groups.map(section=><div key={section} className="mb-5"><div className="polyon-kicker mb-2 px-2">{section}</div><div className="space-y-0.5">{items.filter(i=>i.section===section).map(item=>{const active=item.href==="/" ? pathname==="/" : pathname===item.href||pathname.startsWith(item.href+"/");return <Link key={item.href} href={item.href} prefetch={false} className={"group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] transition "+(active?"bg-white/[.075] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,.07)]":"text-slate-500 hover:bg-white/[.035] hover:text-slate-200")}><span className={"grid size-6 place-items-center rounded-lg text-[13px] "+(active?"bg-violet-300/10 text-violet-200":"text-slate-600 group-hover:text-slate-300")}>{item.icon}</span><span className="flex-1">{item.label}</span>{item.href==="/approvals"?<span className="size-1.5 rounded-full bg-amber-300"/>:null}{active?<span className="h-4 w-px bg-violet-300/70"/>:null}</Link>})}</div></div>)}</nav>
-    <RecentChats />
     <div className="border-t border-white/[.07] pt-4"><div className="flex items-center justify-between px-2"><div><div className="text-[10px] font-medium text-slate-500">PERSONAL INSTANCE</div><div className="mt-1 font-mono text-[10px] text-slate-600">POLYON / 0.1 RC</div></div><button type="button" onClick={()=>{void fetch("/api/auth",{method:"DELETE"}).finally(()=>{router.replace("/login");router.refresh();});}} className="rounded-lg px-2 py-1.5 text-[11px] text-slate-500 hover:bg-white/5 hover:text-slate-200">Sign out</button></div></div>
    </aside>
    <div className="min-w-0 flex-1">
