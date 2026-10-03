@@ -10,6 +10,5 @@
   },
   "installCommand": "pnpm install --no-frozen-lockfile",
   "buildCommand": "pnpm build",
-  "ignoreCommand": "exit 1",
-  "public": true
+  "ignoreCommand": "exit 1"
 }
