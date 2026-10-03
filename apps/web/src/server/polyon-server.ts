@@ -180,7 +180,7 @@ function buildConfiguredModelRegistrations() {
   // profile whenever Vercel has a Gemini key; this also makes production independent
   // of local model settings.
   if (process.env.VERCEL === "1" && process.env.GEMINI_API_KEY?.trim() !== "") {
-    return buildModelRegistrations([buildVercelGeminiProfile()], process.env);
+    return buildVercelAgentFleet(process.env);
   }
 
   if (profilesJson !== undefined && profilesJson !== "") {
@@ -301,6 +301,85 @@ function isLoopbackEndpoint(endpoint: string): boolean {
   } catch {
     return false;
   }
+}
+
+function buildVercelAgentFleet(
+  environment: Readonly<Record<string, string | undefined>>,
+) {
+  const profile = buildVercelGeminiProfile();
+  const roles: ReadonlyArray<{
+    id: import("@polyon/contracts").BuiltInAgentRoleId;
+    name: string;
+    role: string;
+    description: string;
+  }> = [
+    {
+      id: "planner",
+      name: "Planner",
+      role: "Planning",
+      description: "Breaks goals into bounded, executable plans.",
+    },
+    {
+      id: "researcher",
+      name: "Researcher",
+      role: "Research",
+      description: "Finds facts, context, sources, and information gaps.",
+    },
+    {
+      id: "analyst",
+      name: "Analyst",
+      role: "Analysis",
+      description: "Compares evidence, patterns, explanations, and implications.",
+    },
+    {
+      id: "specialist",
+      name: "Specialist",
+      role: "Domain specialist",
+      description: "Applies focused expertise to a bounded problem.",
+    },
+    {
+      id: "critic",
+      name: "Critic",
+      role: "Critical review",
+      description: "Challenges assumptions, reasoning, edge cases, and unsupported claims.",
+    },
+    {
+      id: "fact-checker",
+      name: "Fact Checker",
+      role: "Verification",
+      description: "Tests claims against evidence and identifies verification gaps.",
+    },
+    {
+      id: "judge",
+      name: "Judge",
+      role: "Adjudication",
+      description: "Adjudicates bounded disagreements and records uncertainty.",
+    },
+    {
+      id: "synthesizer",
+      name: "Synthesizer",
+      role: "Synthesis",
+      description: "Combines independent findings into a traceable final response.",
+    },
+    {
+      id: "action-agent",
+      name: "Action Agent",
+      role: "Execution",
+      description: "Executes approved actions through governed tools and integrations.",
+    },
+  ];
+
+  return buildModelRegistrations(
+    roles.map((role) => ({
+      ...profile,
+      agentId: role.id === "action-agent" ? "action-agent" : role.id,
+      agentName: role.name,
+      agentRole: role.role,
+      agentRoleId: role.id,
+      agentDescription: role.description,
+    })),
+    environment,
+  );
 }
 
 function buildVercelGeminiProfile(): ModelProfileConfig {
