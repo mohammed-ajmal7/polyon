@@ -141,8 +141,6 @@ export default function HomePage() {
   const [now, setNow] = useState(() => Date.now());
   const [progress, setProgress] = useState<Progress | null>(null);
   const [lastCommand, setLastCommand] = useState<string | null>(null);
-  const [view, setView] = useState<RunView | null>(null);
-  const [ranMode, setRanMode] = useState<{ mode: string; reason?: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [approvalsWaiting, setApprovalsWaiting] = useState(0);
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -190,12 +188,7 @@ export default function HomePage() {
       const latestAssistant = [...body.messages].reverse().find((message) => message.role === "assistant");
       const latestUser = [...body.messages].reverse().find((message) => message.role === "user");
       setLastCommand(latestUser?.content ?? null);
-      if (latestAssistant?.result !== undefined && latestAssistant.mode !== undefined) {
-        setRanMode({ mode: latestAssistant.mode });
-        setView(toRunView(latestAssistant.mode, { result: latestAssistant.result }));
-      } else {
-        setView(null);
-      }
+
     } catch {
       setError("POLYON could not load this conversation.");
     }
@@ -216,8 +209,6 @@ export default function HomePage() {
     setChat(null);
     setCommand("");
     setLastCommand(null);
-    setView(null);
-    setRanMode(null);
     setError(null);
     setProgress(null);
     setStartedAt(null);
@@ -287,10 +278,6 @@ export default function HomePage() {
         if (body.status === "failed") {
           setError(body.error ?? "POLYON could not run this request.");
         } else {
-          setRanMode({
-            mode: body.mode,
-            ...(body.modeReason === undefined ? {} : { reason: body.modeReason }),
-          });
           await loadConversation(run.conversationId);
           window.dispatchEvent(new Event("polyon:chat-updated"));
         }
@@ -378,10 +365,6 @@ export default function HomePage() {
       setCommand("");
 
       if (response.status === 201 && body.mode !== undefined && body.result !== undefined) {
-        setRanMode({
-          mode: body.mode,
-          ...(body.modeReason === undefined ? {} : { reason: body.modeReason }),
-        });
         await loadConversation(stableConversationId);
         window.dispatchEvent(new Event("polyon:chat-updated"));
         return;
