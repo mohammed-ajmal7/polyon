@@ -59,6 +59,7 @@ interface StoredRun {
 }
 
 const RUN_STORAGE_KEY = "polyon.activeRun";
+const CURRENT_CONVERSATION_STORAGE_KEY = "polyon.currentConversation";
 
 function readStoredRun(): StoredRun | undefined {
   try {
@@ -81,6 +82,29 @@ function storeRun(run: StoredRun | undefined): void {
     else window.sessionStorage.setItem(RUN_STORAGE_KEY, JSON.stringify(run));
   } catch {
     // Session storage is a convenience for resuming after reload; the run continues regardless.
+  }
+}
+
+function readCurrentConversationId(): string | undefined {
+  try {
+    const fromUrl = new URLSearchParams(window.location.search).get("conversation")?.trim();
+    if (fromUrl !== undefined && fromUrl !== "") return fromUrl;
+    const stored = window.localStorage.getItem(CURRENT_CONVERSATION_STORAGE_KEY)?.trim();
+    return stored === undefined || stored === "" ? undefined : stored;
+  } catch {
+    return undefined;
+  }
+}
+
+function storeCurrentConversationId(conversationId: string | undefined): void {
+  try {
+    if (conversationId === undefined) {
+      window.localStorage.removeItem(CURRENT_CONVERSATION_STORAGE_KEY);
+    } else {
+      window.localStorage.setItem(CURRENT_CONVERSATION_STORAGE_KEY, conversationId);
+    }
+  } catch {
+    // The durable server history remains the source of truth if browser storage is unavailable.
   }
 }
 
@@ -151,8 +175,50 @@ export default function HomePage() {
   // Resume a request that was still running when the page was reloaded.
   useEffect(() => {
     const stored = readStoredRun();
-    if (stored !== undefined) void followRun(stored);
+    if (stored !== undefined) {
+      void followRun(stored);
+      return () => {
+        mountedRef.current = false;
+      };
+    }
+
+    const conversationId = readCurrentConversationId();
+    if (conversationId === undefined) {
+      return () => {
+        mountedRef.current = false;
+      };
+    }
+
+    let cancelled = false;
+    void fetch("/api/conversations/" + encodeURIComponent(conversationId), { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : undefined))
+      .then((body: {
+        status?: "running" | "succeeded" | "failed";
+        mode?: string;
+        command?: string;
+        result?: unknown;
+        error?: string;
+      } | undefined) => {
+        if (cancelled || body === undefined || body.mode === undefined) return;
+        if (body.status === "failed") {
+          setError(body.error ?? "POLYON could not complete this request.");
+          return;
+        }
+        if (body.result === undefined) return;
+        setLastCommand(body.command ?? null);
+        setRanMode({ mode: body.mode });
+        setView(toRunView(body.mode, { result: body.result }));
+      })
+      .catch(() => undefined);
+
+    // A sidebar/recent-chat link can open /?conversation=<id>. Once restored, keep the
+    // URL clean while retaining the id in localStorage for the next navigation back to Command.
+    if (new URLSearchParams(window.location.search).has("conversation")) {
+      window.history.replaceState({}, "", "/");
+    }
+
     return () => {
+      cancelled = true;
       mountedRef.current = false;
     };
   }, []);
@@ -193,7 +259,10 @@ export default function HomePage() {
           ...(body.modeReason === undefined ? {} : { reason: body.modeReason }),
         });
         if (body.status === "failed") setError(body.error ?? "POLYON could not run this request.");
-        else setView(toRunView(body.mode, { result: body.result }));
+        else {
+          setView(toRunView(body.mode, { result: body.result }));
+          storeCurrentConversationId(run.runId);
+        }
         break;
       }
     } catch {
@@ -268,6 +337,7 @@ export default function HomePage() {
         setPending(false);
         conversationRef.current = null;
         storeRun(undefined);
+        storeCurrentConversationId(run.runId);
         return;
       }
 
