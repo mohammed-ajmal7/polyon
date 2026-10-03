@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - fix/durable-approvals
+  pull_request:
 jobs:
   build:
     runs-on: ubuntu-latest
