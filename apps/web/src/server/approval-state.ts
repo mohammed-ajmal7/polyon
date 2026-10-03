@@ -138,7 +138,7 @@ function openPayload(value: string): unknown | undefined {
     if (!secret) return undefined;
     const [version, iv, tag, ciphertext] = value.split(".");
     if (version !== "v1" || !iv || !tag || !ciphertext) return undefined;
-    const key = createHash("sha256").update(secret).digest();
+    const key = Buffer.from(createHash("sha256").update(secret).digest("hex"), "hex");
     const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(iv, "base64url"));
     decipher.setAuthTag(Buffer.from(tag, "base64url"));
     return JSON.parse(
