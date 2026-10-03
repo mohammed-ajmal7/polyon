@@ -85,31 +85,6 @@ export async function listDurableConversationHistory(limit = 50): Promise<readon
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
-export function listLocalConversationHistory(limit = 100): readonly ChatHistoryConversation[] {
-  const stores = getPolyonComposition().stores;
-  return stores.conversations
-    .list()
-    .map((conversation) => ({
-      id: conversation.id,
-      kind: conversation.kind,
-      status: conversation.status,
-      participantIds: conversation.participantIds,
-      ...(conversation.missionId === undefined ? {} : { missionId: conversation.missionId }),
-      createdAt: conversation.createdAt,
-      updatedAt: conversation.updatedAt,
-      messages: conversation.messageIds
-        .map((messageId) => stores.messages.get(messageId))
-        .filter((message): message is Message => message !== undefined)
-        .map(toHistoryMessage),
-    }))
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-    .slice(0, limit);
-}
-
-export function getLocalConversationHistory(conversationId: string): ChatHistoryConversation | undefined {
-  return listLocalConversationHistory(1000).find((conversation) => conversation.id === conversationId);
-}
-
 function toHistoryMessage(message: Message): ChatHistoryMessage {
   return {
     id: message.id,
