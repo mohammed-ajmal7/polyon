@@ -149,17 +149,7 @@ export async function executePolyonTask(input: ExecuteTaskInput): Promise<unknow
     });
   }
 
-  await persistConversationHistorySafely(commandResult.conversation.id);
   return result;
-}
-
-async function persistConversationHistorySafely(conversationId: string): Promise<void> {
-  try {
-    await persistConversationHistory(conversationId);
-  } catch {
-    // Chat history is durable UX state, not an execution dependency.
-    // A history outage must never turn a successful AI run into a failed run.
-  }
 }
 
 const DEFAULT_TEAM_ROLES: Partial<Record<CommandMode, readonly BuiltInAgentRoleId[]>> = {

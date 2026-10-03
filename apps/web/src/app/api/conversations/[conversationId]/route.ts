@@ -1,7 +1,7 @@
 import { ConversationQueryService } from "@polyon/application";
 
 import { isAuthenticated } from "@/server/auth";
-import { getPolyonComposition } from "@/server/polyon-server";\nimport { getDurableConversationHistory, getLocalConversationHistory } from "@/server/chat-history";
+import { getPolyonComposition } from "@/server/polyon-server";\nimport { getDurableConversationHistory } from "@/server/chat-history";
 
 export const runtime = "nodejs";
 
@@ -39,9 +39,7 @@ export async function GET(
   }).get(id);
 
   if (snapshot === undefined) {
-    const history = getLocalConversationHistory(id);
-    if (history === undefined) return Response.json({ error: "Conversation not found." }, { status: 404 });
-    return Response.json({ conversation: history, messages: history.messages, events: [] });
+    return Response.json({ error: "Conversation not found." }, { status: 404 });
   }
 
   return Response.json(snapshot, { headers: { "cache-control": "no-store" } });

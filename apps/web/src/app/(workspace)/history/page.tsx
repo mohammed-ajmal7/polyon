@@ -1,17 +1,16 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
-import {
-  listDurableConversationHistory,
-  listLocalConversationHistory,
-} from "@/server/chat-history";
-
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
-function titleFor(messages: readonly { role: string; content: string }[], id: string): string {
-  const first = messages.find((message) => message.role === "USER")?.content.trim();
-  if (first === undefined || first === "") return "Conversation " + id.slice(0, 8);
-  return first.length > 72 ? first.slice(0, 69) + "…" : first;
+interface ConversationSummary {
+  id: string;
+  kind: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  messageCount: number;
+  preview: string;
 }
 
 function formatDate(value: string): string {
@@ -21,11 +20,40 @@ function formatDate(value: string): string {
   }).format(new Date(value));
 }
 
-export default async function ChatHistoryPage() {
-  const conversations =
-    process.env.VERCEL === "1"
-      ? await listDurableConversationHistory(100)
-      : listLocalConversationHistory(100);
+function titleFor(conversation: ConversationSummary): string {
+  if (conversation.preview === "") return "Conversation " + conversation.id.slice(0, 8);
+  return conversation.preview.length > 72
+    ? conversation.preview.slice(0, 69) + "…"
+    : conversation.preview;
+}
+
+export default function ChatHistoryPage() {
+  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/conversations", { cache: "no-store" })
+      .then(async (response) => {
+        if (response.status === 401) {
+          window.location.assign("/login");
+          return;
+        }
+        if (!response.ok) throw new Error("Chat history is temporarily unavailable.");
+        const body = (await response.json()) as { conversations?: ConversationSummary[] };
+        if (!cancelled) setConversations(body.conversations ?? []);
+      })
+      .catch((reason: unknown) => {
+        if (!cancelled) setError(reason instanceof Error ? reason.message : "Chat history is unavailable.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <section className="mx-auto max-w-6xl space-y-6">
@@ -37,7 +65,15 @@ export default async function ChatHistoryPage() {
         </p>
       </header>
 
-      {conversations.length === 0 ? (
+      {loading ? (
+        <div className="rounded-3xl border border-white/[.08] bg-[#0a0d13] p-8 text-sm text-slate-500">
+          Loading your conversations…
+        </div>
+      ) : error !== null ? (
+        <div role="alert" className="rounded-3xl border border-rose-300/15 bg-rose-300/[.04] p-8 text-sm text-rose-100">
+          {error}
+        </div>
+      ) : conversations.length === 0 ? (
         <div className="rounded-3xl border border-white/[.08] bg-[#0a0d13] p-8">
           <h2 className="text-lg font-semibold text-white">No conversations yet</h2>
           <p className="mt-2 text-sm leading-6 text-slate-500">
@@ -62,11 +98,10 @@ export default async function ChatHistoryPage() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h2 className="truncate text-[15px] font-medium text-slate-100">
-                      {titleFor(conversation.messages, conversation.id)}
+                      {titleFor(conversation)}
                     </h2>
                     <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-400">
-                      {conversation.messages.find((message) => message.role === "USER")?.content ??
-                        "No user message recorded."}
+                      {conversation.preview || "No user message recorded."}
                     </p>
                   </div>
                   <span className="shrink-0 text-[11px] text-slate-600">
@@ -76,11 +111,9 @@ export default async function ChatHistoryPage() {
                 <div className="mt-4 flex flex-wrap gap-2 text-[11px] text-slate-500">
                   <span className="rounded-full bg-white/[.04] px-2.5 py-1">{conversation.kind}</span>
                   <span className="rounded-full bg-white/[.04] px-2.5 py-1">
-                    {conversation.messages.length} messages
+                    {conversation.messageCount} messages
                   </span>
-                  <span className="rounded-full bg-white/[.04] px-2.5 py-1">
-                    {conversation.status}
-                  </span>
+                  <span className="rounded-full bg-white/[.04] px-2.5 py-1">{conversation.status}</span>
                 </div>
               </Link>
             ))}
