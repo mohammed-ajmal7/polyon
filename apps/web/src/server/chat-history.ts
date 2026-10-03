@@ -135,7 +135,16 @@ async function callRpc(functionName: string, body: Record<string, unknown>): Pro
       `Durable chat history unavailable (${response.status})${message === "" ? "." : `: ${message.slice(0, 300)}`}`,
     );
   }
-  return (await response.json()) as unknown;
+
+  // The upsert RPC returns void (204 No Content). Do not call response.json()
+  // on an empty response body; GET/LIST RPCs still return JSON below.
+  const body = await response.text();
+  if (body.trim() === "") return undefined;
+  try {
+    return JSON.parse(body) as unknown;
+  } catch {
+    throw new Error("Durable chat history returned invalid JSON.");
+  }
 }
 
 export function makeChatTitle(input: string): string {
