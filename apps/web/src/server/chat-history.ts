@@ -138,10 +138,10 @@ async function callRpc(functionName: string, body: Record<string, unknown>): Pro
 
   // The upsert RPC returns void (204 No Content). Do not call response.json()
   // on an empty response body; GET/LIST RPCs still return JSON below.
-  const body = await response.text();
-  if (body.trim() === "") return undefined;
+  const responseBody = await response.text();
+  if (responseBody.trim() === "") return undefined;
   try {
-    return JSON.parse(body) as unknown;
+    return JSON.parse(responseBody) as unknown;
   } catch {
     throw new Error("Durable chat history returned invalid JSON.");
   }
