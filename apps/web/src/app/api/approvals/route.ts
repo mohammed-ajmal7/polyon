@@ -7,6 +7,10 @@ import {
 } from "@/server/polyon-server";
 import { buildApprovalPreview, explainApprovalReason } from "@/server/approval-preview";
 import { readBoundedText } from "@/server/bounded-body";
+import {
+  getApprovalCheckpoint,
+  listPendingApprovalCheckpoints,
+} from "@/server/approval-state";
 
 export const runtime = "nodejs";
 const MAX_REQUEST_BYTES = 16_384;
@@ -14,23 +18,26 @@ const MAX_REQUEST_BYTES = 16_384;
 export async function GET(): Promise<Response> {
   if (!(await isAuthenticated()))
     return Response.json({ error: "Authentication required." }, { status: 401 });
-  const approvals = getPolyonComposition()
-    .stores.approvals.list()
-    .filter((item) => item.status === "PENDING")
-    .map((item) => ({
-      id: item.id,
-      action: item.action,
-      riskLevel: item.riskLevel,
-      reason: explainApprovalReason(item.reason),
-      requestedAt: item.requestedAt,
-      missionId: item.missionId,
-      taskId: item.taskId,
-      executionId: item.executionId,
-      toolId: item.toolId,
-      integrationId: item.integrationId,
-      preview: buildApprovalPreview(item),
-    }));
-  return Response.json({ approvals });
+  const local = getPolyonComposition();
+  const approvals =
+    process.env.VERCEL === "1"
+      ? (await listPendingApprovalCheckpoints()).map((checkpoint) => checkpoint.approval)
+      : local.stores.approvals.list().filter((item) => item.status === "PENDING");
+
+  const responseApprovals = approvals.map((item) => ({
+    id: item.id,
+    action: item.action,
+    riskLevel: item.riskLevel,
+    reason: explainApprovalReason(item.reason),
+    requestedAt: item.requestedAt,
+    missionId: item.missionId,
+    taskId: item.taskId,
+    executionId: item.executionId,
+    toolId: item.toolId,
+    integrationId: item.integrationId,
+    preview: buildApprovalPreview(item),
+  }));
+  return Response.json({ approvals: responseApprovals });
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -60,6 +67,28 @@ export async function POST(request: Request): Promise<Response> {
       throw new Error("Invalid approval status.");
     }
     const polyon = getPolyonComposition();
+
+    if (process.env.VERCEL === "1") {
+      const checkpoint = await getApprovalCheckpoint(approvalId);
+      if (checkpoint === undefined) throw new Error("Approval not found: " + approvalId + ".");
+      polyon.stores.approvals.save(checkpoint.approval);
+      if (checkpoint.execution !== undefined && isEntity(checkpoint.execution)) {
+        polyon.stores.executions.save(checkpoint.execution as never);
+      }
+      if (checkpoint.task !== undefined && isEntity(checkpoint.task)) {
+        polyon.stores.tasks.save(checkpoint.task as never);
+      }
+      if (checkpoint.mission !== undefined && isEntity(checkpoint.mission)) {
+        polyon.stores.missions.save(checkpoint.mission as never);
+      }
+      if (checkpoint.proposal !== undefined && isEntity(checkpoint.proposal)) {
+        polyon.stores.missionPlanProposals.save(checkpoint.proposal as never);
+      }
+      for (const task of checkpoint.tasks ?? []) {
+        if (isEntity(task)) polyon.stores.tasks.save(task as never);
+      }
+    }
+
     const approval = polyon.stores.approvals.get(approvalId);
     if (approval === undefined) throw new Error("Approval not found: " + approvalId + ".");
     const resolvedAt = new Date().toISOString();
@@ -152,4 +181,10 @@ export async function POST(request: Request): Promise<Response> {
       { status: 400 },
     );
   }
+}
+
+
+function isEntity(value: unknown): value is { readonly id: string } {
+  return typeof value === "object" && value !== null && !Array.isArray(value) &&
+    typeof (value as { id?: unknown }).id === "string";
 }

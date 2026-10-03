@@ -17,6 +17,7 @@ import {
   createPolyonComposition,
   type PolyonComposition,
 } from "@polyon/application";
+import { persistApprovalCheckpoint } from "./approval-state";
 import {
   buildModelRegistrations,
   parseModelProfiles,
@@ -33,6 +34,30 @@ export function getPolyonActorId(): string {
 export function getPolyonComposition(): PolyonComposition {
   if (globalState.__polyonComposition !== undefined) return globalState.__polyonComposition;
   const composition = createPolyonComposition(buildOptions());
+
+  // Vercel functions use ephemeral /tmp storage. Mirror approval checkpoints to
+  // the durable store so the workflow that creates an approval and the separate
+  // Approvals API instance observe the same pending request.
+  if (process.env.VERCEL === "1") {
+    composition.stores.subscribeCommittedEvents((event) => {
+      if (event.kind !== "APPROVAL_REQUESTED" && event.kind !== "APPROVAL_RESOLVED") return;
+      const eventData =
+        typeof event.data === "object" && event.data !== null
+          ? (event.data as { approvalRequestId?: unknown })
+          : undefined;
+      const approvalId = eventData?.approvalRequestId;
+      if (typeof approvalId !== "string") return;
+      const approval = composition.stores.approvals.get(approvalId);
+      if (approval === undefined) return;
+      void persistApprovalCheckpoint(composition, approval).catch((error: unknown) => {
+        console.error("POLYON durable approval checkpoint failed", {
+          approvalId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+    });
+  }
+
   if (process.env.POLYON_RUNTIME_AUTOSTART !== "false") composition.runtime.start();
   if (process.env.POLYON_JOB_RUNTIME_AUTOSTART !== "false") composition.jobRuntime.start();
   if (process.env.POLYON_SEMANTIC_INDEXING_AUTOSTART !== "false") {
