@@ -208,6 +208,7 @@ export default function HomePage() {
         setLastCommand(body.command ?? null);
         setRanMode({ mode: body.mode });
         setView(toRunView(body.mode, { result: body.result }));
+        storeCurrentConversationId(conversationId);
       })
       .catch(() => undefined);
 
