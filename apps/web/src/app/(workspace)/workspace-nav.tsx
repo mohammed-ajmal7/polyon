@@ -66,6 +66,13 @@ function RecentChats() {
             href={"/?conversation=" + encodeURIComponent(chat.runId)}
             prefetch={false}
             title={chat.command ?? "POLYON request"}
+            onClick={() => {
+              try {
+                window.localStorage.setItem("polyon.currentConversation", chat.runId);
+              } catch {
+                // The durable server history remains the source of truth if browser storage is unavailable.
+              }
+            }}
             className="block rounded-xl px-3 py-2 text-[11px] text-slate-500 transition hover:bg-white/[.035] hover:text-slate-200"
           >
             <div className="truncate">{chat.command ?? "POLYON request"}</div>
