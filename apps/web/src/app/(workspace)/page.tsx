@@ -38,24 +38,28 @@ const MODE_NAMES: Record<string, string> = {
   Mission: "Mission",
 };
 
-const STEP_LABELS: Record<string, string> = {
-  COLLECTIVE_STARTED: "Team assembled",
-  RESEARCH_STARTED: "Researching sources",
-  RESEARCH_FINDING: "A finding came in",
-  COLLECTIVE_CONTRIBUTION: "A specialist shared findings",
-  COLLECTIVE_CHALLENGE: "Specialists are challenging each other",
-  FACT_CHECK_STARTED: "Checking the important claims",
-  FACT_CHECK_RESULT: "A claim was checked",
-  DEBATE_CONTRIBUTION: "The team is debating",
-  COLLECTIVE_SYNTHESIZED: "Writing the answer",
-  RESEARCH_SYNTHESIZED: "Writing the answer",
-  DEEP_ANALYSIS_COMPLETED: "Finishing up",
-};
-
 interface StoredRun {
   readonly runId: string;
+  readonly conversationId: string;
   readonly command: string;
   readonly startedAt: number;
+}
+
+interface ChatMessage {
+  readonly id: string;
+  readonly role: "user" | "assistant";
+  readonly content: string;
+  readonly createdAt: string;
+  readonly mode?: string;
+  readonly result?: unknown;
+}
+
+interface ChatConversation {
+  readonly conversationId: string;
+  readonly title: string;
+  readonly messages: readonly ChatMessage[];
+  readonly createdAt: string;
+  readonly updatedAt: string;
 }
 
 const RUN_STORAGE_KEY = "polyon.activeRun";
@@ -67,9 +71,15 @@ function readStoredRun(): StoredRun | undefined {
     if (raw === null) return undefined;
     const parsed = JSON.parse(raw) as Partial<StoredRun>;
     return typeof parsed.runId === "string" &&
+      typeof parsed.conversationId === "string" &&
       typeof parsed.command === "string" &&
       typeof parsed.startedAt === "number"
-      ? { runId: parsed.runId, command: parsed.command, startedAt: parsed.startedAt }
+      ? {
+          runId: parsed.runId,
+          conversationId: parsed.conversationId,
+          command: parsed.command,
+          startedAt: parsed.startedAt,
+        }
       : undefined;
   } catch {
     return undefined;
@@ -81,7 +91,7 @@ function storeRun(run: StoredRun | undefined): void {
     if (run === undefined) window.sessionStorage.removeItem(RUN_STORAGE_KEY);
     else window.sessionStorage.setItem(RUN_STORAGE_KEY, JSON.stringify(run));
   } catch {
-    // Session storage is a convenience for resuming after reload; the run continues regardless.
+    // Durable server state remains authoritative if browser storage is unavailable.
   }
 }
 
@@ -104,13 +114,8 @@ function storeCurrentConversationId(conversationId: string | undefined): void {
       window.localStorage.setItem(CURRENT_CONVERSATION_STORAGE_KEY, conversationId);
     }
   } catch {
-    // The durable server history remains the source of truth if browser storage is unavailable.
+    // Server-side conversation storage is the source of truth.
   }
-}
-
-interface Progress {
-  readonly steps: readonly string[];
-  readonly messageCount: number;
 }
 
 export default function HomePage() {
@@ -122,10 +127,10 @@ export default function HomePage() {
   const [now, setNow] = useState(() => Date.now());
   const [progress, setProgress] = useState<Progress | null>(null);
   const [lastCommand, setLastCommand] = useState<string | null>(null);
-  const [view, setView] = useState<RunView | null>(null);
-  const [ranMode, setRanMode] = useState<{ mode: string; reason?: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [approvalsWaiting, setApprovalsWaiting] = useState(0);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [chat, setChat] = useState<ChatConversation | null>(null);
   const conversationRef = useRef<string | null>(null);
   const mountedRef = useRef(true);
 
@@ -138,7 +143,7 @@ export default function HomePage() {
         const body = (await response.json()) as { approvals?: unknown[] };
         if (!cancelled) setApprovalsWaiting(body.approvals?.length ?? 0);
       } catch {
-        // The banner is advisory; the Approvals page shows the authoritative list.
+        // The banner is advisory; the Approvals page is authoritative.
       }
     }
     void loadApprovals();
@@ -147,81 +152,79 @@ export default function HomePage() {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [view]);
+  }, [chat?.updatedAt]);
+
+  async function loadConversation(id: string): Promise<void> {
+    try {
+      const response = await fetch("/api/conversations/" + encodeURIComponent(id), {
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        if (response.status === 404) {
+          storeCurrentConversationId(undefined);
+          setConversationId(null);
+          setChat(null);
+        }
+        return;
+      }
+      const body = (await response.json()) as ChatConversation;
+      setConversationId(body.conversationId);
+      setChat(body);
+      storeCurrentConversationId(body.conversationId);
+      const latestAssistant = [...body.messages].reverse().find((message) => message.role === "assistant");
+      const latestUser = [...body.messages].reverse().find((message) => message.role === "user");
+      setLastCommand(latestUser?.content ?? null);
+
+    } catch {
+      setError("POLYON could not load this conversation.");
+    }
+  }
+
+  function openChat(id: string): void {
+    if (pending) return;
+    storeCurrentConversationId(id);
+    window.history.replaceState({}, "", "/?conversation=" + encodeURIComponent(id));
+    void loadConversation(id);
+  }
+
+  function newChat(): void {
+    if (pending) return;
+    storeCurrentConversationId(undefined);
+    window.history.replaceState({}, "", "/");
+    setConversationId(null);
+    setChat(null);
+    setCommand("");
+    setLastCommand(null);
+    setError(null);
+    setProgress(null);
+    setStartedAt(null);
+    window.dispatchEvent(new Event("polyon:chat-updated"));
+  }
+
+  useEffect(() => {
+    mountedRef.current = true;
+    const initialId = readCurrentConversationId();
+    if (initialId !== undefined) void loadConversation(initialId);
+
+    const handleOpen = (event: Event) => {
+      const id = (event as CustomEvent<string>).detail;
+      if (typeof id === "string" && id.trim() !== "") openChat(id);
+    };
+    const handleNew = () => newChat();
+    window.addEventListener("polyon:open-chat", handleOpen);
+    window.addEventListener("polyon:new-chat", handleNew);
+    return () => {
+      mountedRef.current = false;
+      window.removeEventListener("polyon:open-chat", handleOpen);
+      window.removeEventListener("polyon:new-chat", handleNew);
+    };
+  }, []);
 
   useEffect(() => {
     if (!pending) return;
     const tick = window.setInterval(() => setNow(Date.now()), 1_000);
-    const poll = window.setInterval(() => {
-      const conversationId = conversationRef.current;
-      if (conversationId === null) return;
-      void fetch("/api/conversations/" + encodeURIComponent(conversationId), { cache: "no-store" })
-        .then((response) => (response.ok ? response.json() : undefined))
-        .then((snapshot: { messages?: unknown[]; events?: { kind?: string }[] } | undefined) => {
-          if (snapshot === undefined) return;
-          const steps = (snapshot.events ?? [])
-            .map((event) => STEP_LABELS[event.kind ?? ""])
-            .filter((label): label is string => label !== undefined);
-          setProgress({ steps, messageCount: snapshot.messages?.length ?? 0 });
-        })
-        .catch(() => undefined);
-    }, 3_000);
-    return () => {
-      window.clearInterval(tick);
-      window.clearInterval(poll);
-    };
+    return () => window.clearInterval(tick);
   }, [pending]);
-
-  // Resume a request that was still running when the page was reloaded.
-  useEffect(() => {
-    const stored = readStoredRun();
-    if (stored !== undefined) {
-      void followRun(stored);
-      return () => {
-        mountedRef.current = false;
-      };
-    }
-
-    const conversationId = readCurrentConversationId();
-    if (conversationId === undefined) {
-      return () => {
-        mountedRef.current = false;
-      };
-    }
-
-    let cancelled = false;
-    void fetch("/api/conversations/" + encodeURIComponent(conversationId), { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : undefined))
-      .then((body: {
-        status?: "running" | "succeeded" | "failed";
-        mode?: string;
-        command?: string;
-        result?: unknown;
-        error?: string;
-      } | undefined) => {
-        if (cancelled || body === undefined || body.mode === undefined) return;
-        if (body.status === "failed") {
-          setError(body.error ?? "POLYON could not complete this request.");
-          return;
-        }
-        if (body.result === undefined) return;
-        setLastCommand(body.command ?? null);
-        setRanMode({ mode: body.mode });
-        setView(toRunView(body.mode, { result: body.result }));
-      })
-      .catch(() => undefined);
-
-    // A sidebar/recent-chat link can open /?conversation=<id>. Once restored, keep the
-    // URL clean while retaining the id in localStorage for the next navigation back to Command.
-    if (new URLSearchParams(window.location.search).has("conversation")) {
-      window.history.replaceState({}, "", "/");
-    }
-
-    return () => {
-      cancelled = true;
-      mountedRef.current = false;
-    };
-  }, []);
 
   async function followRun(run: StoredRun) {
     conversationRef.current = run.runId;
@@ -229,6 +232,7 @@ export default function HomePage() {
     setStartedAt(run.startedAt);
     setNow(Date.now());
     setLastCommand(run.command);
+
     try {
       while (mountedRef.current) {
         await new Promise((resolve) => window.setTimeout(resolve, 2_500));
@@ -240,12 +244,11 @@ export default function HomePage() {
           return;
         }
         if (response.status === 404) {
-          setError(
-            "POLYON could not find this request in durable run state. Anything already recorded is listed under Activity.",
-          );
+          setError("POLYON could not find this execution. The chat itself remains saved.");
           break;
         }
         if (!response.ok) continue;
+
         const body = (await response.json()) as {
           status: "running" | "succeeded" | "failed";
           mode: string;
@@ -253,15 +256,16 @@ export default function HomePage() {
           result?: unknown;
           error?: string;
         };
-        if (body.status === "running") continue;
-        setRanMode({
-          mode: body.mode,
-          ...(body.modeReason === undefined ? {} : { reason: body.modeReason }),
-        });
-        if (body.status === "failed") setError(body.error ?? "POLYON could not run this request.");
-        else {
-          setView(toRunView(body.mode, { result: body.result }));
-          storeCurrentConversationId(run.runId);
+        if (body.status === "running") {
+          setProgress({ steps: [], messageCount: chat?.messages.length ?? 0 });
+          continue;
+        }
+
+        if (body.status === "failed") {
+          setError(body.error ?? "POLYON could not run this request.");
+        } else {
+          await loadConversation(run.conversationId);
+          window.dispatchEvent(new Event("polyon:chat-updated"));
         }
         break;
       }
@@ -272,6 +276,7 @@ export default function HomePage() {
         setPending(false);
         conversationRef.current = null;
         storeRun(undefined);
+        setStartedAt(null);
       }
     }
   }
@@ -281,71 +286,94 @@ export default function HomePage() {
     const trimmed = command.trim();
     if (pending || trimmed === "") return;
 
-    const run: StoredRun = { runId: crypto.randomUUID(), command: trimmed, startedAt: Date.now() };
-    conversationRef.current = run.runId;
-    setPending(true);
-    setStartedAt(run.startedAt);
-    setNow(Date.now());
-    setProgress(null);
-    setView(null);
-    setRanMode(null);
-    setError(null);
+    const stableConversationId = conversationId ?? crypto.randomUUID();
+    const optimisticMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: trimmed,
+      createdAt: new Date().toISOString(),
+    };
+
+    const optimisticChat: ChatConversation = {
+      conversationId: stableConversationId,
+      title: chat?.title ?? trimmed.slice(0, 56),
+      messages: [...(chat?.messages ?? []), optimisticMessage],
+      createdAt: chat?.createdAt ?? optimisticMessage.createdAt,
+      updatedAt: optimisticMessage.createdAt,
+    };
+
+    setConversationId(stableConversationId);
+    setChat(optimisticChat);
     setLastCommand(trimmed);
+    setError(null);
+    setProgress(null);
+    setPending(true);
+    setStartedAt(Date.now());
+    setNow(Date.now());
+    storeCurrentConversationId(stableConversationId);
+    window.history.replaceState({}, "", "/");
+    window.dispatchEvent(new Event("polyon:chat-updated"));
 
     try {
-      // Persist the run id before the network request starts. On Vercel the server records
-      // the same id durably, so a browser reload can resume polling while the request runs.
-      storeRun(run);
-
       const response = await fetch("/api/execute", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           mode,
           command: trimmed,
-          conversationId: run.runId,
+          conversationId: stableConversationId,
           async: true,
           ...(mode === "DeepAnalysis" || mode === "Auto" ? { maxDebateRounds: 1 } : {}),
         }),
       });
+
       const body = (await response.json().catch(() => ({}))) as {
         error?: string;
+        runId?: string;
+        conversationId?: string;
         mode?: string;
         modeReason?: string;
         result?: unknown;
       };
+
       if (response.status === 401) {
         window.location.assign("/login");
         return;
       }
+
       if (!response.ok) {
         setError(body.error ?? "POLYON could not run this request.");
-        setPending(false);
-        conversationRef.current = null;
         return;
       }
+
       setCommand("");
 
-      // Async execution is durable on Vercel through Workflow + Supabase run state.
-      // Local/self-hosted runtimes keep using the resumable 202 + /api/runs/:id flow.
-      if (response.status === 201 && body.mode !== undefined) {
-        setRanMode({
-          mode: body.mode,
-          ...(body.modeReason === undefined ? {} : { reason: body.modeReason }),
-        });
-        setView(toRunView(body.mode, { result: body.result }));
-        setPending(false);
-        conversationRef.current = null;
-        storeRun(undefined);
-        storeCurrentConversationId(run.runId);
+      if (response.status === 201 && body.mode !== undefined && body.result !== undefined) {
+        await loadConversation(stableConversationId);
+        window.dispatchEvent(new Event("polyon:chat-updated"));
         return;
       }
 
+      if (body.runId === undefined) {
+        setError("POLYON accepted the message but did not return an execution id.");
+        return;
+      }
+
+      const run: StoredRun = {
+        runId: body.runId,
+        conversationId: body.conversationId ?? stableConversationId,
+        command: trimmed,
+        startedAt: Date.now(),
+      };
+      storeRun(run);
       await followRun(run);
     } catch {
       setError("POLYON is not reachable. Check that it is running.");
-      setPending(false);
-      conversationRef.current = null;
+    } finally {
+      if (mountedRef.current && !conversationRef.current) {
+        setPending(false);
+        setStartedAt(null);
+      }
     }
   }
 
@@ -357,13 +385,57 @@ export default function HomePage() {
   }
 
   const elapsed = startedAt === null ? 0 : Math.max(0, Math.floor((now - startedAt) / 1000));
+  const messages = chat?.messages ?? [];
 
   return (
     <div className="mx-auto max-w-[1180px]">
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-medium uppercase tracking-[.2em] text-slate-500">Conversation</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-[-.03em] text-white sm:text-3xl">
+            {chat?.title ?? "New chat"}
+          </h1>
+        </div>
+        <button
+          type="button"
+          onClick={newChat}
+          disabled={pending}
+          className="rounded-xl border border-white/10 bg-white/[.04] px-3 py-2 text-xs font-medium text-slate-200 transition hover:bg-white/[.08] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          + New chat
+        </button>
+      </div>
+
+      {messages.length > 0 ? (
+        <section className="mb-8 space-y-5" aria-label="Conversation messages">
+          {messages.map((message) => (
+            <div key={message.id} className={message.role === "user" ? "flex justify-end" : "flex justify-start"}>
+              {message.role === "user" ? (
+                <div className="max-w-[82%] rounded-3xl rounded-br-md bg-violet-300/15 px-4 py-3 text-sm leading-6 text-violet-50 ring-1 ring-violet-300/20">
+                  {message.content}
+                </div>
+              ) : message.result !== undefined && message.mode !== undefined ? (
+                <div className="w-full max-w-[900px]">
+                  <AnswerCard
+                    view={toRunView(message.mode, { result: message.result })}
+                    ranMode={{ mode: message.mode }}
+                    command={null}
+                  />
+                </div>
+              ) : (
+                <div className="max-w-[82%] rounded-3xl rounded-bl-md border border-white/10 bg-white/[.035] px-4 py-3 text-sm leading-6 text-slate-200">
+                  <MarkdownText text={message.content} />
+                </div>
+              )}
+            </div>
+          ))}
+        </section>
+      ) : null}
+
       {approvalsWaiting > 0 ? (
         <Link
           href="/approvals"
-          className="flex items-center justify-between rounded-2xl border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-sm text-amber-100 transition hover:bg-amber-300/15 focus-visible:ring-2 focus-visible:ring-amber-200/60"
+          className="mb-5 flex items-center justify-between rounded-2xl border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-sm text-amber-100 transition hover:bg-amber-300/15 focus-visible:ring-2 focus-visible:ring-amber-200/60"
         >
           <span>
             {approvalsWaiting === 1
@@ -375,140 +447,127 @@ export default function HomePage() {
       ) : null}
 
       <section className="mb-8">
-        <h1 className="text-3xl font-semibold tracking-[-.03em] text-white sm:text-4xl">
-          What are we solving?
-        </h1>
-        <p className="mt-2 text-sm text-slate-400">
-          Ask a question or describe a task. Your AI team works on it, and anything consequential
-          waits for your approval.
-        </p>
+        {messages.length === 0 ? (
+          <>
+            <h2 className="text-3xl font-semibold tracking-[-.03em] text-white sm:text-4xl">
+              What are we solving?
+            </h2>
+            <p className="mt-2 text-sm text-slate-400">
+              Ask a question or describe a task. Keep sending messages here until you press New chat.
+            </p>
+          </>
+        ) : (
+          <p className="mb-3 text-xs text-slate-500">Continue this conversation</p>
+        )}
 
-        <div className="polyon-panel polyon-glow overflow-hidden rounded-[28px] mt-6"><form onSubmit={(event) => void submit(event)} className="relative p-4 sm:p-6">
-          <label htmlFor="command" className="sr-only">
-            Request for POLYON
-          </label>
-          <div className="relative rounded-2xl border border-white/[.06] bg-black/10 p-3 focus-within:border-violet-300/20 focus-within:ring-1 focus-within:ring-violet-300/20">
-            <textarea
-              id="command"
-              value={command}
-              onChange={(event) => setCommand(event.target.value)}
-              onKeyDown={onKeyDown}
-              disabled={pending}
-              rows={3}
-              placeholder="Describe the outcome you want…"
-              className="w-full resize-none bg-transparent px-1 py-1 text-[18px] leading-8 text-slate-100 outline-none placeholder:text-slate-600 disabled:opacity-60 sm:text-xl"
-            />
-            <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-white/[.06] pt-4">
-              <div
-                role="radiogroup"
-                aria-label="How much of the team to involve"
-                className="flex flex-wrap gap-1"
-              >
-                {DEPTHS.map((depth) => (
+        <div className="polyon-panel polyon-glow overflow-hidden rounded-[28px]">
+          <form onSubmit={(event) => void submit(event)} className="relative p-4 sm:p-6">
+            <label htmlFor="command" className="sr-only">Message POLYON</label>
+            <div className="relative rounded-2xl border border-white/[.06] bg-black/10 p-3 focus-within:border-violet-300/20 focus-within:ring-1 focus-within:ring-violet-300/20">
+              <textarea
+                id="command"
+                value={command}
+                onChange={(event) => setCommand(event.target.value)}
+                onKeyDown={onKeyDown}
+                disabled={pending}
+                rows={3}
+                placeholder={messages.length === 0 ? "Start a new conversation…" : "Reply in this conversation…"}
+                className="w-full resize-none bg-transparent px-1 py-1 text-[18px] leading-8 text-slate-100 outline-none placeholder:text-slate-600 disabled:opacity-60 sm:text-xl"
+              />
+              <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-white/[.06] pt-4">
+                <div role="radiogroup" aria-label="How much of the team to involve" className="flex flex-wrap gap-1">
+                  {DEPTHS.map((depth) => (
+                    <button
+                      key={depth.mode}
+                      type="button"
+                      role="radio"
+                      aria-checked={mode === depth.mode}
+                      title={depth.hint}
+                      disabled={pending}
+                      onClick={() => setMode(depth.mode)}
+                      className={
+                        "rounded-full px-3 py-1.5 text-xs transition focus-visible:ring-2 focus-visible:ring-violet-300/60 disabled:opacity-60 " +
+                        (mode === depth.mode
+                          ? "bg-violet-300/20 text-violet-100 ring-1 ring-violet-300/40"
+                          : "text-slate-300 hover:bg-white/5")
+                      }
+                    >
+                      {depth.label}
+                    </button>
+                  ))}
                   <button
-                    key={depth.mode}
                     type="button"
-                    role="radio"
-                    aria-checked={mode === depth.mode}
-                    title={depth.hint}
+                    aria-expanded={showAdvanced}
                     disabled={pending}
-                    onClick={() => setMode(depth.mode)}
-                    className={
-                      "rounded-full px-3 py-1.5 text-xs transition focus-visible:ring-2 focus-visible:ring-violet-300/60 disabled:opacity-60 " +
-                      (mode === depth.mode
-                        ? "bg-violet-300/20 text-violet-100 ring-1 ring-violet-300/40"
-                        : "text-slate-300 hover:bg-white/5")
-                    }
+                    onClick={() => setShowAdvanced((value) => !value)}
+                    className="rounded-full px-3 py-1.5 text-xs text-slate-400 hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-violet-300/60"
                   >
-                    {depth.label}
+                    {ADVANCED.some((item) => item.mode === mode) ? MODE_NAMES[mode] : "More…"}
                   </button>
-                ))}
+                </div>
                 <button
-                  type="button"
-                  aria-expanded={showAdvanced}
-                  disabled={pending}
-                  onClick={() => setShowAdvanced((value) => !value)}
-                  className="rounded-full px-3 py-1.5 text-xs text-slate-400 hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-violet-300/60"
+                  type="submit"
+                  disabled={pending || command.trim() === ""}
+                  className="ml-auto rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-violet-50 focus-visible:ring-2 focus-visible:ring-violet-200/60 disabled:cursor-not-allowed disabled:opacity-35"
                 >
-                  {ADVANCED.some((item) => item.mode === mode) ? MODE_NAMES[mode] : "More…"}
+                  {pending ? "Working…" : "Send"}
                 </button>
               </div>
-              <button
-                type="submit"
-                disabled={pending || command.trim() === ""}
-                className="ml-auto rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-violet-50 focus-visible:ring-2 focus-visible:ring-violet-300/60 disabled:cursor-not-allowed disabled:opacity-35"
-              >
-                {pending ? "Working…" : "Send"}
-              </button>
+              {showAdvanced ? (
+                <div className="mt-3 grid gap-1 border-t border-white/8 pt-3 sm:grid-cols-2">
+                  {ADVANCED.map((item) => (
+                    <button
+                      key={item.mode}
+                      type="button"
+                      disabled={pending}
+                      onClick={() => {
+                        setMode(item.mode);
+                        setShowAdvanced(false);
+                      }}
+                      className="rounded-xl px-3 py-2 text-left text-xs text-slate-300 hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-violet-300/60"
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
-            {showAdvanced ? (
-              <div className="mt-3 grid gap-1 border-t border-white/8 pt-3 sm:grid-cols-2">
-                {ADVANCED.map((item) => (
-                  <button
-                    key={item.mode}
-                    type="button"
-                    disabled={pending}
-                    onClick={() => {
-                      setMode(item.mode);
-                      setShowAdvanced(false);
-                    }}
-                    className="rounded-xl px-3 py-2 text-left text-xs text-slate-300 hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-violet-300/60"
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </div>
-          <p className="mt-2 px-2 text-xs text-slate-400">
-            {DEPTHS.find((depth) => depth.mode === mode)?.hint ??
-              "Advanced mode. Enter sends, Shift+Enter adds a new line."}
-          </p>
-        </form>
+            <p className="mt-2 px-2 text-xs text-slate-400">
+              {DEPTHS.find((depth) => depth.mode === mode)?.hint ??
+                "Advanced mode. Enter sends, Shift+Enter adds a new line."}
+            </p>
+          </form>
         </div>
       </section>
 
       {pending ? (
-        <section
-          aria-live="polite"
-          className="rounded-3xl border border-violet-300/15 bg-violet-300/[0.04] p-5"
-        >
+        <section aria-live="polite" className="rounded-3xl border border-violet-300/15 bg-violet-300/[0.04] p-5">
           <div className="flex items-center gap-3">
-            <span
-              className="size-2.5 animate-pulse rounded-full bg-violet-300"
-              aria-hidden="true"
-            />
+            <span className="size-2.5 animate-pulse rounded-full bg-violet-300" aria-hidden="true" />
             <h2 className="text-sm font-medium text-violet-100">POLYON is working…</h2>
-            <span className="ml-auto font-mono text-xs text-slate-400">
-              {formatElapsed(elapsed)}
-            </span>
+            <span className="ml-auto font-mono text-xs text-slate-400">{formatElapsed(elapsed)}</span>
           </div>
           <p className="mt-2 text-sm text-slate-300">“{lastCommand}”</p>
           <ul className="mt-3 space-y-1 text-sm text-slate-300">
             {(progress?.steps.length ?? 0) === 0 ? (
-              <li>Getting the team started.</li>
+              <li>Working with the AI team.</li>
             ) : (
               collapseSteps(progress?.steps ?? []).map((step) => <li key={step}>✓ {step}</li>)
             )}
           </ul>
-          {elapsed > 60 ? (
-            <p className="mt-3 text-xs text-slate-400">
-              Team and deep requests make many model calls. On a local model this can take several
-              minutes; you can leave this page open.
-            </p>
-          ) : null}
         </section>
       ) : null}
 
       {error !== null ? (
-        <p role="alert" className="rounded-2xl bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
-          {error}
-        </p>
+        <p role="alert" className="rounded-2xl bg-rose-400/10 px-4 py-3 text-sm text-rose-100">{error}</p>
       ) : null}
-
-      {view !== null ? <AnswerCard view={view} ranMode={ranMode} command={lastCommand} /> : null}
     </div>
   );
+}
+
+interface Progress {
+  readonly steps: readonly string[];
+  readonly messageCount: number;
 }
 
 function AnswerCard({

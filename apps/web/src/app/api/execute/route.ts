@@ -1,5 +1,6 @@
 import { isAuthenticated } from "@/server/auth";
 import { randomUUID } from "node:crypto";
+import { appendChatMessage } from "@/server/chat-history";
 
 import { classifyTaskMode, type CommandMode } from "@polyon/application";
 import type { BuiltInAgentRoleId } from "@polyon/contracts";
@@ -59,11 +60,23 @@ export async function POST(request: Request): Promise<Response> {
     const requiredCapabilityIds = parseStringArray(input.requiredCapabilityIds, 16);
 
     const conversationId = parseOptionalString(input.conversationId) ?? randomUUID();
+    const runId = randomUUID();
     const messageId = parseOptionalString(input.messageId) ?? randomUUID();
     const eventId = parseOptionalString(input.eventId) ?? randomUUID();
 
+    await appendChatMessage({
+      conversationId,
+      message: {
+        id: messageId,
+        role: "user",
+        content: command,
+        createdAt: new Date().toISOString(),
+      },
+    });
+
     const taskInput: ExecuteTaskInput = {
-      runId: conversationId,
+      runId,
+      conversationId,
       mode,
       ...(modeReason === undefined ? {} : { modeReason }),
       command,
@@ -95,14 +108,28 @@ export async function POST(request: Request): Promise<Response> {
     if (input.async === true && process.env.VERCEL !== "1") {
       const run = startBackgroundRun(
         {
-          runId: conversationId,
+          runId,
           mode,
           ...(modeReason === undefined ? {} : { modeReason }),
         },
-        () => executePolyonTask(taskInput),
+        async () => {
+          const result = await executePolyonTask(taskInput);
+          await appendChatMessage({
+            conversationId,
+            message: {
+              id: randomUUID(),
+              role: "assistant",
+              content: "POLYON response",
+              createdAt: new Date().toISOString(),
+              mode,
+              result,
+            },
+          });
+          return result;
+        },
       );
       return Response.json(
-        { runId: run.runId, conversationId: run.runId, mode, modeReason, status: run.status },
+        { runId: run.runId, conversationId, mode, modeReason, status: run.status },
         { status: 202 },
       );
     }
@@ -111,7 +138,7 @@ export async function POST(request: Request): Promise<Response> {
       // Queue the durable workflow and return immediately. The workflow owns execution and
       // persists terminal state, so no Vercel request needs to stay alive for the model calls.
       const run = await createPersistentBackgroundRun({
-        runId: conversationId,
+        runId,
         mode,
         ...(modeReason === undefined ? {} : { modeReason }),
         startedAt: new Date().toISOString(),
@@ -123,7 +150,7 @@ export async function POST(request: Request): Promise<Response> {
           {
             runId: run.runId,
             workflowRunId: workflowRun.runId,
-            conversationId: run.runId,
+            conversationId,
             mode,
             modeReason,
             status: run.status,
@@ -139,7 +166,18 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     const result = await executePolyonTask(taskInput);
-    return Response.json({ mode, modeReason, result }, { status: 201 });
+    await appendChatMessage({
+      conversationId,
+      message: {
+        id: randomUUID(),
+        role: "assistant",
+        content: "POLYON response",
+        createdAt: new Date().toISOString(),
+        mode,
+        result,
+      },
+    });
+    return Response.json({ runId, conversationId, mode, modeReason, result }, { status: 201 });
   } catch (error) {
     if (error instanceof BackgroundRunLimitError) {
       return Response.json({ error: error.message }, { status: 429 });
