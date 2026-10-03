@@ -31,5 +31,11 @@
         "^test"
       ]
     }
-  }
+  },
+  "globalEnv": [
+    "POLYON_DATA_DIR",
+    "POLYON_ACTOR_ID",
+    "POLYON_RUNTIME_AUTOSTART",
+    "POLYON_JOB_RUNTIME_AUTOSTART"
+  ]
 }
