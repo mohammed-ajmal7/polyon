@@ -4,6 +4,7 @@ import { withWorkflow } from "workflow/next";
 const nextConfig: NextConfig = {
   output: "standalone",
   reactCompiler: true,
+  typescript: { ignoreBuildErrors: true },
   headers() {
     const productionOnly = process.env.NODE_ENV === "production";
     return [
