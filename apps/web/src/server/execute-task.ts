@@ -48,7 +48,7 @@ export async function executePolyonTask(input: ExecuteTaskInput): Promise<unknow
     mode: input.mode,
     command: input.command,
     actorId,
-    conversationId: input.runId,
+    conversationId: input.conversationId,
     messageId: input.messageId,
     eventId: input.eventId,
     participantIds: [...new Set(participantIds)],
