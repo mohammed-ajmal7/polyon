@@ -119,7 +119,7 @@ function sealPayload(value: unknown): string {
     return `plain.${Buffer.from(JSON.stringify(value), "utf8").toString("base64url")}`;
   }
   const iv = randomBytes(12);
-  const key = createHash("sha256").update(secret).digest();
+  const key = Buffer.from(createHash("sha256").update(secret).digest("hex"), "hex");
   const cipher = createCipheriv("aes-256-gcm", key, iv);
   const ciphertext = Buffer.concat([
     cipher.update(JSON.stringify(value), "utf8"),
