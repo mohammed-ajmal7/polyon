@@ -112,7 +112,21 @@ export async function POST(request: Request): Promise<Response> {
           mode,
           ...(modeReason === undefined ? {} : { modeReason }),
         },
-        () => executePolyonTask(taskInput),
+        async () => {
+          const result = await executePolyonTask(taskInput);
+          await appendChatMessage({
+            conversationId,
+            message: {
+              id: randomUUID(),
+              role: "assistant",
+              content: "POLYON response",
+              createdAt: new Date().toISOString(),
+              mode,
+              result,
+            },
+          });
+          return result;
+        },
       );
       return Response.json(
         { runId: run.runId, conversationId, mode, modeReason, status: run.status },
