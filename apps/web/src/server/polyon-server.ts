@@ -41,7 +41,11 @@ export function getPolyonComposition(): PolyonComposition {
   if (process.env.VERCEL === "1") {
     composition.stores.subscribeCommittedEvents((event) => {
       if (event.kind !== "APPROVAL_REQUESTED" && event.kind !== "APPROVAL_RESOLVED") return;
-      const approvalId = event.data.approvalRequestId;
+      const eventData =
+        typeof event.data === "object" && event.data !== null
+          ? (event.data as { approvalRequestId?: unknown })
+          : undefined;
+      const approvalId = eventData?.approvalRequestId;
       if (typeof approvalId !== "string") return;
       const approval = composition.stores.approvals.get(approvalId);
       if (approval === undefined) return;
