@@ -124,7 +124,7 @@ export async function POST(request: Request): Promise<Response> {
       // Queue the durable workflow and return immediately. The workflow owns execution and
       // persists terminal state, so no Vercel request needs to stay alive for the model calls.
       const run = await createPersistentBackgroundRun({
-        runId: conversationId,
+        runId,
         mode,
         ...(modeReason === undefined ? {} : { modeReason }),
         startedAt: new Date().toISOString(),
