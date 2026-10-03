@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { MarkdownText } from "@/components/markdown-text";
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 
 import { agentLabel, toRunView, type RunView } from "@/lib/run-result";
@@ -468,9 +469,7 @@ function AnswerCard({
       </header>
 
       {view.answer === undefined ? null : (
-        <div className="mt-4 text-[15px] leading-7 whitespace-pre-wrap text-slate-100">
-          {view.answer}
-        </div>
+        <div className="mt-4"><MarkdownText text={view.answer} /></div>
       )}
 
       {view.approvalsWaiting > 0 ? (
