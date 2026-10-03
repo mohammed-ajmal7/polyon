@@ -9,6 +9,6 @@
     }
   },
   "installCommand": "pnpm install --no-frozen-lockfile",
-  "buildCommand": "pnpm --filter web typecheck > public/typecheck-diagnostic.txt 2>&1 || true; pnpm build",
+  "buildCommand": "pnpm build",
   "ignoreCommand": "exit 1"
 }
