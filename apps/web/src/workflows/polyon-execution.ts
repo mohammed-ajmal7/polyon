@@ -2,6 +2,7 @@ import {
   getPersistentBackgroundRun,
   updatePersistentBackgroundRun,
 } from "@/server/run-registry";
+import { appendChatMessage } from "@/server/chat-history";
 import { executePolyonTask, type ExecuteTaskInput } from "@/server/execute-task";
 
 export async function polyonExecutionWorkflow(input: ExecuteTaskInput): Promise<unknown> {
@@ -28,6 +29,18 @@ async function executePolyonExecutionStep(input: ExecuteTaskInput): Promise<unkn
       status: "succeeded",
       finishedAt: new Date().toISOString(),
       result,
+    });
+
+    await appendChatMessage({
+      conversationId: input.conversationId,
+      message: {
+        id: input.messageId + ":assistant",
+        role: "assistant",
+        content: "POLYON response",
+        createdAt: new Date().toISOString(),
+        mode: input.mode,
+        result,
+      },
     });
 
     return result;
