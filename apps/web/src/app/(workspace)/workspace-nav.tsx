@@ -2,21 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
-
-const items = [
-  { href: "/", label: "Command", icon: "⌘", section: "Operate" },
-  { href: "/missions", label: "Missions", icon: "◇", section: "Operate" },
-  { href: "/approvals", label: "Approvals", icon: "✓", section: "Govern" },
-  { href: "/executions", label: "Executions", icon: "▤", section: "Govern" },
-  { href: "/agents", label: "AI Team", icon: "◉", section: "Intelligence" },
-  { href: "/research", label: "Research", icon: "⌕", section: "Intelligence" },
-  { href: "/memory", label: "Memory", icon: "▣", section: "Knowledge" },
-  { href: "/evidence", label: "Evidence", icon: "◫", section: "Knowledge" },
-  { href: "/artifacts", label: "Artifacts", icon: "□", section: "Knowledge" },
-  { href: "/activity", label: "Activity", icon: "⌁", section: "Observe" },
-  { href: "/settings", label: "Settings", icon: "⚙", section: "System" },
-] as const;
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 interface RecentChat {
   readonly conversationId: string;
@@ -28,21 +14,42 @@ interface RecentChat {
 
 const CURRENT_CONVERSATION_STORAGE_KEY = "polyon.currentConversation";
 
+function dayGroup(value: string): "Today" | "Yesterday" | "Last 7 days" | "Older" {
+  const date = new Date(value);
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const time = date.getTime();
+  const day = 86_400_000;
+  if (time >= start) return "Today";
+  if (time >= start - day) return "Yesterday";
+  if (time >= start - day * 7) return "Last 7 days";
+  return "Older";
+}
+
+function timeLabel(value: string): string {
+  const date = new Date(value);
+  const now = new Date();
+  const sameYear = date.getFullYear() === now.getFullYear();
+  return sameYear
+    ? new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit", hour12: false }).format(date)
+    : new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date);
+}
+
 export function WorkspaceNav({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const groups = [...new Set(items.map((item) => item.section))];
   const [chats, setChats] = useState<readonly RecentChat[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   async function refreshChats() {
     try {
-      const response = await fetch("/api/conversations?limit=30", { cache: "no-store" });
+      const response = await fetch("/api/conversations?limit=50", { cache: "no-store" });
       if (!response.ok) return;
       const body = (await response.json()) as { conversations?: RecentChat[] };
       setChats(body.conversations ?? []);
     } catch {
-      // Chat navigation is supplementary; Command can still open directly.
+      // Conversation history remains optional UI state.
     }
   }
 
@@ -53,16 +60,10 @@ export function WorkspaceNav({ children }: { children: ReactNode }) {
       setActiveChatId(null);
     }
     void refreshChats();
-
     const onUpdate = () => {
-      try {
-        setActiveChatId(window.localStorage.getItem(CURRENT_CONVERSATION_STORAGE_KEY));
-      } catch {
-        setActiveChatId(null);
-      }
+      try { setActiveChatId(window.localStorage.getItem(CURRENT_CONVERSATION_STORAGE_KEY)); } catch { setActiveChatId(null); }
       void refreshChats();
     };
-
     window.addEventListener("polyon:chat-updated", onUpdate);
     const interval = window.setInterval(() => void refreshChats(), 15_000);
     return () => {
@@ -71,26 +72,22 @@ export function WorkspaceNav({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const grouped = useMemo(() => {
+    const filtered = chats.filter((chat) => chat.title.toLowerCase().includes(search.trim().toLowerCase()));
+    const groups: Record<string, RecentChat[]> = { Today: [], Yesterday: [], "Last 7 days": [], Older: [] };
+    for (const chat of filtered) groups[dayGroup(chat.updatedAt)].push(chat);
+    return groups;
+  }, [chats, search]);
+
   function handleNewChat() {
-    try {
-      window.localStorage.removeItem(CURRENT_CONVERSATION_STORAGE_KEY);
-    } catch {
-      // Server remains authoritative.
-    }
+    try { window.localStorage.removeItem(CURRENT_CONVERSATION_STORAGE_KEY); } catch {}
     setActiveChatId(null);
-    if (pathname === "/") {
-      window.dispatchEvent(new Event("polyon:new-chat"));
-    } else {
-      router.push("/");
-    }
+    if (pathname === "/") window.dispatchEvent(new Event("polyon:new-chat"));
+    else router.push("/");
   }
 
   function handleOpenChat(id: string) {
-    try {
-      window.localStorage.setItem(CURRENT_CONVERSATION_STORAGE_KEY, id);
-    } catch {
-      // Server remains authoritative.
-    }
+    try { window.localStorage.setItem(CURRENT_CONVERSATION_STORAGE_KEY, id); } catch {}
     setActiveChatId(id);
     if (pathname === "/") {
       window.history.replaceState({}, "", "/?conversation=" + encodeURIComponent(id));
@@ -101,176 +98,64 @@ export function WorkspaceNav({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#05070b] text-slate-100">
-      <div className="pointer-events-none fixed inset-0 polyon-grid opacity-70" />
-      <div className="relative mx-auto flex min-h-screen max-w-[1800px]">
-        <aside className="hidden w-[270px] shrink-0 border-r border-white/[.07] bg-[#070a10]/90 px-4 py-5 backdrop-blur-2xl lg:flex lg:flex-col">
-          <Link href="/" className="flex items-center gap-3 px-2">
-            <BrandMark />
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[15px] font-bold tracking-[.2em] text-white">POLYON</span>
-                <span className="rounded-full border border-violet-300/20 bg-violet-300/10 px-1.5 py-0.5 text-[8px] font-semibold text-violet-200">HQ</span>
-              </div>
-              <div className="mt-0.5 text-[10px] text-slate-500">Many intelligences. One command.</div>
-            </div>
-          </Link>
-
-          <button
-            type="button"
-            onClick={handleNewChat}
-            className="mt-5 flex items-center justify-center gap-2 rounded-xl bg-white px-3 py-2.5 text-xs font-semibold text-slate-950 transition hover:bg-violet-50 focus-visible:ring-2 focus-visible:ring-violet-200/60"
-          >
-            <span className="text-base leading-none">＋</span>
-            New chat
-          </button>
-
-          <div className="mt-5 rounded-2xl border border-emerald-300/10 bg-emerald-300/[.035] p-3.5">
-            <div className="flex items-center gap-2">
-              <span className="polyon-dot size-2 rounded-full bg-emerald-300 text-emerald-300" />
-              <span className="text-xs font-medium text-emerald-100">Human control active</span>
-              <span className="ml-auto text-[9px] font-semibold tracking-wider text-emerald-300/60">LIVE</span>
-            </div>
-            <p className="mt-2 text-[11px] leading-4 text-slate-500">Policy, approvals and execution gates protect consequential actions.</p>
+    <div className="min-h-screen bg-[#0a0c10] text-slate-100">
+      <div className="flex min-h-screen">
+        <aside className="hidden w-[350px] shrink-0 border-r border-white/[.055] bg-[#0d0f14] lg:flex lg:flex-col">
+          <div className="flex h-[84px] items-center justify-between border-b border-white/[.055] px-8">
+            <Link href="/" className="flex items-center gap-3">
+              <div className="text-[25px] leading-none text-white">✦</div>
+              <span className="text-[20px] font-semibold tracking-[.02em] text-slate-100">POLYON</span>
+            </Link>
+            <Link href="/approvals" title="Open approvals" className="grid size-8 place-items-center rounded-lg text-slate-500 hover:bg-white/[.05] hover:text-slate-200">
+              <svg viewBox="0 0 24 24" className="size-[18px]" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="5" y="5" width="14" height="14" rx="3"/><path d="M9 9h6v6H9z"/></svg>
+            </Link>
           </div>
 
-          <section className="mt-5 min-h-0">
-            <div className="polyon-kicker mb-2 px-2">CHATS</div>
-            <div className="max-h-[34vh] space-y-0.5 overflow-y-auto pr-1">
-              {chats.length === 0 ? (
-                <p className="px-2 py-3 text-[11px] text-slate-600">Your conversations will appear here.</p>
-              ) : (
-                chats.map((chat) => (
-                  <button
-                    key={chat.conversationId}
-                    type="button"
-                    onClick={() => handleOpenChat(chat.conversationId)}
-                    title={chat.title}
-                    className={
-                      "block w-full rounded-xl px-3 py-2 text-left text-[11px] transition " +
-                      (activeChatId === chat.conversationId
-                        ? "bg-violet-300/10 text-violet-100 ring-1 ring-violet-300/15"
-                        : "text-slate-500 hover:bg-white/[.035] hover:text-slate-200")
-                    }
-                  >
-                    <div className="truncate">{chat.title}</div>
-                    <div className="mt-0.5 text-[9px] text-slate-700">
-                      {chat.messageCount} {chat.messageCount === 1 ? "message" : "messages"}
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
-          </section>
+          <div className="px-5 pt-6">
+            <button type="button" onClick={handleNewChat} className="flex h-[53px] w-full items-center justify-center gap-2 rounded-[13px] bg-[#7478f2] text-[15px] font-medium text-white shadow-[0_7px_25px_rgba(116,120,242,.2)] transition hover:bg-[#7f83ff]">
+              <span className="text-xl font-light">＋</span> New chat
+            </button>
 
-          <nav className="mt-5 flex-1 overflow-y-auto border-t border-white/[.06] pt-4 pr-1">
-            {groups.map((section) => (
-              <div key={section} className="mb-5">
-                <div className="polyon-kicker mb-2 px-2">{section}</div>
-                <div className="space-y-0.5">
-                  {items.filter((item) => item.section === section).map((item) => {
-                    const active = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(item.href + "/");
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        prefetch={false}
-                        className={
-                          "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] transition " +
-                          (active
-                            ? "bg-white/[.075] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,.07)]"
-                            : "text-slate-500 hover:bg-white/[.035] hover:text-slate-200")
-                        }
-                      >
-                        <span className={"grid size-6 place-items-center rounded-lg text-[13px] " + (active ? "bg-violet-300/10 text-violet-200" : "text-slate-600 group-hover:text-slate-300")}>
-                          {item.icon}
-                        </span>
-                        <span className="flex-1">{item.label}</span>
-                        {item.href === "/approvals" ? <span className="size-1.5 rounded-full bg-amber-300" /> : null}
-                        {active ? <span className="h-4 w-px bg-violet-300/70" /> : null}
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </nav>
-
-          <div className="border-t border-white/[.07] pt-4">
-            <div className="flex items-center justify-between px-2">
-              <div>
-                <div className="text-[10px] font-medium text-slate-500">PERSONAL INSTANCE</div>
-                <div className="mt-1 font-mono text-[10px] text-slate-600">POLYON / 0.1 RC</div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  void fetch("/api/auth", { method: "DELETE" }).finally(() => {
-                    router.replace("/login");
-                    router.refresh();
-                  });
-                }}
-                className="rounded-lg px-2 py-1.5 text-[11px] text-slate-500 hover:bg-white/5 hover:text-slate-200"
-              >
-                Sign out
-              </button>
+            <div className="relative mt-5">
+              <svg viewBox="0 0 24 24" className="pointer-events-none absolute left-4 top-1/2 size-[18px] -translate-y-1/2 text-slate-500" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search conversations..." className="h-[45px] w-full rounded-[11px] border border-white/[.08] bg-[#11141a] pl-11 pr-14 text-[13px] text-slate-200 outline-none placeholder:text-slate-500 focus:border-white/[.15]" />
+              <kbd className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md border border-white/[.08] bg-white/[.025] px-2 py-1 font-mono text-[10px] text-slate-500">⌘ K</kbd>
             </div>
+          </div>
+
+          <div className="mt-8 min-h-0 flex-1 overflow-y-auto px-5 pb-5">
+            {(["Today", "Yesterday", "Last 7 days", "Older"] as const).map((group) => {
+              const entries = grouped[group];
+              if (entries.length === 0) return null;
+              return (
+                <section key={group} className="mb-7">
+                  <h2 className="mb-3 px-2 text-[13px] font-medium text-slate-500">{group}</h2>
+                  <div className="space-y-1">
+                    {entries.map((chat) => (
+                      <button key={chat.conversationId} type="button" onClick={() => handleOpenChat(chat.conversationId)} title={chat.title} className={"flex w-full items-center gap-3 rounded-[10px] px-3 py-2.5 text-left transition " + (activeChatId === chat.conversationId ? "bg-[#232537] text-slate-100" : "text-slate-400 hover:bg-white/[.035] hover:text-slate-200")}>
+                        <span className="grid size-6 shrink-0 place-items-center text-slate-300"><svg viewBox="0 0 24 24" className="size-[18px]" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M6 6.5h12a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H11l-4 3v-3H6a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2Z"/></svg></span>
+                        <span className="min-w-0 flex-1 truncate text-[13px]">{chat.title}</span>
+                        <span className="shrink-0 text-[11px] text-slate-500">{timeLabel(chat.updatedAt)}</span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
+            {chats.length === 0 ? <p className="px-2 py-3 text-[12px] text-slate-600">Your conversations will appear here.</p> : null}
+          </div>
+
+          <div className="flex items-center justify-between border-t border-white/[.055] px-7 py-5">
+            <div className="flex items-center gap-3">
+              <div className="grid size-10 place-items-center rounded-full bg-[#252b3a] text-sm font-medium text-slate-200">U</div>
+              <div><div className="text-[14px] text-slate-300">User</div><div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-500"><span className="size-1.5 rounded-full bg-emerald-400" />Online</div></div>
+            </div>
+            <Link href="/settings" title="Settings" className="text-xl text-slate-500 hover:text-slate-200">⚙</Link>
           </div>
         </aside>
 
-        <div className="min-w-0 flex-1">
-          <header className="sticky top-0 z-30 border-b border-white/[.07] bg-[#070a10]/80 backdrop-blur-2xl">
-            <div className="flex h-16 items-center gap-3 px-4 sm:px-6 lg:px-9">
-              <div className="lg:hidden"><BrandMark /></div>
-              <div className="hidden items-center gap-2 text-xs lg:flex">
-                <span className="text-slate-500">Workspace</span>
-                <span className="text-slate-700">/</span>
-                <span className="font-medium text-slate-300">{currentLabel(pathname)}</span>
-              </div>
-              <div className="mx-auto hidden h-9 w-full max-w-md items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-xs text-slate-500 sm:flex">
-                <span>⌕</span>
-                <span className="flex-1">Jump to anything…</span>
-                <kbd className="rounded-md border border-white/10 px-1.5 py-0.5 font-mono text-[9px] text-slate-600">⌘ K</kbd>
-              </div>
-              <div className="ml-auto flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleNewChat}
-                  className="rounded-xl border border-white/[.07] bg-white/[.025] px-3 py-2 text-[11px] text-slate-300 hover:bg-white/[.06] lg:hidden"
-                >
-                  + Chat
-                </button>
-                <Link href="/approvals" className="grid size-9 place-items-center rounded-xl border border-white/[.07] bg-white/[.025] text-slate-400 hover:border-amber-300/20 hover:text-amber-100">♢</Link>
-              </div>
-            </div>
-            <div className="flex gap-1 overflow-x-auto px-4 pb-2 lg:hidden">
-              {items.slice(0, 6).map((item) => {
-                const active = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(item.href + "/");
-                return (
-                  <Link key={item.href} href={item.href} className={"shrink-0 rounded-lg px-3 py-1.5 text-[11px] " + (active ? "bg-white/[.08] text-white" : "text-slate-500")}>
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </div>
-          </header>
-          <main className="relative min-w-0 px-4 py-6 sm:px-6 lg:px-9 lg:py-8">{children}</main>
-        </div>
+        <main className="min-w-0 flex-1">{children}</main>
       </div>
-    </div>
-  );
-}
-
-function currentLabel(pathname: string) {
-  const item = items.find((item) => item.href === pathname || (item.href !== "/" && pathname.startsWith(item.href + "/")));
-  return item?.label ?? "Command";
-}
-
-function BrandMark() {
-  return (
-    <div className="relative grid size-10 place-items-center overflow-hidden rounded-[13px] border border-violet-300/20 bg-gradient-to-br from-violet-400/20 via-violet-500/10 to-cyan-300/10 shadow-[0_0_35px_rgba(124,58,237,.15)]">
-      <div className="absolute inset-2 rounded-lg border border-white/10" />
-      <span className="relative text-sm font-black tracking-[.15em] text-white">P</span>
     </div>
   );
 }
