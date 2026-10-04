@@ -220,7 +220,16 @@ async function callRunStateList(functionName: "polyon_run_list", body: Record<st
       `Durable run history unavailable (${response.status})${message === "" ? "." : `: ${message.slice(0, 300)}`}`,
     );
   }
-  return (await response.json()) as unknown;
+  // Some RPC functions (notably upsert) return 204 No Content.
+  // Calling response.json() unconditionally turns a successful persistence write
+  // into a SyntaxError, which makes /api/execute look completely broken on Vercel.
+  const responseBody = await response.text();
+  if (responseBody.trim() === "") return undefined;
+  try {
+    return JSON.parse(responseBody) as unknown;
+  } catch {
+    throw new Error("Durable run state returned invalid JSON.");
+  }
 }
 
 async function callRunState(functionName: "polyon_run_get" | "polyon_run_upsert", body: Record<string, unknown>) {
