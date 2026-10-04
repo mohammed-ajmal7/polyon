@@ -394,187 +394,49 @@ export default function HomePage() {
   const elapsed = startedAt === null ? 0 : Math.max(0, Math.floor((now - startedAt) / 1000));
   const messages = chat?.messages ?? [];
 
+  const title = chat?.title ?? "New chat";
+  const messageCount = messages.length;
+
   return (
-    <div className="mx-auto max-w-[1180px]">
-      <div className="mb-5 flex items-center justify-between gap-3">
-        <div>
-          <p className="text-[10px] font-medium uppercase tracking-[.2em] text-slate-500">Conversation</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-[-.03em] text-white sm:text-3xl">
-            {chat?.title ?? "New chat"}
-          </h1>
+    <div className="flex h-full min-h-[calc(100vh-64px)] flex-col overflow-hidden bg-[#0a0c10]">
+      <header className="flex h-[84px] shrink-0 items-center border-b border-white/[.055] px-7 sm:px-8">
+        <div className="min-w-0"><div className="flex items-center gap-2"><h1 className="truncate text-[17px] font-semibold tracking-[-.02em] text-slate-100">{title}</h1><span className="text-slate-600">⌄</span></div><p className="mt-1 text-[12px] text-slate-500">{messageCount} {messageCount === 1 ? "message" : "messages"}</p></div>
+        <div className="ml-auto flex items-center gap-2">
+          <button type="button" title="Share" className="grid size-9 place-items-center rounded-lg text-slate-400 hover:bg-white/[.05] hover:text-slate-200"><svg viewBox="0 0 24 24" className="size-[18px]" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M12 16V3"/><path d="m7 8 5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button>
+          <button type="button" title="More" className="grid size-9 place-items-center rounded-lg text-slate-400 hover:bg-white/[.05] hover:text-slate-200"><span className="text-xl leading-none">⋮</span></button>
+          <div className="mx-1 h-6 w-px bg-white/[.07]" />
+          <Link href="/approvals" title="Approvals" className="grid size-9 place-items-center rounded-lg text-slate-400 hover:bg-white/[.05] hover:text-slate-200"><svg viewBox="0 0 24 24" className="size-[18px]" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 8h8M8 12h5"/></svg></Link>
         </div>
-        <button
-          type="button"
-          onClick={newChat}
-          disabled={pending}
-          className="rounded-xl border border-white/10 bg-white/[.04] px-3 py-2 text-xs font-medium text-slate-200 transition hover:bg-white/[.08] disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          + New chat
-        </button>
-      </div>
-
-      {messages.length > 0 ? (
-        <section className="mb-8 space-y-5" aria-label="Conversation messages">
-          {messages.map((message) => (
-            <div key={message.id} className={message.role === "user" ? "flex justify-end" : "flex justify-start"}>
-              {message.role === "user" ? (
-                <div className="max-w-[82%] rounded-3xl rounded-br-md bg-violet-300/15 px-4 py-3 text-sm leading-6 text-violet-50 ring-1 ring-violet-300/20">
-                  {message.content}
-                </div>
-              ) : message.result !== undefined && message.mode !== undefined ? (
-                <div className="w-full max-w-[900px]">
-                  <AnswerCard
-                    view={toRunView(message.mode, { result: message.result })}
-                    ranMode={{ mode: message.mode }}
-                    command={null}
-                  />
-                </div>
-              ) : (
-                <div className="max-w-[82%] rounded-3xl rounded-bl-md border border-white/10 bg-white/[.035] px-4 py-3 text-sm leading-6 text-slate-200">
-                  <MarkdownText text={message.content} />
-                </div>
-              )}
-            </div>
-          ))}
-        </section>
-      ) : null}
-
-      {approvalsWaiting > 0 ? (
-        <Link
-          href="/approvals"
-          className="mb-5 flex items-center justify-between rounded-2xl border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-sm text-amber-100 transition hover:bg-amber-300/15 focus-visible:ring-2 focus-visible:ring-amber-200/60"
-        >
-          <span>
-            {approvalsWaiting === 1
-              ? "1 action is waiting for your approval."
-              : `${approvalsWaiting} actions are waiting for your approval.`}
-          </span>
-          <span aria-hidden="true">Review →</span>
-        </Link>
-      ) : null}
-
-      <section className="mb-8">
-        {messages.length === 0 ? (
-          <>
-            <h2 className="text-3xl font-semibold tracking-[-.03em] text-white sm:text-4xl">
-              What are we solving?
-            </h2>
-            <p className="mt-2 text-sm text-slate-400">
-              Ask a question or describe a task. Keep sending messages here until you press New chat.
-            </p>
-          </>
-        ) : (
-          <p className="mb-3 text-xs text-slate-500">Continue this conversation</p>
-        )}
-
-        <div className="polyon-panel polyon-glow overflow-hidden rounded-[28px]">
-          <form onSubmit={(event) => void submit(event)} className="relative p-4 sm:p-6">
-            <label htmlFor="command" className="sr-only">Message POLYON</label>
-            <div className="relative rounded-2xl border border-white/[.06] bg-black/10 p-3 focus-within:border-violet-300/20 focus-within:ring-1 focus-within:ring-violet-300/20">
-              <textarea
-                id="command"
-                value={command}
-                onChange={(event) => setCommand(event.target.value)}
-                onKeyDown={onKeyDown}
-                disabled={pending}
-                rows={3}
-                placeholder={messages.length === 0 ? "Start a new conversation…" : "Reply in this conversation…"}
-                className="w-full resize-none bg-transparent px-1 py-1 text-[18px] leading-8 text-slate-100 outline-none placeholder:text-slate-600 disabled:opacity-60 sm:text-xl"
-              />
-              <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-white/[.06] pt-4">
-                <div role="radiogroup" aria-label="How much of the team to involve" className="flex flex-wrap gap-1">
-                  {DEPTHS.map((depth) => (
-                    <button
-                      key={depth.mode}
-                      type="button"
-                      role="radio"
-                      aria-checked={mode === depth.mode}
-                      title={depth.hint}
-                      disabled={pending}
-                      onClick={() => setMode(depth.mode)}
-                      className={
-                        "rounded-full px-3 py-1.5 text-xs transition focus-visible:ring-2 focus-visible:ring-violet-300/60 disabled:opacity-60 " +
-                        (mode === depth.mode
-                          ? "bg-violet-300/20 text-violet-100 ring-1 ring-violet-300/40"
-                          : "text-slate-300 hover:bg-white/5")
-                      }
-                    >
-                      {depth.label}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    aria-expanded={showAdvanced}
-                    disabled={pending}
-                    onClick={() => setShowAdvanced((value) => !value)}
-                    className="rounded-full px-3 py-1.5 text-xs text-slate-400 hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-violet-300/60"
-                  >
-                    {ADVANCED.some((item) => item.mode === mode) ? MODE_NAMES[mode] : "More…"}
-                  </button>
-                </div>
-                <button
-                  type="submit"
-                  disabled={pending || command.trim() === ""}
-                  className="ml-auto rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-violet-50 focus-visible:ring-2 focus-visible:ring-violet-200/60 disabled:cursor-not-allowed disabled:opacity-35"
-                >
-                  {pending ? "Working…" : "Send"}
-                </button>
-              </div>
-              {showAdvanced ? (
-                <div className="mt-3 grid gap-1 border-t border-white/8 pt-3 sm:grid-cols-2">
-                  {ADVANCED.map((item) => (
-                    <button
-                      key={item.mode}
-                      type="button"
-                      disabled={pending}
-                      onClick={() => {
-                        setMode(item.mode);
-                        setShowAdvanced(false);
-                      }}
-                      className="rounded-xl px-3 py-2 text-left text-xs text-slate-300 hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-violet-300/60"
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-            <p className="mt-2 px-2 text-xs text-slate-400">
-              {DEPTHS.find((depth) => depth.mode === mode)?.hint ??
-                "Advanced mode. Enter sends, Shift+Enter adds a new line."}
-            </p>
-          </form>
-        </div>
-      </section>
-
-      {pending ? (
-        <section aria-live="polite" className="rounded-3xl border border-violet-300/15 bg-violet-300/[0.04] p-5">
-          <div className="flex items-center gap-3">
-            <span className="size-2.5 animate-pulse rounded-full bg-violet-300" aria-hidden="true" />
-            <h2 className="text-sm font-medium text-violet-100">POLYON is working…</h2>
-            <span className="ml-auto font-mono text-xs text-slate-400">{formatElapsed(elapsed)}</span>
-          </div>
-          <p className="mt-2 text-sm text-slate-300">“{lastCommand}”</p>
-          <ul className="mt-3 space-y-1 text-sm text-slate-300">
-            {(progress?.steps.length ?? 0) === 0 ? (
-              <li>Working with the AI team.</li>
+      </header>
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        <div className="flex-1 overflow-y-auto px-6 pb-44 pt-9 sm:px-10 lg:px-14">
+          <div className="mx-auto w-full max-w-[1120px]">
+            <div className="mb-8 flex items-center gap-5 text-[12px] text-slate-500"><div className="h-px flex-1 bg-white/[.06]" /><span>Today</span><div className="h-px flex-1 bg-white/[.06]" /></div>
+            {messages.length === 0 ? (
+              <div className="flex min-h-[48vh] items-center justify-center text-center"><div><div className="mx-auto grid size-12 place-items-center rounded-2xl border border-white/[.07] bg-white/[.025] text-2xl text-white">✦</div><h2 className="mt-5 text-2xl font-medium tracking-[-.03em] text-slate-200">What can I help you with?</h2><p className="mt-2 text-sm text-slate-500">Start a conversation with POLYON.</p></div></div>
             ) : (
-              collapseSteps(progress?.steps ?? []).map((step) => <li key={step}>✓ {step}</li>)
+              <section aria-label="Conversation messages" className="space-y-7">
+                {messages.map((message) => {
+                  const time = new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(message.createdAt));
+                  return message.role === "user" ? (
+                    <div key={message.id} className="flex justify-end"><div className="max-w-[72%] rounded-[20px] bg-[#242438] px-5 py-3.5 text-[15px] leading-6 text-slate-100 shadow-sm"><div className="whitespace-pre-wrap break-words">{message.content}</div><div className="mt-1 flex items-center justify-end gap-1 text-[10px] text-slate-500"><span>{time}</span><span className="text-[#8f96ff]">✓✓</span></div></div></div>
+                  ) : (
+                    <article key={message.id} className="flex items-start gap-3"><div className="mt-1 grid size-9 shrink-0 place-items-center text-[25px] leading-none text-white">✦</div><div className="min-w-0 max-w-[70%]"><div className="rounded-[20px] rounded-tl-[7px] bg-[#171b22] px-5 py-4 text-[15px] leading-7 text-slate-200 shadow-[0_4px_24px_rgba(0,0,0,.12)]"><MarkdownText text={message.content} /><div className="mt-2 text-[10px] text-slate-500">{time}</div></div><div className="mt-2 flex items-center gap-4 pl-3 text-slate-500"><button type="button" title="Copy" className="hover:text-slate-200"><svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></button><button type="button" className="hover:text-slate-200">♡</button><button type="button" className="hover:text-slate-200">♧</button><button type="button" className="text-lg leading-none hover:text-slate-200">•••</button></div></div></article>
+                  );
+                })}
+              </section>
             )}
-          </ul>
-        </section>
-      ) : null}
-
-      {error !== null ? (
-        <p role="alert" className="rounded-2xl bg-rose-400/10 px-4 py-3 text-sm text-rose-100">{error}</p>
-      ) : null}
+            {approvalsWaiting > 0 ? <Link href="/approvals" className="mx-auto mt-7 flex max-w-[760px] items-center justify-between rounded-xl border border-amber-300/20 bg-amber-300/[.06] px-4 py-3 text-xs text-amber-100 hover:bg-amber-300/[.09]"><span>{approvalsWaiting === 1 ? "1 action is waiting for your approval." : approvalsWaiting + " actions are waiting for your approval."}</span><span>Review →</span></Link> : null}
+            {error ? <p className="mx-auto mt-5 max-w-[760px] text-center text-xs text-rose-300">{error}</p> : null}
+          </div>
+        </div>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#0a0c10] via-[#0a0c10]/95 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 px-6 pb-5 pt-8 sm:px-10 lg:px-14">
+          <form onSubmit={(event) => void submit(event)} className="mx-auto w-full max-w-[1120px]"><div className="rounded-[20px] border border-white/[.13] bg-[#11151b] shadow-[0_12px_45px_rgba(0,0,0,.35)]"><label htmlFor="command" className="sr-only">Message POLYON</label><textarea id="command" value={command} onChange={(event) => setCommand(event.target.value)} onKeyDown={onKeyDown} disabled={pending} rows={2} placeholder="Type a message..." className="min-h-[76px] w-full resize-none bg-transparent px-5 pt-4 text-[15px] leading-6 text-slate-100 outline-none placeholder:text-slate-500 disabled:opacity-60" /><div className="flex items-center gap-2 px-4 pb-3"><button type="button" disabled={pending} title="Add" className="grid size-9 place-items-center rounded-full bg-white/[.06] text-xl text-slate-300 hover:bg-white/[.1] disabled:opacity-50">+</button><button type="button" disabled={pending} onClick={() => setShowAdvanced((value) => !value)} className="flex items-center gap-2 rounded-full bg-white/[.055] px-3.5 py-2 text-xs font-medium text-slate-300 hover:bg-white/[.09] disabled:opacity-50"><span className="text-[#a5a7ff]">◉</span> Agent <span className="text-slate-500">⌄</span></button><button type="button" disabled={pending} onClick={() => setShowAdvanced((value) => !value)} className="flex items-center gap-2 rounded-full bg-white/[.055] px-3.5 py-2 text-xs font-medium text-slate-300 hover:bg-white/[.09] disabled:opacity-50"><span>⌕</span> Tools <span className="text-slate-500">⌄</span></button><button type="submit" disabled={pending || command.trim() === ""} className="ml-auto grid size-10 place-items-center rounded-full bg-[#7478f2] text-white shadow-[0_4px_18px_rgba(116,120,242,.25)] transition hover:bg-[#8185ff] disabled:cursor-not-allowed disabled:opacity-35"><svg viewBox="0 0 24 24" className="size-[18px]" fill="none" stroke="currentColor" strokeWidth="2"><path d="m5 12 14-7-3 14-4-6-7-1Z"/><path d="M12 13 19 5"/></svg></button></div></div>{pending ? <div className="mt-2 text-center text-[10px] text-slate-600">POLYON is working{elapsed > 0 ? " · " + formatElapsed(elapsed) : ""}…</div> : null}</form>
+        </div>
+      </div>
     </div>
   );
-}
-
-interface Progress {
-  readonly steps: readonly string[];
-  readonly messageCount: number;
 }
 
 function AnswerCard({
