@@ -125,7 +125,6 @@ export default function HomePage() {
   const [pending, setPending] = useState(false);
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
-  const [progress, setProgress] = useState<Progress | null>(null);
   const [lastCommand, setLastCommand] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [approvalsWaiting, setApprovalsWaiting] = useState(0);
@@ -196,7 +195,6 @@ export default function HomePage() {
     setCommand("");
     setLastCommand(null);
     setError(null);
-    setProgress(null);
     setStartedAt(null);
     window.dispatchEvent(new Event("polyon:chat-updated"));
   }
@@ -264,7 +262,6 @@ export default function HomePage() {
           error?: string;
         };
         if (body.status === "running") {
-          setProgress({ steps: [], messageCount: chat?.messages.length ?? 0 });
           continue;
         }
 
@@ -313,7 +310,6 @@ export default function HomePage() {
     setChat(optimisticChat);
     setLastCommand(trimmed);
     setError(null);
-    setProgress(null);
     setPending(true);
     setStartedAt(Date.now());
     setNow(Date.now());
