@@ -389,6 +389,22 @@ export default function HomePage() {
 
   const elapsed = startedAt === null ? 0 : Math.max(0, Math.floor((now - startedAt) / 1000));
   const messages = chat?.messages ?? [];
+  const selectedMode = DEPTHS.find((item) => item.mode === mode)?.label ?? MODE_NAMES[mode] ?? mode;
+
+  async function shareConversation(): Promise<void> {
+    const url = window.location.href;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: chat?.title ?? "POLYON", url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        setError("Conversation link copied.");
+        window.setTimeout(() => setError((current) => current === "Conversation link copied." ? null : current), 1800);
+      }
+    } catch {
+      // User cancelled the native share sheet.
+    }
+  }
 
   const title = chat?.title ?? "New chat";
   const messageCount = messages.length;
@@ -398,7 +414,7 @@ export default function HomePage() {
       <header className="flex h-[84px] shrink-0 items-center border-b border-white/[.055] px-7 sm:px-8">
         <div className="min-w-0"><div className="flex items-center gap-2"><h1 className="truncate text-[17px] font-semibold tracking-[-.02em] text-slate-100">{title}</h1><span className="text-slate-600">⌄</span></div><p className="mt-1 text-[12px] text-slate-500">{messageCount} {messageCount === 1 ? "message" : "messages"}</p></div>
         <div className="ml-auto flex items-center gap-2">
-          <button type="button" title="Share" className="grid size-9 place-items-center rounded-lg text-slate-400 hover:bg-white/[.05] hover:text-slate-200"><svg viewBox="0 0 24 24" className="size-[18px]" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M12 16V3"/><path d="m7 8 5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button>
+          <button type="button" title="Share" onClick={() => void shareConversation()} className="grid size-9 place-items-center rounded-lg text-slate-400 hover:bg-white/[.05] hover:text-slate-200"><svg viewBox="0 0 24 24" className="size-[18px]" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M12 16V3"/><path d="m7 8 5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button>
           <button type="button" title="More" className="grid size-9 place-items-center rounded-lg text-slate-400 hover:bg-white/[.05] hover:text-slate-200"><span className="text-xl leading-none">⋮</span></button>
           <div className="mx-1 h-6 w-px bg-white/[.07]" />
           <Link href="/approvals" title="Approvals" className="grid size-9 place-items-center rounded-lg text-slate-400 hover:bg-white/[.05] hover:text-slate-200"><svg viewBox="0 0 24 24" className="size-[18px]" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 8h8M8 12h5"/></svg></Link>
@@ -417,7 +433,18 @@ export default function HomePage() {
                   return message.role === "user" ? (
                     <div key={message.id} className="flex justify-end"><div className="max-w-[72%] rounded-[20px] bg-[#242438] px-5 py-3.5 text-[15px] leading-6 text-slate-100 shadow-sm"><div className="whitespace-pre-wrap break-words">{message.content}</div><div className="mt-1 flex items-center justify-end gap-1 text-[10px] text-slate-500"><span>{time}</span><span className="text-[#8f96ff]">✓✓</span></div></div></div>
                   ) : (
-                    <article key={message.id} className="flex items-start gap-3"><div className="mt-1 grid size-9 shrink-0 place-items-center text-[25px] leading-none text-white">✦</div><div className="min-w-0 max-w-[70%]"><div className="rounded-[20px] rounded-tl-[7px] bg-[#171b22] px-5 py-4 text-[15px] leading-7 text-slate-200 shadow-[0_4px_24px_rgba(0,0,0,.12)]"><MarkdownText text={message.content} /><div className="mt-2 text-[10px] text-slate-500">{time}</div></div><div className="mt-2 flex items-center gap-4 pl-3 text-slate-500"><button type="button" title="Copy" className="hover:text-slate-200"><svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></button><button type="button" className="hover:text-slate-200">♡</button><button type="button" className="hover:text-slate-200">♧</button><button type="button" className="text-lg leading-none hover:text-slate-200">•••</button></div></div></article>
+                    <article key={message.id} className="flex items-start gap-3"><div className="mt-1 grid size-9 shrink-0 place-items-center text-[25px] leading-none text-white">✦</div><div className="min-w-0 max-w-[70%]"><div className="rounded-[20px] rounded-tl-[7px] bg-[#171b22] px-5 py-4 text-[15px] leading-7 text-slate-200 shadow-[0_4px_24px_rgba(0,0,0,.12)]">
+                          {message.result !== undefined && message.mode !== undefined ? (
+                            <AnswerCard
+                              view={toRunView(message.mode, { result: message.result })}
+                              ranMode={{ mode: message.mode }}
+                              command={null}
+                            />
+                          ) : (
+                            <MarkdownText text={message.content} />
+                          )}
+                          <div className="mt-2 text-[10px] text-slate-500">{time}</div>
+                        </div><div className="mt-2 flex items-center gap-4 pl-3 text-slate-500"><button type="button" title="Copy" className="hover:text-slate-200"><svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></button><button type="button" className="hover:text-slate-200">♡</button><button type="button" className="hover:text-slate-200">♧</button><button type="button" className="text-lg leading-none hover:text-slate-200">•••</button></div></div></article>
                   );
                 })}
               </section>
@@ -428,7 +455,25 @@ export default function HomePage() {
         </div>
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#0a0c10] via-[#0a0c10]/95 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 px-6 pb-5 pt-8 sm:px-10 lg:px-14">
-          <form onSubmit={(event) => void submit(event)} className="mx-auto w-full max-w-[1120px]"><div className="rounded-[20px] border border-white/[.13] bg-[#11151b] shadow-[0_12px_45px_rgba(0,0,0,.35)]"><label htmlFor="command" className="sr-only">Message POLYON</label><textarea id="command" value={command} onChange={(event) => setCommand(event.target.value)} onKeyDown={onKeyDown} disabled={pending} rows={2} placeholder="Type a message..." className="min-h-[76px] w-full resize-none bg-transparent px-5 pt-4 text-[15px] leading-6 text-slate-100 outline-none placeholder:text-slate-500 disabled:opacity-60" /><div className="flex items-center gap-2 px-4 pb-3"><button type="button" disabled={pending} title="Add" className="grid size-9 place-items-center rounded-full bg-white/[.06] text-xl text-slate-300 hover:bg-white/[.1] disabled:opacity-50">+</button><button type="button" disabled={pending} onClick={() => setShowAdvanced((value) => !value)} className="flex items-center gap-2 rounded-full bg-white/[.055] px-3.5 py-2 text-xs font-medium text-slate-300 hover:bg-white/[.09] disabled:opacity-50"><span className="text-[#a5a7ff]">◉</span> Agent <span className="text-slate-500">⌄</span></button><button type="button" disabled={pending} onClick={() => setShowAdvanced((value) => !value)} className="flex items-center gap-2 rounded-full bg-white/[.055] px-3.5 py-2 text-xs font-medium text-slate-300 hover:bg-white/[.09] disabled:opacity-50"><span>⌕</span> Tools <span className="text-slate-500">⌄</span></button><button type="submit" disabled={pending || command.trim() === ""} className="ml-auto grid size-10 place-items-center rounded-full bg-[#7478f2] text-white shadow-[0_4px_18px_rgba(116,120,242,.25)] transition hover:bg-[#8185ff] disabled:cursor-not-allowed disabled:opacity-35"><svg viewBox="0 0 24 24" className="size-[18px]" fill="none" stroke="currentColor" strokeWidth="2"><path d="m5 12 14-7-3 14-4-6-7-1Z"/><path d="M12 13 19 5"/></svg></button></div></div>{pending ? <div className="mt-2 text-center text-[10px] text-slate-600">POLYON is working{elapsed > 0 ? " · " + formatElapsed(elapsed) : ""}…</div> : null}</form>
+          <form onSubmit={(event) => void submit(event)} className="mx-auto w-full max-w-[1120px]"><div className="rounded-[20px] border border-white/[.13] bg-[#11151b] shadow-[0_12px_45px_rgba(0,0,0,.35)]"><label htmlFor="command" className="sr-only">Message POLYON</label><textarea id="command" value={command} onChange={(event) => setCommand(event.target.value)} onKeyDown={onKeyDown} disabled={pending} rows={2} placeholder="Type a message..." className="min-h-[76px] w-full resize-none bg-transparent px-5 pt-4 text-[15px] leading-6 text-slate-100 outline-none placeholder:text-slate-500 disabled:opacity-60" /><div className="flex items-center gap-2 px-4 pb-3"><button type="button" disabled={pending} title="Add" className="grid size-9 place-items-center rounded-full bg-white/[.06] text-xl text-slate-300 hover:bg-white/[.1] disabled:opacity-50">+</button><div className="relative">
+                  <button type="button" disabled={pending} aria-expanded={showAdvanced} onClick={() => setShowAdvanced((value) => !value)} className="flex items-center gap-2 rounded-full bg-white/[.055] px-3.5 py-2 text-xs font-medium text-slate-300 hover:bg-white/[.09] disabled:opacity-50">
+                    <span className="text-[#a5a7ff]">◉</span> {selectedMode} <span className="text-slate-500">⌄</span>
+                  </button>
+                  {showAdvanced ? (
+                    <div className="absolute bottom-[calc(100%+10px)] left-0 z-50 w-[290px] rounded-2xl border border-white/[.1] bg-[#141820] p-2 shadow-[0_18px_55px_rgba(0,0,0,.5)]">
+                      <div className="px-3 py-2 text-[10px] font-semibold uppercase tracking-[.16em] text-slate-500">How POLYON should work</div>
+                      {[...DEPTHS, ...ADVANCED.map((item) => ({ mode: item.mode, label: item.label, hint: "Advanced orchestration mode." }))].map((item) => (
+                        <button key={item.mode} type="button" disabled={pending} onClick={() => { setMode(item.mode); setShowAdvanced(false); }} className={"flex w-full items-start rounded-xl px-3 py-2.5 text-left hover:bg-white/[.06] " + (mode === item.mode ? "bg-white/[.06] text-white" : "text-slate-300")}>
+                          <span className="min-w-0"><span className="block text-xs font-medium">{item.label}</span><span className="mt-0.5 block text-[10px] leading-4 text-slate-500">{item.hint}</span></span>
+                          {mode === item.mode ? <span className="ml-auto text-xs text-violet-300">✓</span> : null}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+                <button type="button" disabled={pending} title="Tools are selected automatically by the orchestration mode" onClick={() => { setShowAdvanced(true); }} className="flex items-center gap-2 rounded-full bg-white/[.055] px-3.5 py-2 text-xs font-medium text-slate-300 hover:bg-white/[.09] disabled:opacity-50">
+                  <span>⌕</span> Tools <span className="text-slate-500">Auto</span>
+                </button><button type="submit" disabled={pending || command.trim() === ""} className="ml-auto grid size-10 place-items-center rounded-full bg-[#7478f2] text-white shadow-[0_4px_18px_rgba(116,120,242,.25)] transition hover:bg-[#8185ff] disabled:cursor-not-allowed disabled:opacity-35"><svg viewBox="0 0 24 24" className="size-[18px]" fill="none" stroke="currentColor" strokeWidth="2"><path d="m5 12 14-7-3 14-4-6-7-1Z"/><path d="M12 13 19 5"/></svg></button></div></div>{pending ? <div className="mt-2 text-center text-[10px] text-slate-600">POLYON is working{elapsed > 0 ? " · " + formatElapsed(elapsed) : ""}…</div> : null}</form>
         </div>
       </div>
     </div>
